@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D6508F82E5B418F0033992E /* FinanceCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6D6508DA2E5B40100033992E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -65,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +130,7 @@
 			);
 			name = "Personal Finance";
 			packageProductDependencies = (
+				6D6508F82E5B418F0033992E /* FinanceCore */,
 			);
 			productName = "Personal Finance";
 			productReference = 6D6508C82E5B400F0033992E /* Personal Finance.app */;
@@ -208,6 +214,9 @@
 			);
 			mainGroup = 6D6508BF2E5B400F0033992E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6D6508F72E5B418F0033992E /* XCLocalSwiftPackageReference "Packages/FinanceCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D6508C92E5B400F0033992E /* Products */;
 			projectDirPath = "";
@@ -290,15 +299,17 @@
 				CODE_SIGN_ENTITLEMENTS = "Personal Finance/Personal_Finance.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = B6RA68KY78;
+				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Personal Finance/Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -320,15 +331,17 @@
 				CODE_SIGN_ENTITLEMENTS = "Personal Finance/Personal_Finance.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = B6RA68KY78;
+				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Personal Finance/Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -575,6 +588,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		6D6508F72E5B418F0033992E /* XCLocalSwiftPackageReference "Packages/FinanceCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FinanceCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6D6508F82E5B418F0033992E /* FinanceCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FinanceCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6D6508C02E5B400F0033992E /* Project object */;
 }

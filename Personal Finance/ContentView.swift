@@ -7,55 +7,108 @@
 
 import SwiftUI
 import SwiftData
+import FinanceCore
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @State private var appState = AppStateManager()
+    @Query private var accounts: [Account]
+    
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        ZStack {
+            if accounts.isEmpty {
+                // Show account creation for first-time users
+                AccountSelectionModal()
+                    .environment(appState)
+            } else if appState.requiresAccountSelection(accounts: accounts) {
+                // Show account selection modal
+                AccountSelectionModal()
+                    .environment(appState)
+            } else {
+                // Show main tab interface
+                MainTabView()
+                    .environment(appState)
+                    .sheet(isPresented: Binding(
+                        get: { appState.showingAccountSelection },
+                        set: { _ in appState.dismissAccountSelection() }
+                    )) {
+                        AccountSelectionModal()
+                            .environment(appState)
                     }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                    .sheet(isPresented: Binding(
+                        get: { appState.showingAccountCreation },
+                        set: { _ in appState.dismissAccountCreation() }
+                    )) {
+                        CreateAccountView { newAccount in
+                            appState.selectAccount(newAccount)
+                        }
+                        .environment(appState)
                     }
-                }
             }
-        } detail: {
-            Text("Select an item")
+        }
+        .onAppear {
+            initializeAppState()
+        }
+        .onChange(of: accounts) { _, newAccounts in
+            // Handle account changes (creation, deletion)
+            appState.loadSelectedAccount(from: newAccounts)
+            
+            // If no accounts exist after deletion, this will trigger the account creation flow
         }
     }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    
+    private func initializeAppState() {
+        // Load the selected account from persistence
+        appState.loadSelectedAccount(from: accounts)
+        
+        // Create default account if none exists
+        if accounts.isEmpty {
+            createDefaultAccount()
         }
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+    
+    private func createDefaultAccount() {
+        let account = Account(name: "Account Principale", currency: "EUR")
+        modelContext.insert(account)
+        
+        // Create default categories
+        createDefaultCategories(for: account)
+        
+        // Create a default checking account
+        let checkingAccount = Conto(
+            name: "Conto Corrente",
+            type: .checking,
+            initialBalance: 0
+        )
+        checkingAccount.account = account
+        modelContext.insert(checkingAccount)
+        
+        do {
+            try modelContext.save()
+            appState.selectAccount(account)
+        } catch {
+            print("Error creating default account: \(error)")
+        }
+    }
+    
+    private func createDefaultCategories(for account: Account) {
+        // Income categories
+        for (name, color, icon) in Category.defaultIncomeCategories {
+            let category = Category(name: name, type: .income, color: color, icon: icon)
+            category.account = account
+            modelContext.insert(category)
+        }
+        
+        // Expense categories
+        for (name, color, icon) in Category.defaultExpenseCategories {
+            let category = Category(name: name, type: .expense, color: color, icon: icon)
+            category.account = account
+            modelContext.insert(category)
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
 }
