@@ -1,24 +1,11 @@
 import Foundation
 import SwiftData
 
-public enum CategoryType: String, CaseIterable, Codable {
-    case income = "income"
-    case expense = "expense"
-    
-    public var displayName: String {
-        switch self {
-        case .income: return "Entrata"
-        case .expense: return "Spesa"
-        }
-    }
-}
-
 @Model
 public final class Category {
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var name: String?
-    public var type: CategoryType?
     public var color: String?
     public var icon: String?
     public var createdAt: Date?
@@ -36,14 +23,12 @@ public final class Category {
     
     public init(
         name: String,
-        type: CategoryType,
         color: String = "#007AFF",
         icon: String = "tag",
         parentCategoryId: UUID? = nil
     ) {
         // id and externalID now have default values
         self.name = name
-        self.type = type
         self.color = color
         self.icon = icon
         self.parentCategoryId = parentCategoryId
@@ -62,15 +47,16 @@ public final class Category {
         (budgetCategories ?? []).compactMap { $0.budget }
     }
     
-    public static let defaultIncomeCategories = [
+    public static let defaultCategories = [
+        // Income categories
         ("Stipendio", "#4CAF50", "dollarsign.circle"),
         ("Freelance", "#8BC34A", "briefcase"),
         ("Investimenti", "#CDDC39", "chart.line.uptrend.xyaxis"),
         ("Vendite", "#FFC107", "cart"),
-        ("Altro", "#FF9800", "questionmark.circle")
-    ]
-    
-    public static let defaultExpenseCategories = [
+        ("Bonus", "#2E7D32", "gift.circle"),
+        ("Rimborsi", "#388E3C", "arrow.counterclockwise.circle"),
+        
+        // Expense categories  
         ("Alimentari", "#F44336", "cart"),
         ("Trasporti", "#2196F3", "car"),
         ("Casa", "#9C27B0", "house"),
@@ -80,6 +66,12 @@ public final class Category {
         ("Abbigliamento", "#795548", "tshirt"),
         ("Educazione", "#607D8B", "book"),
         ("Regali", "#FF4081", "gift"),
+        ("Ristoranti", "#FF6F00", "fork.knife"),
+        ("Viaggi", "#1976D2", "airplane"),
+        ("Sport", "#FF9800", "figure.run"),
+        ("Tecnologia", "#455A64", "iphone"),
+        
+        // Generic
         ("Altro", "#9E9E9E", "questionmark.circle")
     ]
 }

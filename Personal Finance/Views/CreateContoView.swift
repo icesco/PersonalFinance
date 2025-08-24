@@ -140,6 +140,176 @@ extension Color {
     }
 }
 
+// MARK: - Edit Conto View
+
+struct EditContoView: View {
+    let conto: Conto
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var contoName = ""
+    @State private var selectedType: ContoType = .checking
+    @State private var description = ""
+    @State private var selectedColor = "#007AFF"
+    @State private var showingColorPicker = false
+    
+    private let colors = [
+        "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
+        "#34C759", "#5AC8FA", "#AF52DE", "#FF2D92",
+        "#A2845E", "#8E8E93"
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Dettagli Conto") {
+                    TextField("Nome Conto", text: $contoName)
+                    
+                    Picker("Tipo", selection: $selectedType) {
+                        ForEach(ContoType.allCases, id: \.self) { type in
+                            HStack {
+                                Image(systemName: type.icon)
+                                Text(type.displayName)
+                            }
+                            .tag(type)
+                        }
+                    }
+                    
+                    TextField("Descrizione (opzionale)", text: $description)
+                }
+                
+                Section("Personalizzazione") {
+                    HStack {
+                        Text("Colore")
+                        Spacer()
+                        Button {
+                            showingColorPicker = true
+                        } label: {
+                            Circle()
+                                .fill(Color(hex: selectedColor) ?? .blue)
+                                .frame(width: 30, height: 30)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
+                                )
+                        }
+                    }
+                }
+                
+                Section("Saldo Corrente") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Saldo attuale")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text(conto.balance.currencyFormatted)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(conto.balance >= 0 ? .primary : .red)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("Modifica Conto")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annulla") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salva") {
+                        updateConto()
+                    }
+                    .disabled(contoName.isEmpty)
+                }
+            }
+        }
+        .onAppear {
+            loadContoData()
+        }
+        .sheet(isPresented: $showingColorPicker) {
+            ColorPickerView(selectedColor: $selectedColor)
+        }
+    }
+    
+    private func loadContoData() {
+        contoName = conto.name ?? ""
+        selectedType = conto.type ?? .checking
+        description = conto.contoDescription ?? ""
+        selectedColor = conto.color ?? "#007AFF"
+    }
+    
+    private func updateConto() {
+        conto.name = contoName
+        conto.type = selectedType
+        conto.contoDescription = description.isEmpty ? nil : description
+        conto.color = selectedColor
+        conto.updatedAt = Date()
+        
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            print("Error updating conto: \(error)")
+        }
+    }
+}
+
+// MARK: - Color Picker View
+
+struct ColorPickerView: View {
+    @Binding var selectedColor: String
+    @Environment(\.dismiss) private var dismiss
+    
+    private let colors = [
+        "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
+        "#34C759", "#5AC8FA", "#AF52DE", "#FF2D92",
+        "#A2845E", "#8E8E93"
+    ]
+    
+    var body: some View {
+        NavigationView {
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 60))
+            ], spacing: 20) {
+                ForEach(colors, id: \.self) { color in
+                    Button {
+                        selectedColor = color
+                        dismiss()
+                    } label: {
+                        Circle()
+                            .fill(Color(hex: color) ?? .blue)
+                            .frame(width: 50, height: 50)
+                            .overlay(
+                                Circle()
+                                    .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 3)
+                            )
+                            .overlay(
+                                selectedColor == color ?
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.white)
+                                    .font(.title3)
+                                : nil
+                            )
+                    }
+                }
+            }
+            .padding()
+            .navigationTitle("Seleziona Colore")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fine") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct CreateContoView_Previews: PreviewProvider {
     static var previews: some View {
         let container = try! FinanceCoreModule.createModelContainer(inMemory: true)

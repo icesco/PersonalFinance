@@ -20,6 +20,12 @@ public final class Account {
     @Relationship(deleteRule: .cascade, inverse: \Budget.account)
     public var budgets: [Budget]?
     
+    @Relationship(deleteRule: .cascade, inverse: \SavingsGoal.account)
+    public var savingsGoals: [SavingsGoal]?
+    
+    @Relationship(deleteRule: .cascade, inverse: \AccountStatistics.account)
+    public var statistics: [AccountStatistics]?
+    
     public init(
         name: String,
         currency: String = "EUR"
@@ -33,6 +39,8 @@ public final class Account {
         self.conti = []
         self.categories = []
         self.budgets = []
+        self.savingsGoals = []
+        self.statistics = []
     }
     
     public var totalBalance: Decimal {

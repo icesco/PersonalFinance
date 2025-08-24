@@ -13,40 +13,25 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
     
+    @State private var currentMonthStats: AccountStatistics?
+    @State private var isLoadingStats = false
+    
     // Recent transactions (last 5)
     private var recentTransactions: [FinanceTransaction] {
         Array(appState.allTransactions(for: appState.selectedAccount).prefix(5))
     }
     
-    // Account statistics
+    // Account statistics from cached data
     private var totalBalance: Decimal {
-        appState.selectedAccount?.totalBalance ?? 0
+        currentMonthStats?.totalBalance ?? appState.selectedAccount?.totalBalance ?? 0
     }
     
     private var monthlyIncome: Decimal {
-        let startOfMonth = Date().startOfMonth
-        let endOfMonth = Calendar.current.date(byAdding: .month, value: 1, to: startOfMonth) ?? Date()
-        
-        return appState.allTransactions(for: appState.selectedAccount)
-            .filter { transaction in
-                guard let date = transaction.date,
-                      transaction.type == .income else { return false }
-                return date >= startOfMonth && date < endOfMonth
-            }
-            .reduce(0) { $0 + ($1.amount ?? 0) }
+        currentMonthStats?.monthlyIncome ?? 0
     }
     
     private var monthlyExpenses: Decimal {
-        let startOfMonth = Date().startOfMonth
-        let endOfMonth = Calendar.current.date(byAdding: .month, value: 1, to: startOfMonth) ?? Date()
-        
-        return appState.allTransactions(for: appState.selectedAccount)
-            .filter { transaction in
-                guard let date = transaction.date,
-                      transaction.type == .expense else { return false }
-                return date >= startOfMonth && date < endOfMonth
-            }
-            .reduce(0) { $0 + ($1.amount ?? 0) }
+        currentMonthStats?.monthlyExpenses ?? 0
     }
     
     var body: some View {
@@ -67,12 +52,43 @@ struct DashboardView: View {
                     
                     // Quick Actions
                     quickActionsSection
+                    
+                    // Financial Insights
+                    financialInsightsSection
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 100) // Space for floating button
             }
             .navigationTitle("Dashboard")
             .background(Color(.systemGroupedBackground))
+        }
+        .task {
+            await loadCurrentMonthStatistics()
+        }
+        .onChange(of: appState.selectedAccount) { _, _ in
+            Task {
+                await loadCurrentMonthStatistics()
+            }
+        }
+    }
+    
+    // MARK: - Statistics Loading
+    
+    @MainActor
+    private func loadCurrentMonthStatistics() async {
+        guard let account = appState.selectedAccount else {
+            currentMonthStats = nil
+            return
+        }
+        
+        isLoadingStats = true
+        defer { isLoadingStats = false }
+        
+        do {
+            currentMonthStats = try await account.getOrCreateCurrentMonthStatistics(in: modelContext)
+        } catch {
+            print("Error loading statistics: \(error)")
+            currentMonthStats = nil
         }
     }
     
@@ -155,7 +171,10 @@ struct DashboardView: View {
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(appState.activeConti(for: appState.selectedAccount), id: \.id) { conto in
-                        ContoCard(conto: conto)
+                        NavigationLink(destination: EnhancedContoDetailView(conto: conto)) {
+                            ContoCard(conto: conto)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
@@ -228,6 +247,53 @@ struct DashboardView: View {
             }
             .padding(.horizontal)
         }
+    }
+    
+    // MARK: - Financial Insights Section
+    
+    private var financialInsightsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Analisi Finanziaria")
+                    .font(.headline)
+                
+                Spacer()
+                
+                NavigationLink("Vedi Tutto", destination: FinancialInsightsView())
+                    .font(.subheadline)
+                    .foregroundColor(.accentColor)
+            }
+            .padding(.horizontal)
+            
+            // Quick insights cards
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                InsightCard(
+                    title: "Spese Questo Mese",
+                    value: monthlyExpenses.currencyFormatted,
+                    icon: "arrow.up.circle.fill",
+                    color: .red,
+                    trend: .stable
+                )
+                
+                InsightCard(
+                    title: "Risparmi",
+                    value: monthlySavings.currencyFormatted,
+                    icon: "arrow.down.circle.fill", 
+                    color: monthlySavings >= 0 ? .green : .red,
+                    trend: monthlySavings >= 0 ? .up : .down
+                )
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    // Monthly calculations - removed duplicate monthlyExpenses (already defined above)
+    
+    private var monthlySavings: Decimal {
+        currentMonthStats?.monthlySavings ?? 0
     }
 }
 
@@ -358,6 +424,43 @@ struct EmptyStateView: View {
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
 }
+
+struct InsightCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    let trend: TrendDirection
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                Spacer()
+                Image(systemName: trend.icon)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Text(value)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.1), radius: 1)
+    }
+}
+
+// Using TrendDirection from FinanceCore
 
 // MARK: - DateFormatter Extension
 

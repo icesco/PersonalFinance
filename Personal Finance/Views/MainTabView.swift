@@ -110,8 +110,16 @@ struct QuickTransactionModal: View {
     @State private var amount: String = ""
     @State private var description: String = ""
     @State private var transactionType: TransactionType = .expense
+    @State private var selectedDate = Date()
+    @State private var includeTime = false
     @State private var showingContoSelection = false
     @State private var showingCategorySelection = false
+    
+    // For transfers
+    @State private var fromConto: Conto?
+    @State private var toConto: Conto?
+    @State private var showingFromContoSelection = false
+    @State private var showingToContoSelection = false
     
     private var availableConti: [Conto] {
         appState.activeConti(for: appState.selectedAccount)
@@ -119,15 +127,25 @@ struct QuickTransactionModal: View {
     
     private var availableCategories: [FinanceCategory] {
         appState.selectedAccount?.categories?.filter { 
-            $0.type?.rawValue == transactionType.rawValue && $0.isActive == true 
+            $0.isActive == true 
         } ?? []
     }
     
     private var isFormValid: Bool {
-        selectedConto != nil && 
-        selectedCategory != nil && 
-        !amount.isEmpty && 
-        (Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0
+        let amountValue = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) ?? 0
+        
+        if transactionType == .transfer {
+            return fromConto != nil && 
+                   toConto != nil && 
+                   fromConto?.id != toConto?.id && 
+                   !amount.isEmpty && 
+                   amountValue > 0
+        } else {
+            return selectedConto != nil && 
+                   selectedCategory != nil && 
+                   !amount.isEmpty && 
+                   amountValue > 0
+        }
     }
     
     var body: some View {
@@ -137,52 +155,91 @@ struct QuickTransactionModal: View {
                     Picker("Tipo", selection: $transactionType) {
                         Text("Spesa").tag(TransactionType.expense)
                         Text("Entrata").tag(TransactionType.income)
+                        Text("Trasferimento").tag(TransactionType.transfer)
                     }
                     .pickerStyle(SegmentedPickerStyle())
                 }
                 
                 Section("Dettagli") {
-                    // Conto Selection
-                    Button {
-                        showingContoSelection = true
-                    } label: {
-                        HStack {
-                            Text("Conto")
-                            Spacer()
-                            if let conto = selectedConto {
-                                Text(conto.name ?? "Sconosciuto")
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("Seleziona conto")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .foregroundColor(.primary)
-                    
-                    // Category Selection
-                    Button {
-                        showingCategorySelection = true
-                    } label: {
-                        HStack {
-                            Text("Categoria")
-                            Spacer()
-                            if let category = selectedCategory {
-                                HStack {
-                                    if let icon = category.icon, !icon.isEmpty {
-                                        Image(systemName: icon)
-                                            .foregroundColor(Color(hex: category.color ?? "#007AFF"))
-                                    }
-                                    Text(category.name ?? "Sconosciuta")
+                    if transactionType == .transfer {
+                        // From Conto Selection
+                        Button {
+                            showingFromContoSelection = true
+                        } label: {
+                            HStack {
+                                Text("Da Conto")
+                                Spacer()
+                                if let conto = fromConto {
+                                    Text(conto.name ?? "Sconosciuto")
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Seleziona conto origine")
                                         .foregroundColor(.secondary)
                                 }
-                            } else {
-                                Text("Seleziona categoria")
-                                    .foregroundColor(.secondary)
                             }
                         }
+                        .foregroundColor(.primary)
+                        
+                        // To Conto Selection
+                        Button {
+                            showingToContoSelection = true
+                        } label: {
+                            HStack {
+                                Text("A Conto")
+                                Spacer()
+                                if let conto = toConto {
+                                    Text(conto.name ?? "Sconosciuto")
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Seleziona conto destinazione")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
+                    } else {
+                        // Regular transaction - Conto Selection
+                        Button {
+                            showingContoSelection = true
+                        } label: {
+                            HStack {
+                                Text("Conto")
+                                Spacer()
+                                if let conto = selectedConto {
+                                    Text(conto.name ?? "Sconosciuto")
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Seleziona conto")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
+                        
+                        // Category Selection
+                        Button {
+                            showingCategorySelection = true
+                        } label: {
+                            HStack {
+                                Text("Categoria")
+                                Spacer()
+                                if let category = selectedCategory {
+                                    HStack {
+                                        if let icon = category.icon, !icon.isEmpty {
+                                            Image(systemName: icon)
+                                                .foregroundColor(Color(hex: category.color ?? "#007AFF"))
+                                        }
+                                        Text(category.name ?? "Sconosciuta")
+                                            .foregroundColor(.secondary)
+                                    }
+                                } else {
+                                    Text("Seleziona categoria")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
                     }
-                    .foregroundColor(.primary)
                     
                     // Amount
                     HStack {
@@ -195,6 +252,15 @@ struct QuickTransactionModal: View {
                     
                     // Description
                     TextField("Descrizione (opzionale)", text: $description)
+                    
+                    // Date/Time section
+                    Toggle("Includi orario", isOn: $includeTime)
+                    
+                    if includeTime {
+                        DatePicker("Data e Ora", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
+                    } else {
+                        DatePicker("Data", selection: $selectedDate, displayedComponents: .date)
+                    }
                 }
             }
             .navigationTitle("Nuova Transazione")
@@ -226,6 +292,18 @@ struct QuickTransactionModal: View {
                 selectedCategory: $selectedCategory
             )
         }
+        .sheet(isPresented: $showingFromContoSelection) {
+            ContoSelectionSheet(
+                conti: availableConti,
+                selectedConto: $fromConto
+            )
+        }
+        .sheet(isPresented: $showingToContoSelection) {
+            ContoSelectionSheet(
+                conti: availableConti.filter { $0.id != fromConto?.id },
+                selectedConto: $toConto
+            )
+        }
         .onAppear {
             transactionType = appState.quickTransactionType
             
@@ -237,38 +315,85 @@ struct QuickTransactionModal: View {
         .onChange(of: transactionType) { _, _ in
             // Reset category when transaction type changes
             selectedCategory = nil
+            // Reset transfer conti when switching away from transfer
+            if transactionType != .transfer {
+                fromConto = nil
+                toConto = nil
+            }
         }
     }
     
     private func saveTransaction() {
-        guard let conto = selectedConto,
-              let category = selectedCategory,
-              let amountDecimal = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) else {
+        guard let amountDecimal = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) else {
             return
         }
         
-        let transaction = FinanceTransaction(
-            amount: amountDecimal,
-            type: transactionType,
-            date: Date(),
-            transactionDescription: description.isEmpty ? nil : description
-        )
-        
-        transaction.category = category
-        
-        switch transactionType {
-        case .expense:
-            transaction.fromConto = conto
-        case .income:
-            transaction.toConto = conto
-        case .transfer:
-            break // Not handled in quick transaction
+        if transactionType == .transfer {
+            // Handle transfer transaction
+            guard let fromConto = fromConto, let toConto = toConto else { return }
+            
+            let transaction = FinanceTransaction(
+                amount: amountDecimal,
+                type: .transfer,
+                date: selectedDate,
+                transactionDescription: description.isEmpty ? "Trasferimento da \(fromConto.name ?? "Conto") a \(toConto.name ?? "Conto")" : description
+            )
+            
+            transaction.fromConto = fromConto
+            transaction.toConto = toConto
+            // No category for transfers
+            
+            modelContext.insert(transaction)
+        } else {
+            // Handle regular transaction
+            guard let conto = selectedConto, let category = selectedCategory else { return }
+            
+            let transaction = FinanceTransaction(
+                amount: amountDecimal,
+                type: transactionType,
+                date: selectedDate,
+                transactionDescription: description.isEmpty ? nil : description
+            )
+            
+            transaction.category = category
+            
+            switch transactionType {
+            case .expense:
+                transaction.fromConto = conto
+            case .income:
+                transaction.toConto = conto
+            case .transfer:
+                break // Already handled above
+            }
+            
+            modelContext.insert(transaction)
         }
-        
-        modelContext.insert(transaction)
         
         do {
             try modelContext.save()
+            
+            // Update statistics for affected accounts
+            Task {
+                do {
+                    if transactionType == .transfer {
+                        // Update statistics for both accounts involved in transfer
+                        if let fromAccount = fromConto?.account {
+                            try await StatisticsService.updateStatistics(for: fromAccount, in: modelContext)
+                        }
+                        if let toAccount = toConto?.account, toAccount.id != fromConto?.account?.id {
+                            try await StatisticsService.updateStatistics(for: toAccount, in: modelContext)
+                        }
+                    } else {
+                        // Update statistics for the single account
+                        if let account = selectedConto?.account {
+                            try await StatisticsService.updateStatistics(for: account, in: modelContext)
+                        }
+                    }
+                } catch {
+                    print("Failed to update statistics: \(error)")
+                }
+            }
+            
             dismiss()
         } catch {
             print("Error saving transaction: \(error)")

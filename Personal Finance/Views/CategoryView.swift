@@ -14,28 +14,17 @@ struct CategoryView: View {
     @Environment(AppStateManager.self) private var appState
     
     @State private var showingCreateCategory = false
-    @State private var selectedType: CategoryType = .expense
     @State private var categoryToEdit: FinanceCategory?
     
     // Get categories for selected account
     private var categories: [FinanceCategory] {
-        appState.selectedAccount?.categories?.filter { $0.isActive == true } ?? []
-    }
-    
-    private var incomeCategories: [FinanceCategory] {
-        categories.filter { $0.type == .income }.sorted { ($0.name ?? "") < ($1.name ?? "") }
-    }
-    
-    private var expenseCategories: [FinanceCategory] {
-        categories.filter { $0.type == .expense }.sorted { ($0.name ?? "") < ($1.name ?? "") }
+        appState.selectedAccount?.categories?.filter { $0.isActive == true }
+            .sorted { ($0.name ?? "") < ($1.name ?? "") } ?? []
     }
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Type Selector
-                typeSelector
-                
                 // Categories List
                 if categories.isEmpty {
                     emptyStateView
@@ -56,32 +45,18 @@ struct CategoryView: View {
             .background(Color(.systemGroupedBackground))
         }
         .sheet(isPresented: $showingCreateCategory) {
-            CreateCategoryView(initialType: selectedType)
+            CreateCategoryView()
         }
         .sheet(item: $categoryToEdit) { category in
             EditCategoryView(category: category)
         }
     }
     
-    // MARK: - Type Selector
-    
-    private var typeSelector: some View {
-        Picker("Tipo Categoria", selection: $selectedType) {
-            Text("Spese (\(expenseCategories.count))").tag(CategoryType.expense)
-            Text("Entrate (\(incomeCategories.count))").tag(CategoryType.income)
-        }
-        .pickerStyle(SegmentedPickerStyle())
-        .padding()
-        .background(Color(.systemGroupedBackground))
-    }
-    
     // MARK: - Category List
     
     private var categoryList: some View {
         List {
-            let filteredCategories = selectedType == .expense ? expenseCategories : incomeCategories
-            
-            ForEach(filteredCategories, id: \.id) { category in
+            ForEach(categories, id: \.id) { category in
                 CategoryListRow(category: category, onEdit: { category in
                     categoryToEdit = category
                 })
@@ -210,14 +185,10 @@ struct CategoryListRow: View {
                 
                 Spacer()
                 
-                // Category Type Badge
-                HStack {
-                    Text(category.type?.displayName ?? "")
+                VStack(alignment: .trailing) {
+                    // Category usage count
+                    Text("\(category.transactions?.count ?? 0) transazioni")
                         .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.systemGray5))
-                        .cornerRadius(8)
                         .foregroundColor(.secondary)
                     
                     Image(systemName: "chevron.right")
@@ -234,14 +205,11 @@ struct CategoryListRow: View {
 // MARK: - Create Category View
 
 struct CreateCategoryView: View {
-    let initialType: CategoryType
-    
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
     
     @State private var categoryName = ""
-    @State private var selectedType: CategoryType = .expense
     @State private var selectedIcon = "tag"
     @State private var selectedColor = "#007AFF"
     @State private var showingIconPicker = false
@@ -285,12 +253,6 @@ struct CreateCategoryView: View {
             Form {
                 Section("Dettagli Categoria") {
                     TextField("Nome Categoria", text: $categoryName)
-                    
-                    Picker("Tipo", selection: $selectedType) {
-                        Text("Spesa").tag(CategoryType.expense)
-                        Text("Entrata").tag(CategoryType.income)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
                 }
                 
                 appearanceSection
@@ -313,9 +275,6 @@ struct CreateCategoryView: View {
                     .disabled(!isFormValid)
                 }
             }
-        }
-        .onAppear {
-            selectedType = initialType
         }
         .sheet(isPresented: $showingIconPicker) {
             IconPickerView(selectedIcon: $selectedIcon)
@@ -378,7 +337,7 @@ struct CreateCategoryView: View {
                 VStack(alignment: .leading) {
                     Text(categoryName.isEmpty ? "Nome Categoria" : categoryName)
                         .font(.headline)
-                    Text(selectedType.displayName)
+                    Text("Categoria")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -392,7 +351,6 @@ struct CreateCategoryView: View {
     private func saveCategory() {
         let category = Category(
             name: categoryName,
-            type: selectedType,
             color: selectedColor,
             icon: selectedIcon
         )
@@ -418,7 +376,6 @@ struct EditCategoryView: View {
     @Environment(\.modelContext) private var modelContext
     
     @State private var categoryName = ""
-    @State private var selectedType: CategoryType = .expense
     @State private var selectedIcon = "tag"
     @State private var selectedColor = "#007AFF"
     @State private var showingIconPicker = false
@@ -438,13 +395,6 @@ struct EditCategoryView: View {
             Form {
                 Section("Dettagli Categoria") {
                     TextField("Nome Categoria", text: $categoryName)
-                    
-                    Picker("Tipo", selection: $selectedType) {
-                        Text("Spesa").tag(CategoryType.expense)
-                        Text("Entrata").tag(CategoryType.income)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .disabled(true) // Cannot change type if category has transactions
                 }
                 
                 appearanceSection
@@ -543,14 +493,12 @@ struct EditCategoryView: View {
     
     private func loadCategoryData() {
         categoryName = category.name ?? ""
-        selectedType = category.type ?? .expense
         selectedIcon = category.icon ?? "tag"
         selectedColor = category.color ?? "#007AFF"
     }
     
     private func updateCategory() {
         category.name = categoryName
-        category.type = selectedType
         category.icon = selectedIcon
         category.color = selectedColor
         category.updatedAt = Date()

@@ -194,7 +194,7 @@ struct ContoDetailView_Previews: PreviewProvider {
         conto.account = account
         container.mainContext.insert(conto)
         
-        let category = FinanceCategory(name: "Food", type: .expense)
+        let category = FinanceCategory(name: "Food")
         category.account = account
         container.mainContext.insert(category)
         

@@ -364,7 +364,7 @@ struct CreateBudgetView: View {
     
     private var availableCategories: [FinanceCategory] {
         appState.selectedAccount?.categories?.filter { 
-            $0.type == .expense && $0.isActive == true 
+            $0.isActive == true 
         } ?? []
     }
     

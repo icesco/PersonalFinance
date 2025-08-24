@@ -21,11 +21,16 @@ let package = Package(
             sources: [
                 "FinanceCore.swift",
                 "Models/Account.swift",
+                "Models/AccountStatistics.swift",
                 "Models/Budget.swift", 
                 "Models/BudgetCategory.swift",
                 "Models/Category.swift",
                 "Models/Conto.swift",
-                "Models/Transaction.swift"
+                "Models/Transaction.swift",
+                "Models/SavingsGoal.swift",
+                "Analysis/FinancialAnalysis.swift",
+                "Services/DataIntegrityService.swift",
+                "Services/StatisticsService.swift"
             ]),
         .testTarget(
             name: "FinanceCoreTests",

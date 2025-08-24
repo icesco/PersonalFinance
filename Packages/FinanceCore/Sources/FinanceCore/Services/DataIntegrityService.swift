@@ -49,8 +49,7 @@ public class DataIntegrityService {
     ) -> [Account] {
         let descriptor = FetchDescriptor<Account>(
             predicate: #Predicate { account in
-                account.name?.localizedCaseInsensitiveCompare(name) == .orderedSame &&
-                account.currency == currency
+                account.name == name && account.currency == currency
             }
         )
         
@@ -71,7 +70,7 @@ public class DataIntegrityService {
     ) -> [Conto] {
         let descriptor = FetchDescriptor<Conto>(
             predicate: #Predicate { conto in
-                conto.name?.localizedCaseInsensitiveCompare(name) == .orderedSame &&
+                conto.name == name &&
                 conto.type == type &&
                 conto.account?.id == accountId
             }
@@ -88,14 +87,12 @@ public class DataIntegrityService {
     /// Check for duplicate categories within the same account
     public static func findDuplicateCategories(
         name: String,
-        type: CategoryType,
         accountId: UUID,
         in context: ModelContext
     ) -> [Category] {
         let descriptor = FetchDescriptor<Category>(
             predicate: #Predicate { category in
-                category.name?.localizedCaseInsensitiveCompare(name) == .orderedSame &&
-                category.type == type &&
+                category.name == name &&
                 category.account?.id == accountId
             }
         )

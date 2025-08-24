@@ -6,6 +6,9 @@ struct AccountDetailView: View {
     let account: Account
     @Environment(\.modelContext) private var modelContext
     @Environment(NavigationRouter.self) private var navigationRouter
+    @State private var contoToEdit: Conto?
+    @State private var showingDeleteAlert = false
+    @State private var contoToDelete: Conto?
     
     var body: some View {
         contiList
@@ -16,7 +19,7 @@ struct AccountDetailView: View {
     private var contiList: some View {
         List {
             Section {
-                OverviewCard(account: account)
+                AccountOverviewCard(account: account)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             }
@@ -29,6 +32,17 @@ struct AccountDetailView: View {
                         ContoRow(conto: conto)
                     }
                     .buttonStyle(PlainButtonStyle())
+                    .swipeActions(edge: .trailing) {
+                        Button("Elimina", role: .destructive) {
+                            contoToDelete = conto
+                            showingDeleteAlert = true
+                        }
+                        
+                        Button("Modifica") {
+                            contoToEdit = conto
+                        }
+                        .tint(.blue)
+                    }
                 }
             }
         }
@@ -39,10 +53,39 @@ struct AccountDetailView: View {
                 }
             }
         }
+        .sheet(item: $contoToEdit) { conto in
+            EditContoView(conto: conto)
+        }
+        .alert("Elimina Conto", isPresented: $showingDeleteAlert) {
+            Button("Elimina", role: .destructive) {
+                if let conto = contoToDelete {
+                    deleteConto(conto)
+                }
+            }
+            Button("Annulla", role: .cancel) { }
+        } message: {
+            if let conto = contoToDelete {
+                Text("Sei sicuro di voler eliminare il conto \"\(conto.name ?? "Sconosciuto")\"? Questa azione non può essere annullata.")
+            }
+        }
+    }
+    
+    private func deleteConto(_ conto: Conto) {
+        // Mark as inactive instead of deleting to preserve transaction history
+        conto.isActive = false
+        conto.updatedAt = Date()
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error deleting conto: \(error)")
+        }
+        
+        contoToDelete = nil
     }
 }
 
-struct OverviewCard: View {
+struct AccountOverviewCard: View {
     let account: Account
     
     var body: some View {

@@ -92,16 +92,9 @@ struct ContentView: View {
     }
     
     private func createDefaultCategories(for account: Account) {
-        // Income categories
-        for (name, color, icon) in Category.defaultIncomeCategories {
-            let category = Category(name: name, type: .income, color: color, icon: icon)
-            category.account = account
-            modelContext.insert(category)
-        }
-        
-        // Expense categories
-        for (name, color, icon) in Category.defaultExpenseCategories {
-            let category = Category(name: name, type: .expense, color: color, icon: icon)
+        // All categories
+        for (name, color, icon) in Category.defaultCategories {
+            let category = Category(name: name, color: color, icon: icon)
             category.account = account
             modelContext.insert(category)
         }
