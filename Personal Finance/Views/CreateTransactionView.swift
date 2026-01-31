@@ -286,15 +286,15 @@ struct CreateTransactionView: View {
                 recurrenceEndDate: isRecurring && hasEndDate ? recurrenceEndDate : nil
             )
             
-            transaction.fromConto = fromConto
-            transaction.toConto = toConto
+            transaction.setFromConto(fromConto)
+            transaction.setToConto(toConto)
             // No category for transfers
-            
+
             modelContext.insert(transaction)
         } else {
             // Create regular transaction
             guard let conto = conto else { return }
-            
+
             let transaction = FinanceTransaction(
                 amount: amount,
                 type: transactionType,
@@ -305,13 +305,13 @@ struct CreateTransactionView: View {
                 recurrenceFrequency: isRecurring ? selectedFrequency : nil,
                 recurrenceEndDate: isRecurring && hasEndDate ? recurrenceEndDate : nil
             )
-            
-            transaction.category = selectedCategory
-            
+
+            transaction.setCategory(selectedCategory)
+
             if transactionType == .income {
-                transaction.toConto = conto
+                transaction.setToConto(conto)
             } else {
-                transaction.fromConto = conto
+                transaction.setFromConto(conto)
             }
             
             modelContext.insert(transaction)

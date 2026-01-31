@@ -8,7 +8,6 @@ public struct FinanceCoreModule {
         AccountStatistics.self,
         Conto.self,
         Transaction.self,
-        TransferLink.self,
         Category.self,
         Budget.self,
         BudgetCategory.self,

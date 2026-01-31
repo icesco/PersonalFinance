@@ -299,13 +299,13 @@ struct QuickTransactionModal: View {
             recurrenceFrequency: isRecurring ? recurrenceFrequency : nil
         )
 
-        transaction.category = category
+        transaction.setCategory(category)
 
         switch transactionType {
         case .expense:
-            transaction.fromConto = conto
+            transaction.setFromConto(conto)
         case .income:
-            transaction.toConto = conto
+            transaction.setToConto(conto)
         case .transfer:
             break
         }

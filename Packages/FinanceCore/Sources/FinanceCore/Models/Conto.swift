@@ -82,6 +82,6 @@ public final class Conto {
     public var allTransactions: [Transaction] {
         let incoming = incomingTransactions ?? []
         let outgoing = outgoingTransactions ?? []
-        return (incoming + outgoing).sorted { ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast) }
+        return (incoming + outgoing).sorted { $0.date > $1.date }
     }
 }

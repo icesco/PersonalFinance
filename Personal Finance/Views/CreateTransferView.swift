@@ -161,8 +161,8 @@ struct CreateTransferView: View {
     
     private func createTransfer() {
         guard let toConto = selectedToConto else { return }
-        
-        let (outgoing, incoming) = FinanceTransaction.createTransfer(
+
+        let transfer = FinanceTransaction.createTransfer(
             amount: amount,
             fromConto: fromConto,
             toConto: toConto,
@@ -170,14 +170,8 @@ struct CreateTransferView: View {
             transactionDescription: description.isEmpty ? nil : description,
             notes: notes.isEmpty ? nil : notes
         )
-        
-        modelContext.insert(outgoing)
-        modelContext.insert(incoming)
-        
-        // Insert the transfer links
-        outgoing.transferLinks?.forEach { modelContext.insert($0) }
-        incoming.transferLinks?.forEach { modelContext.insert($0) }
-        
+
+        modelContext.insert(transfer)
         try? modelContext.save()
         dismiss()
     }

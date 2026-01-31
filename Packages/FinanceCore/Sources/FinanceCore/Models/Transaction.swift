@@ -111,24 +111,34 @@ public final class Transaction {
     // MARK: - Relationships
 
     /// Source account for expense/transfer transactions
-    public var fromConto: Conto? {
-        didSet { fromContoId = fromConto?.id }
-    }
+    public var fromConto: Conto?
 
     /// Destination account for income/transfer transactions
-    public var toConto: Conto? {
-        didSet { toContoId = toConto?.id }
-    }
+    public var toConto: Conto?
 
     /// Transaction category
-    public var category: Category? {
-        didSet { categoryId = category?.id }
+    public var category: Category?
+
+    // MARK: - Relationship Setters (use these to keep denormalized IDs in sync)
+
+    /// Set the source conto and sync the denormalized ID
+    public func setFromConto(_ conto: Conto?) {
+        self.fromConto = conto
+        self.fromContoId = conto?.id
     }
-    
-    // For transfers, we track both sides
-    @Relationship(deleteRule: .cascade, inverse: \TransferLink.transaction)
-    public var transferLinks: [TransferLink]?
-    
+
+    /// Set the destination conto and sync the denormalized ID
+    public func setToConto(_ conto: Conto?) {
+        self.toConto = conto
+        self.toContoId = conto?.id
+    }
+
+    /// Set the category and sync the denormalized ID
+    public func setCategory(_ category: Category?) {
+        self.category = category
+        self.categoryId = category?.id
+    }
+
     public init(
         amount: Decimal,
         type: TransactionType,
@@ -150,20 +160,45 @@ public final class Transaction {
         self.recurrenceEndDate = recurrenceEndDate
         self.createdAt = Date()
         self.updatedAt = Date()
-        self.transferLinks = []
     }
     
+    /// Display amount (negative for expenses, positive for income)
+    /// For transfers, use `displayAmount(for:)` to get the correct sign based on perspective
     public var displayAmount: Decimal {
         guard let transactionAmount = amount else { return 0 }
 
         switch type {
         case .expense:
             return -transactionAmount
-        case .income, .transfer:
+        case .income:
+            return transactionAmount
+        case .transfer:
+            // Default: show as positive, use displayAmount(for:) for perspective
             return transactionAmount
         }
     }
-    
+
+    /// Display amount from the perspective of a specific conto
+    /// - Parameter contoId: The conto ID to calculate the amount for
+    /// - Returns: Negative if money leaves this conto, positive if money enters
+    public func displayAmount(for contoId: UUID) -> Decimal {
+        guard let transactionAmount = amount else { return 0 }
+
+        switch type {
+        case .expense:
+            return -transactionAmount
+        case .income:
+            return transactionAmount
+        case .transfer:
+            if fromContoId == contoId {
+                return -transactionAmount  // Money leaving this conto
+            } else if toContoId == contoId {
+                return transactionAmount   // Money entering this conto
+            }
+            return transactionAmount
+        }
+    }
+
     public var isTransfer: Bool {
         type == .transfer
     }
@@ -221,6 +256,8 @@ public final class Transaction {
         return dates
     }
     
+    /// Create a transfer transaction between two conti
+    /// - Returns: A single Transaction with both fromConto and toConto set
     public static func createTransfer(
         amount: Decimal,
         fromConto: Conto,
@@ -228,49 +265,16 @@ public final class Transaction {
         date: Date = Date(),
         transactionDescription: String? = nil,
         notes: String? = nil
-    ) -> (outgoing: Transaction, incoming: Transaction) {
-        
-        let outgoing = Transaction(
+    ) -> Transaction {
+        let transfer = Transaction(
             amount: amount,
             type: .transfer,
             date: date,
             transactionDescription: transactionDescription,
             notes: notes
         )
-        outgoing.fromConto = fromConto
-        
-        let incoming = Transaction(
-            amount: amount,
-            type: .transfer,
-            date: date,
-            transactionDescription: transactionDescription,
-            notes: notes
-        )
-        incoming.toConto = toConto
-        
-        let outgoingLink = TransferLink(outgoingTransaction: outgoing, incomingTransaction: incoming)
-        let incomingLink = TransferLink(outgoingTransaction: incoming, incomingTransaction: outgoing)
-        outgoing.transferLinks?.append(outgoingLink)
-        incoming.transferLinks?.append(incomingLink)
-        
-        return (outgoing, incoming)
+        transfer.setFromConto(fromConto)
+        transfer.setToConto(toConto)
+        return transfer
     }
 }
-
-@Model
-public final class TransferLink {
-    public var id: UUID = UUID()
-    public var externalID: String = UUID().uuidString
-    public var createdAt: Date?
-    
-    public var transaction: Transaction?
-    public var linkedTransactionId: UUID = UUID()
-    
-    public init(outgoingTransaction: Transaction, incomingTransaction: Transaction) {
-        // id, externalID, linkedTransactionId now have default values
-        self.createdAt = Date()
-        self.transaction = outgoingTransaction
-        self.linkedTransactionId = incomingTransaction.id
-    }
-}
-    

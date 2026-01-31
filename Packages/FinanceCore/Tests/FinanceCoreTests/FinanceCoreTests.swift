@@ -34,10 +34,10 @@ struct FinanceCoreTests {
     }
     
     @Test func categoryCreation() async throws {
-        let category = Category(name: "Food", type: .expense, color: "#FF0000")
+        let category = Category(name: "Food", color: "#FF0000", icon: "cart")
         #expect(category.name == "Food")
-        #expect(category.type == .expense)
         #expect(category.color == "#FF0000")
+        #expect(category.icon == "cart")
         #expect(category.isSubcategory == false)
     }
     
@@ -88,21 +88,23 @@ struct FinanceCoreTests {
     @Test func transferCreation() async throws {
         let fromConto = Conto(name: "Checking", type: .checking, initialBalance: 1000)
         let toConto = Conto(name: "Savings", type: .savings, initialBalance: 500)
-        
-        let (outgoing, incoming) = Transaction.createTransfer(
+
+        let transfer = Transaction.createTransfer(
             amount: 200,
             fromConto: fromConto,
             toConto: toConto,
             transactionDescription: "Transfer to savings"
         )
-        
-        #expect(outgoing.amount == 200)
-        #expect(incoming.amount == 200)
-        #expect(outgoing.type == .transfer)
-        #expect(incoming.type == .transfer)
-        #expect(outgoing.fromConto === fromConto)
-        #expect(incoming.toConto === toConto)
-        #expect(outgoing.transferLinks.count == 1)
-        #expect(incoming.transferLinks.count == 1)
+
+        #expect(transfer.amount == 200)
+        #expect(transfer.type == .transfer)
+        #expect(transfer.fromConto === fromConto)
+        #expect(transfer.toConto === toConto)
+        #expect(transfer.fromContoId == fromConto.id)
+        #expect(transfer.toContoId == toConto.id)
+
+        // Test display amount from different perspectives
+        #expect(transfer.displayAmount(for: fromConto.id) == -200)  // Money leaving
+        #expect(transfer.displayAmount(for: toConto.id) == 200)     // Money entering
     }
 }
