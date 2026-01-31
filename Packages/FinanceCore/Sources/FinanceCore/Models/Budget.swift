@@ -133,24 +133,30 @@ public final class Budget {
         }
     }
     
-    // Spesa corrente per il periodo attuale
+    // MARK: - Computed Properties (use optimized methods with ModelContext when possible)
+
+    /// Current spent amount - loads all transactions in memory
+    /// Prefer `getCurrentSpent(in:)` for optimized DB queries
+    @available(*, deprecated, message: "Use getCurrentSpent(in:) for optimized DB queries")
     public var currentSpent: Decimal {
-        calculateSpent(for: currentPeriodRange)
+        calculateSpentInMemory(for: currentPeriodRange)
     }
-    
-    // Spesa del periodo precedente per confronto
+
+    /// Previous period spent - loads all transactions in memory
+    /// Prefer `getPreviousPeriodSpent(in:)` for optimized DB queries
+    @available(*, deprecated, message: "Use getPreviousPeriodSpent(in:) for optimized DB queries")
     public var previousPeriodSpent: Decimal {
-        calculateSpent(for: previousPeriodRange)
+        calculateSpentInMemory(for: previousPeriodRange)
     }
-    
-    // Calcola la spesa per un periodo specifico
-    private func calculateSpent(for period: (start: Date, end: Date)) -> Decimal {
+
+    /// Calculate spent in memory (inefficient, prefer BudgetService methods)
+    private func calculateSpentInMemory(for period: (start: Date, end: Date)) -> Decimal {
         let categoriesList = categories ?? []
         guard !categoriesList.isEmpty else { return 0 }
 
         var totalSpent: Decimal = 0
 
-        // Transazioni effettive nel periodo (using relationship - loads from DB)
+        // WARNING: This loads ALL transactions via relationships (inefficient)
         let actualTransactions = categoriesList.flatMap { category in
             (category.transactions ?? []).filter { transaction in
                 transaction.date >= period.start &&
@@ -160,7 +166,6 @@ public final class Budget {
         }
         totalSpent += actualTransactions.reduce(0) { $0 + ($1.amount ?? 0) }
 
-        // Se abilitato, includi transazioni ricorrenti pianificate
         if includeRecurringTransactions == true {
             let recurringTransactions = categoriesList.flatMap { category in
                 (category.transactions ?? []).filter { transaction in
@@ -170,7 +175,6 @@ public final class Budget {
                 }
             }
 
-            // Calcola le occorrenze delle transazioni ricorrenti nel periodo
             for transaction in recurringTransactions {
                 let occurrences = transaction.generateRecurrenceDates(until: period.end)
                     .filter { $0 >= period.start && $0 <= period.end }
@@ -196,21 +200,34 @@ public final class Budget {
         categories?.removeAll { $0.id == category.id }
     }
     
+    /// Remaining amount - uses in-memory calculation
+    /// Prefer `getRemainingAmount(in:)` for optimized DB queries
+    @available(*, deprecated, message: "Use getRemainingAmount(in:) for optimized DB queries")
     public var remainingAmount: Decimal {
         guard let budgetAmount = amount else { return 0 }
-        return budgetAmount - currentSpent
+        return budgetAmount - calculateSpentInMemory(for: currentPeriodRange)
     }
-    
+
+    /// Spent percentage - uses in-memory calculation
+    /// Prefer `getSpentPercentage(in:)` for optimized DB queries
+    @available(*, deprecated, message: "Use getSpentPercentage(in:) for optimized DB queries")
     public var spentPercentage: Double {
         guard let budgetAmount = amount, budgetAmount > 0 else { return 0 }
-        return NSDecimalNumber(decimal: currentSpent).doubleValue / NSDecimalNumber(decimal: budgetAmount).doubleValue
+        let spent = calculateSpentInMemory(for: currentPeriodRange)
+        return NSDecimalNumber(decimal: spent).doubleValue / NSDecimalNumber(decimal: budgetAmount).doubleValue
     }
-    
+
+    /// Check if over budget - uses in-memory calculation
+    /// Prefer `isOverBudget(in:)` for optimized DB queries
+    @available(*, deprecated, message: "Use isOverBudget(in:) for optimized DB queries")
     public var isOverBudget: Bool {
         guard let budgetAmount = amount else { return false }
-        return currentSpent > budgetAmount
+        return calculateSpentInMemory(for: currentPeriodRange) > budgetAmount
     }
-    
+
+    /// Check if should alert - uses in-memory calculation
+    /// Prefer `shouldAlert(in:)` for optimized DB queries
+    @available(*, deprecated, message: "Use shouldAlert(in:) for optimized DB queries")
     public var shouldAlert: Bool {
         guard let threshold = alertThreshold else { return false }
         return spentPercentage >= threshold
@@ -240,31 +257,38 @@ public final class Budget {
         return min(1.0, max(0.0, elapsed / totalDuration))
     }
     
-    // Spesa media giornaliera consigliata per rimanere nel budget
+    /// Daily suggested spending - uses in-memory calculation
+    @available(*, deprecated, message: "Use BudgetService for optimized calculations")
     public var dailySuggestedSpending: Decimal {
         guard daysRemaining > 0 else { return 0 }
-        return remainingAmount / Decimal(daysRemaining)
+        let remaining = (amount ?? 0) - calculateSpentInMemory(for: currentPeriodRange)
+        return remaining / Decimal(daysRemaining)
     }
-    
-    // Calcola la spesa per un periodo specifico custom
+
+    /// Get spent for custom period - uses in-memory calculation
+    @available(*, deprecated, message: "Use BudgetService.calculateSpent(for:period:in:) instead")
     public func getSpent(for customPeriod: (start: Date, end: Date)) -> Decimal {
-        calculateSpent(for: customPeriod)
+        calculateSpentInMemory(for: customPeriod)
     }
-    
-    // Proiezione di spesa se si continua al ritmo attuale
+
+    /// Projected spending - uses in-memory calculation
+    @available(*, deprecated, message: "Use BudgetService for optimized calculations")
     public var projectedSpending: Decimal {
         let progressPercentage = periodProgressPercentage
         guard progressPercentage > 0 else { return 0 }
-        
-        return currentSpent / Decimal(progressPercentage)
+        let spent = calculateSpentInMemory(for: currentPeriodRange)
+        return spent / Decimal(progressPercentage)
     }
-    
-    // Percentuale di variazione rispetto al periodo precedente
+
+    /// Change from previous period - uses in-memory calculation
+    @available(*, deprecated, message: "Use BudgetService for optimized calculations")
     public var changeFromPreviousPeriod: Double {
-        guard previousPeriodSpent > 0 else { return 0 }
-        
-        let difference = currentSpent - previousPeriodSpent
-        return NSDecimalNumber(decimal: difference).doubleValue / 
-               NSDecimalNumber(decimal: previousPeriodSpent).doubleValue
+        let previous = calculateSpentInMemory(for: previousPeriodRange)
+        guard previous > 0 else { return 0 }
+
+        let current = calculateSpentInMemory(for: currentPeriodRange)
+        let difference = current - previous
+        return NSDecimalNumber(decimal: difference).doubleValue /
+               NSDecimalNumber(decimal: previous).doubleValue
     }
 }
