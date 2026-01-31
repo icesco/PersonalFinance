@@ -268,7 +268,12 @@ struct DashboardView: View {
                 }
             } else {
                 ForEach(appState.activeConti(for: account), id: \.id) { conto in
-                    ContoRowView(conto: conto)
+                    NavigationLink {
+                        TransactionListView(initialConto: conto)
+                    } label: {
+                        ContoRowView(conto: conto)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
