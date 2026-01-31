@@ -2,475 +2,572 @@
 //  DashboardView.swift
 //  Personal Finance
 //
-//  Created by Claude on 24/08/25.
+//  Dashboard principale con grafici d'impatto
 //
 
 import SwiftUI
 import SwiftData
+import Charts
 import FinanceCore
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    
-    @State private var currentMonthStats: AccountStatistics?
-    @State private var isLoadingStats = false
-    
-    // Recent transactions (last 5)
-    private var recentTransactions: [FinanceTransaction] {
-        Array(appState.allTransactions(for: appState.selectedAccount).prefix(5))
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    // Computed data
+    private var account: Account? { appState.selectedAccount }
+
+    private var allTransactions: [FinanceTransaction] {
+        appState.allTransactions(for: account)
     }
-    
-    // Account statistics from cached data
-    private var totalBalance: Decimal {
-        currentMonthStats?.totalBalance ?? appState.selectedAccount?.totalBalance ?? 0
-    }
-    
+
     private var monthlyIncome: Decimal {
-        currentMonthStats?.monthlyIncome ?? 0
+        calculateMonthlyIncome()
     }
-    
+
     private var monthlyExpenses: Decimal {
-        currentMonthStats?.monthlyExpenses ?? 0
+        calculateMonthlyExpenses()
     }
-    
+
+    private var monthlySavings: Decimal {
+        monthlyIncome - monthlyExpenses
+    }
+
+    private var totalBalance: Decimal {
+        account?.totalBalance ?? 0
+    }
+
+    private var isPositive: Bool {
+        monthlySavings >= 0
+    }
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 16) {
-                    // Account Header
-                    accountHeaderSection
-                    
-                    // Quick Stats
-                    quickStatsSection
-                    
-                    // Account Overview Cards
-                    contiOverviewSection
-                    
-                    // Recent Transactions
+                LazyVStack(spacing: 20) {
+                    // Hero: Saldo totale con indicatore
+                    balanceHeroSection
+
+                    // Grafici in grid adattiva
+                    chartsSection
+
+                    // Entrate / Uscite / Risparmi
+                    monthlyStatsSection
+
+                    // I tuoi conti
+                    contiSection
+
+                    // Ultime transazioni
                     recentTransactionsSection
-                    
-                    // Quick Actions
-                    quickActionsSection
-                    
-                    // Financial Insights
-                    financialInsightsSection
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 100) // Space for floating button
+                .padding()
+                .padding(.bottom, 100) // Spazio per FAB
             }
-            .navigationTitle("Dashboard")
             .background(Color(.systemGroupedBackground))
-        }
-        .task {
-            await loadCurrentMonthStatistics()
-        }
-        .onChange(of: appState.selectedAccount) { _, _ in
-            Task {
-                await loadCurrentMonthStatistics()
+            .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    accountSwitcher
+                }
             }
         }
     }
-    
-    // MARK: - Statistics Loading
-    
-    @MainActor
-    private func loadCurrentMonthStatistics() async {
-        guard let account = appState.selectedAccount else {
-            currentMonthStats = nil
-            return
+
+    // MARK: - Balance Hero Section
+
+    private var balanceHeroSection: some View {
+        VStack(spacing: 16) {
+            // Indicatore stato finanziario
+            HStack {
+                Circle()
+                    .fill(isPositive ? Color.green : Color.red)
+                    .frame(width: 12, height: 12)
+
+                Text(isPositive ? "Stai risparmiando" : "Attenzione: spese elevate")
+                    .font(.subheadline)
+                    .foregroundStyle(isPositive ? .green : .red)
+
+                Spacer()
+            }
+
+            // Saldo totale
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Saldo Totale")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text(totalBalance.currencyFormatted)
+                    .font(.system(size: 42, weight: .bold, design: .rounded))
+                    .foregroundStyle(totalBalance >= 0 ? .primary : .red)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Variazione mensile
+            HStack {
+                Image(systemName: monthlySavings >= 0 ? "arrow.up.right" : "arrow.down.right")
+                Text("\(abs(monthlySavings).currencyFormatted) questo mese")
+                    .font(.callout)
+            }
+            .foregroundStyle(monthlySavings >= 0 ? .green : .red)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        
-        isLoadingStats = true
-        defer { isLoadingStats = false }
-        
-        do {
-            currentMonthStats = try await account.getOrCreateCurrentMonthStatistics(in: modelContext)
-        } catch {
-            print("Error loading statistics: \(error)")
-            currentMonthStats = nil
+        .padding(20)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+    }
+
+    // MARK: - Charts Section
+
+    private var chartsSection: some View {
+        let columns = horizontalSizeClass == .regular
+            ? [GridItem(.flexible()), GridItem(.flexible())]
+            : [GridItem(.flexible())]
+
+        return LazyVGrid(columns: columns, spacing: 16) {
+            // Andamento saldo
+            balanceTrendChart
+
+            // Distribuzione spese
+            spendingDistributionChart
         }
     }
-    
-    // MARK: - Account Header Section
-    
-    private var accountHeaderSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Saldo Totale")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text(totalBalance.currencyFormatted)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(totalBalance >= 0 ? .primary : .red)
-                }
-                
-                Spacer()
-                
-                Button {
-                    appState.presentAccountSelection()
-                } label: {
-                    HStack {
-                        Text(appState.selectedAccount?.name ?? "Nessun Account")
-                            .font(.headline)
-                        Image(systemName: "chevron.down")
+
+    private var balanceTrendChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Andamento Saldo")
+                .font(.headline)
+
+            Chart(balanceHistory) { item in
+                LineMark(
+                    x: .value("Mese", item.date, unit: .month),
+                    y: .value("Saldo", item.balance)
+                )
+                .foregroundStyle(Color.accentColor.gradient)
+                .interpolationMethod(.catmullRom)
+
+                AreaMark(
+                    x: .value("Mese", item.date, unit: .month),
+                    y: .value("Saldo", item.balance)
+                )
+                .foregroundStyle(Color.accentColor.opacity(0.1).gradient)
+                .interpolationMethod(.catmullRom)
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    AxisValueLabel {
+                        if let decimal = value.as(Decimal.self) {
+                            Text(formatCompact(decimal))
+                                .font(.caption2)
+                        }
                     }
                 }
-                .foregroundColor(.accentColor)
             }
-            
-            if let account = appState.selectedAccount {
-                Text("\(account.activeConti.count) conti attivi")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { value in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                }
+            }
+            .frame(height: 180)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+
+    private var spendingDistributionChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Dove vanno i soldi")
+                .font(.headline)
+
+            if spendingByCategory.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessuna spesa", systemImage: "chart.pie")
+                } description: {
+                    Text("Le tue spese appariranno qui")
+                }
+                .frame(height: 180)
+            } else {
+                Chart(spendingByCategory) { item in
+                    SectorMark(
+                        angle: .value("Importo", item.amount),
+                        innerRadius: .ratio(0.5),
+                        angularInset: 1.5
+                    )
+                    .foregroundStyle(Color(hex: item.color))
+                    .cornerRadius(4)
+                }
+                .frame(height: 180)
+
+                // Legenda
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(spendingByCategory.prefix(6)) { item in
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color(hex: item.color))
+                                .frame(width: 8, height: 8)
+                            Text(item.name)
+                                .font(.caption)
+                                .lineLimit(1)
+                            Spacer()
+                            Text(item.percentage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
         }
         .padding()
         .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
-    
-    // MARK: - Quick Stats Section
-    
-    private var quickStatsSection: some View {
+
+    // MARK: - Monthly Stats Section
+
+    private var monthlyStatsSection: some View {
         HStack(spacing: 12) {
-            StatCard(
-                title: "Entrate Mese",
+            StatCardView(
+                title: "Entrate",
                 value: monthlyIncome.currencyFormatted,
-                color: .green,
-                icon: "arrow.down.circle.fill"
+                icon: "arrow.down.circle.fill",
+                color: .green
             )
-            
-            StatCard(
-                title: "Spese Mese",
+
+            StatCardView(
+                title: "Uscite",
                 value: monthlyExpenses.currencyFormatted,
-                color: .red,
-                icon: "arrow.up.circle.fill"
+                icon: "arrow.up.circle.fill",
+                color: .red
+            )
+
+            StatCardView(
+                title: "Risparmi",
+                value: monthlySavings.currencyFormatted,
+                icon: monthlySavings >= 0 ? "plus.circle.fill" : "minus.circle.fill",
+                color: monthlySavings >= 0 ? .green : .red
             )
         }
     }
-    
-    // MARK: - Conti Overview Section
-    
-    private var contiOverviewSection: some View {
+
+    // MARK: - Conti Section
+
+    private var contiSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("I Tuoi Conti")
+            Text("I tuoi conti")
                 .font(.headline)
-                .padding(.horizontal)
-            
-            if appState.activeConti(for: appState.selectedAccount).isEmpty {
-                EmptyStateView(
-                    icon: "creditcard",
-                    title: "Nessun Conto",
-                    description: "Aggiungi il tuo primo conto per iniziare"
-                )
+
+            if appState.activeConti(for: account).isEmpty {
+                ContentUnavailableView {
+                    Label("Nessun conto", systemImage: "creditcard")
+                } description: {
+                    Text("Aggiungi il tuo primo conto")
+                }
             } else {
-                LazyVStack(spacing: 8) {
-                    ForEach(appState.activeConti(for: appState.selectedAccount), id: \.id) { conto in
-                        NavigationLink(destination: EnhancedContoDetailView(conto: conto)) {
-                            ContoCard(conto: conto)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
+                ForEach(appState.activeConti(for: account), id: \.id) { conto in
+                    ContoRowView(conto: conto)
                 }
             }
         }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
-    
+
     // MARK: - Recent Transactions Section
-    
+
     private var recentTransactionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Transazioni Recenti")
+                Text("Ultime transazioni")
                     .font(.headline)
-                
+
                 Spacer()
-                
-                Button("Vedi Tutte") {
+
+                Button("Vedi tutte") {
                     appState.selectTab(.transactions)
                 }
                 .font(.subheadline)
-                .foregroundColor(.accentColor)
             }
-            .padding(.horizontal)
-            
-            if recentTransactions.isEmpty {
-                EmptyStateView(
-                    icon: "list.bullet",
-                    title: "Nessuna Transazione",
-                    description: "Le tue transazioni appariranno qui"
-                )
+
+            if allTransactions.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessuna transazione", systemImage: "list.bullet")
+                } description: {
+                    Text("Le tue transazioni appariranno qui")
+                }
             } else {
-                LazyVStack(spacing: 1) {
-                    ForEach(recentTransactions, id: \.id) { transaction in
-                        TransactionRow(transaction: transaction)
+                ForEach(allTransactions.prefix(5), id: \.id) { transaction in
+                    TransactionRowView(transaction: transaction)
+
+                    if transaction.id != allTransactions.prefix(5).last?.id {
+                        Divider()
                     }
                 }
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
             }
         }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
-    
-    // MARK: - Quick Actions Section
-    
-    private var quickActionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Azioni Rapide")
-                .font(.headline)
-                .padding(.horizontal)
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                QuickActionCard(
-                    title: "Nuova Spesa",
-                    icon: "minus.circle",
-                    color: .red
-                ) {
-                    appState.presentQuickTransaction(type: .expense)
-                }
-                
-                QuickActionCard(
-                    title: "Nuova Entrata",
-                    icon: "plus.circle",
-                    color: .green
-                ) {
-                    appState.presentQuickTransaction(type: .income)
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-    
-    // MARK: - Financial Insights Section
-    
-    private var financialInsightsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Analisi Finanziaria")
-                    .font(.headline)
-                
-                Spacer()
-                
-                NavigationLink("Vedi Tutto", destination: FinancialInsightsView())
+
+    // MARK: - Account Switcher
+
+    private var accountSwitcher: some View {
+        Button {
+            appState.presentAccountSelection()
+        } label: {
+            HStack(spacing: 4) {
+                Text(account?.name ?? "Account")
                     .font(.subheadline)
-                    .foregroundColor(.accentColor)
+                Image(systemName: "chevron.down")
+                    .font(.caption)
             }
-            .padding(.horizontal)
-            
-            // Quick insights cards
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                InsightCard(
-                    title: "Spese Questo Mese",
-                    value: monthlyExpenses.currencyFormatted,
-                    icon: "arrow.up.circle.fill",
-                    color: .red,
-                    trend: .stable
-                )
-                
-                InsightCard(
-                    title: "Risparmi",
-                    value: monthlySavings.currencyFormatted,
-                    icon: "arrow.down.circle.fill", 
-                    color: monthlySavings >= 0 ? .green : .red,
-                    trend: monthlySavings >= 0 ? .up : .down
-                )
-            }
-            .padding(.horizontal)
         }
     }
-    
-    // Monthly calculations - removed duplicate monthlyExpenses (already defined above)
-    
-    private var monthlySavings: Decimal {
-        currentMonthStats?.monthlySavings ?? 0
+
+    // MARK: - Data Calculations
+
+    private func calculateMonthlyIncome() -> Decimal {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+
+        return allTransactions
+            .filter { transaction in
+                guard let date = transaction.date,
+                      transaction.type == .income else { return false }
+                return date >= startOfMonth
+            }
+            .reduce(0) { $0 + ($1.amount ?? 0) }
     }
+
+    private func calculateMonthlyExpenses() -> Decimal {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+
+        return allTransactions
+            .filter { transaction in
+                guard let date = transaction.date,
+                      transaction.type == .expense else { return false }
+                return date >= startOfMonth
+            }
+            .reduce(0) { $0 + ($1.amount ?? 0) }
+    }
+
+    private var balanceHistory: [BalanceDataPoint] {
+        // Genera dati per gli ultimi 6 mesi
+        let calendar = Calendar.current
+        var data: [BalanceDataPoint] = []
+        let currentBalance = totalBalance
+
+        for i in (0..<6).reversed() {
+            guard let date = calendar.date(byAdding: .month, value: -i, to: Date()) else { continue }
+
+            // Calcola il saldo approssimativo per quel mese
+            // basandosi sulle transazioni
+            let monthTransactions = allTransactions.filter { transaction in
+                guard let transactionDate = transaction.date else { return false }
+                let transactionMonth = calendar.component(.month, from: transactionDate)
+                let transactionYear = calendar.component(.year, from: transactionDate)
+                let targetMonth = calendar.component(.month, from: date)
+                let targetYear = calendar.component(.year, from: date)
+                return transactionMonth == targetMonth && transactionYear == targetYear
+            }
+
+            let monthIncome = monthTransactions
+                .filter { $0.type == .income }
+                .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
+
+            let monthExpenses = monthTransactions
+                .filter { $0.type == .expense }
+                .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
+
+            // Stima semplificata del saldo
+            let estimatedBalance = i == 0 ? currentBalance : currentBalance - (monthIncome - monthExpenses) * Decimal(i)
+
+            data.append(BalanceDataPoint(date: date, balance: estimatedBalance))
+        }
+
+        return data
+    }
+
+    private var spendingByCategory: [SpendingCategory] {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+
+        // Raggruppa le spese per categoria
+        var categoryTotals: [String: (amount: Decimal, color: String, icon: String)] = [:]
+
+        let expenses = allTransactions.filter { transaction in
+            guard let date = transaction.date,
+                  transaction.type == .expense else { return false }
+            return date >= startOfMonth
+        }
+
+        for expense in expenses {
+            let categoryName = expense.category?.name ?? "Altro"
+            let categoryColor = expense.category?.color ?? "#9E9E9E"
+            let categoryIcon = expense.category?.icon ?? "questionmark.circle"
+            let amount = expense.amount ?? 0
+
+            if let existing = categoryTotals[categoryName] {
+                categoryTotals[categoryName] = (existing.amount + amount, categoryColor, categoryIcon)
+            } else {
+                categoryTotals[categoryName] = (amount, categoryColor, categoryIcon)
+            }
+        }
+
+        let total = categoryTotals.values.reduce(Decimal(0)) { $0 + $1.amount }
+
+        return categoryTotals.map { name, data in
+            let percentage = total > 0 ? (data.amount / total) * 100 : 0
+            return SpendingCategory(
+                name: name,
+                amount: data.amount,
+                color: data.color,
+                icon: data.icon,
+                percentage: String(format: "%.0f%%", NSDecimalNumber(decimal: percentage).doubleValue)
+            )
+        }
+        .sorted { $0.amount > $1.amount }
+    }
+
+    private func formatCompact(_ value: Decimal) -> String {
+        let doubleValue = NSDecimalNumber(decimal: value).doubleValue
+        if abs(doubleValue) >= 1000 {
+            return String(format: "%.0fk", doubleValue / 1000)
+        }
+        return String(format: "%.0f", doubleValue)
+    }
+}
+
+// MARK: - Data Models for Charts
+
+struct BalanceDataPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let balance: Decimal
+}
+
+struct SpendingCategory: Identifiable {
+    let id = UUID()
+    let name: String
+    let amount: Decimal
+    let color: String
+    let icon: String
+    let percentage: String
 }
 
 // MARK: - Supporting Views
 
-struct StatCard: View {
+struct StatCardView: View {
     let title: String
     let value: String
-    let color: Color
-    let icon: String
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Spacer()
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-struct ContoCard: View {
-    let conto: Conto
-    
-    var body: some View {
-        HStack {
-            Image(systemName: conto.type?.icon ?? "questionmark.circle")
-                .foregroundColor(.accentColor)
-                .frame(width: 24, height: 24)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(conto.name ?? "Conto Sconosciuto")
-                    .font(.headline)
-                
-                Text(conto.type?.displayName ?? "Tipo sconosciuto")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(conto.balance.currencyFormatted)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(conto.balance >= 0 ? .primary : .red)
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
-    }
-}
-
-
-struct QuickActionCard: View {
-    let title: String
     let icon: String
     let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 32))
-                    .foregroundColor(color)
-                
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
 
-struct EmptyStateView: View {
-    let icon: String
-    let title: String
-    let description: String
-    
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
+                .font(.title2)
+                .foregroundStyle(color)
 
-struct InsightCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    let trend: TrendDirection
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Spacer()
-                Image(systemName: trend.icon)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
             Text(value)
-                .font(.title3)
+                .font(.subheadline)
                 .fontWeight(.semibold)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.7)
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .padding()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.1), radius: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
 }
 
-// Using TrendDirection from FinanceCore
+struct ContoRowView: View {
+    let conto: Conto
 
-// MARK: - DateFormatter Extension
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: conto.type?.icon ?? "creditcard")
+                .font(.title3)
+                .foregroundStyle(.accent)
+                .frame(width: 32)
 
-extension DateFormatter {
-    static let dayMonth: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM"
-        return formatter
-    }()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(conto.name ?? "Conto")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(conto.type?.displayName ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(conto.balance.currencyFormatted)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(conto.balance >= 0 ? .primary : .red)
+        }
+        .padding(.vertical, 8)
+    }
 }
+
+struct TransactionRowView: View {
+    let transaction: FinanceTransaction
+
+    private var isIncome: Bool {
+        transaction.type == .income
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icona categoria
+            Image(systemName: transaction.category?.icon ?? (isIncome ? "arrow.down.circle" : "arrow.up.circle"))
+                .font(.title3)
+                .foregroundStyle(Color(hex: transaction.category?.color ?? (isIncome ? "#4CAF50" : "#F44336")))
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
+                    .font(.subheadline)
+                    .lineLimit(1)
+
+                if let date = transaction.date {
+                    Text(date, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(isIncome ? .green : .red)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Preview
 
 #Preview {
     DashboardView()

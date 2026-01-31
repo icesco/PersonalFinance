@@ -2,7 +2,7 @@
 //  TransactionListView.swift
 //  Personal Finance
 //
-//  Created by Claude on 24/08/25.
+//  Lista transazioni stile Excel - semplice e chiara
 //
 
 import SwiftUI
@@ -12,433 +12,477 @@ import FinanceCore
 struct TransactionListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     @State private var searchText = ""
-    @State private var selectedTimeFilter: TimeFilter = .all
-    @State private var selectedTypeFilter: TransactionTypeFilter = .all
-    @State private var showingFilters = false
-    
+    @State private var selectedMonth: Date = Date()
+    @State private var selectedType: TransactionTypeFilter = .all
+    @State private var showingRecurring = false
+
+    private var account: Account? { appState.selectedAccount }
+
     // Filtered transactions
     private var filteredTransactions: [FinanceTransaction] {
-        var transactions = appState.allTransactions(for: appState.selectedAccount)
-        
-        // Apply search filter
-        if !searchText.isEmpty {
+        var transactions = appState.allTransactions(for: account)
+
+        // Filter by month
+        let calendar = Calendar.current
+        transactions = transactions.filter { transaction in
+            guard let date = transaction.date else { return false }
+            let transMonth = calendar.component(.month, from: date)
+            let transYear = calendar.component(.year, from: date)
+            let selectedMonthComp = calendar.component(.month, from: selectedMonth)
+            let selectedYearComp = calendar.component(.year, from: selectedMonth)
+            return transMonth == selectedMonthComp && transYear == selectedYearComp
+        }
+
+        // Filter by type
+        if selectedType != .all {
             transactions = transactions.filter { transaction in
-                let descriptionMatch = transaction.transactionDescription?.localizedCaseInsensitiveContains(searchText) ?? false
-                let categoryMatch = transaction.category?.name?.localizedCaseInsensitiveContains(searchText) ?? false
-                let notesMatch = transaction.notes?.localizedCaseInsensitiveContains(searchText) ?? false
-                return descriptionMatch || categoryMatch || notesMatch
-            }
-        }
-        
-        // Apply time filter
-        switch selectedTimeFilter {
-        case .all:
-            break
-        case .today:
-            transactions = transactions.filter { $0.date?.isToday == true }
-        case .thisWeek:
-            transactions = transactions.filter { $0.date?.isThisWeek == true }
-        case .thisMonth:
-            transactions = transactions.filter { $0.date?.isThisMonth == true }
-        case .last30Days:
-            let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-            transactions = transactions.filter { 
-                guard let date = $0.date else { return false }
-                return date >= thirtyDaysAgo 
-            }
-        }
-        
-        // Apply type filter
-        switch selectedTypeFilter {
-        case .all:
-            break
-        case .income:
-            transactions = transactions.filter { $0.type == .income }
-        case .expense:
-            transactions = transactions.filter { $0.type == .expense }
-        case .transfer:
-            transactions = transactions.filter { $0.type == .transfer }
-        }
-        
-        return transactions
-    }
-    
-    // Group transactions by date
-    private var groupedTransactions: [Date: [FinanceTransaction]] {
-        Dictionary(grouping: filteredTransactions) { transaction in
-            Calendar.current.startOfDay(for: transaction.date ?? Date.distantPast)
-        }
-    }
-    
-    // Sorted dates for section headers
-    private var sortedDates: [Date] {
-        groupedTransactions.keys.sorted { $0 > $1 }
-    }
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search and Filter Bar
-                searchAndFilterBar
-                
-                if filteredTransactions.isEmpty {
-                    emptyStateView
-                } else {
-                    // Transaction List
-                    List {
-                        ForEach(sortedDates, id: \.self) { date in
-                            Section {
-                                if let transactions = groupedTransactions[date] {
-                                    ForEach(transactions, id: \.id) { transaction in
-                                        TransactionListRow(transaction: transaction)
-                                            .swipeActions(edge: .trailing) {
-                                                Button("Elimina", role: .destructive) {
-                                                    deleteTransaction(transaction)
-                                                }
-                                            }
-                                    }
-                                }
-                            } header: {
-                                TransactionSectionHeader(
-                                    date: date,
-                                    transactions: groupedTransactions[date] ?? []
-                                )
-                            }
-                        }
-                    }
-                    .listStyle(PlainListStyle())
+                switch selectedType {
+                case .income: return transaction.type == .income
+                case .expense: return transaction.type == .expense
+                case .transfer: return transaction.type == .transfer
+                case .all: return true
                 }
             }
+        }
+
+        // Search filter
+        if !searchText.isEmpty {
+            transactions = transactions.filter { transaction in
+                let descMatch = transaction.transactionDescription?.localizedCaseInsensitiveContains(searchText) ?? false
+                let catMatch = transaction.category?.name?.localizedCaseInsensitiveContains(searchText) ?? false
+                return descMatch || catMatch
+            }
+        }
+
+        return transactions
+    }
+
+    // Recurring transactions
+    private var recurringTransactions: [FinanceTransaction] {
+        appState.allTransactions(for: account).filter { $0.isRecurring == true }
+    }
+
+    // Monthly totals
+    private var monthlyIncome: Decimal {
+        filteredTransactions
+            .filter { $0.type == .income }
+            .reduce(0) { $0 + ($1.amount ?? 0) }
+    }
+
+    private var monthlyExpenses: Decimal {
+        filteredTransactions
+            .filter { $0.type == .expense }
+            .reduce(0) { $0 + ($1.amount ?? 0) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Month selector + Summary
+                monthSelectorHeader
+
+                // Type filter
+                typeFilterBar
+
+                // Transaction list
+                if filteredTransactions.isEmpty {
+                    emptyState
+                } else {
+                    transactionList
+                }
+            }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Transazioni")
+            .searchable(text: $searchText, prompt: "Cerca...")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button {
+                            showingRecurring = true
+                        } label: {
+                            Label("Ricorrenti", systemImage: "repeat")
+                        }
+
+                        Divider()
+
                         Button {
                             appState.presentQuickTransaction(type: .expense)
                         } label: {
                             Label("Nuova Spesa", systemImage: "minus.circle")
                         }
-                        
+
                         Button {
                             appState.presentQuickTransaction(type: .income)
                         } label: {
                             Label("Nuova Entrata", systemImage: "plus.circle")
                         }
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
-        }
-        .searchable(text: $searchText, prompt: "Cerca transazioni...")
-        .sheet(isPresented: $showingFilters) {
-            TransactionFiltersSheet(
-                timeFilter: $selectedTimeFilter,
-                typeFilter: $selectedTypeFilter
-            )
+            .sheet(isPresented: $showingRecurring) {
+                RecurringTransactionsSheet(transactions: recurringTransactions)
+            }
         }
     }
-    
-    // MARK: - Search and Filter Bar
-    
-    private var searchAndFilterBar: some View {
-        HStack {
-            // Filter Button
-            Button {
-                showingFilters = true
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text("Filtri")
+
+    // MARK: - Month Selector Header
+
+    private var monthSelectorHeader: some View {
+        VStack(spacing: 12) {
+            // Month navigation
+            HStack {
+                Button {
+                    withAnimation {
+                        selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.title3)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(.systemGray5))
-                .cornerRadius(20)
-            }
-            .foregroundColor(.primary)
-            
-            Spacer()
-            
-            // Active filters indicator
-            if selectedTimeFilter != .all || selectedTypeFilter != .all {
-                Text("\(filteredTransactions.count) risultati")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color(.systemGroupedBackground))
-    }
-    
-    // MARK: - Empty State
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            
-            Image(systemName: "list.bullet.rectangle")
-                .font(.system(size: 64))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text("Nessuna Transazione")
-                    .font(.title2)
+
+                Spacer()
+
+                Text(selectedMonth, format: .dateTime.month(.wide).year())
+                    .font(.title3)
                     .fontWeight(.semibold)
-                
-                Text(searchText.isEmpty ? 
-                     "Le tue transazioni appariranno qui quando le aggiungerai" :
-                     "Nessuna transazione trovata per '\(searchText)'")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            if searchText.isEmpty {
-                Button("Aggiungi Prima Transazione") {
-                    appState.presentQuickTransaction()
+
+                Spacer()
+
+                Button {
+                    withAnimation {
+                        selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.title3)
                 }
-                .buttonStyle(.borderedProminent)
+                .disabled(Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: .month))
             }
-            
-            Spacer()
+            .padding(.horizontal)
+
+            // Monthly summary
+            HStack(spacing: 24) {
+                VStack(spacing: 4) {
+                    Text("Entrate")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("+\(monthlyIncome.currencyFormatted)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.green)
+                }
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(spacing: 4) {
+                    Text("Uscite")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("-\(monthlyExpenses.currencyFormatted)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.red)
+                }
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(spacing: 4) {
+                    Text("Bilancio")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    let balance = monthlyIncome - monthlyExpenses
+                    Text(balance.currencyFormatted)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(balance >= 0 ? .green : .red)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+    }
+
+    // MARK: - Type Filter Bar
+
+    private var typeFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
+                    FilterChip(
+                        title: type.displayName,
+                        isSelected: selectedType == type
+                    ) {
+                        withAnimation {
+                            selectedType = type
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(Color(.systemBackground))
+    }
+
+    // MARK: - Transaction List (Excel-style)
+
+    private var transactionList: some View {
+        List {
+            // Header row (Excel-style)
+            if horizontalSizeClass == .regular {
+                Section {
+                    HStack {
+                        Text("Data")
+                            .frame(width: 100, alignment: .leading)
+                        Text("Descrizione")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Categoria")
+                            .frame(width: 120, alignment: .leading)
+                        Text("Conto")
+                            .frame(width: 100, alignment: .leading)
+                        Text("Importo")
+                            .frame(width: 100, alignment: .trailing)
+                    }
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color(.systemGray5))
+                }
+            }
+
+            // Transaction rows
+            ForEach(filteredTransactions, id: \.id) { transaction in
+                if horizontalSizeClass == .regular {
+                    // iPad: Table-style row
+                    ExcelTransactionRow(transaction: transaction)
+                        .swipeActions(edge: .trailing) {
+                            Button("Elimina", role: .destructive) {
+                                deleteTransaction(transaction)
+                            }
+                        }
+                } else {
+                    // iPhone: Compact row
+                    CompactTransactionRow(transaction: transaction)
+                        .swipeActions(edge: .trailing) {
+                            Button("Elimina", role: .destructive) {
+                                deleteTransaction(transaction)
+                            }
+                        }
+                }
+            }
+        }
+        .listStyle(.plain)
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        ContentUnavailableView {
+            Label("Nessuna transazione", systemImage: "list.bullet.rectangle")
+        } description: {
+            Text("Non ci sono transazioni per questo mese")
+        } actions: {
+            Button("Aggiungi transazione") {
+                appState.presentQuickTransaction()
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
-    
+
     // MARK: - Actions
-    
+
     private func deleteTransaction(_ transaction: FinanceTransaction) {
         modelContext.delete(transaction)
-        
-        do {
-            try modelContext.save()
-        } catch {
-            print("Error deleting transaction: \(error)")
+        try? modelContext.save()
+    }
+}
+
+// MARK: - Filter Chip
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.accentColor : Color(.systemGray5))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .clipShape(Capsule())
         }
     }
 }
 
-// MARK: - Supporting Views
+// MARK: - Excel-style Transaction Row (iPad)
 
-struct TransactionListRow: View {
+struct ExcelTransactionRow: View {
     let transaction: FinanceTransaction
-    
+
+    private var isIncome: Bool { transaction.type == .income }
+
     var body: some View {
         HStack {
-            // Transaction Icon & Category Color
-            VStack {
-                if let category = transaction.category,
-                   let icon = category.icon, !icon.isEmpty {
+            // Date
+            if let date = transaction.date {
+                Text(date, format: .dateTime.day().month(.abbreviated))
+                    .font(.subheadline)
+                    .frame(width: 100, alignment: .leading)
+            }
+
+            // Description
+            Text(transaction.transactionDescription ?? "-")
+                .font(.subheadline)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Category
+            HStack(spacing: 4) {
+                if let icon = transaction.category?.icon {
                     Image(systemName: icon)
-                        .foregroundColor(Color(hex: category.color ?? "#007AFF"))
-                        .frame(width: 24, height: 24)
-                } else {
-                    Image(systemName: transaction.type?.icon ?? "questionmark.circle")
-                        .foregroundColor(transaction.type == .expense ? .red : .green)
-                        .frame(width: 24, height: 24)
-                }
-            }
-            .frame(width: 40, height: 40)
-            .background(Color(.systemGray6))
-            .cornerRadius(20)
-            
-            // Transaction Details
-            VStack(alignment: .leading, spacing: 4) {
-                // Description or Category
-                if let description = transaction.transactionDescription, !description.isEmpty {
-                    Text(description)
-                        .font(.headline)
-                        .lineLimit(1)
-                } else {
-                    Text(transaction.category?.name ?? "Categoria Sconosciuta")
-                        .font(.headline)
-                        .lineLimit(1)
-                }
-                
-                // Account and time
-                HStack(spacing: 4) {
-                    // Account name
-                    if let contoName = transaction.fromConto?.name ?? transaction.toConto?.name {
-                        Text(contoName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if let date = transaction.date {
-                        Text("• \(DateFormatter.timeOnly.string(from: date))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // Notes if present
-                if let notes = transaction.notes, !notes.isEmpty {
-                    Text(notes)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .foregroundStyle(Color(hex: transaction.category?.color ?? "#007AFF"))
                 }
+                Text(transaction.category?.name ?? "-")
+                    .font(.subheadline)
+                    .lineLimit(1)
             }
-            
-            Spacer()
-            
+            .frame(width: 120, alignment: .leading)
+
+            // Account
+            Text(transaction.fromConto?.name ?? transaction.toConto?.name ?? "-")
+                .font(.subheadline)
+                .lineLimit(1)
+                .frame(width: 100, alignment: .leading)
+
             // Amount
-            VStack(alignment: .trailing) {
-                Text(transaction.displayAmount.currencyFormatted)
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundColor(transaction.type == .expense ? .red : .green)
-                
-                if transaction.isRecurring == true {
-                    Image(systemName: "repeat")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
+            Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(isIncome ? .green : .red)
+                .frame(width: 100, alignment: .trailing)
         }
         .padding(.vertical, 4)
     }
 }
 
-struct TransactionSectionHeader: View {
-    let date: Date
-    let transactions: [FinanceTransaction]
-    
-    private var dailyTotal: Decimal {
-        transactions.reduce(0) { sum, transaction in
-            switch transaction.type {
-            case .expense:
-                return sum - (transaction.amount ?? 0)
-            case .income:
-                return sum + (transaction.amount ?? 0)
-            case .transfer:
-                return sum // Transfers don't affect total balance
-            case .none:
-                return sum
-            }
-        }
-    }
-    
+// MARK: - Compact Transaction Row (iPhone)
+
+struct CompactTransactionRow: View {
+    let transaction: FinanceTransaction
+
+    private var isIncome: Bool { transaction.type == .income }
+
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
+            // Category icon
+            Image(systemName: transaction.category?.icon ?? (isIncome ? "arrow.down.circle" : "arrow.up.circle"))
+                .font(.title3)
+                .foregroundStyle(Color(hex: transaction.category?.color ?? (isIncome ? "#4CAF50" : "#F44336")))
+                .frame(width: 36, height: 36)
+                .background(Color(.systemGray6))
+                .clipShape(Circle())
+
+            // Details
             VStack(alignment: .leading, spacing: 2) {
-                Text(DateFormatter.fullDate.string(from: date))
-                    .font(.headline)
-                
-                Text("\(transactions.count) transazioni")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            if dailyTotal != 0 {
-                Text(dailyTotal.currencyFormatted)
+                Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(dailyTotal >= 0 ? .green : .red)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    if let date = transaction.date {
+                        Text(date, format: .dateTime.day().month(.abbreviated))
+                    }
+                    Text("•")
+                    Text(transaction.fromConto?.name ?? transaction.toConto?.name ?? "")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Amount + recurring indicator
+            VStack(alignment: .trailing, spacing: 2) {
+                Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(isIncome ? .green : .red)
+
+                if transaction.isRecurring == true {
+                    HStack(spacing: 2) {
+                        Image(systemName: "repeat")
+                        Text(transaction.recurrenceFrequency?.displayName ?? "")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 4)
     }
 }
 
-struct TransactionFiltersSheet: View {
-    @Binding var timeFilter: TimeFilter
-    @Binding var typeFilter: TransactionTypeFilter
+// MARK: - Recurring Transactions Sheet
+
+struct RecurringTransactionsSheet: View {
+    let transactions: [FinanceTransaction]
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
-        NavigationView {
-            Form {
-                Section("Periodo") {
-                    Picker("Periodo", selection: $timeFilter) {
-                        ForEach(TimeFilter.allCases, id: \.self) { filter in
-                            Text(filter.displayName).tag(filter)
-                        }
+        NavigationStack {
+            Group {
+                if transactions.isEmpty {
+                    ContentUnavailableView {
+                        Label("Nessuna ricorrente", systemImage: "repeat")
+                    } description: {
+                        Text("Le transazioni ricorrenti (abbonamenti, mutuo, etc.) appariranno qui")
                     }
-                    .pickerStyle(.wheel)
-                }
-                
-                Section("Tipo Transazione") {
-                    Picker("Tipo", selection: $typeFilter) {
-                        ForEach(TransactionTypeFilter.allCases, id: \.self) { filter in
-                            Text(filter.displayName).tag(filter)
-                        }
+                } else {
+                    List(transactions, id: \.id) { transaction in
+                        CompactTransactionRow(transaction: transaction)
                     }
-                    .pickerStyle(.segmented)
                 }
             }
-            .navigationTitle("Filtri")
+            .navigationTitle("Transazioni Ricorrenti")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Ripristina") {
-                        timeFilter = .all
-                        typeFilter = .all
-                    }
+                    Button("Fine") { dismiss() }
                 }
             }
         }
     }
 }
 
-// MARK: - Filter Enums
-
-enum TimeFilter: CaseIterable {
-    case all, today, thisWeek, thisMonth, last30Days
-    
-    var displayName: String {
-        switch self {
-        case .all: return "Tutte"
-        case .today: return "Oggi"
-        case .thisWeek: return "Questa Settimana"
-        case .thisMonth: return "Questo Mese"
-        case .last30Days: return "Ultimi 30 Giorni"
-        }
-    }
-}
+// MARK: - Filter Enum
 
 enum TransactionTypeFilter: CaseIterable {
     case all, income, expense, transfer
-    
+
     var displayName: String {
         switch self {
         case .all: return "Tutte"
         case .income: return "Entrate"
-        case .expense: return "Spese"
+        case .expense: return "Uscite"
         case .transfer: return "Trasferimenti"
         }
     }
 }
 
-// MARK: - DateFormatter Extensions
-
-extension DateFormatter {
-    static let fullDate: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter
-    }()
-    
-    static let timeOnly: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter
-    }()
-}
+// MARK: - Preview
 
 #Preview {
     TransactionListView()

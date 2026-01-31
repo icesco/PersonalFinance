@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  Personal Finance
 //
-//  Created by Claude on 24/08/25.
+//  Tab principale con navigazione semplificata
 //
 
 import SwiftUI
@@ -12,8 +12,35 @@ import FinanceCore
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     var body: some View {
+        Group {
+            if horizontalSizeClass == .regular {
+                // iPad / Mac: NavigationSplitView
+                iPadLayout
+            } else {
+                // iPhone: TabView standard
+                iPhoneLayout
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { appState.showingQuickTransaction },
+            set: { _ in appState.dismissQuickTransaction() }
+        )) {
+            QuickTransactionModal()
+        }
+        .sheet(isPresented: Binding(
+            get: { appState.showingAccountSelection },
+            set: { _ in appState.dismissAccountSelection() }
+        )) {
+            AccountSelectionModal()
+        }
+    }
+
+    // MARK: - iPhone Layout
+
+    private var iPhoneLayout: some View {
         ZStack {
             TabView(selection: Binding(
                 get: { appState.selectedTab },
@@ -21,40 +48,23 @@ struct MainTabView: View {
             )) {
                 DashboardView()
                     .tabItem {
-                        Image(systemName: appState.selectedTab == .dashboard ? "house.fill" : "house")
-                        Text("Dashboard")
+                        Label("Dashboard", systemImage: appState.selectedTab == .dashboard ? "house.fill" : "house")
                     }
                     .tag(AppTab.dashboard)
-                
+
                 TransactionListView()
                     .tabItem {
-                        Image(systemName: appState.selectedTab == .transactions ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
-                        Text("Transazioni")
+                        Label("Transazioni", systemImage: appState.selectedTab == .transactions ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
                     }
                     .tag(AppTab.transactions)
-                
-                BudgetView()
+
+                SettingsView()
                     .tabItem {
-                        Image(systemName: appState.selectedTab == .budgets ? "chart.pie.fill" : "chart.pie")
-                        Text("Budget")
-                    }
-                    .tag(AppTab.budgets)
-                
-                CategoryView()
-                    .tabItem {
-                        Image(systemName: appState.selectedTab == .categories ? "tag.fill" : "tag")
-                        Text("Categorie")
-                    }
-                    .tag(AppTab.categories)
-                
-                SettingsTabView()
-                    .tabItem {
-                        Image(systemName: appState.selectedTab == .settings ? "gearshape.fill" : "gearshape")
-                        Text("Impostazioni")
+                        Label("Impostazioni", systemImage: appState.selectedTab == .settings ? "gearshape.fill" : "gearshape")
                     }
                     .tag(AppTab.settings)
             }
-            
+
             // Floating Action Button
             VStack {
                 Spacer()
@@ -64,15 +74,53 @@ struct MainTabView: View {
                         appState.presentQuickTransaction()
                     }
                     .padding(.trailing, 20)
-                    .padding(.bottom, 90) // Above tab bar
+                    .padding(.bottom, 90)
                 }
             }
         }
-        .sheet(isPresented: Binding(
-            get: { appState.showingQuickTransaction },
-            set: { _ in appState.dismissQuickTransaction() }
-        )) {
-            QuickTransactionModal()
+    }
+
+    // MARK: - iPad Layout
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            // Sidebar
+            List(selection: Binding(
+                get: { appState.selectedTab },
+                set: { if let tab = $0 { appState.selectTab(tab) } }
+            )) {
+                Section("Menu") {
+                    Label("Dashboard", systemImage: "house")
+                        .tag(AppTab.dashboard)
+
+                    Label("Transazioni", systemImage: "list.bullet.rectangle")
+                        .tag(AppTab.transactions)
+
+                    Label("Impostazioni", systemImage: "gearshape")
+                        .tag(AppTab.settings)
+                }
+            }
+            .navigationTitle("Finance")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        appState.presentQuickTransaction()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                    }
+                }
+            }
+        } detail: {
+            // Content based on selected tab
+            switch appState.selectedTab {
+            case .dashboard:
+                DashboardView()
+            case .transactions:
+                TransactionListView()
+            case .settings:
+                SettingsView()
+            }
         }
     }
 }
@@ -81,20 +129,28 @@ struct MainTabView: View {
 
 struct FloatingActionButton: View {
     let action: () -> Void
-    
+
+    @State private var isPressed = false
+
     var body: some View {
         Button(action: action) {
             Image(systemName: "plus")
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
                 .background(Color.accentColor)
                 .clipShape(Circle())
-                .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                .shadow(color: Color.accentColor.opacity(0.3), radius: 8, y: 4)
         }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(1.0)
-        .animation(.easeInOut(duration: 0.1), value: false)
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -104,162 +160,106 @@ struct QuickTransactionModal: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    
+
     @State private var selectedConto: Conto?
     @State private var selectedCategory: FinanceCategory?
     @State private var amount: String = ""
     @State private var description: String = ""
     @State private var transactionType: TransactionType = .expense
     @State private var selectedDate = Date()
-    @State private var includeTime = false
-    @State private var showingContoSelection = false
-    @State private var showingCategorySelection = false
-    
-    // For transfers
-    @State private var fromConto: Conto?
-    @State private var toConto: Conto?
-    @State private var showingFromContoSelection = false
-    @State private var showingToContoSelection = false
-    
+    @State private var isRecurring = false
+    @State private var recurrenceFrequency: RecurrenceFrequency = .monthly
+
     private var availableConti: [Conto] {
         appState.activeConti(for: appState.selectedAccount)
     }
-    
+
     private var availableCategories: [FinanceCategory] {
-        appState.selectedAccount?.categories?.filter { 
-            $0.isActive == true 
-        } ?? []
+        appState.selectedAccount?.categories?.filter { $0.isActive == true } ?? []
     }
-    
+
     private var isFormValid: Bool {
-        let amountValue = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) ?? 0
-        
-        if transactionType == .transfer {
-            return fromConto != nil && 
-                   toConto != nil && 
-                   fromConto?.id != toConto?.id && 
-                   !amount.isEmpty && 
-                   amountValue > 0
-        } else {
-            return selectedConto != nil && 
-                   selectedCategory != nil && 
-                   !amount.isEmpty && 
-                   amountValue > 0
+        guard let amountValue = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) else {
+            return false
         }
+        return selectedConto != nil && selectedCategory != nil && amountValue > 0
     }
-    
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                Section("Tipo Transazione") {
+                // Tipo transazione
+                Section {
                     Picker("Tipo", selection: $transactionType) {
                         Text("Spesa").tag(TransactionType.expense)
                         Text("Entrata").tag(TransactionType.income)
-                        Text("Trasferimento").tag(TransactionType.transfer)
                     }
-                    .pickerStyle(SegmentedPickerStyle())
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .padding(.vertical, 8)
                 }
-                
-                Section("Dettagli") {
-                    if transactionType == .transfer {
-                        // From Conto Selection
-                        Button {
-                            showingFromContoSelection = true
-                        } label: {
-                            HStack {
-                                Text("Da Conto")
-                                Spacer()
-                                if let conto = fromConto {
-                                    Text(conto.name ?? "Sconosciuto")
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text("Seleziona conto origine")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .foregroundColor(.primary)
-                        
-                        // To Conto Selection
-                        Button {
-                            showingToContoSelection = true
-                        } label: {
-                            HStack {
-                                Text("A Conto")
-                                Spacer()
-                                if let conto = toConto {
-                                    Text(conto.name ?? "Sconosciuto")
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text("Seleziona conto destinazione")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .foregroundColor(.primary)
-                    } else {
-                        // Regular transaction - Conto Selection
-                        Button {
-                            showingContoSelection = true
-                        } label: {
-                            HStack {
-                                Text("Conto")
-                                Spacer()
-                                if let conto = selectedConto {
-                                    Text(conto.name ?? "Sconosciuto")
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text("Seleziona conto")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .foregroundColor(.primary)
-                        
-                        // Category Selection
-                        Button {
-                            showingCategorySelection = true
-                        } label: {
-                            HStack {
-                                Text("Categoria")
-                                Spacer()
-                                if let category = selectedCategory {
-                                    HStack {
-                                        if let icon = category.icon, !icon.isEmpty {
-                                            Image(systemName: icon)
-                                                .foregroundColor(Color(hex: category.color ?? "#007AFF"))
-                                        }
-                                        Text(category.name ?? "Sconosciuta")
-                                            .foregroundColor(.secondary)
-                                    }
-                                } else {
-                                    Text("Seleziona categoria")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .foregroundColor(.primary)
-                    }
-                    
-                    // Amount
+
+                // Importo (in evidenza)
+                Section {
                     HStack {
-                        Text("Importo")
-                        Spacer()
+                        Text("€")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.secondary)
+
                         TextField("0,00", text: $amount)
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
                             .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                            .multilineTextAlignment(.leading)
                     }
-                    
-                    // Description
+                    .listRowBackground(Color.clear)
+                }
+
+                // Dettagli
+                Section("Dettagli") {
+                    // Conto
+                    Picker("Conto", selection: $selectedConto) {
+                        Text("Seleziona").tag(nil as Conto?)
+                        ForEach(availableConti, id: \.id) { conto in
+                            HStack {
+                                Image(systemName: conto.type?.icon ?? "creditcard")
+                                Text(conto.name ?? "Conto")
+                            }
+                            .tag(conto as Conto?)
+                        }
+                    }
+
+                    // Categoria
+                    Picker("Categoria", selection: $selectedCategory) {
+                        Text("Seleziona").tag(nil as FinanceCategory?)
+                        ForEach(availableCategories, id: \.id) { category in
+                            HStack {
+                                Image(systemName: category.icon ?? "tag")
+                                    .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
+                                Text(category.name ?? "Categoria")
+                            }
+                            .tag(category as FinanceCategory?)
+                        }
+                    }
+
+                    // Descrizione
                     TextField("Descrizione (opzionale)", text: $description)
-                    
-                    // Date/Time section
-                    Toggle("Includi orario", isOn: $includeTime)
-                    
-                    if includeTime {
-                        DatePicker("Data e Ora", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
-                    } else {
-                        DatePicker("Data", selection: $selectedDate, displayedComponents: .date)
+
+                    // Data
+                    DatePicker("Data", selection: $selectedDate, displayedComponents: .date)
+                }
+
+                // Ricorrenza
+                Section("Ricorrenza") {
+                    Toggle("Transazione ricorrente", isOn: $isRecurring)
+
+                    if isRecurring {
+                        Picker("Frequenza", selection: $recurrenceFrequency) {
+                            ForEach(RecurrenceFrequency.allCases, id: \.self) { frequency in
+                                Text(frequency.displayName).tag(frequency)
+                            }
+                        }
                     }
                 }
             }
@@ -267,133 +267,53 @@ struct QuickTransactionModal: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") {
-                        dismiss()
-                    }
+                    Button("Annulla") { dismiss() }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Salva") {
-                        saveTransaction()
-                    }
-                    .disabled(!isFormValid)
+                    Button("Salva") { saveTransaction() }
+                        .fontWeight(.semibold)
+                        .disabled(!isFormValid)
                 }
             }
-        }
-        .sheet(isPresented: $showingContoSelection) {
-            ContoSelectionSheet(
-                conti: availableConti,
-                selectedConto: $selectedConto
-            )
-        }
-        .sheet(isPresented: $showingCategorySelection) {
-            CategorySelectionSheet(
-                categories: availableCategories,
-                selectedCategory: $selectedCategory
-            )
-        }
-        .sheet(isPresented: $showingFromContoSelection) {
-            ContoSelectionSheet(
-                conti: availableConti,
-                selectedConto: $fromConto
-            )
-        }
-        .sheet(isPresented: $showingToContoSelection) {
-            ContoSelectionSheet(
-                conti: availableConti.filter { $0.id != fromConto?.id },
-                selectedConto: $toConto
-            )
-        }
-        .onAppear {
-            transactionType = appState.quickTransactionType
-            
-            // Pre-select first conto if available
-            if selectedConto == nil && !availableConti.isEmpty {
-                selectedConto = availableConti.first
-            }
-        }
-        .onChange(of: transactionType) { _, _ in
-            // Reset category when transaction type changes
-            selectedCategory = nil
-            // Reset transfer conti when switching away from transfer
-            if transactionType != .transfer {
-                fromConto = nil
-                toConto = nil
+            .onAppear {
+                transactionType = appState.quickTransactionType
+                if selectedConto == nil, let firstConto = availableConti.first {
+                    selectedConto = firstConto
+                }
             }
         }
     }
-    
+
     private func saveTransaction() {
-        guard let amountDecimal = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")) else {
-            return
+        guard let amountDecimal = Decimal(string: amount.replacingOccurrences(of: ",", with: ".")),
+              let conto = selectedConto,
+              let category = selectedCategory else { return }
+
+        let transaction = FinanceTransaction(
+            amount: amountDecimal,
+            type: transactionType,
+            date: selectedDate,
+            transactionDescription: description.isEmpty ? nil : description,
+            isRecurring: isRecurring,
+            recurrenceFrequency: isRecurring ? recurrenceFrequency : nil
+        )
+
+        transaction.category = category
+
+        switch transactionType {
+        case .expense:
+            transaction.fromConto = conto
+        case .income:
+            transaction.toConto = conto
+        case .transfer:
+            break
         }
-        
-        if transactionType == .transfer {
-            // Handle transfer transaction
-            guard let fromConto = fromConto, let toConto = toConto else { return }
-            
-            let transaction = FinanceTransaction(
-                amount: amountDecimal,
-                type: .transfer,
-                date: selectedDate,
-                transactionDescription: description.isEmpty ? "Trasferimento da \(fromConto.name ?? "Conto") a \(toConto.name ?? "Conto")" : description
-            )
-            
-            transaction.fromConto = fromConto
-            transaction.toConto = toConto
-            // No category for transfers
-            
-            modelContext.insert(transaction)
-        } else {
-            // Handle regular transaction
-            guard let conto = selectedConto, let category = selectedCategory else { return }
-            
-            let transaction = FinanceTransaction(
-                amount: amountDecimal,
-                type: transactionType,
-                date: selectedDate,
-                transactionDescription: description.isEmpty ? nil : description
-            )
-            
-            transaction.category = category
-            
-            switch transactionType {
-            case .expense:
-                transaction.fromConto = conto
-            case .income:
-                transaction.toConto = conto
-            case .transfer:
-                break // Already handled above
-            }
-            
-            modelContext.insert(transaction)
-        }
-        
+
+        modelContext.insert(transaction)
+
         do {
             try modelContext.save()
-            
-            // Update statistics for affected accounts
-            Task {
-                do {
-                    if transactionType == .transfer {
-                        // Update statistics for both accounts involved in transfer
-                        if let fromAccount = fromConto?.account {
-                            try await StatisticsService.updateStatistics(for: fromAccount, in: modelContext)
-                        }
-                        if let toAccount = toConto?.account, toAccount.id != fromConto?.account?.id {
-                            try await StatisticsService.updateStatistics(for: toAccount, in: modelContext)
-                        }
-                    } else {
-                        // Update statistics for the single account
-                        if let account = selectedConto?.account {
-                            try await StatisticsService.updateStatistics(for: account, in: modelContext)
-                        }
-                    }
-                } catch {
-                    print("Failed to update statistics: \(error)")
-                }
-            }
-            
             dismiss()
         } catch {
             print("Error saving transaction: \(error)")
@@ -401,97 +321,10 @@ struct QuickTransactionModal: View {
     }
 }
 
-// MARK: - Supporting Views
-
-struct ContoSelectionSheet: View {
-    let conti: [Conto]
-    @Binding var selectedConto: Conto?
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            List(conti, id: \.id) { conto in
-                Button {
-                    selectedConto = conto
-                    dismiss()
-                } label: {
-                    HStack {
-                        Image(systemName: conto.type?.icon ?? "questionmark.circle")
-                            .foregroundColor(.accentColor)
-                            .frame(width: 24)
-                        
-                        VStack(alignment: .leading) {
-                            Text(conto.name ?? "Sconosciuto")
-                                .font(.headline)
-                            Text(conto.type?.displayName ?? "Tipo sconosciuto")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Text(conto.balance.currencyFormatted)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                }
-                .foregroundColor(.primary)
-            }
-            .navigationTitle("Seleziona Conto")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct CategorySelectionSheet: View {
-    let categories: [FinanceCategory]
-    @Binding var selectedCategory: FinanceCategory?
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            List(categories, id: \.id) { category in
-                Button {
-                    selectedCategory = category
-                    dismiss()
-                } label: {
-                    HStack {
-                        if let icon = category.icon, !icon.isEmpty {
-                            Image(systemName: icon)
-                                .foregroundColor(Color(hex: category.color ?? "#007AFF"))
-                                .frame(width: 24)
-                        }
-                        
-                        Text(category.name ?? "Sconosciuta")
-                            .font(.headline)
-                        
-                        Spacer()
-                    }
-                }
-                .foregroundColor(.primary)
-            }
-            .navigationTitle("Seleziona Categoria")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
+// MARK: - Preview
 
 #Preview {
     MainTabView()
         .environment(AppStateManager())
+        .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
 }

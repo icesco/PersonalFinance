@@ -131,36 +131,28 @@ final class AppStateManager {
 enum AppTab: Int, CaseIterable {
     case dashboard = 0
     case transactions = 1
-    case budgets = 2
-    case categories = 3
-    case settings = 4
-    
+    case settings = 2
+
     var title: String {
         switch self {
         case .dashboard: return "Dashboard"
         case .transactions: return "Transazioni"
-        case .budgets: return "Budget"
-        case .categories: return "Categorie"
         case .settings: return "Impostazioni"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .dashboard: return "house"
-        case .transactions: return "list.bullet"
-        case .budgets: return "chart.pie"
-        case .categories: return "tag"
+        case .transactions: return "list.bullet.rectangle"
         case .settings: return "gearshape"
         }
     }
-    
+
     var selectedIcon: String {
         switch self {
         case .dashboard: return "house.fill"
-        case .transactions: return "list.bullet"
-        case .budgets: return "chart.pie.fill"
-        case .categories: return "tag.fill"
+        case .transactions: return "list.bullet.rectangle.fill"
         case .settings: return "gearshape.fill"
         }
     }
