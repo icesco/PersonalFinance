@@ -17,17 +17,17 @@ public final class Category {
     
     @Relationship(deleteRule: .nullify, inverse: \Transaction.category)
     public var transactions: [Transaction]?
-    
-    @Relationship(deleteRule: .cascade, inverse: \BudgetCategory.category)
-    public var budgetCategories: [BudgetCategory]?
-    
+
+    /// Direct many-to-many relationship with Budget
+    @Relationship(deleteRule: .nullify, inverse: \Budget.categories)
+    public var budgets: [Budget]?
+
     public init(
         name: String,
         color: String = "#007AFF",
         icon: String = "tag",
         parentCategoryId: UUID? = nil
     ) {
-        // id and externalID now have default values
         self.name = name
         self.color = color
         self.icon = icon
@@ -36,15 +36,11 @@ public final class Category {
         self.updatedAt = Date()
         self.isActive = true
         self.transactions = []
-        self.budgetCategories = []
+        self.budgets = []
     }
-    
+
     public var isSubcategory: Bool {
         parentCategoryId != nil
-    }
-    
-    public var budgets: [Budget] {
-        (budgetCategories ?? []).compactMap { $0.budget }
     }
     
     public static let defaultCategories = [

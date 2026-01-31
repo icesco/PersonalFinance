@@ -40,11 +40,10 @@ public final class Budget {
     public var includeRecurringTransactions: Bool?  // Include transazioni ricorrenti pianificate
     
     public var account: Account?
-    
-    // Relazione many-to-many tramite modello intermedio
-    @Relationship(deleteRule: .cascade, inverse: \BudgetCategory.budget)
-    public var budgetCategories: [BudgetCategory]?
-    
+
+    /// Direct many-to-many relationship with Category (no junction table needed)
+    public var categories: [Category]?
+
     public init(
         name: String,
         amount: Decimal,
@@ -52,7 +51,6 @@ public final class Budget {
         alertThreshold: Double = 0.8,
         includeRecurringTransactions: Bool = true
     ) {
-        // id and externalID now have default values
         self.name = name
         self.amount = amount
         self.period = period
@@ -61,11 +59,7 @@ public final class Budget {
         self.isActive = true
         self.createdAt = Date()
         self.updatedAt = Date()
-        self.budgetCategories = []
-    }
-    
-    public var categories: [Category] {
-        (budgetCategories ?? []).compactMap { $0.category }
+        self.categories = []
     }
     
     // Calcola dinamicamente il periodo corrente basato su Date()
@@ -151,21 +145,21 @@ public final class Budget {
     
     // Calcola la spesa per un periodo specifico
     private func calculateSpent(for period: (start: Date, end: Date)) -> Decimal {
-        let categoriesList = categories
+        let categoriesList = categories ?? []
         guard !categoriesList.isEmpty else { return 0 }
-        
+
         var totalSpent: Decimal = 0
-        
-        // Transazioni effettive nel periodo
+
+        // Transazioni effettive nel periodo (using relationship - loads from DB)
         let actualTransactions = categoriesList.flatMap { category in
             (category.transactions ?? []).filter { transaction in
-                (transaction.date ?? Date.distantPast) >= period.start &&
-                (transaction.date ?? Date.distantPast) <= period.end &&
+                transaction.date >= period.start &&
+                transaction.date <= period.end &&
                 transaction.type == .expense
             }
         }
         totalSpent += actualTransactions.reduce(0) { $0 + ($1.amount ?? 0) }
-        
+
         // Se abilitato, includi transazioni ricorrenti pianificate
         if includeRecurringTransactions == true {
             let recurringTransactions = categoriesList.flatMap { category in
@@ -175,7 +169,7 @@ public final class Budget {
                     transaction.isRecurrenceActive()
                 }
             }
-            
+
             // Calcola le occorrenze delle transazioni ricorrenti nel periodo
             for transaction in recurringTransactions {
                 let occurrences = transaction.generateRecurrenceDates(until: period.end)
@@ -183,20 +177,23 @@ public final class Budget {
                 totalSpent += Decimal(occurrences.count) * (transaction.amount ?? 0)
             }
         }
-        
+
         return totalSpent
     }
-    
+
+    /// Add a category to this budget
     public func addCategory(_ category: Category) {
-        let budgetCategory = BudgetCategory(budget: self, category: category)
-        if budgetCategories == nil {
-            budgetCategories = []
+        if categories == nil {
+            categories = []
         }
-        budgetCategories?.append(budgetCategory)
+        if !(categories?.contains(where: { $0.id == category.id }) ?? false) {
+            categories?.append(category)
+        }
     }
-    
+
+    /// Remove a category from this budget
     public func removeCategory(_ category: Category) {
-        budgetCategories?.removeAll { $0.category?.id == category.id }
+        categories?.removeAll { $0.id == category.id }
     }
     
     public var remainingAmount: Decimal {

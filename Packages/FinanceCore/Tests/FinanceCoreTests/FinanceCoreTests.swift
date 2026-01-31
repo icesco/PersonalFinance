@@ -54,7 +54,7 @@ struct FinanceCoreTests {
         #expect(budget.alertThreshold == 0.8)
         #expect(budget.currentSpent == 0)
         #expect(budget.remainingAmount == 500)
-        #expect(budget.categories.isEmpty)
+        #expect((budget.categories ?? []).isEmpty)
         #expect(budget.includeRecurringTransactions == true)
         
         // Test dynamic period calculation

@@ -10,7 +10,6 @@ public struct FinanceCoreModule {
         Transaction.self,
         Category.self,
         Budget.self,
-        BudgetCategory.self,
         SavingsGoal.self
     ]
     

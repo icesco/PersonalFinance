@@ -287,21 +287,21 @@ struct BudgetCard: View {
                 }
                 
                 // Categories
-                if !budget.categories.isEmpty {
+                if !(budget.categories ?? []).isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Categorie")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
+
                         LazyVGrid(columns: [
                             GridItem(.adaptive(minimum: 80))
                         ], spacing: 4) {
-                            ForEach(budget.categories.prefix(3), id: \.id) { category in
+                            ForEach((budget.categories ?? []).prefix(3), id: \.id) { category in
                                 CategoryChip(category: category)
                             }
-                            
-                            if budget.categories.count > 3 {
-                                Text("+\(budget.categories.count - 3)")
+
+                            if (budget.categories ?? []).count > 3 {
+                                Text("+\((budget.categories ?? []).count - 3)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .padding(.horizontal, 8)
@@ -572,15 +572,15 @@ struct BudgetDetailView: View {
                     }
                     
                     // Categories
-                    if !budget.categories.isEmpty {
+                    if !(budget.categories ?? []).isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Categorie Incluse")
                                 .font(.headline)
-                            
+
                             LazyVGrid(columns: [
                                 GridItem(.adaptive(minimum: 100))
                             ], spacing: 8) {
-                                ForEach(budget.categories, id: \.id) { category in
+                                ForEach(budget.categories ?? [], id: \.id) { category in
                                     CategoryChip(category: category)
                                 }
                             }
