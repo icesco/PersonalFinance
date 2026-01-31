@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  Personal Finance
 //
-//  Tab principale con navigazione semplificata
+//  Tab principale con navigazione semplificata e supporto iOS 26 Liquid Glass
 //
 
 import SwiftUI
@@ -17,10 +17,8 @@ struct MainTabView: View {
     var body: some View {
         Group {
             if horizontalSizeClass == .regular {
-                // iPad / Mac: NavigationSplitView
                 iPadLayout
             } else {
-                // iPhone: TabView standard
                 iPhoneLayout
             }
         }
@@ -41,42 +39,78 @@ struct MainTabView: View {
     // MARK: - iPhone Layout
 
     private var iPhoneLayout: some View {
-        ZStack {
-            TabView(selection: Binding(
-                get: { appState.selectedTab },
-                set: { appState.selectTab($0) }
-            )) {
+        Group {
+            if #available(iOS 26, *) {
+                iOS26TabView
+            } else {
+                legacyTabView
+            }
+        }
+    }
+
+    // MARK: - iOS 26+ TabView with Search Role
+
+    @available(iOS 26, *)
+    private var iOS26TabView: some View {
+        TabView(selection: Binding(
+            get: { appState.selectedTab },
+            set: { appState.selectTab($0) }
+        )) {
+            Tab("Dashboard", systemImage: "house", value: AppTab.dashboard) {
                 DashboardView()
-                    .tabItem {
-                        Label("Dashboard", systemImage: appState.selectedTab == .dashboard ? "house.fill" : "house")
-                    }
-                    .tag(AppTab.dashboard)
+            }
 
+            Tab("Transazioni", systemImage: "list.bullet.rectangle", value: AppTab.transactions) {
                 TransactionListView()
-                    .tabItem {
-                        Label("Transazioni", systemImage: appState.selectedTab == .transactions ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
-                    }
-                    .tag(AppTab.transactions)
+            }
 
+            Tab("Impostazioni", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
-                    .tabItem {
-                        Label("Impostazioni", systemImage: appState.selectedTab == .settings ? "gearshape.fill" : "gearshape")
-                    }
-                    .tag(AppTab.settings)
             }
 
-            // Floating Action Button
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    FloatingActionButton {
-                        appState.presentQuickTransaction()
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 90)
-                }
+            // Search role tab - appears as floating button in tab bar
+            Tab("Aggiungi", systemImage: "plus", value: AppTab.dashboard, role: .search) {
+                QuickTransactionModal()
             }
+        }
+    }
+
+    // MARK: - Legacy TabView (iOS 18-25)
+
+    private var legacyTabView: some View {
+        TabView(selection: Binding(
+            get: { appState.selectedTab },
+            set: { appState.selectTab($0) }
+        )) {
+            DashboardView()
+                .tabItem {
+                    Label("Dashboard", systemImage: "house")
+                }
+                .tag(AppTab.dashboard)
+
+            TransactionListView()
+                .tabItem {
+                    Label("Transazioni", systemImage: "list.bullet.rectangle")
+                }
+                .tag(AppTab.transactions)
+
+            // Add button in center of tab bar for legacy
+            Color.clear
+                .tabItem {
+                    Label("Aggiungi", systemImage: "plus.circle.fill")
+                }
+                .tag(AppTab.addTransaction)
+                .onAppear {
+                    // When this tab is selected, show the modal and switch back
+                    appState.presentQuickTransaction()
+                    appState.selectTab(.dashboard)
+                }
+
+            SettingsView()
+                .tabItem {
+                    Label("Impostazioni", systemImage: "gearshape")
+                }
+                .tag(AppTab.settings)
         }
     }
 
@@ -84,7 +118,6 @@ struct MainTabView: View {
 
     private var iPadLayout: some View {
         NavigationSplitView {
-            // Sidebar
             List(selection: Binding(
                 get: { appState.selectedTab },
                 set: { if let tab = $0 { appState.selectTab(tab) } }
@@ -106,13 +139,18 @@ struct MainTabView: View {
                     Button {
                         appState.presentQuickTransaction()
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
+                        if #available(iOS 26, *) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .symbolRenderingMode(.hierarchical)
+                        } else {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                        }
                     }
                 }
             }
         } detail: {
-            // Content based on selected tab
             switch appState.selectedTab {
             case .dashboard:
                 DashboardView()
@@ -120,37 +158,10 @@ struct MainTabView: View {
                 TransactionListView()
             case .settings:
                 SettingsView()
+            case .addTransaction:
+                DashboardView()
             }
         }
-    }
-}
-
-// MARK: - Floating Action Button
-
-struct FloatingActionButton: View {
-    let action: () -> Void
-
-    @State private var isPressed = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(Color.accentColor)
-                .clipShape(Circle())
-                .shadow(color: Color.accentColor.opacity(0.3), radius: 8, y: 4)
-        }
-        .buttonStyle(ScaleButtonStyle())
-    }
-}
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

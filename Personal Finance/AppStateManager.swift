@@ -143,12 +143,14 @@ enum AppTab: Int, CaseIterable {
     case dashboard = 0
     case transactions = 1
     case settings = 2
+    case addTransaction = 3 // Used for legacy tab bar button
 
     var title: String {
         switch self {
         case .dashboard: return "Dashboard"
         case .transactions: return "Transazioni"
         case .settings: return "Impostazioni"
+        case .addTransaction: return "Aggiungi"
         }
     }
 
@@ -157,6 +159,7 @@ enum AppTab: Int, CaseIterable {
         case .dashboard: return "house"
         case .transactions: return "list.bullet.rectangle"
         case .settings: return "gearshape"
+        case .addTransaction: return "plus.circle.fill"
         }
     }
 
@@ -165,6 +168,7 @@ enum AppTab: Int, CaseIterable {
         case .dashboard: return "house.fill"
         case .transactions: return "list.bullet.rectangle.fill"
         case .settings: return "gearshape.fill"
+        case .addTransaction: return "plus.circle.fill"
         }
     }
 }
