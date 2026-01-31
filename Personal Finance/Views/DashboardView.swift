@@ -50,6 +50,7 @@ struct DashboardView: View {
             }
             .onAppear { loadDashboardData() }
             .onChange(of: appState.selectedAccount) { _, _ in loadDashboardData() }
+            .onChange(of: appState.dataRefreshTrigger) { _, _ in loadDashboardData() }
         }
     }
 

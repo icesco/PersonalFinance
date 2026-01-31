@@ -493,6 +493,9 @@ struct TransactionListView: View {
         modelContext.delete(transaction)
         try? modelContext.save()
         fetchTransactions()
+
+        // Notify dashboard to refresh
+        appState.triggerDataRefresh()
     }
 }
 

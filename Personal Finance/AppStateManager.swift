@@ -15,7 +15,11 @@ import FinanceCore
 final class AppStateManager {
     // MARK: - Tab Navigation
     var selectedTab: AppTab = .dashboard
-    
+
+    // MARK: - Data Refresh
+    /// Incremented when data changes to trigger view updates
+    var dataRefreshTrigger: Int = 0
+
     // MARK: - Account Management
     var selectedAccount: Account? {
         didSet {
@@ -42,9 +46,16 @@ final class AppStateManager {
     }
     
     // MARK: - Tab Management
-    
+
     func selectTab(_ tab: AppTab) {
         selectedTab = tab
+    }
+
+    // MARK: - Data Refresh
+
+    /// Call when data changes to notify dependent views to refresh
+    func triggerDataRefresh() {
+        dataRefreshTrigger += 1
     }
     
     // MARK: - Account Management

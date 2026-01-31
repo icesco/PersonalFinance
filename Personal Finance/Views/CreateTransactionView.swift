@@ -7,7 +7,7 @@ struct CreateTransactionView: View {
     let transactionType: TransactionType
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Environment(NavigationRouter.self) private var navigationRouter
+    @Environment(AppStateManager.self) private var appState
     @State private var amount: Decimal = 0
     @State private var description = ""
     @State private var notes = ""
@@ -318,29 +318,10 @@ struct CreateTransactionView: View {
         }
         
         try? modelContext.save()
-        
-        // Update statistics for affected accounts
-        Task {
-            do {
-                if transactionType == .transfer {
-                    // Update statistics for both accounts involved in transfer
-                    if let fromAccount = fromConto?.account {
-                        try await StatisticsService.updateStatistics(for: fromAccount, in: modelContext)
-                    }
-                    if let toAccount = toConto?.account, toAccount.id != fromConto?.account?.id {
-                        try await StatisticsService.updateStatistics(for: toAccount, in: modelContext)
-                    }
-                } else {
-                    // Update statistics for the single account
-                    if let account = conto?.account {
-                        try await StatisticsService.updateStatistics(for: account, in: modelContext)
-                    }
-                }
-            } catch {
-                print("Failed to update statistics: \(error)")
-            }
-        }
-        
+
+        // Notify dashboard to refresh
+        appState.triggerDataRefresh()
+
         dismiss()
     }
 }
@@ -361,5 +342,6 @@ struct CreateTransactionView_Previews: PreviewProvider {
         
         return CreateTransactionView(conto: conto, transactionType: .expense)
             .modelContainer(container)
+            .environment(AppStateManager())
     }
 }

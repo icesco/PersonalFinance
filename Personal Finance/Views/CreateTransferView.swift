@@ -6,7 +6,7 @@ struct CreateTransferView: View {
     let fromConto: Conto
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Environment(NavigationRouter.self) private var navigationRouter
+    @Environment(AppStateManager.self) private var appState
     @State private var amount: Decimal = 0
     @State private var description = ""
     @State private var notes = ""
@@ -173,6 +173,10 @@ struct CreateTransferView: View {
 
         modelContext.insert(transfer)
         try? modelContext.save()
+
+        // Notify dashboard to refresh
+        appState.triggerDataRefresh()
+
         dismiss()
     }
 }
@@ -193,5 +197,6 @@ struct CreateTransferView_Previews: PreviewProvider {
         
         return CreateTransferView(fromConto: fromConto)
             .modelContainer(container)
+            .environment(AppStateManager())
     }
 }
