@@ -205,18 +205,12 @@ public class StatisticsService {
                 let fromTransactions = try context.fetch(fromDescriptor)
                 let toTransactions = try context.fetch(toDescriptor)
 
-                // Filter by date in-memory (single optional chain is fast)
+                // Filter by date in-memory
                 allTransactions.append(contentsOf: fromTransactions.filter {
-                    if let date = $0.date {
-                        return date >= start && date < end
-                    }
-                    return false
+                    $0.date >= start && $0.date < end
                 })
                 allTransactions.append(contentsOf: toTransactions.filter {
-                    if let date = $0.date {
-                        return date >= start && date < end
-                    }
-                    return false
+                    $0.date >= start && $0.date < end
                 })
             } else {
                 // No date filter - fetch all for this conto

@@ -17,18 +17,20 @@ public class DataIntegrityService {
         let startDate = date.addingTimeInterval(-tolerance)
         let endDate = date.addingTimeInterval(tolerance)
         
+        // Simplified predicate to avoid compiler timeout - filter rest in-memory
         let descriptor = FetchDescriptor<Transaction>(
             predicate: #Predicate { transaction in
-                transaction.amount == amount &&
-                transaction.date! >= startDate &&
-                transaction.date! <= endDate &&
-                transaction.type == type
+                transaction.date >= startDate && transaction.date <= endDate
             }
         )
-        
+
         do {
             let results = try context.fetch(descriptor)
             return results.filter { transaction in
+                // Filter by amount and type in-memory
+                guard transaction.amount == amount && transaction.type == type else {
+                    return false
+                }
                 // Additional check for same conto
                 if let contoId = contoId {
                     return transaction.fromConto?.id == contoId || transaction.toConto?.id == contoId
@@ -111,17 +113,15 @@ public class DataIntegrityService {
 extension Transaction {
     /// Check if this transaction is a potential duplicate
     public func isDuplicateOf(_ other: Transaction, tolerance: TimeInterval = 300) -> Bool {
-        guard let myDate = self.date,
-              let otherDate = other.date,
-              let myAmount = self.amount,
+        guard let myAmount = self.amount,
               let otherAmount = other.amount else {
             return false
         }
-        
+
         return myAmount == otherAmount &&
-               abs(myDate.timeIntervalSince(otherDate)) <= tolerance &&
+               abs(self.date.timeIntervalSince(other.date)) <= tolerance &&
                self.type == other.type &&
-               (self.fromConto?.id == other.fromConto?.id || 
+               (self.fromConto?.id == other.fromConto?.id ||
                 self.toConto?.id == other.toConto?.id)
     }
 }

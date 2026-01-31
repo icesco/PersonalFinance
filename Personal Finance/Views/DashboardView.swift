@@ -91,9 +91,7 @@ struct DashboardView: View {
     private func loadMonthlyTotals(contiIDs: Set<UUID>, startOfMonth: Date, endOfMonth: Date) {
         var descriptor = FetchDescriptor<FinanceTransaction>()
         descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date != nil &&
-            transaction.date! >= startOfMonth &&
-            transaction.date! < endOfMonth
+            transaction.date >= startOfMonth && transaction.date < endOfMonth
         }
 
         do {
@@ -144,9 +142,7 @@ struct DashboardView: View {
     private func loadSpendingByCategory(contiIDs: Set<UUID>, startOfMonth: Date, endOfMonth: Date) {
         var descriptor = FetchDescriptor<FinanceTransaction>()
         descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date != nil &&
-            transaction.date! >= startOfMonth &&
-            transaction.date! < endOfMonth
+            transaction.date >= startOfMonth && transaction.date < endOfMonth
         }
 
         do {
@@ -204,9 +200,7 @@ struct DashboardView: View {
 
             var descriptor = FetchDescriptor<FinanceTransaction>()
             descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-                transaction.date != nil &&
-                transaction.date! >= startOfMonth &&
-                transaction.date! < endOfMonth
+                transaction.date >= startOfMonth && transaction.date < endOfMonth
             }
 
             do {
@@ -559,9 +553,7 @@ struct TransactionRowView: View {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
                     .font(.subheadline).lineLimit(1)
 
-                if let date = transaction.date {
-                    Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
-                }
+                Text(transaction.date, style: .date).font(.caption).foregroundStyle(.secondary)
             }
 
             Spacer()

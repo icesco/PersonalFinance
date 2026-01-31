@@ -20,8 +20,7 @@ struct FinancialInsightsView: View {
         
         return account.conti?.flatMap { conto in
             conto.allTransactions.filter { transaction in
-                guard let date = transaction.date else { return false }
-                return date >= range.start && date < range.end
+                transaction.date >= range.start && transaction.date < range.end
             }
         } ?? []
     }

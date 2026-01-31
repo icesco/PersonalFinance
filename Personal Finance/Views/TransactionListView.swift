@@ -388,11 +388,9 @@ struct TransactionListView: View {
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
 
-        // Base predicate: date range
+        // Base predicate: date range (date is non-optional now)
         descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date != nil &&
-            transaction.date! >= startOfMonth &&
-            transaction.date! < endOfMonth
+            transaction.date >= startOfMonth && transaction.date < endOfMonth
         }
 
         descriptor.fetchLimit = currentLimit
@@ -683,9 +681,7 @@ struct TransactionCell: View {
                     .font(.subheadline).fontWeight(.medium).lineLimit(1)
 
                 HStack(spacing: 4) {
-                    if let date = transaction.date {
-                        Text(date, format: .dateTime.day().month(.abbreviated))
-                    }
+                    Text(transaction.date, format: .dateTime.day().month(.abbreviated))
                     if showConto, let conto = contoName {
                         Text("•")
                         Text(conto)
@@ -715,10 +711,8 @@ struct TransactionCell: View {
 
     private var tableRow: some View {
         HStack {
-            if let date = transaction.date {
-                Text(date, format: .dateTime.day().month(.abbreviated))
-                    .font(.subheadline).frame(width: 80, alignment: .leading)
-            }
+            Text(transaction.date, format: .dateTime.day().month(.abbreviated))
+                .font(.subheadline).frame(width: 80, alignment: .leading)
 
             Text(transaction.transactionDescription ?? "-")
                 .font(.subheadline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)

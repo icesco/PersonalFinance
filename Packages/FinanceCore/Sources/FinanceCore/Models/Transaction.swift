@@ -71,15 +71,14 @@ public enum TransactionType: String, CaseIterable, Codable, Sendable {
 
 @Model
 public final class Transaction {
-    // Index frequently queried properties for better query performance
-    // Note: Composite indexes not supported, use single-property indexes only
-    #Index<Transaction>([\.date], [\.type])
+    // Index date for faster date-range queries (most common filter)
+    #Index<Transaction>([\.date])
 
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var amount: Decimal?
-    public var type: TransactionType?
-    public var date: Date?
+    public var type: TransactionType = TransactionType.expense
+    public var date: Date = Date()
     public var createdAt: Date?
     public var updatedAt: Date?
     public var transactionDescription: String?
@@ -124,10 +123,9 @@ public final class Transaction {
     }
     
     public var displayAmount: Decimal {
-        guard let transactionAmount = amount,
-              let transactionType = type else { return 0 }
-        
-        switch transactionType {
+        guard let transactionAmount = amount else { return 0 }
+
+        switch type {
         case .expense:
             return -transactionAmount
         case .income, .transfer:
@@ -142,14 +140,13 @@ public final class Transaction {
     // Calcola la prossima data di ricorrenza
     public func nextRecurrenceDate() -> Date? {
         guard isRecurring == true,
-              let frequency = recurrenceFrequency,
-              let transactionDate = date else { return nil }
-        
+              let frequency = recurrenceFrequency else { return nil }
+
         let calendar = Calendar.current
         let component = frequency.calendarComponent
         let value = frequency.componentValue
-        
-        return calendar.date(byAdding: component, value: value, to: transactionDate)
+
+        return calendar.date(byAdding: component, value: value, to: date)
     }
     
     // Verifica se la ricorrenza è ancora attiva
@@ -166,12 +163,11 @@ public final class Transaction {
     // Genera tutte le date di ricorrenza fino a una data specifica
     public func generateRecurrenceDates(until endDate: Date) -> [Date] {
         guard isRecurring == true,
-              let frequency = recurrenceFrequency,
-              let transactionDate = date else { return [] }
-        
+              let frequency = recurrenceFrequency else { return [] }
+
         var dates: [Date] = []
         let calendar = Calendar.current
-        var currentDate = transactionDate
+        var currentDate = date
         
         let actualEndDate = recurrenceEndDate?.compare(endDate) == .orderedAscending ? 
                            recurrenceEndDate! : endDate
