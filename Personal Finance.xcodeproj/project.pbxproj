@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6D3F39182F2E50F70018B045 /* FabBar in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3F39172F2E50F70018B045 /* FabBar */; };
 		6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D6508F82E5B418F0033992E /* FinanceCore */; };
 /* End PBXBuildFile section */
 
@@ -69,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D3F39182F2E50F70018B045 /* FabBar in Frameworks */,
 				6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -131,6 +133,7 @@
 			name = "Personal Finance";
 			packageProductDependencies = (
 				6D6508F82E5B418F0033992E /* FinanceCore */,
+				6D3F39172F2E50F70018B045 /* FabBar */,
 			);
 			productName = "Personal Finance";
 			productReference = 6D6508C82E5B400F0033992E /* Personal Finance.app */;
@@ -216,6 +219,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				6D6508F72E5B418F0033992E /* XCLocalSwiftPackageReference "Packages/FinanceCore" */,
+				6D3F39162F2E50F70018B045 /* XCRemoteSwiftPackageReference "FabBar" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D6508C92E5B400F0033992E /* Products */;
@@ -596,7 +600,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		6D3F39162F2E50F70018B045 /* XCRemoteSwiftPackageReference "FabBar" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ryanashcraft/FabBar";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		6D3F39172F2E50F70018B045 /* FabBar */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6D3F39162F2E50F70018B045 /* XCRemoteSwiftPackageReference "FabBar" */;
+			productName = FabBar;
+		};
 		6D6508F82E5B418F0033992E /* FinanceCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FinanceCore;

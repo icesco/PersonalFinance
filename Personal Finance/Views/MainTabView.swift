@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import FinanceCore
+import FabBar
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
@@ -48,7 +49,7 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - iOS 26+ TabView with Search Role
+    // MARK: - iOS 26+ TabView with FabBar
 
     @available(iOS 26, *)
     private var iOS26TabView: some View {
@@ -56,23 +57,38 @@ struct MainTabView: View {
             get: { appState.selectedTab },
             set: { appState.selectTab($0) }
         )) {
-            Tab("Dashboard", systemImage: "house", value: AppTab.dashboard) {
+            Tab(value: AppTab.dashboard) {
                 DashboardView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .fabBarSafeAreaPadding()
             }
 
-            Tab("Transazioni", systemImage: "list.bullet.rectangle", value: AppTab.transactions) {
+            Tab(value: AppTab.transactions) {
                 TransactionListView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .fabBarSafeAreaPadding()
             }
 
-            Tab("Impostazioni", systemImage: "gearshape", value: AppTab.settings) {
+            Tab(value: AppTab.settings) {
                 SettingsView()
-            }
-
-            // Search role tab - appears as floating button in tab bar
-            Tab("Aggiungi", systemImage: "plus", value: AppTab.dashboard, role: .search) {
-                QuickTransactionModal()
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .fabBarSafeAreaPadding()
             }
         }
+        .fabBar(
+            selection: Binding(
+                get: { appState.selectedTab },
+                set: { appState.selectTab($0) }
+            ),
+            tabs: [
+                FabBarTab(value: AppTab.dashboard, title: "Dashboard", systemImage: "house.fill"),
+                FabBarTab(value: AppTab.transactions, title: "Transazioni", systemImage: "list.bullet.rectangle.fill"),
+                FabBarTab(value: AppTab.settings, title: "Impostazioni", systemImage: "gearshape.fill"),
+            ],
+            action: FabBarAction(systemImage: "plus", accessibilityLabel: "Nuova transazione") {
+                appState.presentQuickTransaction()
+            }
+        )
     }
 
     // MARK: - Legacy TabView (iOS 18-25)
@@ -139,14 +155,8 @@ struct MainTabView: View {
                     Button {
                         appState.presentQuickTransaction()
                     } label: {
-                        if #available(iOS 26, *) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .symbolRenderingMode(.hierarchical)
-                        } else {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                        }
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
                     }
                 }
             }
