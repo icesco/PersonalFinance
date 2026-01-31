@@ -123,29 +123,26 @@ struct BudgetView: View {
         HStack(spacing: 12) {
             // On Track Budgets
             let onTrackCount = budgets.filter { !$0.shouldAlert && !$0.isOverBudget }.count
-            StatCard(
+            StatCardView(
                 title: "In Target",
                 value: "\(onTrackCount)",
-                color: .green,
-                icon: "checkmark.circle.fill"
+                icon: "checkmark.circle.fill", color: .green
             )
             
             // Warning Budgets
             let warningCount = budgets.filter { $0.shouldAlert && !$0.isOverBudget }.count
-            StatCard(
+            StatCardView(
                 title: "Attenzione",
                 value: "\(warningCount)",
-                color: .orange,
-                icon: "exclamationmark.triangle.fill"
+                icon: "exclamationmark.triangle.fill", color: .orange
             )
             
             // Over Budget
             let overBudgetCount = budgets.filter { $0.isOverBudget }.count
-            StatCard(
+            StatCardView(
                 title: "Superato",
                 value: "\(overBudgetCount)",
-                color: .red,
-                icon: "xmark.circle.fill"
+                icon: "xmark.circle.fill", color: .red
             )
         }
     }
@@ -549,32 +546,28 @@ struct BudgetDetailView: View {
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 12) {
-                        StatCard(
+                        StatCardView(
                             title: "Rimanente",
                             value: budget.remainingAmount.currencyFormatted,
-                            color: budget.remainingAmount >= 0 ? .green : .red,
-                            icon: "wallet.pass"
+                            icon: "wallet.pass", color: budget.remainingAmount >= 0 ? .green : .red
                         )
                         
-                        StatCard(
+                        StatCardView(
                             title: "Giorni Rimasti",
                             value: "\(budget.daysRemaining)",
-                            color: .blue,
-                            icon: "calendar"
+                            icon: "calendar", color: .blue
                         )
                         
-                        StatCard(
+                        StatCardView(
                             title: "Media Giornaliera",
                             value: budget.dailySuggestedSpending.currencyFormatted,
-                            color: .orange,
-                            icon: "chart.bar"
+                            icon: "chart.bar", color: .orange
                         )
                         
-                        StatCard(
+                        StatCardView(
                             title: "Proiezione",
                             value: budget.projectedSpending.currencyFormatted,
-                            color: budget.projectedSpending > (budget.amount ?? 0) ? .red : .green,
-                            icon: "chart.line.uptrend.xyaxis"
+                            icon: "chart.line.uptrend.xyaxis", color: budget.projectedSpending > (budget.amount ?? 0) ? .red : .green
                         )
                     }
                     

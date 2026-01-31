@@ -153,7 +153,6 @@ struct ContoSettingsRow: View {
         HStack(spacing: 12) {
             Image(systemName: conto.type?.icon ?? "creditcard")
                 .font(.title3)
-                .foregroundStyle(.accent)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {

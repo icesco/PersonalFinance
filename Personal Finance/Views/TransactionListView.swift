@@ -287,7 +287,7 @@ struct TransactionListView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(selectedCategories.isEmpty ? Color(.systemGray5) : Color.accentColor)
-            .foregroundStyle(selectedCategories.isEmpty ? .primary : .white)
+            .foregroundColor(selectedCategories.isEmpty ? .primary : .white)
             .clipShape(Capsule())
         }
     }
@@ -323,7 +323,6 @@ struct TransactionListView: View {
                 } else {
                     Text("Carica altre transazioni")
                         .font(.subheadline)
-                        .foregroundStyle(.accent)
                 }
                 Spacer()
             }
@@ -574,7 +573,7 @@ struct CategoryFilterSheet: View {
                             Text("Tutte le categorie").foregroundStyle(.primary)
                             Spacer()
                             if selectedCategories.isEmpty {
-                                Image(systemName: "checkmark").foregroundStyle(.accent)
+                                Image(systemName: "checkmark")
                             }
                         }
                     }
@@ -609,19 +608,18 @@ struct CategoryFilterSheet: View {
                     .frame(width: 24)
                 Text(category.name ?? "Categoria").foregroundStyle(.primary)
                 Spacer()
-                if let id = category.id, selectedCategories.contains(id) {
-                    Image(systemName: "checkmark").foregroundStyle(.accent)
+                if selectedCategories.contains(category.id) {
+                    Image(systemName: "checkmark")
                 }
             }
         }
     }
 
     private func toggleCategory(_ category: FinanceCategory) {
-        guard let id = category.id else { return }
-        if selectedCategories.contains(id) {
-            selectedCategories.remove(id)
+        if selectedCategories.contains(category.id) {
+            selectedCategories.remove(category.id)
         } else {
-            selectedCategories.insert(id)
+            selectedCategories.insert(category.id)
         }
     }
 }

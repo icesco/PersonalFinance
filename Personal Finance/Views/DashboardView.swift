@@ -259,7 +259,7 @@ struct DashboardView: View {
 
                 Text(totalBalance.currencyFormatted)
                     .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(totalBalance >= 0 ? .primary : .red)
+                    .foregroundColor(totalBalance >= 0 ? .primary : .red)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -526,7 +526,7 @@ struct ContoRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: conto.type?.icon ?? "creditcard")
-                .font(.title3).foregroundStyle(.accent).frame(width: 32)
+                .font(.title3).frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(conto.name ?? "Conto").font(.subheadline).fontWeight(.medium)
@@ -537,7 +537,7 @@ struct ContoRowView: View {
 
             Text(conto.balance.currencyFormatted)
                 .font(.subheadline).fontWeight(.semibold)
-                .foregroundStyle(conto.balance >= 0 ? .primary : .red)
+                .foregroundColor(conto.balance >= 0 ? .primary : .red)
         }
         .padding(.vertical, 8)
     }
