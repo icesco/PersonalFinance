@@ -2,7 +2,7 @@
 //  DashboardView.swift
 //  Personal Finance
 //
-//  Dashboard principale con grafici d'impatto
+//  Dashboard principale con grafici e query efficienti
 //
 
 import SwiftUI
@@ -15,54 +15,31 @@ struct DashboardView: View {
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    // Computed data
+    // Fetched data
+    @State private var monthlyIncome: Decimal = 0
+    @State private var monthlyExpenses: Decimal = 0
+    @State private var recentTransactions: [FinanceTransaction] = []
+    @State private var spendingByCategory: [SpendingCategory] = []
+    @State private var balanceHistory: [BalanceDataPoint] = []
+
     private var account: Account? { appState.selectedAccount }
 
-    private var allTransactions: [FinanceTransaction] {
-        appState.allTransactions(for: account)
-    }
-
-    private var monthlyIncome: Decimal {
-        calculateMonthlyIncome()
-    }
-
-    private var monthlyExpenses: Decimal {
-        calculateMonthlyExpenses()
-    }
-
-    private var monthlySavings: Decimal {
-        monthlyIncome - monthlyExpenses
-    }
-
-    private var totalBalance: Decimal {
-        account?.totalBalance ?? 0
-    }
-
-    private var isPositive: Bool {
-        monthlySavings >= 0
-    }
+    private var monthlySavings: Decimal { monthlyIncome - monthlyExpenses }
+    private var totalBalance: Decimal { account?.totalBalance ?? 0 }
+    private var isPositive: Bool { monthlySavings >= 0 }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 20) {
-                    // Hero: Saldo totale con indicatore
                     balanceHeroSection
-
-                    // Grafici in grid adattiva
                     chartsSection
-
-                    // Entrate / Uscite / Risparmi
                     monthlyStatsSection
-
-                    // I tuoi conti
                     contiSection
-
-                    // Ultime transazioni
                     recentTransactionsSection
                 }
                 .padding()
-                .padding(.bottom, 100) // Spazio per FAB
+                .padding(.bottom, 100)
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Dashboard")
@@ -71,14 +48,198 @@ struct DashboardView: View {
                     accountSwitcher
                 }
             }
+            .onAppear { loadDashboardData() }
+            .onChange(of: appState.selectedAccount) { _, _ in loadDashboardData() }
         }
+    }
+
+    // MARK: - Data Loading
+
+    private func loadDashboardData() {
+        guard let account = account else {
+            resetData()
+            return
+        }
+
+        let contiIDs = Set(account.activeConti.map { $0.id })
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+        // Load monthly transactions for income/expenses
+        loadMonthlyTotals(contiIDs: contiIDs, startOfMonth: startOfMonth, endOfMonth: endOfMonth)
+
+        // Load recent transactions (last 5)
+        loadRecentTransactions(contiIDs: contiIDs)
+
+        // Load spending by category
+        loadSpendingByCategory(contiIDs: contiIDs, startOfMonth: startOfMonth, endOfMonth: endOfMonth)
+
+        // Load balance history
+        loadBalanceHistory(contiIDs: contiIDs)
+    }
+
+    private func resetData() {
+        monthlyIncome = 0
+        monthlyExpenses = 0
+        recentTransactions = []
+        spendingByCategory = []
+        balanceHistory = []
+    }
+
+    private func loadMonthlyTotals(contiIDs: Set<UUID>, startOfMonth: Date, endOfMonth: Date) {
+        var descriptor = FetchDescriptor<FinanceTransaction>()
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date != nil &&
+            transaction.date! >= startOfMonth &&
+            transaction.date! < endOfMonth
+        }
+
+        do {
+            let transactions = try modelContext.fetch(descriptor)
+
+            // Filter by conti
+            let filtered = transactions.filter { transaction in
+                if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
+                if let id = transaction.toConto?.id, contiIDs.contains(id) { return true }
+                return false
+            }
+
+            monthlyIncome = filtered
+                .filter { $0.type == .income }
+                .reduce(0) { $0 + ($1.amount ?? 0) }
+
+            monthlyExpenses = filtered
+                .filter { $0.type == .expense }
+                .reduce(0) { $0 + ($1.amount ?? 0) }
+        } catch {
+            monthlyIncome = 0
+            monthlyExpenses = 0
+        }
+    }
+
+    private func loadRecentTransactions(contiIDs: Set<UUID>) {
+        var descriptor = FetchDescriptor<FinanceTransaction>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = 20 // Fetch a bit more, then filter
+
+        do {
+            let transactions = try modelContext.fetch(descriptor)
+
+            recentTransactions = transactions
+                .filter { transaction in
+                    if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
+                    if let id = transaction.toConto?.id, contiIDs.contains(id) { return true }
+                    return false
+                }
+                .prefix(5)
+                .map { $0 }
+        } catch {
+            recentTransactions = []
+        }
+    }
+
+    private func loadSpendingByCategory(contiIDs: Set<UUID>, startOfMonth: Date, endOfMonth: Date) {
+        var descriptor = FetchDescriptor<FinanceTransaction>()
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date != nil &&
+            transaction.date! >= startOfMonth &&
+            transaction.date! < endOfMonth
+        }
+
+        do {
+            let transactions = try modelContext.fetch(descriptor)
+
+            let expenses = transactions.filter { transaction in
+                guard transaction.type == .expense else { return false }
+                if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
+                return false
+            }
+
+            var categoryTotals: [String: (amount: Decimal, color: String, icon: String)] = [:]
+
+            for expense in expenses {
+                let name = expense.category?.name ?? "Altro"
+                let color = expense.category?.color ?? "#9E9E9E"
+                let icon = expense.category?.icon ?? "questionmark.circle"
+                let amount = expense.amount ?? 0
+
+                if let existing = categoryTotals[name] {
+                    categoryTotals[name] = (existing.amount + amount, color, icon)
+                } else {
+                    categoryTotals[name] = (amount, color, icon)
+                }
+            }
+
+            let total = categoryTotals.values.reduce(Decimal(0)) { $0 + $1.amount }
+
+            spendingByCategory = categoryTotals.map { name, data in
+                let percentage = total > 0 ? (data.amount / total) * 100 : 0
+                return SpendingCategory(
+                    name: name,
+                    amount: data.amount,
+                    color: data.color,
+                    icon: data.icon,
+                    percentage: String(format: "%.0f%%", NSDecimalNumber(decimal: percentage).doubleValue)
+                )
+            }
+            .sorted { $0.amount > $1.amount }
+        } catch {
+            spendingByCategory = []
+        }
+    }
+
+    private func loadBalanceHistory(contiIDs: Set<UUID>) {
+        let calendar = Calendar.current
+        var data: [BalanceDataPoint] = []
+        let currentBalance = totalBalance
+
+        for i in (0..<6).reversed() {
+            guard let monthDate = calendar.date(byAdding: .month, value: -i, to: Date()) else { continue }
+
+            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
+            let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+            var descriptor = FetchDescriptor<FinanceTransaction>()
+            descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+                transaction.date != nil &&
+                transaction.date! >= startOfMonth &&
+                transaction.date! < endOfMonth
+            }
+
+            do {
+                let transactions = try modelContext.fetch(descriptor)
+
+                let filtered = transactions.filter { transaction in
+                    if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
+                    if let id = transaction.toConto?.id, contiIDs.contains(id) { return true }
+                    return false
+                }
+
+                let monthIncome = filtered
+                    .filter { $0.type == .income }
+                    .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
+
+                let monthExpenses = filtered
+                    .filter { $0.type == .expense }
+                    .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
+
+                let estimatedBalance = i == 0 ? currentBalance : currentBalance - (monthIncome - monthExpenses) * Decimal(i)
+                data.append(BalanceDataPoint(date: monthDate, balance: estimatedBalance))
+            } catch {
+                data.append(BalanceDataPoint(date: monthDate, balance: currentBalance))
+            }
+        }
+
+        balanceHistory = data
     }
 
     // MARK: - Balance Hero Section
 
     private var balanceHeroSection: some View {
         VStack(spacing: 16) {
-            // Indicatore stato finanziario
             HStack {
                 Circle()
                     .fill(isPositive ? Color.green : Color.red)
@@ -91,7 +252,6 @@ struct DashboardView: View {
                 Spacer()
             }
 
-            // Saldo totale
             VStack(alignment: .leading, spacing: 4) {
                 Text("Saldo Totale")
                     .font(.subheadline)
@@ -103,7 +263,6 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Variazione mensile
             HStack {
                 Image(systemName: monthlySavings >= 0 ? "arrow.up.right" : "arrow.down.right")
                 Text("\(abs(monthlySavings).currencyFormatted) questo mese")
@@ -126,50 +285,54 @@ struct DashboardView: View {
             : [GridItem(.flexible())]
 
         return LazyVGrid(columns: columns, spacing: 16) {
-            // Andamento saldo
             balanceTrendChart
-
-            // Distribuzione spese
             spendingDistributionChart
         }
     }
 
     private var balanceTrendChart: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Andamento Saldo")
-                .font(.headline)
+            Text("Andamento Saldo").font(.headline)
 
-            Chart(balanceHistory) { item in
-                LineMark(
-                    x: .value("Mese", item.date, unit: .month),
-                    y: .value("Saldo", item.balance)
-                )
-                .foregroundStyle(Color.accentColor.gradient)
-                .interpolationMethod(.catmullRom)
+            if balanceHistory.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessun dato", systemImage: "chart.line.uptrend.xyaxis")
+                } description: {
+                    Text("I dati appariranno qui")
+                }
+                .frame(height: 180)
+            } else {
+                Chart(balanceHistory) { item in
+                    LineMark(
+                        x: .value("Mese", item.date, unit: .month),
+                        y: .value("Saldo", item.balance)
+                    )
+                    .foregroundStyle(Color.accentColor.gradient)
+                    .interpolationMethod(.catmullRom)
 
-                AreaMark(
-                    x: .value("Mese", item.date, unit: .month),
-                    y: .value("Saldo", item.balance)
-                )
-                .foregroundStyle(Color.accentColor.opacity(0.1).gradient)
-                .interpolationMethod(.catmullRom)
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisValueLabel {
-                        if let decimal = value.as(Decimal.self) {
-                            Text(formatCompact(decimal))
-                                .font(.caption2)
+                    AreaMark(
+                        x: .value("Mese", item.date, unit: .month),
+                        y: .value("Saldo", item.balance)
+                    )
+                    .foregroundStyle(Color.accentColor.opacity(0.1).gradient)
+                    .interpolationMethod(.catmullRom)
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { value in
+                        AxisValueLabel {
+                            if let decimal = value.as(Decimal.self) {
+                                Text(formatCompact(decimal)).font(.caption2)
+                            }
                         }
                     }
                 }
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .month)) { value in
-                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .month)) { _ in
+                        AxisValueLabel(format: .dateTime.month(.abbreviated))
+                    }
                 }
+                .frame(height: 180)
             }
-            .frame(height: 180)
         }
         .padding()
         .background(Color(.systemBackground))
@@ -179,8 +342,7 @@ struct DashboardView: View {
 
     private var spendingDistributionChart: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Dove vanno i soldi")
-                .font(.headline)
+            Text("Dove vanno i soldi").font(.headline)
 
             if spendingByCategory.isEmpty {
                 ContentUnavailableView {
@@ -201,20 +363,15 @@ struct DashboardView: View {
                 }
                 .frame(height: 180)
 
-                // Legenda
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     ForEach(spendingByCategory.prefix(6)) { item in
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(Color(hex: item.color))
                                 .frame(width: 8, height: 8)
-                            Text(item.name)
-                                .font(.caption)
-                                .lineLimit(1)
+                            Text(item.name).font(.caption).lineLimit(1)
                             Spacer()
-                            Text(item.percentage)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Text(item.percentage).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -230,20 +387,8 @@ struct DashboardView: View {
 
     private var monthlyStatsSection: some View {
         HStack(spacing: 12) {
-            StatCardView(
-                title: "Entrate",
-                value: monthlyIncome.currencyFormatted,
-                icon: "arrow.down.circle.fill",
-                color: .green
-            )
-
-            StatCardView(
-                title: "Uscite",
-                value: monthlyExpenses.currencyFormatted,
-                icon: "arrow.up.circle.fill",
-                color: .red
-            )
-
+            StatCardView(title: "Entrate", value: monthlyIncome.currencyFormatted, icon: "arrow.down.circle.fill", color: .green)
+            StatCardView(title: "Uscite", value: monthlyExpenses.currencyFormatted, icon: "arrow.up.circle.fill", color: .red)
             StatCardView(
                 title: "Risparmi",
                 value: monthlySavings.currencyFormatted,
@@ -257,8 +402,7 @@ struct DashboardView: View {
 
     private var contiSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("I tuoi conti")
-                .font(.headline)
+            Text("I tuoi conti").font(.headline)
 
             if appState.activeConti(for: account).isEmpty {
                 ContentUnavailableView {
@@ -288,28 +432,22 @@ struct DashboardView: View {
     private var recentTransactionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Ultime transazioni")
-                    .font(.headline)
-
+                Text("Ultime transazioni").font(.headline)
                 Spacer()
-
-                Button("Vedi tutte") {
-                    appState.selectTab(.transactions)
-                }
-                .font(.subheadline)
+                Button("Vedi tutte") { appState.selectTab(.transactions) }
+                    .font(.subheadline)
             }
 
-            if allTransactions.isEmpty {
+            if recentTransactions.isEmpty {
                 ContentUnavailableView {
                     Label("Nessuna transazione", systemImage: "list.bullet")
                 } description: {
                     Text("Le tue transazioni appariranno qui")
                 }
             } else {
-                ForEach(allTransactions.prefix(5), id: \.id) { transaction in
+                ForEach(recentTransactions, id: \.id) { transaction in
                     TransactionRowView(transaction: transaction)
-
-                    if transaction.id != allTransactions.prefix(5).last?.id {
+                    if transaction.id != recentTransactions.last?.id {
                         Divider()
                     }
                 }
@@ -328,121 +466,10 @@ struct DashboardView: View {
             appState.presentAccountSelection()
         } label: {
             HStack(spacing: 4) {
-                Text(account?.name ?? "Account")
-                    .font(.subheadline)
-                Image(systemName: "chevron.down")
-                    .font(.caption)
+                Text(account?.name ?? "Account").font(.subheadline)
+                Image(systemName: "chevron.down").font(.caption)
             }
         }
-    }
-
-    // MARK: - Data Calculations
-
-    private func calculateMonthlyIncome() -> Decimal {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-
-        return allTransactions
-            .filter { transaction in
-                guard let date = transaction.date,
-                      transaction.type == .income else { return false }
-                return date >= startOfMonth
-            }
-            .reduce(0) { $0 + ($1.amount ?? 0) }
-    }
-
-    private func calculateMonthlyExpenses() -> Decimal {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-
-        return allTransactions
-            .filter { transaction in
-                guard let date = transaction.date,
-                      transaction.type == .expense else { return false }
-                return date >= startOfMonth
-            }
-            .reduce(0) { $0 + ($1.amount ?? 0) }
-    }
-
-    private var balanceHistory: [BalanceDataPoint] {
-        // Genera dati per gli ultimi 6 mesi
-        let calendar = Calendar.current
-        var data: [BalanceDataPoint] = []
-        let currentBalance = totalBalance
-
-        for i in (0..<6).reversed() {
-            guard let date = calendar.date(byAdding: .month, value: -i, to: Date()) else { continue }
-
-            // Calcola il saldo approssimativo per quel mese
-            // basandosi sulle transazioni
-            let monthTransactions = allTransactions.filter { transaction in
-                guard let transactionDate = transaction.date else { return false }
-                let transactionMonth = calendar.component(.month, from: transactionDate)
-                let transactionYear = calendar.component(.year, from: transactionDate)
-                let targetMonth = calendar.component(.month, from: date)
-                let targetYear = calendar.component(.year, from: date)
-                return transactionMonth == targetMonth && transactionYear == targetYear
-            }
-
-            let monthIncome = monthTransactions
-                .filter { $0.type == .income }
-                .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
-
-            let monthExpenses = monthTransactions
-                .filter { $0.type == .expense }
-                .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
-
-            // Stima semplificata del saldo
-            let estimatedBalance = i == 0 ? currentBalance : currentBalance - (monthIncome - monthExpenses) * Decimal(i)
-
-            data.append(BalanceDataPoint(date: date, balance: estimatedBalance))
-        }
-
-        return data
-    }
-
-    private var spendingByCategory: [SpendingCategory] {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-
-        // Raggruppa le spese per categoria
-        var categoryTotals: [String: (amount: Decimal, color: String, icon: String)] = [:]
-
-        let expenses = allTransactions.filter { transaction in
-            guard let date = transaction.date,
-                  transaction.type == .expense else { return false }
-            return date >= startOfMonth
-        }
-
-        for expense in expenses {
-            let categoryName = expense.category?.name ?? "Altro"
-            let categoryColor = expense.category?.color ?? "#9E9E9E"
-            let categoryIcon = expense.category?.icon ?? "questionmark.circle"
-            let amount = expense.amount ?? 0
-
-            if let existing = categoryTotals[categoryName] {
-                categoryTotals[categoryName] = (existing.amount + amount, categoryColor, categoryIcon)
-            } else {
-                categoryTotals[categoryName] = (amount, categoryColor, categoryIcon)
-            }
-        }
-
-        let total = categoryTotals.values.reduce(Decimal(0)) { $0 + $1.amount }
-
-        return categoryTotals.map { name, data in
-            let percentage = total > 0 ? (data.amount / total) * 100 : 0
-            return SpendingCategory(
-                name: name,
-                amount: data.amount,
-                color: data.color,
-                icon: data.icon,
-                percentage: String(format: "%.0f%%", NSDecimalNumber(decimal: percentage).doubleValue)
-            )
-        }
-        .sorted { $0.amount > $1.amount }
     }
 
     private func formatCompact(_ value: Decimal) -> String {
@@ -454,7 +481,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Data Models for Charts
+// MARK: - Data Models
 
 struct BalanceDataPoint: Identifiable {
     let id = UUID()
@@ -481,19 +508,9 @@ struct StatCardView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
-
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Image(systemName: icon).font(.title2).foregroundStyle(color)
+            Text(value).font(.subheadline).fontWeight(.semibold).lineLimit(1).minimumScaleFactor(0.7)
+            Text(title).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -509,25 +526,17 @@ struct ContoRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: conto.type?.icon ?? "creditcard")
-                .font(.title3)
-                .foregroundStyle(.accent)
-                .frame(width: 32)
+                .font(.title3).foregroundStyle(.accent).frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(conto.name ?? "Conto")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text(conto.type?.displayName ?? "")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(conto.name ?? "Conto").font(.subheadline).fontWeight(.medium)
+                Text(conto.type?.displayName ?? "").font(.caption).foregroundStyle(.secondary)
             }
 
             Spacer()
 
             Text(conto.balance.currencyFormatted)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(.subheadline).fontWeight(.semibold)
                 .foregroundStyle(conto.balance >= 0 ? .primary : .red)
         }
         .padding(.vertical, 8)
@@ -537,13 +546,10 @@ struct ContoRowView: View {
 struct TransactionRowView: View {
     let transaction: FinanceTransaction
 
-    private var isIncome: Bool {
-        transaction.type == .income
-    }
+    private var isIncome: Bool { transaction.type == .income }
 
     var body: some View {
         HStack(spacing: 12) {
-            // Icona categoria
             Image(systemName: transaction.category?.icon ?? (isIncome ? "arrow.down.circle" : "arrow.up.circle"))
                 .font(.title3)
                 .foregroundStyle(Color(hex: transaction.category?.color ?? (isIncome ? "#4CAF50" : "#F44336")))
@@ -551,21 +557,17 @@ struct TransactionRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
-                    .font(.subheadline)
-                    .lineLimit(1)
+                    .font(.subheadline).lineLimit(1)
 
                 if let date = transaction.date {
-                    Text(date, style: .date)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
                 }
             }
 
             Spacer()
 
             Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(.subheadline).fontWeight(.semibold)
                 .foregroundStyle(isIncome ? .green : .red)
         }
         .padding(.vertical, 4)

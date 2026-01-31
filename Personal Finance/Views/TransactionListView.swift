@@ -2,7 +2,7 @@
 //  TransactionListView.swift
 //  Personal Finance
 //
-//  Lista transazioni unificata con filtri e paginazione
+//  Lista transazioni con query SwiftData efficienti
 //
 
 import SwiftUI
@@ -17,6 +17,7 @@ struct TransactionListView: View {
     // Optional: pre-selected conto filter (for navigation from Dashboard)
     var initialConto: Conto? = nil
 
+    // Filter states
     @State private var searchText = ""
     @State private var selectedMonth: Date = Date()
     @State private var selectedType: TransactionTypeFilter = .all
@@ -25,8 +26,13 @@ struct TransactionListView: View {
     @State private var showingRecurring = false
     @State private var showingCategoryFilter = false
 
+    // Fetched data
+    @State private var transactions: [FinanceTransaction] = []
+    @State private var totalCount: Int = 0
+    @State private var isLoading = false
+
     // Pagination
-    @State private var displayedCount: Int = 30
+    @State private var currentLimit: Int = 30
     private let pageSize: Int = 30
 
     private var account: Account? { appState.selectedAccount }
@@ -39,99 +45,27 @@ struct TransactionListView: View {
         account?.categories?.filter { $0.isActive == true } ?? []
     }
 
-    // All transactions (before pagination)
-    private var allFilteredTransactions: [FinanceTransaction] {
-        var transactions: [FinanceTransaction]
-
-        // Filter by conto if selected
-        if let conto = selectedConto {
-            transactions = conto.allTransactions
-        } else {
-            transactions = appState.allTransactions(for: account)
-        }
-
-        // Filter by month
-        let calendar = Calendar.current
-        transactions = transactions.filter { transaction in
-            guard let date = transaction.date else { return false }
-            let transMonth = calendar.component(.month, from: date)
-            let transYear = calendar.component(.year, from: date)
-            let selectedMonthComp = calendar.component(.month, from: selectedMonth)
-            let selectedYearComp = calendar.component(.year, from: selectedMonth)
-            return transMonth == selectedMonthComp && transYear == selectedYearComp
-        }
-
-        // Filter by type
-        if selectedType != .all {
-            transactions = transactions.filter { transaction in
-                switch selectedType {
-                case .income: return transaction.type == .income
-                case .expense: return transaction.type == .expense
-                case .transfer: return transaction.type == .transfer
-                case .all: return true
-                }
-            }
-        }
-
-        // Filter by categories
-        if !selectedCategories.isEmpty {
-            transactions = transactions.filter { transaction in
-                guard let categoryId = transaction.category?.id else { return false }
-                return selectedCategories.contains(categoryId)
-            }
-        }
-
-        // Search filter
-        if !searchText.isEmpty {
-            transactions = transactions.filter { transaction in
-                let descMatch = transaction.transactionDescription?.localizedCaseInsensitiveContains(searchText) ?? false
-                let catMatch = transaction.category?.name?.localizedCaseInsensitiveContains(searchText) ?? false
-                let contoMatch = (transaction.fromConto?.name?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                                 (transaction.toConto?.name?.localizedCaseInsensitiveContains(searchText) ?? false)
-                return descMatch || catMatch || contoMatch
-            }
-        }
-
-        // Sort by date descending
-        return transactions.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
-    }
-
-    // Paginated transactions for display
-    private var displayedTransactions: [FinanceTransaction] {
-        Array(allFilteredTransactions.prefix(displayedCount))
-    }
-
     private var hasMoreTransactions: Bool {
-        displayedCount < allFilteredTransactions.count
+        transactions.count >= currentLimit && transactions.count < totalCount
     }
 
-    // Show conto in cell only when viewing all conti
     private var showContoInCell: Bool {
         selectedConto == nil
     }
 
-    // Recurring transactions
-    private var recurringTransactions: [FinanceTransaction] {
-        if let conto = selectedConto {
-            return conto.allTransactions.filter { $0.isRecurring == true }
-        }
-        return appState.allTransactions(for: account).filter { $0.isRecurring == true }
-    }
-
-    // Monthly totals (based on filtered transactions)
+    // Monthly totals (calculated from fetched transactions)
     private var monthlyIncome: Decimal {
-        allFilteredTransactions
+        transactions
             .filter { $0.type == .income }
             .reduce(0) { $0 + ($1.amount ?? 0) }
     }
 
     private var monthlyExpenses: Decimal {
-        allFilteredTransactions
+        transactions
             .filter { $0.type == .expense }
             .reduce(0) { $0 + ($1.amount ?? 0) }
     }
 
-    // Active filters count (for badge)
     private var activeFiltersCount: Int {
         var count = 0
         if selectedType != .all { count += 1 }
@@ -143,14 +77,13 @@ struct TransactionListView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Month selector + Summary
                 monthSelectorHeader
-
-                // Filters bar
                 filtersBar
 
-                // Transaction list with pagination
-                if displayedTransactions.isEmpty {
+                if isLoading && transactions.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if transactions.isEmpty {
                     emptyState
                 } else {
                     transactionList
@@ -161,42 +94,14 @@ struct TransactionListView: View {
             .searchable(text: $searchText, prompt: "Cerca...")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            showingRecurring = true
-                        } label: {
-                            Label("Ricorrenti", systemImage: "repeat")
-                        }
-
-                        if activeFiltersCount > 0 {
-                            Divider()
-                            Button(role: .destructive) {
-                                clearAllFilters()
-                            } label: {
-                                Label("Rimuovi filtri", systemImage: "xmark.circle")
-                            }
-                        }
-
-                        Divider()
-
-                        Button {
-                            appState.presentQuickTransaction(type: .expense)
-                        } label: {
-                            Label("Nuova Spesa", systemImage: "minus.circle")
-                        }
-
-                        Button {
-                            appState.presentQuickTransaction(type: .income)
-                        } label: {
-                            Label("Nuova Entrata", systemImage: "plus.circle")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
+                    toolbarMenu
                 }
             }
             .sheet(isPresented: $showingRecurring) {
-                RecurringTransactionsSheet(transactions: recurringTransactions, showConto: showContoInCell)
+                RecurringTransactionsSheet(
+                    contoIDs: contoIDsForQuery,
+                    showConto: showContoInCell
+                )
             }
             .sheet(isPresented: $showingCategoryFilter) {
                 CategoryFilterSheet(
@@ -208,20 +113,62 @@ struct TransactionListView: View {
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
                 }
+                fetchTransactions()
             }
-            .onChange(of: selectedMonth) { _, _ in resetPagination() }
-            .onChange(of: selectedType) { _, _ in resetPagination() }
-            .onChange(of: selectedConto) { _, _ in resetPagination() }
-            .onChange(of: selectedCategories) { _, _ in resetPagination() }
-            .onChange(of: searchText) { _, _ in resetPagination() }
+            .onChange(of: selectedMonth) { _, _ in resetAndFetch() }
+            .onChange(of: selectedType) { _, _ in resetAndFetch() }
+            .onChange(of: selectedConto) { _, _ in resetAndFetch() }
+            .onChange(of: selectedCategories) { _, _ in resetAndFetch() }
+            .onChange(of: searchText) { _, _ in resetAndFetch() }
         }
     }
 
     private var navigationTitle: String {
+        selectedConto?.name ?? "Transazioni"
+    }
+
+    private var contoIDsForQuery: Set<UUID> {
         if let conto = selectedConto {
-            return conto.name ?? "Transazioni"
+            return [conto.id]
         }
-        return "Transazioni"
+        return Set(availableConti.map { $0.id })
+    }
+
+    // MARK: - Toolbar Menu
+
+    private var toolbarMenu: some View {
+        Menu {
+            Button {
+                showingRecurring = true
+            } label: {
+                Label("Ricorrenti", systemImage: "repeat")
+            }
+
+            if activeFiltersCount > 0 {
+                Divider()
+                Button(role: .destructive) {
+                    clearAllFilters()
+                } label: {
+                    Label("Rimuovi filtri", systemImage: "xmark.circle")
+                }
+            }
+
+            Divider()
+
+            Button {
+                appState.presentQuickTransaction(type: .expense)
+            } label: {
+                Label("Nuova Spesa", systemImage: "minus.circle")
+            }
+
+            Button {
+                appState.presentQuickTransaction(type: .income)
+            } label: {
+                Label("Nuova Entrata", systemImage: "plus.circle")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
     }
 
     // MARK: - Month Selector Header
@@ -234,8 +181,7 @@ struct TransactionListView: View {
                         selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
                     }
                 } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.title3)
+                    Image(systemName: "chevron.left").font(.title3)
                 }
 
                 Spacer()
@@ -251,47 +197,34 @@ struct TransactionListView: View {
                         selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
                     }
                 } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.title3)
+                    Image(systemName: "chevron.right").font(.title3)
                 }
                 .disabled(Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: .month))
             }
             .padding(.horizontal)
 
-            // Monthly summary
             HStack(spacing: 24) {
                 VStack(spacing: 4) {
-                    Text("Entrate")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("Entrate").font(.caption).foregroundStyle(.secondary)
                     Text("+\(monthlyIncome.currencyFormatted)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.green)
+                        .font(.subheadline).fontWeight(.semibold).foregroundStyle(.green)
                 }
 
                 Divider().frame(height: 30)
 
                 VStack(spacing: 4) {
-                    Text("Uscite")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("Uscite").font(.caption).foregroundStyle(.secondary)
                     Text("-\(monthlyExpenses.currencyFormatted)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.red)
+                        .font(.subheadline).fontWeight(.semibold).foregroundStyle(.red)
                 }
 
                 Divider().frame(height: 30)
 
                 VStack(spacing: 4) {
-                    Text("Bilancio")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("Bilancio").font(.caption).foregroundStyle(.secondary)
                     let balance = monthlyIncome - monthlyExpenses
                     Text(balance.currencyFormatted)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.subheadline).fontWeight(.semibold)
                         .foregroundStyle(balance >= 0 ? .green : .red)
                 }
             }
@@ -304,14 +237,10 @@ struct TransactionListView: View {
 
     private var filtersBar: some View {
         VStack(spacing: 8) {
-            // Row 1: Type filter
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
-                        FilterChip(
-                            title: type.displayName,
-                            isSelected: selectedType == type
-                        ) {
+                        FilterChip(title: type.displayName, isSelected: selectedType == type) {
                             withAnimation { selectedType = type }
                         }
                     }
@@ -319,14 +248,9 @@ struct TransactionListView: View {
                 .padding(.horizontal)
             }
 
-            // Row 2: Conto + Category filters
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    // Conto filter chips
-                    FilterChip(
-                        title: "Tutti i conti",
-                        isSelected: selectedConto == nil
-                    ) {
+                    FilterChip(title: "Tutti i conti", isSelected: selectedConto == nil) {
                         withAnimation { selectedConto = nil }
                     }
 
@@ -342,7 +266,6 @@ struct TransactionListView: View {
 
                     Divider().frame(height: 24)
 
-                    // Category filter button
                     categoryFilterButton
                 }
                 .padding(.horizontal)
@@ -353,19 +276,11 @@ struct TransactionListView: View {
     }
 
     private var categoryFilterButton: some View {
-        Button {
-            showingCategoryFilter = true
-        } label: {
+        Button { showingCategoryFilter = true } label: {
             HStack(spacing: 4) {
-                Image(systemName: "tag")
-                    .font(.caption)
-                if selectedCategories.isEmpty {
-                    Text("Categorie")
-                } else {
-                    Text("\(selectedCategories.count) categorie")
-                }
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
+                Image(systemName: "tag").font(.caption)
+                Text(selectedCategories.isEmpty ? "Categorie" : "\(selectedCategories.count) categorie")
+                Image(systemName: "chevron.down").font(.caption2)
             }
             .font(.subheadline)
             .fontWeight(selectedCategories.isEmpty ? .regular : .semibold)
@@ -381,16 +296,13 @@ struct TransactionListView: View {
 
     private var transactionList: some View {
         List {
-            ForEach(displayedTransactions, id: \.id) { transaction in
-                TransactionCell(
-                    transaction: transaction,
-                    showConto: showContoInCell
-                )
-                .swipeActions(edge: .trailing) {
-                    Button("Elimina", role: .destructive) {
-                        deleteTransaction(transaction)
+            ForEach(transactions, id: \.id) { transaction in
+                TransactionCell(transaction: transaction, showConto: showContoInCell)
+                    .swipeActions(edge: .trailing) {
+                        Button("Elimina", role: .destructive) {
+                            deleteTransaction(transaction)
+                        }
                     }
-                }
             }
 
             if hasMoreTransactions {
@@ -402,18 +314,23 @@ struct TransactionListView: View {
 
     private var loadMoreRow: some View {
         Button {
-            loadMoreTransactions()
+            loadMore()
         } label: {
             HStack {
                 Spacer()
-                Text("Carica altre \(min(pageSize, allFilteredTransactions.count - displayedCount)) transazioni")
-                    .font(.subheadline)
-                    .foregroundStyle(.accent)
+                if isLoading {
+                    ProgressView()
+                } else {
+                    Text("Carica altre transazioni")
+                        .font(.subheadline)
+                        .foregroundStyle(.accent)
+                }
                 Spacer()
             }
             .padding(.vertical, 12)
         }
         .listRowBackground(Color(.systemGroupedBackground))
+        .disabled(isLoading)
     }
 
     // MARK: - Empty State
@@ -437,23 +354,120 @@ struct TransactionListView: View {
                 .buttonStyle(.borderedProminent)
 
                 if activeFiltersCount > 0 {
-                    Button("Rimuovi filtri") {
-                        clearAllFilters()
-                    }
-                    .buttonStyle(.bordered)
+                    Button("Rimuovi filtri") { clearAllFilters() }
+                        .buttonStyle(.bordered)
                 }
             }
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Data Fetching
 
-    private func loadMoreTransactions() {
-        withAnimation { displayedCount += pageSize }
+    private func fetchTransactions() {
+        guard let account = account else {
+            transactions = []
+            totalCount = 0
+            return
+        }
+
+        isLoading = true
+
+        let calendar = Calendar.current
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
+        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+        // Get conto IDs to filter
+        let contoIDs: Set<UUID>
+        if let conto = selectedConto {
+            contoIDs = [conto.id]
+        } else {
+            contoIDs = Set(account.activeConti.map { $0.id })
+        }
+
+        // Build fetch descriptor with predicate
+        var descriptor = FetchDescriptor<FinanceTransaction>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+
+        // Base predicate: date range
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date != nil &&
+            transaction.date! >= startOfMonth &&
+            transaction.date! < endOfMonth
+        }
+
+        descriptor.fetchLimit = currentLimit
+
+        do {
+            // Fetch from database
+            var results = try modelContext.fetch(descriptor)
+
+            // Filter by conti (in-memory, but dataset is already reduced by date)
+            results = results.filter { transaction in
+                if let fromContoId = transaction.fromConto?.id, contoIDs.contains(fromContoId) {
+                    return true
+                }
+                if let toContoId = transaction.toConto?.id, contoIDs.contains(toContoId) {
+                    return true
+                }
+                return false
+            }
+
+            // Filter by type
+            if selectedType != .all {
+                results = results.filter { transaction in
+                    switch selectedType {
+                    case .income: return transaction.type == .income
+                    case .expense: return transaction.type == .expense
+                    case .transfer: return transaction.type == .transfer
+                    case .all: return true
+                    }
+                }
+            }
+
+            // Filter by categories
+            if !selectedCategories.isEmpty {
+                results = results.filter { transaction in
+                    guard let categoryId = transaction.category?.id else { return false }
+                    return selectedCategories.contains(categoryId)
+                }
+            }
+
+            // Filter by search text
+            if !searchText.isEmpty {
+                let searchLower = searchText.lowercased()
+                results = results.filter { transaction in
+                    let descMatch = transaction.transactionDescription?.lowercased().contains(searchLower) ?? false
+                    let catMatch = transaction.category?.name?.lowercased().contains(searchLower) ?? false
+                    let contoMatch = (transaction.fromConto?.name?.lowercased().contains(searchLower) ?? false) ||
+                                     (transaction.toConto?.name?.lowercased().contains(searchLower) ?? false)
+                    return descMatch || catMatch || contoMatch
+                }
+            }
+
+            // Count total (for pagination indicator)
+            // For accurate count, fetch without limit
+            var countDescriptor = FetchDescriptor<FinanceTransaction>()
+            countDescriptor.predicate = descriptor.predicate
+            totalCount = (try? modelContext.fetchCount(countDescriptor)) ?? results.count
+
+            transactions = results
+        } catch {
+            print("Error fetching transactions: \(error)")
+            transactions = []
+        }
+
+        isLoading = false
     }
 
-    private func resetPagination() {
-        displayedCount = pageSize
+    private func resetAndFetch() {
+        currentLimit = pageSize
+        fetchTransactions()
+    }
+
+    private func loadMore() {
+        currentLimit += pageSize
+        fetchTransactions()
     }
 
     private func clearAllFilters() {
@@ -461,12 +475,80 @@ struct TransactionListView: View {
             selectedType = .all
             selectedConto = nil
             selectedCategories = []
+            searchText = ""
         }
     }
 
     private func deleteTransaction(_ transaction: FinanceTransaction) {
         modelContext.delete(transaction)
         try? modelContext.save()
+        fetchTransactions()
+    }
+}
+
+// MARK: - Recurring Transactions Sheet (with Query)
+
+struct RecurringTransactionsSheet: View {
+    let contoIDs: Set<UUID>
+    let showConto: Bool
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var transactions: [FinanceTransaction] = []
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if transactions.isEmpty {
+                    ContentUnavailableView {
+                        Label("Nessuna ricorrente", systemImage: "repeat")
+                    } description: {
+                        Text("Le transazioni ricorrenti appariranno qui")
+                    }
+                } else {
+                    List(transactions, id: \.id) { transaction in
+                        TransactionCell(transaction: transaction, showConto: showConto)
+                    }
+                }
+            }
+            .navigationTitle("Transazioni Ricorrenti")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fine") { dismiss() }
+                }
+            }
+            .onAppear { fetchRecurring() }
+        }
+    }
+
+    private func fetchRecurring() {
+        var descriptor = FetchDescriptor<FinanceTransaction>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.isRecurring == true
+        }
+
+        do {
+            var results = try modelContext.fetch(descriptor)
+
+            // Filter by conti
+            results = results.filter { transaction in
+                if let fromContoId = transaction.fromConto?.id, contoIDs.contains(fromContoId) {
+                    return true
+                }
+                if let toContoId = transaction.toConto?.id, contoIDs.contains(toContoId) {
+                    return true
+                }
+                return false
+            }
+
+            transactions = results
+        } catch {
+            transactions = []
+        }
     }
 }
 
@@ -489,12 +571,10 @@ struct CategoryFilterSheet: View {
                         selectedCategories.removeAll()
                     } label: {
                         HStack {
-                            Text("Tutte le categorie")
-                                .foregroundStyle(.primary)
+                            Text("Tutte le categorie").foregroundStyle(.primary)
                             Spacer()
                             if selectedCategories.isEmpty {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.accent)
+                                Image(systemName: "checkmark").foregroundStyle(.accent)
                             }
                         }
                     }
@@ -512,12 +592,9 @@ struct CategoryFilterSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }
                 }
-
                 ToolbarItem(placement: .cancellationAction) {
                     if !selectedCategories.isEmpty {
-                        Button("Azzera") {
-                            selectedCategories.removeAll()
-                        }
+                        Button("Azzera") { selectedCategories.removeAll() }
                     }
                 }
             }
@@ -525,22 +602,15 @@ struct CategoryFilterSheet: View {
     }
 
     private func categoryRow(_ category: FinanceCategory) -> some View {
-        Button {
-            toggleCategory(category)
-        } label: {
+        Button { toggleCategory(category) } label: {
             HStack(spacing: 12) {
                 Image(systemName: category.icon ?? "tag")
                     .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
                     .frame(width: 24)
-
-                Text(category.name ?? "Categoria")
-                    .foregroundStyle(.primary)
-
+                Text(category.name ?? "Categoria").foregroundStyle(.primary)
                 Spacer()
-
                 if let id = category.id, selectedCategories.contains(id) {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(.accent)
+                    Image(systemName: "checkmark").foregroundStyle(.accent)
                 }
             }
         }
@@ -568,11 +638,9 @@ struct FilterChip: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.caption)
+                    Image(systemName: icon).font(.caption)
                 }
-                Text(title)
-                    .font(.subheadline)
+                Text(title).font(.subheadline)
             }
             .fontWeight(isSelected ? .semibold : .regular)
             .padding(.horizontal, 14)
@@ -593,9 +661,7 @@ struct TransactionCell: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isIncome: Bool { transaction.type == .income }
-    private var contoName: String? {
-        transaction.fromConto?.name ?? transaction.toConto?.name
-    }
+    private var contoName: String? { transaction.fromConto?.name ?? transaction.toConto?.name }
 
     var body: some View {
         if horizontalSizeClass == .regular {
@@ -616,9 +682,7 @@ struct TransactionCell: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
+                    .font(.subheadline).fontWeight(.medium).lineLimit(1)
 
                 HStack(spacing: 4) {
                     if let date = transaction.date {
@@ -629,16 +693,14 @@ struct TransactionCell: View {
                         Text(conto)
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.subheadline).fontWeight(.semibold)
                     .foregroundStyle(isIncome ? .green : .red)
 
                 if transaction.isRecurring == true {
@@ -646,8 +708,7 @@ struct TransactionCell: View {
                         Image(systemName: "repeat")
                         Text(transaction.recurrenceFrequency?.displayName ?? "")
                     }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
@@ -658,83 +719,37 @@ struct TransactionCell: View {
         HStack {
             if let date = transaction.date {
                 Text(date, format: .dateTime.day().month(.abbreviated))
-                    .font(.subheadline)
-                    .frame(width: 80, alignment: .leading)
+                    .font(.subheadline).frame(width: 80, alignment: .leading)
             }
 
             Text(transaction.transactionDescription ?? "-")
-                .font(.subheadline)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .font(.subheadline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 4) {
                 if let icon = transaction.category?.icon {
-                    Image(systemName: icon)
-                        .font(.caption)
+                    Image(systemName: icon).font(.caption)
                         .foregroundStyle(Color(hex: transaction.category?.color ?? "#007AFF"))
                 }
-                Text(transaction.category?.name ?? "-")
-                    .font(.subheadline)
-                    .lineLimit(1)
+                Text(transaction.category?.name ?? "-").font(.subheadline).lineLimit(1)
             }
             .frame(width: 120, alignment: .leading)
 
             if showConto {
-                Text(contoName ?? "-")
-                    .font(.subheadline)
-                    .lineLimit(1)
-                    .frame(width: 100, alignment: .leading)
+                Text(contoName ?? "-").font(.subheadline).lineLimit(1).frame(width: 100, alignment: .leading)
             }
 
             Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.subheadline).fontWeight(.medium)
                 .foregroundStyle(isIncome ? .green : .red)
                 .frame(width: 100, alignment: .trailing)
 
             if transaction.isRecurring == true {
-                Image(systemName: "repeat")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24)
+                Image(systemName: "repeat").font(.caption).foregroundStyle(.secondary).frame(width: 24)
             } else {
                 Spacer().frame(width: 24)
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Recurring Transactions Sheet
-
-struct RecurringTransactionsSheet: View {
-    let transactions: [FinanceTransaction]
-    let showConto: Bool
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if transactions.isEmpty {
-                    ContentUnavailableView {
-                        Label("Nessuna ricorrente", systemImage: "repeat")
-                    } description: {
-                        Text("Le transazioni ricorrenti appariranno qui")
-                    }
-                } else {
-                    List(transactions, id: \.id) { transaction in
-                        TransactionCell(transaction: transaction, showConto: showConto)
-                    }
-                }
-            }
-            .navigationTitle("Transazioni Ricorrenti")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") { dismiss() }
-                }
-            }
-        }
     }
 }
 
