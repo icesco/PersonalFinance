@@ -185,43 +185,39 @@ public class StatisticsService {
         var allTransactions: [Transaction] = []
 
         // Fetch transactions separately for each conto to avoid OR predicate issues
-        // This is more efficient than fetching all transactions and filtering in-memory
+        // Using denormalized indexed fields for efficient DB-level filtering
         for conto in conti {
             let contoId = conto.id
 
             if let start = dateRange.start, let end = dateRange.end {
-                // Query with both conto and date filters at DB level
+                // Full DB-level filtering using indexed fields (date + contoId)
                 let fromDescriptor = FetchDescriptor<Transaction>(
                     predicate: #Predicate { transaction in
-                        transaction.fromConto?.id == contoId
+                        transaction.fromContoId == contoId &&
+                        transaction.date >= start &&
+                        transaction.date < end
                     }
                 )
                 let toDescriptor = FetchDescriptor<Transaction>(
                     predicate: #Predicate { transaction in
-                        transaction.toConto?.id == contoId
+                        transaction.toContoId == contoId &&
+                        transaction.date >= start &&
+                        transaction.date < end
                     }
                 )
 
-                let fromTransactions = try context.fetch(fromDescriptor)
-                let toTransactions = try context.fetch(toDescriptor)
-
-                // Filter by date in-memory
-                allTransactions.append(contentsOf: fromTransactions.filter {
-                    $0.date >= start && $0.date < end
-                })
-                allTransactions.append(contentsOf: toTransactions.filter {
-                    $0.date >= start && $0.date < end
-                })
+                allTransactions.append(contentsOf: try context.fetch(fromDescriptor))
+                allTransactions.append(contentsOf: try context.fetch(toDescriptor))
             } else {
-                // No date filter - fetch all for this conto
+                // No date filter - fetch all for this conto using indexed contoId
                 let fromDescriptor = FetchDescriptor<Transaction>(
                     predicate: #Predicate { transaction in
-                        transaction.fromConto?.id == contoId
+                        transaction.fromContoId == contoId
                     }
                 )
                 let toDescriptor = FetchDescriptor<Transaction>(
                     predicate: #Predicate { transaction in
-                        transaction.toConto?.id == contoId
+                        transaction.toContoId == contoId
                     }
                 )
 

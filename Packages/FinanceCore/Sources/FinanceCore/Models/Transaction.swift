@@ -71,13 +71,12 @@ public enum TransactionType: String, CaseIterable, Codable, Sendable {
 
 @Model
 public final class Transaction {
-    // Index date for faster date-range queries (most common filter)
-    #Index<Transaction>([\.date])
+    // Indexes for fast queries - using denormalized fields for DB-level filtering
+    #Index<Transaction>([\.date], [\.typeRaw], [\.fromContoId], [\.toContoId], [\.categoryId])
 
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var amount: Decimal?
-    public var type: TransactionType = TransactionType.expense
     public var date: Date = Date()
     public var createdAt: Date?
     public var updatedAt: Date?
@@ -85,14 +84,46 @@ public final class Transaction {
     public var notes: String?
     public var isRecurring: Bool?
     public var recurrenceFrequency: RecurrenceFrequency?
-    public var recurrenceEndDate: Date?  // Data fine ricorrenza (opzionale)
-    
-    // For expense and income transactions
-    public var fromConto: Conto?
-    // For income and transfer transactions  
-    public var toConto: Conto?
-    
-    public var category: Category?
+    public var recurrenceEndDate: Date?
+
+    // MARK: - Denormalized fields for indexing (keep in sync with relationships)
+
+    /// Raw string value of type for indexing (use `type` property for access)
+    public var typeRaw: String = TransactionType.expense.rawValue
+
+    /// Denormalized fromConto ID for indexed queries
+    public var fromContoId: UUID?
+
+    /// Denormalized toConto ID for indexed queries
+    public var toContoId: UUID?
+
+    /// Denormalized category ID for indexed queries
+    public var categoryId: UUID?
+
+    // MARK: - Computed property for type (synced with typeRaw)
+
+    /// Transaction type (automatically syncs with typeRaw for indexing)
+    public var type: TransactionType {
+        get { TransactionType(rawValue: typeRaw) ?? .expense }
+        set { typeRaw = newValue.rawValue }
+    }
+
+    // MARK: - Relationships
+
+    /// Source account for expense/transfer transactions
+    public var fromConto: Conto? {
+        didSet { fromContoId = fromConto?.id }
+    }
+
+    /// Destination account for income/transfer transactions
+    public var toConto: Conto? {
+        didSet { toContoId = toConto?.id }
+    }
+
+    /// Transaction category
+    public var category: Category? {
+        didSet { categoryId = category?.id }
+    }
     
     // For transfers, we track both sides
     @Relationship(deleteRule: .cascade, inverse: \TransferLink.transaction)

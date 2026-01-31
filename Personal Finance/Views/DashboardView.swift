@@ -97,10 +97,10 @@ struct DashboardView: View {
         do {
             let transactions = try modelContext.fetch(descriptor)
 
-            // Filter by conti
+            // Filter by conti using denormalized indexed IDs
             let filtered = transactions.filter { transaction in
-                if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
-                if let id = transaction.toConto?.id, contiIDs.contains(id) { return true }
+                if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
+                if let id = transaction.toContoId, contiIDs.contains(id) { return true }
                 return false
             }
 
@@ -128,8 +128,8 @@ struct DashboardView: View {
 
             recentTransactions = transactions
                 .filter { transaction in
-                    if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
-                    if let id = transaction.toConto?.id, contiIDs.contains(id) { return true }
+                    if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
+                    if let id = transaction.toContoId, contiIDs.contains(id) { return true }
                     return false
                 }
                 .prefix(5)
@@ -150,7 +150,7 @@ struct DashboardView: View {
 
             let expenses = transactions.filter { transaction in
                 guard transaction.type == .expense else { return false }
-                if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
+                if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
                 return false
             }
 
@@ -207,8 +207,8 @@ struct DashboardView: View {
                 let transactions = try modelContext.fetch(descriptor)
 
                 let filtered = transactions.filter { transaction in
-                    if let id = transaction.fromConto?.id, contiIDs.contains(id) { return true }
-                    if let id = transaction.toConto?.id, contiIDs.contains(id) { return true }
+                    if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
+                    if let id = transaction.toContoId, contiIDs.contains(id) { return true }
                     return false
                 }
 

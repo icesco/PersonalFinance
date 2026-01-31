@@ -401,10 +401,10 @@ struct TransactionListView: View {
 
             // Filter by conti (in-memory, but dataset is already reduced by date)
             results = results.filter { transaction in
-                if let fromContoId = transaction.fromConto?.id, contoIDs.contains(fromContoId) {
+                if let fromContoId = transaction.fromContoId, contoIDs.contains(fromContoId) {
                     return true
                 }
-                if let toContoId = transaction.toConto?.id, contoIDs.contains(toContoId) {
+                if let toContoId = transaction.toContoId, contoIDs.contains(toContoId) {
                     return true
                 }
                 return false
@@ -533,10 +533,10 @@ struct RecurringTransactionsSheet: View {
 
             // Filter by conti
             results = results.filter { transaction in
-                if let fromContoId = transaction.fromConto?.id, contoIDs.contains(fromContoId) {
+                if let fromContoId = transaction.fromContoId, contoIDs.contains(fromContoId) {
                     return true
                 }
-                if let toContoId = transaction.toConto?.id, contoIDs.contains(toContoId) {
+                if let toContoId = transaction.toContoId, contoIDs.contains(toContoId) {
                     return true
                 }
                 return false

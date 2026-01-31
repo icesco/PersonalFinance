@@ -33,7 +33,7 @@ public class DataIntegrityService {
                 }
                 // Additional check for same conto
                 if let contoId = contoId {
-                    return transaction.fromConto?.id == contoId || transaction.toConto?.id == contoId
+                    return transaction.fromContoId == contoId || transaction.toContoId == contoId
                 }
                 return true
             }
@@ -121,8 +121,8 @@ extension Transaction {
         return myAmount == otherAmount &&
                abs(self.date.timeIntervalSince(other.date)) <= tolerance &&
                self.type == other.type &&
-               (self.fromConto?.id == other.fromConto?.id ||
-                self.toConto?.id == other.toConto?.id)
+               (self.fromContoId == other.fromContoId ||
+                self.toContoId == other.toContoId)
     }
 }
 
