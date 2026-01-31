@@ -1,156 +1,93 @@
 import Foundation
 import SwiftData
 
-@Model
-public final class AccountStatistics {
-    public var id: UUID = UUID()
-    public var externalID: String = UUID().uuidString
-    
-    // Time period for these statistics
-    public var year: Int?
-    public var month: Int?
-    public var week: Int? // Week of year
-    public var day: Date? // For daily statistics
-    
+// MARK: - Statistics Result (Computed On-Demand, Not Persisted)
+
+/// Statistics calculated on-demand from transactions - NOT persisted to database
+/// This replaces the old @Model AccountStatistics to avoid storage overhead
+public struct AccountStatisticsResult: Sendable {
+    public let accountId: UUID
+    public let period: StatisticsPeriod
+
     // Core statistics
-    public var totalBalance: Decimal?
-    public var totalIncome: Decimal?
-    public var totalExpenses: Decimal?
-    public var netIncome: Decimal? // Income - Expenses
-    
-    // Monthly breakdown (for current month)
-    public var monthlyIncome: Decimal?
-    public var monthlyExpenses: Decimal?
-    public var monthlySavings: Decimal?
-    
+    public let totalBalance: Decimal
+    public let totalIncome: Decimal
+    public let totalExpenses: Decimal
+    public let netIncome: Decimal
+
     // Transaction counts
-    public var transactionCount: Int?
-    public var incomeTransactionCount: Int?
-    public var expenseTransactionCount: Int?
-    public var transferTransactionCount: Int?
-    
-    // Category breakdown (top 5 categories by spending)
-    public var topExpenseCategories: String? // JSON string of [CategoryID: Amount]
-    public var topIncomeCategories: String? // JSON string of [CategoryID: Amount]
-    
+    public let transactionCount: Int
+    public let incomeTransactionCount: Int
+    public let expenseTransactionCount: Int
+    public let transferTransactionCount: Int
+
+    // Category breakdown (top 5)
+    public let topExpenseCategories: [CategoryAmount]
+    public let topIncomeCategories: [CategoryAmount]
+
     // Metadata
-    public var calculatedAt: Date?
-    public var lastTransactionDate: Date?
-    public var createdAt: Date?
-    public var updatedAt: Date?
-    
-    // Relationships
-    public var account: Account?
-    
+    public let calculatedAt: Date
+
     public init(
-        account: Account,
-        year: Int? = nil,
-        month: Int? = nil,
-        week: Int? = nil,
-        day: Date? = nil
+        accountId: UUID,
+        period: StatisticsPeriod,
+        totalBalance: Decimal,
+        totalIncome: Decimal,
+        totalExpenses: Decimal,
+        transactionCount: Int,
+        incomeTransactionCount: Int,
+        expenseTransactionCount: Int,
+        transferTransactionCount: Int,
+        topExpenseCategories: [CategoryAmount] = [],
+        topIncomeCategories: [CategoryAmount] = []
     ) {
-        self.account = account
-        self.year = year
-        self.month = month
-        self.week = week
-        self.day = day
-        
-        // Initialize with zero values
-        self.totalBalance = 0
-        self.totalIncome = 0
-        self.totalExpenses = 0
-        self.netIncome = 0
-        self.monthlyIncome = 0
-        self.monthlyExpenses = 0
-        self.monthlySavings = 0
-        self.transactionCount = 0
-        self.incomeTransactionCount = 0
-        self.expenseTransactionCount = 0
-        self.transferTransactionCount = 0
-        
-        self.createdAt = Date()
-        self.updatedAt = Date()
+        self.accountId = accountId
+        self.period = period
+        self.totalBalance = totalBalance
+        self.totalIncome = totalIncome
+        self.totalExpenses = totalExpenses
+        self.netIncome = totalIncome - totalExpenses
+        self.transactionCount = transactionCount
+        self.incomeTransactionCount = incomeTransactionCount
+        self.expenseTransactionCount = expenseTransactionCount
+        self.transferTransactionCount = transferTransactionCount
+        self.topExpenseCategories = topExpenseCategories
+        self.topIncomeCategories = topIncomeCategories
         self.calculatedAt = Date()
     }
-    
-    // MARK: - Helper Methods
-    
-    /// Returns true if these statistics represent current month
-    public var isCurrentMonth: Bool {
-        let now = Date()
-        let calendar = Calendar.current
-        let currentYear = calendar.component(.year, from: now)
-        let currentMonth = calendar.component(.month, from: now)
-        
-        return year == currentYear && month == currentMonth && week == nil && day == nil
-    }
-    
-    /// Returns true if these statistics represent current week
-    public var isCurrentWeek: Bool {
-        let now = Date()
-        let calendar = Calendar.current
-        let currentYear = calendar.component(.yearForWeekOfYear, from: now)
-        let currentWeek = calendar.component(.weekOfYear, from: now)
-        
-        return year == currentYear && week == currentWeek && month == nil && day == nil
-    }
-    
-    /// Returns true if these statistics represent today
-    public var isToday: Bool {
-        guard let day = day else { return false }
-        return Calendar.current.isDate(day, inSameDayAs: Date())
-    }
-    
-    /// Parse top categories from JSON string
-    public func getTopExpenseCategories() -> [String: Decimal] {
-        guard let json = topExpenseCategories,
-              let data = json.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Double] else {
-            return [:]
-        }
-        
-        return dict.mapValues { Decimal($0) }
-    }
-    
-    /// Parse top income categories from JSON string
-    public func getTopIncomeCategories() -> [String: Decimal] {
-        guard let json = topIncomeCategories,
-              let data = json.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Double] else {
-            return [:]
-        }
-        
-        return dict.mapValues { Decimal($0) }
-    }
-    
-    /// Set top expense categories from dictionary
-    public func setTopExpenseCategories(_ categories: [String: Decimal]) {
-        let dict = categories.mapValues { NSDecimalNumber(decimal: $0).doubleValue }
-        if let data = try? JSONSerialization.data(withJSONObject: dict),
-           let json = String(data: data, encoding: .utf8) {
-            topExpenseCategories = json
-        }
-    }
-    
-    /// Set top income categories from dictionary
-    public func setTopIncomeCategories(_ categories: [String: Decimal]) {
-        let dict = categories.mapValues { NSDecimalNumber(decimal: $0).doubleValue }
-        if let data = try? JSONSerialization.data(withJSONObject: dict),
-           let json = String(data: data, encoding: .utf8) {
-            topIncomeCategories = json
-        }
+
+    /// Savings rate as percentage (0-100)
+    public var savingsRate: Double {
+        guard totalIncome > 0 else { return 0 }
+        return NSDecimalNumber(decimal: netIncome).doubleValue /
+               NSDecimalNumber(decimal: totalIncome).doubleValue * 100
     }
 }
 
-// MARK: - Statistics Type Enum
+/// Category with amount for statistics breakdown
+public struct CategoryAmount: Sendable, Identifiable {
+    public let id: UUID
+    public let name: String
+    public let amount: Decimal
+    public let color: String?
 
-public enum StatisticsPeriod {
+    public init(id: UUID, name: String, amount: Decimal, color: String? = nil) {
+        self.id = id
+        self.name = name
+        self.amount = amount
+        self.color = color
+    }
+}
+
+// MARK: - Statistics Period
+
+public enum StatisticsPeriod: Sendable {
     case daily(Date)
     case weekly(year: Int, week: Int)
     case monthly(year: Int, month: Int)
     case yearly(Int)
     case allTime
-    
+
     public var displayName: String {
         switch self {
         case .daily(let date):
@@ -173,20 +110,54 @@ public enum StatisticsPeriod {
             return "Tutti i periodi"
         }
     }
-    
-    /// Create AccountStatistics for this period
-    public func createStatistics(for account: Account) -> AccountStatistics {
+
+    /// Get date range for this period
+    public var dateRange: (start: Date?, end: Date?) {
+        let calendar = Calendar.current
+
         switch self {
         case .daily(let date):
-            return AccountStatistics(account: account, day: date)
+            let startOfDay = calendar.startOfDay(for: date)
+            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)
+            return (startOfDay, endOfDay)
+
         case .weekly(let year, let week):
-            return AccountStatistics(account: account, year: year, week: week)
+            let dateComponents = DateComponents(weekOfYear: week, yearForWeekOfYear: year)
+            guard let startOfWeek = calendar.date(from: dateComponents) else { return (nil, nil) }
+            let endOfWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: startOfWeek)
+            return (startOfWeek, endOfWeek)
+
         case .monthly(let year, let month):
-            return AccountStatistics(account: account, year: year, month: month)
+            let dateComponents = DateComponents(year: year, month: month)
+            guard let startOfMonth = calendar.date(from: dateComponents) else { return (nil, nil) }
+            let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)
+            return (startOfMonth, endOfMonth)
+
         case .yearly(let year):
-            return AccountStatistics(account: account, year: year)
+            let dateComponents = DateComponents(year: year)
+            guard let startOfYear = calendar.date(from: dateComponents) else { return (nil, nil) }
+            let endOfYear = calendar.date(byAdding: .year, value: 1, to: startOfYear)
+            return (startOfYear, endOfYear)
+
         case .allTime:
-            return AccountStatistics(account: account)
+            return (nil, nil)
         }
+    }
+
+    /// Current month period
+    public static var currentMonth: StatisticsPeriod {
+        let now = Date()
+        let calendar = Calendar.current
+        return .monthly(
+            year: calendar.component(.year, from: now),
+            month: calendar.component(.month, from: now)
+        )
+    }
+
+    /// Current year period
+    public static var currentYear: StatisticsPeriod {
+        let now = Date()
+        let calendar = Calendar.current
+        return .yearly(calendar.component(.year, from: now))
     }
 }

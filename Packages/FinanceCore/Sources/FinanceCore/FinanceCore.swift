@@ -5,7 +5,6 @@ import CloudKit
 public struct FinanceCoreModule {
     public static let allModels: [any PersistentModel.Type] = [
         Account.self,
-        AccountStatistics.self,
         Conto.self,
         Transaction.self,
         Category.self,

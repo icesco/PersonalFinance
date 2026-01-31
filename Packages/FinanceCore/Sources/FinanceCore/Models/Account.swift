@@ -22,15 +22,11 @@ public final class Account {
     
     @Relationship(deleteRule: .cascade, inverse: \SavingsGoal.account)
     public var savingsGoals: [SavingsGoal]?
-    
-    @Relationship(deleteRule: .cascade, inverse: \AccountStatistics.account)
-    public var statistics: [AccountStatistics]?
-    
+
     public init(
         name: String,
         currency: String = "EUR"
     ) {
-        // id and externalID now have default values
         self.name = name
         self.currency = currency
         self.createdAt = Date()
@@ -40,7 +36,6 @@ public final class Account {
         self.categories = []
         self.budgets = []
         self.savingsGoals = []
-        self.statistics = []
     }
     
     public var totalBalance: Decimal {
