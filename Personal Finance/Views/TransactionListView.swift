@@ -25,6 +25,7 @@ struct TransactionListView: View {
     @State private var selectedCategories: Set<UUID> = []
     @State private var showingRecurring = false
     @State private var showingCategoryFilter = false
+    @State private var showingTransferSheet = false
 
     // Fetched data
     @State private var transactions: [FinanceTransaction] = []
@@ -109,6 +110,9 @@ struct TransactionListView: View {
                     selectedCategories: $selectedCategories
                 )
             }
+            .sheet(isPresented: $showingTransferSheet) {
+                CreateTransactionView(conto: availableConti.first, transactionType: .transfer)
+            }
             .onAppear {
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
@@ -165,6 +169,15 @@ struct TransactionListView: View {
                 appState.presentQuickTransaction(type: .income)
             } label: {
                 Label("Nuova Entrata", systemImage: "plus.circle")
+            }
+
+            // Transfer button - only show if there are at least 2 conti
+            if availableConti.count >= 2 {
+                Button {
+                    showingTransferSheet = true
+                } label: {
+                    Label("Nuovo Trasferimento", systemImage: "arrow.left.arrow.right.circle")
+                }
             }
         } label: {
             Image(systemName: "ellipsis.circle")
