@@ -83,49 +83,43 @@ public class StatisticsService {
         
         switch period {
         case .daily(let date):
+            let accountId = account.id
             let startOfDay = Calendar.current.startOfDay(for: date)
-            let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
             predicate = #Predicate { stats in
-                stats.account?.id == account.id &&
-                stats.day != nil &&
-                stats.day! >= startOfDay &&
-                stats.day! < endOfDay
+                stats.account?.id == accountId &&
+                stats.day == startOfDay
             }
             
         case .weekly(let year, let week):
+            let accountId = account.id
             predicate = #Predicate { stats in
-                stats.account?.id == account.id &&
+                stats.account?.id == accountId &&
                 stats.year == year &&
-                stats.week == week &&
-                stats.month == nil &&
-                stats.day == nil
+                stats.week == week
             }
             
         case .monthly(let year, let month):
+            let accountId = account.id
             predicate = #Predicate { stats in
-                stats.account?.id == account.id &&
+                stats.account?.id == accountId &&
                 stats.year == year &&
-                stats.month == month &&
-                stats.week == nil &&
-                stats.day == nil
+                stats.month == month
             }
             
         case .yearly(let year):
+            let accountId = account.id
             predicate = #Predicate { stats in
-                stats.account?.id == account.id &&
+                stats.account?.id == accountId &&
                 stats.year == year &&
                 stats.month == nil &&
-                stats.week == nil &&
-                stats.day == nil
+                stats.week == nil
             }
             
         case .allTime:
+            let accountId = account.id
             predicate = #Predicate { stats in
-                stats.account?.id == account.id &&
-                stats.year == nil &&
-                stats.month == nil &&
-                stats.week == nil &&
-                stats.day == nil
+                stats.account?.id == accountId &&
+                stats.year == nil
             }
         }
         
@@ -184,28 +178,69 @@ public class StatisticsService {
         period: StatisticsPeriod,
         in context: ModelContext
     ) throws -> [Transaction] {
-        
+
         let dateRange = getDateRange(for: period)
-        let predicate: Predicate<Transaction>
-        
-        if let startDate = dateRange.start, let endDate = dateRange.end {
-            predicate = #Predicate { transaction in
-                (transaction.fromConto?.account?.id == account.id || 
-                 transaction.toConto?.account?.id == account.id) &&
-                transaction.date != nil &&
-                transaction.date! >= startDate &&
-                transaction.date! < endDate
-            }
-        } else {
-            // All time
-            predicate = #Predicate { transaction in
-                transaction.fromConto?.account?.id == account.id || 
-                transaction.toConto?.account?.id == account.id
+        guard let conti = account.conti else { return [] }
+
+        var allTransactions: [Transaction] = []
+
+        // Fetch transactions separately for each conto to avoid OR predicate issues
+        // This is more efficient than fetching all transactions and filtering in-memory
+        for conto in conti {
+            let contoId = conto.id
+
+            if let start = dateRange.start, let end = dateRange.end {
+                // Query with both conto and date filters at DB level
+                let fromDescriptor = FetchDescriptor<Transaction>(
+                    predicate: #Predicate { transaction in
+                        transaction.fromConto?.id == contoId
+                    }
+                )
+                let toDescriptor = FetchDescriptor<Transaction>(
+                    predicate: #Predicate { transaction in
+                        transaction.toConto?.id == contoId
+                    }
+                )
+
+                let fromTransactions = try context.fetch(fromDescriptor)
+                let toTransactions = try context.fetch(toDescriptor)
+
+                // Filter by date in-memory (single optional chain is fast)
+                allTransactions.append(contentsOf: fromTransactions.filter {
+                    if let date = $0.date {
+                        return date >= start && date < end
+                    }
+                    return false
+                })
+                allTransactions.append(contentsOf: toTransactions.filter {
+                    if let date = $0.date {
+                        return date >= start && date < end
+                    }
+                    return false
+                })
+            } else {
+                // No date filter - fetch all for this conto
+                let fromDescriptor = FetchDescriptor<Transaction>(
+                    predicate: #Predicate { transaction in
+                        transaction.fromConto?.id == contoId
+                    }
+                )
+                let toDescriptor = FetchDescriptor<Transaction>(
+                    predicate: #Predicate { transaction in
+                        transaction.toConto?.id == contoId
+                    }
+                )
+
+                allTransactions.append(contentsOf: try context.fetch(fromDescriptor))
+                allTransactions.append(contentsOf: try context.fetch(toDescriptor))
             }
         }
-        
-        let descriptor = FetchDescriptor<Transaction>(predicate: predicate)
-        return try context.fetch(descriptor)
+
+        // Remove duplicates (a transfer could appear in both from and to)
+        let uniqueTransactions = Array(Set(allTransactions.map { $0.id }))
+            .compactMap { id in allTransactions.first { $0.id == id } }
+
+        return uniqueTransactions
     }
     
     private static func getDateRange(for period: StatisticsPeriod) -> (start: Date?, end: Date?) {
@@ -265,15 +300,11 @@ public class StatisticsService {
         }
         
         // Get top 5 categories for each type
-        let topExpenses = Dictionary(
-            expensesByCategory.sorted { $0.value > $1.value }.prefix(5),
-            uniquingKeysWith: { first, _ in first }
-        )
-        
-        let topIncome = Dictionary(
-            incomeByCategory.sorted { $0.value > $1.value }.prefix(5),
-            uniquingKeysWith: { first, _ in first }
-        )
+        let topExpensesArray = Array(expensesByCategory.sorted { $0.value > $1.value }.prefix(5))
+        let topExpenses = Dictionary(topExpensesArray, uniquingKeysWith: { first, _ in first })
+
+        let topIncomeArray = Array(incomeByCategory.sorted { $0.value > $1.value }.prefix(5))
+        let topIncome = Dictionary(topIncomeArray, uniquingKeysWith: { first, _ in first })
         
         // Store as JSON
         statistics.setTopExpenseCategories(topExpenses)
@@ -335,11 +366,13 @@ public class StatisticsService {
 
 extension Account {
     /// Get current month statistics (cached)
+    @MainActor
     public func getCurrentMonthStatistics(in context: ModelContext) throws -> AccountStatistics? {
         return try StatisticsService.getCurrentMonthStatistics(for: self, in: context)
     }
-    
+
     /// Get or create current month statistics
+    @MainActor
     public func getOrCreateCurrentMonthStatistics(in context: ModelContext) async throws -> AccountStatistics {
         return try await StatisticsService.getOrCreateCurrentMonthStatistics(for: self, in: context)
     }

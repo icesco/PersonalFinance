@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-public enum RecurrenceFrequency: String, CaseIterable, Codable {
+public enum RecurrenceFrequency: String, CaseIterable, Codable, Sendable {
     case daily = "daily"
     case weekly = "weekly"
     case biweekly = "biweekly"     // Ogni due settimane
@@ -47,7 +47,7 @@ public enum RecurrenceFrequency: String, CaseIterable, Codable {
     }
 }
 
-public enum TransactionType: String, CaseIterable, Codable {
+public enum TransactionType: String, CaseIterable, Codable, Sendable {
     case income = "income"
     case expense = "expense"
     case transfer = "transfer"
@@ -71,6 +71,10 @@ public enum TransactionType: String, CaseIterable, Codable {
 
 @Model
 public final class Transaction {
+    // Index frequently queried properties for better query performance
+    // Note: Composite indexes not supported, use single-property indexes only
+    #Index<Transaction>([\.date], [\.type])
+
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var amount: Decimal?

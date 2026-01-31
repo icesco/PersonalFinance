@@ -21,7 +21,8 @@ public struct FinanceCoreModule {
     public static let defaultAppGroupIdentifier = "group.personalfinance.shared"
     
     // MARK: - Shared Container Management
-    
+
+    @MainActor
     private static var _sharedContainer: ModelContainer?
     
     public static func createSchema() -> Schema {
@@ -86,7 +87,8 @@ public struct FinanceCoreModule {
     }
     
     // MARK: - Shared Container Management
-    
+
+    @MainActor
     public static func setSharedContainer(
         appGroupIdentifier: String = defaultAppGroupIdentifier,
         enableCloudKit: Bool = false
@@ -96,7 +98,8 @@ public struct FinanceCoreModule {
             enableCloudKit: enableCloudKit
         )
     }
-    
+
+    @MainActor
     public static var sharedContainer: ModelContainer? {
         return _sharedContainer
     }
@@ -137,6 +140,7 @@ public struct FinanceCoreModule {
 // MARK: - Data Storage Management
 
 @Observable
+@MainActor
 public final class DataStorageManager {
     public static let shared = DataStorageManager()
     

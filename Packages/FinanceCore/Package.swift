@@ -1,11 +1,11 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "FinanceCore",
     platforms: [
-        .iOS(.v17),
-        .macOS(.v14)
+        .iOS(.v18),
+        .macOS(.v15)
     ],
     products: [
         .library(
@@ -18,22 +18,15 @@ let package = Package(
         .target(
             name: "FinanceCore",
             dependencies: [],
-            sources: [
-                "FinanceCore.swift",
-                "Models/Account.swift",
-                "Models/AccountStatistics.swift",
-                "Models/Budget.swift", 
-                "Models/BudgetCategory.swift",
-                "Models/Category.swift",
-                "Models/Conto.swift",
-                "Models/Transaction.swift",
-                "Models/SavingsGoal.swift",
-                "Analysis/FinancialAnalysis.swift",
-                "Services/DataIntegrityService.swift",
-                "Services/StatisticsService.swift"
+            path: "Sources/FinanceCore",
+            swiftSettings: [
+                .enableExperimentalFeature("StrictConcurrency")
             ]),
         .testTarget(
             name: "FinanceCoreTests",
-            dependencies: ["FinanceCore"]),
+            dependencies: ["FinanceCore"],
+            swiftSettings: [
+                .enableExperimentalFeature("StrictConcurrency")
+            ]),
     ]
 )

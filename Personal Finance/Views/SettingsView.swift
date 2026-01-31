@@ -10,15 +10,19 @@ import SwiftData
 import FinanceCore
 
 struct SettingsView: View {
+    // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
 
+    // MARK: - State
     @State private var showingAddConto = false
     @State private var showingAddCategory = false
     @State private var editingCategory: FinanceCategory?
 
+    // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
 
+    // MARK: - Body
     var body: some View {
         NavigationStack {
             List {
@@ -170,7 +174,7 @@ struct ContoSettingsRow: View {
             Text(conto.balance.currencyFormatted)
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundStyle(conto.balance >= 0 ? .primary : .red)
+                .foregroundStyle(conto.balance >= 0 ? Color.primary : Color.red)
         }
         .padding(.vertical, 4)
     }
@@ -208,18 +212,22 @@ struct CategorySettingsRow: View {
 // MARK: - Add Conto Sheet
 
 struct AddContoSheet: View {
+    // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
 
+    // MARK: - State
     @State private var name = ""
     @State private var type: ContoType = .checking
     @State private var initialBalance = ""
 
+    // MARK: - Computed Properties
     private var isValid: Bool {
         !name.isEmpty
     }
 
+    // MARK: - Body
     var body: some View {
         NavigationStack {
             Form {
@@ -276,15 +284,18 @@ struct AddContoSheet: View {
 // MARK: - Add Category Sheet
 
 struct AddCategorySheet: View {
+    // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
 
+    // MARK: - State
     @State private var name = ""
     @State private var selectedIcon = "tag"
     @State private var selectedColor = "#007AFF"
     @State private var parentCategory: FinanceCategory?
 
+    // MARK: - Constants
     private let icons = [
         "tag", "cart", "car", "house", "fork.knife", "tshirt",
         "gamecontroller", "airplane", "gift", "heart", "book",
@@ -297,6 +308,7 @@ struct AddCategorySheet: View {
         "#AF52DE", "#5856D6", "#FF2D55", "#00C7BE", "#8E8E93"
     ]
 
+    // MARK: - Computed Properties
     private var parentCategories: [FinanceCategory] {
         appState.selectedAccount?.categories?.filter { $0.isActive == true && $0.parentCategoryId == nil } ?? []
     }
@@ -305,73 +317,14 @@ struct AddCategorySheet: View {
         !name.isEmpty
     }
 
+    // MARK: - Body
     var body: some View {
         NavigationStack {
             Form {
-                Section("Dettagli") {
-                    TextField("Nome categoria", text: $name)
-
-                    Picker("Categoria padre (opzionale)", selection: $parentCategory) {
-                        Text("Nessuna (categoria principale)").tag(nil as FinanceCategory?)
-                        ForEach(parentCategories, id: \.id) { cat in
-                            Text(cat.name ?? "").tag(cat as FinanceCategory?)
-                        }
-                    }
-                }
-
-                Section("Icona") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
-                        ForEach(icons, id: \.self) { icon in
-                            Button {
-                                selectedIcon = icon
-                            } label: {
-                                Image(systemName: icon)
-                                    .font(.title2)
-                                    .frame(width: 40, height: 40)
-                                    .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                            .foregroundStyle(selectedIcon == icon ? .accent : .primary)
-                        }
-                    }
-                }
-
-                Section("Colore") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
-                        ForEach(colors, id: \.self) { color in
-                            Button {
-                                selectedColor = color
-                            } label: {
-                                Circle()
-                                    .fill(Color(hex: color))
-                                    .frame(width: 40, height: 40)
-                                    .overlay {
-                                        if selectedColor == color {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(.white)
-                                                .fontWeight(.bold)
-                                        }
-                                    }
-                            }
-                        }
-                    }
-                }
-
-                // Preview
-                Section("Anteprima") {
-                    HStack(spacing: 12) {
-                        Image(systemName: selectedIcon)
-                            .font(.title2)
-                            .foregroundStyle(Color(hex: selectedColor))
-                            .frame(width: 40, height: 40)
-                            .background(Color(hex: selectedColor).opacity(0.15))
-                            .clipShape(Circle())
-
-                        Text(name.isEmpty ? "Nome categoria" : name)
-                            .font(.headline)
-                            .foregroundStyle(name.isEmpty ? .secondary : .primary)
-                    }
-                }
+                detailsSection
+                iconSection
+                colorSection
+                previewSection
             }
             .navigationTitle("Nuova Categoria")
             .navigationBarTitleDisplayMode(.inline)
@@ -383,6 +336,78 @@ struct AddCategorySheet: View {
                     Button("Salva") { saveCategory() }
                         .disabled(!isValid)
                 }
+            }
+        }
+    }
+
+    private var detailsSection: some View {
+        Section("Dettagli") {
+            TextField("Nome categoria", text: $name)
+
+            Picker("Categoria padre (opzionale)", selection: $parentCategory) {
+                Text("Nessuna (categoria principale)").tag(nil as FinanceCategory?)
+                ForEach(parentCategories, id: \.id) { cat in
+                    Text(cat.name ?? "").tag(cat as FinanceCategory?)
+                }
+            }
+        }
+    }
+
+    private var iconSection: some View {
+        Section("Icona") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
+                ForEach(icons, id: \.self) { icon in
+                    Button {
+                        selectedIcon = icon
+                    } label: {
+                        Image(systemName: icon)
+                            .font(.title2)
+                            .frame(width: 40, height: 40)
+                            .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .foregroundStyle(selectedIcon == icon ? Color.accentColor : Color.primary)
+                }
+            }
+        }
+    }
+
+    private var colorSection: some View {
+        Section("Colore") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
+                ForEach(colors, id: \.self) { color in
+                    Button {
+                        selectedColor = color
+                    } label: {
+                        Circle()
+                            .fill(Color(hex: color))
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                if selectedColor == color {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.white)
+                                        .fontWeight(.bold)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    private var previewSection: some View {
+        Section("Anteprima") {
+            HStack(spacing: 12) {
+                Image(systemName: selectedIcon)
+                    .font(.title2)
+                    .foregroundStyle(Color(hex: selectedColor))
+                    .frame(width: 40, height: 40)
+                    .background(Color(hex: selectedColor).opacity(0.15))
+                    .clipShape(Circle())
+
+                Text(name.isEmpty ? "Nome categoria" : name)
+                    .font(.headline)
+                    .foregroundStyle(name.isEmpty ? .secondary : .primary)
             }
         }
     }
@@ -407,15 +432,19 @@ struct AddCategorySheet: View {
 // MARK: - Edit Category Sheet
 
 struct EditCategorySheet: View {
+    // MARK: - Properties
     let category: FinanceCategory
 
+    // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    // MARK: - State
     @State private var name: String = ""
     @State private var selectedIcon: String = "tag"
     @State private var selectedColor: String = "#007AFF"
 
+    // MARK: - Constants
     private let icons = [
         "tag", "cart", "car", "house", "fork.knife", "tshirt",
         "gamecontroller", "airplane", "gift", "heart", "book",
@@ -428,66 +457,14 @@ struct EditCategorySheet: View {
         "#AF52DE", "#5856D6", "#FF2D55", "#00C7BE", "#8E8E93"
     ]
 
+    // MARK: - Body
     var body: some View {
         NavigationStack {
             Form {
-                Section("Dettagli") {
-                    TextField("Nome categoria", text: $name)
-                }
-
-                Section("Icona") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
-                        ForEach(icons, id: \.self) { icon in
-                            Button {
-                                selectedIcon = icon
-                            } label: {
-                                Image(systemName: icon)
-                                    .font(.title2)
-                                    .frame(width: 40, height: 40)
-                                    .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                            .foregroundStyle(selectedIcon == icon ? .accent : .primary)
-                        }
-                    }
-                }
-
-                Section("Colore") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
-                        ForEach(colors, id: \.self) { color in
-                            Button {
-                                selectedColor = color
-                            } label: {
-                                Circle()
-                                    .fill(Color(hex: color))
-                                    .frame(width: 40, height: 40)
-                                    .overlay {
-                                        if selectedColor == color {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(.white)
-                                                .fontWeight(.bold)
-                                        }
-                                    }
-                            }
-                        }
-                    }
-                }
-
-                // Preview
-                Section("Anteprima") {
-                    HStack(spacing: 12) {
-                        Image(systemName: selectedIcon)
-                            .font(.title2)
-                            .foregroundStyle(Color(hex: selectedColor))
-                            .frame(width: 40, height: 40)
-                            .background(Color(hex: selectedColor).opacity(0.15))
-                            .clipShape(Circle())
-
-                        Text(name.isEmpty ? "Nome categoria" : name)
-                            .font(.headline)
-                            .foregroundStyle(name.isEmpty ? .secondary : .primary)
-                    }
-                }
+                detailsSection
+                iconSection
+                colorSection
+                previewSection
             }
             .navigationTitle("Modifica Categoria")
             .navigationBarTitleDisplayMode(.inline)
@@ -504,6 +481,71 @@ struct EditCategorySheet: View {
                 name = category.name ?? ""
                 selectedIcon = category.icon ?? "tag"
                 selectedColor = category.color ?? "#007AFF"
+            }
+        }
+    }
+
+    private var detailsSection: some View {
+        Section("Dettagli") {
+            TextField("Nome categoria", text: $name)
+        }
+    }
+
+    private var iconSection: some View {
+        Section("Icona") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
+                ForEach(icons, id: \.self) { icon in
+                    Button {
+                        selectedIcon = icon
+                    } label: {
+                        Image(systemName: icon)
+                            .font(.title2)
+                            .frame(width: 40, height: 40)
+                            .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .foregroundStyle(selectedIcon == icon ? Color.accentColor : Color.primary)
+                }
+            }
+        }
+    }
+
+    private var colorSection: some View {
+        Section("Colore") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
+                ForEach(colors, id: \.self) { color in
+                    Button {
+                        selectedColor = color
+                    } label: {
+                        Circle()
+                            .fill(Color(hex: color))
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                if selectedColor == color {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.white)
+                                        .fontWeight(.bold)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    private var previewSection: some View {
+        Section("Anteprima") {
+            HStack(spacing: 12) {
+                Image(systemName: selectedIcon)
+                    .font(.title2)
+                    .foregroundStyle(Color(hex: selectedColor))
+                    .frame(width: 40, height: 40)
+                    .background(Color(hex: selectedColor).opacity(0.15))
+                    .clipShape(Circle())
+
+                Text(name.isEmpty ? "Nome categoria" : name)
+                    .font(.headline)
+                    .foregroundStyle(name.isEmpty ? .secondary : .primary)
             }
         }
     }

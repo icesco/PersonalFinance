@@ -9,23 +9,23 @@ import Foundation
 import SwiftData
 
 /// Widget-specific data provider for cross-process data access
-public final class WidgetDataProvider {
+public actor WidgetDataProvider {
     public static let shared = WidgetDataProvider()
-    
+
     private let appGroupIdentifier: String
     private var container: ModelContainer?
-    
+
     public init(appGroupIdentifier: String = FinanceCoreModule.defaultAppGroupIdentifier) {
         self.appGroupIdentifier = appGroupIdentifier
     }
-    
+
     // MARK: - Container Management
-    
+
     private func getContainer() throws -> ModelContainer {
         if let container = container {
             return container
         }
-        
+
         let newContainer = try FinanceCoreModule.widgetModelContainer(
             appGroupIdentifier: appGroupIdentifier
         )
@@ -41,19 +41,19 @@ public final class WidgetDataProvider {
         let context = ModelContext(container)
         
         let descriptor = FetchDescriptor<Account>(
-            predicate: #Predicate<Account> { $0.isActive },
+            predicate: #Predicate<Account> { $0.isActive == true },
             sortBy: [SortDescriptor(\Account.name)]
         )
-        
+
         let accounts = try context.fetch(descriptor)
-        
+
         return accounts.map { account in
             AccountSummary(
                 id: account.persistentModelID,
-                name: account.name,
-                currency: account.currency,
+                name: account.name ?? "",
+                currency: account.currency ?? "EUR",
                 totalBalance: account.totalBalance,
-                accountCount: account.conti.count
+                accountCount: account.conti?.count ?? 0
             )
         }
     }
@@ -63,23 +63,23 @@ public final class WidgetDataProvider {
         let container = try getContainer()
         let context = ModelContext(container)
         
-        let descriptor = FetchDescriptor<Transaction>(
+        var descriptor = FetchDescriptor<Transaction>(
             sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
         )
         descriptor.fetchLimit = limit
-        
+
         let transactions = try context.fetch(descriptor)
-        
+
         return transactions.compactMap { transaction in
-            guard let conto = transaction.conto else { return nil }
+            guard let conto = transaction.fromConto ?? transaction.toConto else { return nil }
             
             return TransactionSummary(
                 id: transaction.persistentModelID,
-                amount: transaction.amount,
-                description: transaction.transactionDescription,
-                date: transaction.date,
-                type: transaction.type,
-                contoName: conto.name,
+                amount: transaction.amount ?? 0,
+                description: transaction.transactionDescription ?? "",
+                date: transaction.date ?? Date(),
+                type: transaction.type ?? .expense,
+                contoName: conto.name ?? "",
                 categoryName: transaction.category?.name
             )
         }
@@ -107,7 +107,7 @@ public final class WidgetDataProvider {
 // MARK: - Widget Data Models
 
 /// Lightweight account summary for widget display
-public struct AccountSummary: Identifiable, Codable, Hashable {
+public struct AccountSummary: Identifiable, Codable, Hashable, Sendable {
     public let id: PersistentIdentifier
     public let name: String
     public let currency: String
@@ -124,7 +124,7 @@ public struct AccountSummary: Identifiable, Codable, Hashable {
 }
 
 /// Lightweight transaction summary for widget display
-public struct TransactionSummary: Identifiable, Codable, Hashable {
+public struct TransactionSummary: Identifiable, Codable, Hashable, Sendable {
     public let id: PersistentIdentifier
     public let amount: Decimal
     public let description: String
@@ -147,7 +147,7 @@ public struct TransactionSummary: Identifiable, Codable, Hashable {
 // MARK: - Widget Configuration
 
 /// Configuration for widget data refresh
-public struct WidgetConfiguration {
+public struct WidgetConfiguration: Sendable {
     public let refreshInterval: TimeInterval
     public let maxTransactions: Int
     public let showBalances: Bool
