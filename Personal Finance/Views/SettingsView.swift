@@ -16,11 +16,13 @@ struct SettingsView: View {
 
     // MARK: - State
     @State private var showingAddConto = false
-    @State private var showingAddCategory = false
-    @State private var editingCategory: FinanceCategory?
 
     // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
+
+    private var categoryCount: Int {
+        account?.categories?.filter { $0.isActive == true }.count ?? 0
+    }
 
     // MARK: - Body
     var body: some View {
@@ -29,7 +31,7 @@ struct SettingsView: View {
                 // Conti section
                 contiSection
 
-                // Categorie section
+                // Categorie section (NavigationLink)
                 categoriesSection
 
                 // Info section
@@ -38,12 +40,6 @@ struct SettingsView: View {
             .navigationTitle("Impostazioni")
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
-            }
-            .sheet(isPresented: $showingAddCategory) {
-                AddCategorySheet()
-            }
-            .sheet(item: $editingCategory) { category in
-                EditCategorySheet(category: category)
             }
         }
     }
@@ -81,27 +77,20 @@ struct SettingsView: View {
 
     private var categoriesSection: some View {
         Section {
-            if let categories = account?.categories?.filter({ $0.isActive == true && $0.parentCategoryId == nil }), !categories.isEmpty {
-                ForEach(categories.sorted(by: { ($0.name ?? "") < ($1.name ?? "") }), id: \.id) { category in
-                    CategorySettingsRow(category: category) {
-                        editingCategory = category
-                    }
-                }
-            } else {
-                ContentUnavailableView {
-                    Label("Nessuna categoria", systemImage: "tag")
-                } description: {
-                    Text("Le categorie verranno create automaticamente")
-                }
-            }
-
-            Button {
-                showingAddCategory = true
+            NavigationLink {
+                CategoryManagementView()
             } label: {
-                Label("Aggiungi Categoria", systemImage: "plus.circle.fill")
+                HStack {
+                    Label("Categorie", systemImage: "tag")
+
+                    Spacer()
+
+                    Text("\(categoryCount)")
+                        .foregroundStyle(.secondary)
+                }
             }
         } header: {
-            Text("Categorie")
+            Text("Organizzazione")
         } footer: {
             Text("Le categorie ti aiutano a organizzare le tue spese e entrate")
         }
@@ -143,6 +132,69 @@ struct SettingsView: View {
         for index in offsets {
             let conto = conti[index]
             conto.isActive = false
+        }
+        try? modelContext.save()
+    }
+}
+
+// MARK: - Category Management View
+
+struct CategoryManagementView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(AppStateManager.self) private var appState
+
+    @State private var showingAddCategory = false
+    @State private var editingCategory: FinanceCategory?
+
+    private var account: Account? { appState.selectedAccount }
+
+    private var categories: [FinanceCategory] {
+        account?.categories?
+            .filter { $0.isActive == true && $0.parentCategoryId == nil }
+            .sorted { ($0.name ?? "") < ($1.name ?? "") } ?? []
+    }
+
+    var body: some View {
+        List {
+            if categories.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessuna categoria", systemImage: "tag")
+                } description: {
+                    Text("Aggiungi la tua prima categoria")
+                }
+            } else {
+                ForEach(categories, id: \.id) { category in
+                    CategorySettingsRow(category: category) {
+                        editingCategory = category
+                    }
+                }
+                .onDelete(perform: deleteCategories)
+            }
+        }
+        .navigationTitle("Categorie")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAddCategory = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddCategory) {
+            AddCategorySheet()
+        }
+        .sheet(item: $editingCategory) { category in
+            EditCategorySheet(category: category)
+        }
+    }
+
+    private func deleteCategories(at offsets: IndexSet) {
+        for index in offsets {
+            let category = categories[index]
+            // Soft delete
+            category.isActive = false
         }
         try? modelContext.save()
     }
