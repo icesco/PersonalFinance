@@ -2,7 +2,7 @@
 //  TransactionListView.swift
 //  Personal Finance
 //
-//  Lista transazioni unificata con filtro per conto e paginazione
+//  Lista transazioni unificata con filtri e paginazione
 //
 
 import SwiftUI
@@ -21,7 +21,9 @@ struct TransactionListView: View {
     @State private var selectedMonth: Date = Date()
     @State private var selectedType: TransactionTypeFilter = .all
     @State private var selectedConto: Conto? = nil
+    @State private var selectedCategories: Set<UUID> = []
     @State private var showingRecurring = false
+    @State private var showingCategoryFilter = false
 
     // Pagination
     @State private var displayedCount: Int = 30
@@ -31,6 +33,10 @@ struct TransactionListView: View {
 
     private var availableConti: [Conto] {
         appState.activeConti(for: account)
+    }
+
+    private var availableCategories: [FinanceCategory] {
+        account?.categories?.filter { $0.isActive == true } ?? []
     }
 
     // All transactions (before pagination)
@@ -64,6 +70,14 @@ struct TransactionListView: View {
                 case .transfer: return transaction.type == .transfer
                 case .all: return true
                 }
+            }
+        }
+
+        // Filter by categories
+        if !selectedCategories.isEmpty {
+            transactions = transactions.filter { transaction in
+                guard let categoryId = transaction.category?.id else { return false }
+                return selectedCategories.contains(categoryId)
             }
         }
 
@@ -104,7 +118,7 @@ struct TransactionListView: View {
         return appState.allTransactions(for: account).filter { $0.isRecurring == true }
     }
 
-    // Monthly totals
+    // Monthly totals (based on filtered transactions)
     private var monthlyIncome: Decimal {
         allFilteredTransactions
             .filter { $0.type == .income }
@@ -117,13 +131,22 @@ struct TransactionListView: View {
             .reduce(0) { $0 + ($1.amount ?? 0) }
     }
 
+    // Active filters count (for badge)
+    private var activeFiltersCount: Int {
+        var count = 0
+        if selectedType != .all { count += 1 }
+        if selectedConto != nil { count += 1 }
+        if !selectedCategories.isEmpty { count += 1 }
+        return count
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Month selector + Summary
                 monthSelectorHeader
 
-                // Filters: type + conto
+                // Filters bar
                 filtersBar
 
                 // Transaction list with pagination
@@ -143,6 +166,15 @@ struct TransactionListView: View {
                             showingRecurring = true
                         } label: {
                             Label("Ricorrenti", systemImage: "repeat")
+                        }
+
+                        if activeFiltersCount > 0 {
+                            Divider()
+                            Button(role: .destructive) {
+                                clearAllFilters()
+                            } label: {
+                                Label("Rimuovi filtri", systemImage: "xmark.circle")
+                            }
                         }
 
                         Divider()
@@ -166,24 +198,22 @@ struct TransactionListView: View {
             .sheet(isPresented: $showingRecurring) {
                 RecurringTransactionsSheet(transactions: recurringTransactions, showConto: showContoInCell)
             }
+            .sheet(isPresented: $showingCategoryFilter) {
+                CategoryFilterSheet(
+                    categories: availableCategories,
+                    selectedCategories: $selectedCategories
+                )
+            }
             .onAppear {
-                // Set initial conto filter if provided (from navigation)
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
                 }
             }
-            .onChange(of: selectedMonth) { _, _ in
-                resetPagination()
-            }
-            .onChange(of: selectedType) { _, _ in
-                resetPagination()
-            }
-            .onChange(of: selectedConto) { _, _ in
-                resetPagination()
-            }
-            .onChange(of: searchText) { _, _ in
-                resetPagination()
-            }
+            .onChange(of: selectedMonth) { _, _ in resetPagination() }
+            .onChange(of: selectedType) { _, _ in resetPagination() }
+            .onChange(of: selectedConto) { _, _ in resetPagination() }
+            .onChange(of: selectedCategories) { _, _ in resetPagination() }
+            .onChange(of: searchText) { _, _ in resetPagination() }
         }
     }
 
@@ -198,7 +228,6 @@ struct TransactionListView: View {
 
     private var monthSelectorHeader: some View {
         VStack(spacing: 12) {
-            // Month navigation
             HStack {
                 Button {
                     withAnimation {
@@ -241,8 +270,7 @@ struct TransactionListView: View {
                         .foregroundStyle(.green)
                 }
 
-                Divider()
-                    .frame(height: 30)
+                Divider().frame(height: 30)
 
                 VStack(spacing: 4) {
                     Text("Uscite")
@@ -254,8 +282,7 @@ struct TransactionListView: View {
                         .foregroundStyle(.red)
                 }
 
-                Divider()
-                    .frame(height: 30)
+                Divider().frame(height: 30)
 
                 VStack(spacing: 4) {
                     Text("Bilancio")
@@ -277,7 +304,7 @@ struct TransactionListView: View {
 
     private var filtersBar: some View {
         VStack(spacing: 8) {
-            // Type filters
+            // Row 1: Type filter
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
@@ -292,10 +319,10 @@ struct TransactionListView: View {
                 .padding(.horizontal)
             }
 
-            // Conto filter
+            // Row 2: Conto + Category filters
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    // "All conti" chip
+                    // Conto filter chips
                     FilterChip(
                         title: "Tutti i conti",
                         isSelected: selectedConto == nil
@@ -303,7 +330,6 @@ struct TransactionListView: View {
                         withAnimation { selectedConto = nil }
                     }
 
-                    // Individual conto chips
                     ForEach(availableConti, id: \.id) { conto in
                         FilterChip(
                             title: conto.name ?? "Conto",
@@ -313,6 +339,11 @@ struct TransactionListView: View {
                             withAnimation { selectedConto = conto }
                         }
                     }
+
+                    Divider().frame(height: 24)
+
+                    // Category filter button
+                    categoryFilterButton
                 }
                 .padding(.horizontal)
             }
@@ -321,11 +352,35 @@ struct TransactionListView: View {
         .background(Color(.systemBackground))
     }
 
-    // MARK: - Transaction List with Pagination
+    private var categoryFilterButton: some View {
+        Button {
+            showingCategoryFilter = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "tag")
+                    .font(.caption)
+                if selectedCategories.isEmpty {
+                    Text("Categorie")
+                } else {
+                    Text("\(selectedCategories.count) categorie")
+                }
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .font(.subheadline)
+            .fontWeight(selectedCategories.isEmpty ? .regular : .semibold)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(selectedCategories.isEmpty ? Color(.systemGray5) : Color.accentColor)
+            .foregroundStyle(selectedCategories.isEmpty ? .primary : .white)
+            .clipShape(Capsule())
+        }
+    }
+
+    // MARK: - Transaction List
 
     private var transactionList: some View {
         List {
-            // Transaction rows
             ForEach(displayedTransactions, id: \.id) { transaction in
                 TransactionCell(
                     transaction: transaction,
@@ -338,7 +393,6 @@ struct TransactionListView: View {
                 }
             }
 
-            // Load more button
             if hasMoreTransactions {
                 loadMoreRow
             }
@@ -368,36 +422,137 @@ struct TransactionListView: View {
         ContentUnavailableView {
             Label("Nessuna transazione", systemImage: "list.bullet.rectangle")
         } description: {
-            if selectedConto != nil {
-                Text("Non ci sono transazioni per questo conto nel mese selezionato")
+            if !selectedCategories.isEmpty {
+                Text("Nessuna transazione per le categorie selezionate")
+            } else if selectedConto != nil {
+                Text("Nessuna transazione per questo conto")
             } else {
-                Text("Non ci sono transazioni per questo mese")
+                Text("Nessuna transazione per questo mese")
             }
         } actions: {
-            Button("Aggiungi transazione") {
-                appState.presentQuickTransaction()
+            VStack(spacing: 12) {
+                Button("Aggiungi transazione") {
+                    appState.presentQuickTransaction()
+                }
+                .buttonStyle(.borderedProminent)
+
+                if activeFiltersCount > 0 {
+                    Button("Rimuovi filtri") {
+                        clearAllFilters()
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
-            .buttonStyle(.borderedProminent)
         }
     }
 
-    // MARK: - Pagination
+    // MARK: - Actions
 
     private func loadMoreTransactions() {
-        withAnimation {
-            displayedCount += pageSize
-        }
+        withAnimation { displayedCount += pageSize }
     }
 
     private func resetPagination() {
         displayedCount = pageSize
     }
 
-    // MARK: - Actions
+    private func clearAllFilters() {
+        withAnimation {
+            selectedType = .all
+            selectedConto = nil
+            selectedCategories = []
+        }
+    }
 
     private func deleteTransaction(_ transaction: FinanceTransaction) {
         modelContext.delete(transaction)
         try? modelContext.save()
+    }
+}
+
+// MARK: - Category Filter Sheet
+
+struct CategoryFilterSheet: View {
+    let categories: [FinanceCategory]
+    @Binding var selectedCategories: Set<UUID>
+    @Environment(\.dismiss) private var dismiss
+
+    private var sortedCategories: [FinanceCategory] {
+        categories.sorted { ($0.name ?? "") < ($1.name ?? "") }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Button {
+                        selectedCategories.removeAll()
+                    } label: {
+                        HStack {
+                            Text("Tutte le categorie")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if selectedCategories.isEmpty {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.accent)
+                            }
+                        }
+                    }
+                }
+
+                Section("Seleziona categorie") {
+                    ForEach(sortedCategories, id: \.id) { category in
+                        categoryRow(category)
+                    }
+                }
+            }
+            .navigationTitle("Filtra per Categoria")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fine") { dismiss() }
+                }
+
+                ToolbarItem(placement: .cancellationAction) {
+                    if !selectedCategories.isEmpty {
+                        Button("Azzera") {
+                            selectedCategories.removeAll()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func categoryRow(_ category: FinanceCategory) -> some View {
+        Button {
+            toggleCategory(category)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: category.icon ?? "tag")
+                    .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
+                    .frame(width: 24)
+
+                Text(category.name ?? "Categoria")
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if let id = category.id, selectedCategories.contains(id) {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.accent)
+                }
+            }
+        }
+    }
+
+    private func toggleCategory(_ category: FinanceCategory) {
+        guard let id = category.id else { return }
+        if selectedCategories.contains(id) {
+            selectedCategories.remove(id)
+        } else {
+            selectedCategories.insert(id)
+        }
     }
 }
 
@@ -429,7 +584,7 @@ struct FilterChip: View {
     }
 }
 
-// MARK: - Transaction Cell (Adaptive)
+// MARK: - Transaction Cell
 
 struct TransactionCell: View {
     let transaction: FinanceTransaction
@@ -438,26 +593,20 @@ struct TransactionCell: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isIncome: Bool { transaction.type == .income }
-
     private var contoName: String? {
         transaction.fromConto?.name ?? transaction.toConto?.name
     }
 
     var body: some View {
         if horizontalSizeClass == .regular {
-            // iPad: Table-style row
             tableRow
         } else {
-            // iPhone: Compact row
             compactRow
         }
     }
 
-    // MARK: - Compact Row (iPhone)
-
     private var compactRow: some View {
         HStack(spacing: 12) {
-            // Category icon
             Image(systemName: transaction.category?.icon ?? (isIncome ? "arrow.down.circle" : "arrow.up.circle"))
                 .font(.title3)
                 .foregroundStyle(Color(hex: transaction.category?.color ?? (isIncome ? "#4CAF50" : "#F44336")))
@@ -465,7 +614,6 @@ struct TransactionCell: View {
                 .background(Color(.systemGray6))
                 .clipShape(Circle())
 
-            // Details
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
                     .font(.subheadline)
@@ -476,7 +624,6 @@ struct TransactionCell: View {
                     if let date = transaction.date {
                         Text(date, format: .dateTime.day().month(.abbreviated))
                     }
-
                     if showConto, let conto = contoName {
                         Text("•")
                         Text(conto)
@@ -488,7 +635,6 @@ struct TransactionCell: View {
 
             Spacer()
 
-            // Amount + recurring indicator
             VStack(alignment: .trailing, spacing: 2) {
                 Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
                     .font(.subheadline)
@@ -508,24 +654,19 @@ struct TransactionCell: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: - Table Row (iPad)
-
     private var tableRow: some View {
         HStack {
-            // Date
             if let date = transaction.date {
                 Text(date, format: .dateTime.day().month(.abbreviated))
                     .font(.subheadline)
                     .frame(width: 80, alignment: .leading)
             }
 
-            // Description
             Text(transaction.transactionDescription ?? "-")
                 .font(.subheadline)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Category
             HStack(spacing: 4) {
                 if let icon = transaction.category?.icon {
                     Image(systemName: icon)
@@ -538,7 +679,6 @@ struct TransactionCell: View {
             }
             .frame(width: 120, alignment: .leading)
 
-            // Conto (only if showing all conti)
             if showConto {
                 Text(contoName ?? "-")
                     .font(.subheadline)
@@ -546,22 +686,19 @@ struct TransactionCell: View {
                     .frame(width: 100, alignment: .leading)
             }
 
-            // Amount
             Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(isIncome ? .green : .red)
                 .frame(width: 100, alignment: .trailing)
 
-            // Recurring indicator
             if transaction.isRecurring == true {
                 Image(systemName: "repeat")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 24)
             } else {
-                Spacer()
-                    .frame(width: 24)
+                Spacer().frame(width: 24)
             }
         }
         .padding(.vertical, 4)
@@ -582,7 +719,7 @@ struct RecurringTransactionsSheet: View {
                     ContentUnavailableView {
                         Label("Nessuna ricorrente", systemImage: "repeat")
                     } description: {
-                        Text("Le transazioni ricorrenti (abbonamenti, mutuo, etc.) appariranno qui")
+                        Text("Le transazioni ricorrenti appariranno qui")
                     }
                 } else {
                     List(transactions, id: \.id) { transaction in
