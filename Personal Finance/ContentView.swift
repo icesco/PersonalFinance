@@ -53,6 +53,7 @@ struct ContentView: View {
                     }
             }
         }
+        .tint(appState.themeManager.currentTheme.color)
         .onAppear {
             initializeAppState()
         }

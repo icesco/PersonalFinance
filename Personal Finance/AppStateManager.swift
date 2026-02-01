@@ -42,6 +42,9 @@ final class AppStateManager {
     // MARK: - Navigation Context
     var navigationRouter = NavigationRouter()
 
+    // MARK: - Theme Management
+    var themeManager = ThemeManager()
+
     // MARK: - Onboarding
     var hasCompletedOnboarding: Bool {
         get {

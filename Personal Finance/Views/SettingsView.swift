@@ -28,6 +28,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // Personalizzazione section
+                appearanceSection
+
                 // Conti section
                 contiSection
 
@@ -41,6 +44,35 @@ struct SettingsView: View {
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
             }
+        }
+    }
+
+    // MARK: - Appearance Section
+
+    private var appearanceSection: some View {
+        Section {
+            NavigationLink {
+                ThemeSelectionView()
+            } label: {
+                HStack {
+                    Label("Tema", systemImage: "paintbrush.fill")
+
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(appState.themeManager.currentTheme.color)
+                            .frame(width: 20, height: 20)
+
+                        Text(appState.themeManager.currentTheme.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Text("Personalizzazione")
+        } footer: {
+            Text("Personalizza l'aspetto dell'app con colori e temi diversi")
         }
     }
 
