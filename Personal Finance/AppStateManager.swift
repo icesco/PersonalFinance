@@ -45,6 +45,9 @@ final class AppStateManager {
     // MARK: - Theme Management
     var themeManager = ThemeManager()
 
+    // MARK: - Experience Level Management
+    var experienceLevelManager = ExperienceLevelManager()
+
     // MARK: - Onboarding
     var hasCompletedOnboarding: Bool {
         get {

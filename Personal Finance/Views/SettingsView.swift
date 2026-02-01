@@ -52,6 +52,24 @@ struct SettingsView: View {
     private var appearanceSection: some View {
         Section {
             NavigationLink {
+                ExperienceLevelSelectionView()
+            } label: {
+                HStack {
+                    Label("Modalità", systemImage: "slider.horizontal.3")
+
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        Image(systemName: appState.experienceLevelManager.currentLevel.icon)
+                            .foregroundStyle(appState.experienceLevelManager.currentLevel.iconColor)
+
+                        Text(appState.experienceLevelManager.currentLevel.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            NavigationLink {
                 ThemeSelectionView()
             } label: {
                 HStack {
@@ -72,7 +90,7 @@ struct SettingsView: View {
         } header: {
             Text("Personalizzazione")
         } footer: {
-            Text("Personalizza l'aspetto dell'app con colori e temi diversi")
+            Text("Personalizza l'aspetto e il livello di dettaglio dell'app")
         }
     }
 

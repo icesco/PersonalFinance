@@ -28,14 +28,29 @@ struct DashboardView: View {
     private var totalBalance: Decimal { account?.totalBalance ?? 0 }
     private var isPositive: Bool { monthlySavings >= 0 }
 
+    // Experience level computed properties
+    private var experienceLevel: UserExperienceLevel {
+        appState.experienceLevelManager.currentLevel
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 20) {
                     balanceHeroSection
-                    chartsSection
-                    monthlyStatsSection
+
+                    // Charts - only for standard and advanced
+                    if experienceLevel.showDetailedMetrics {
+                        chartsSection
+                    }
+
+                    // Monthly stats - for standard and advanced
+                    if experienceLevel.showDetailedMetrics {
+                        monthlyStatsSection
+                    }
+
                     contiSection
+
                     recentTransactionsSection
                 }
                 .padding()
@@ -127,13 +142,15 @@ struct DashboardView: View {
         do {
             let transactions = try modelContext.fetch(descriptor)
 
+            let limit = experienceLevel.dashboardTransactionLimit
+
             recentTransactions = transactions
                 .filter { transaction in
                     if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
                     if let id = transaction.toContoId, contiIDs.contains(id) { return true }
                     return false
                 }
-                .prefix(5)
+                .prefix(limit)
                 .map { $0 }
         } catch {
             recentTransactions = []
@@ -235,20 +252,23 @@ struct DashboardView: View {
 
     private var balanceHeroSection: some View {
         VStack(spacing: 16) {
-            HStack {
-                Circle()
-                    .fill(isPositive ? Color.green : Color.red)
-                    .frame(width: 12, height: 12)
+            // Insights - only for standard and advanced
+            if experienceLevel.showDetailedMetrics {
+                HStack {
+                    Circle()
+                        .fill(isPositive ? Color.green : Color.red)
+                        .frame(width: 12, height: 12)
 
-                Text(isPositive ? "Stai risparmiando" : "Attenzione: spese elevate")
-                    .font(.subheadline)
-                    .foregroundStyle(isPositive ? .green : .red)
+                    Text(isPositive ? "Stai risparmiando" : "Attenzione: spese elevate")
+                        .font(.subheadline)
+                        .foregroundStyle(isPositive ? .green : .red)
 
-                Spacer()
+                    Spacer()
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Saldo Totale")
+                Text(experienceLevel.balanceLabel)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -258,13 +278,16 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack {
-                Image(systemName: monthlySavings >= 0 ? "arrow.up.right" : "arrow.down.right")
-                Text("\(abs(monthlySavings).currencyFormatted) questo mese")
-                    .font(.callout)
+            // Monthly savings - only for standard and advanced
+            if experienceLevel.showDetailedMetrics {
+                HStack {
+                    Image(systemName: monthlySavings >= 0 ? "arrow.up.right" : "arrow.down.right")
+                    Text("\(abs(monthlySavings).currencyFormatted) questo mese")
+                        .font(.callout)
+                }
+                .foregroundStyle(monthlySavings >= 0 ? .green : .red)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .foregroundStyle(monthlySavings >= 0 ? .green : .red)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(20)
         .background(Color(.systemBackground))
@@ -427,7 +450,8 @@ struct DashboardView: View {
     private var recentTransactionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Ultime transazioni").font(.headline)
+                Text("Ultimi \(experienceLevel.transactionsLabel.lowercased())")
+                    .font(.headline)
                 Spacer()
                 Button("Vedi tutte") { appState.selectTab(.transactions) }
                     .font(.subheadline)
