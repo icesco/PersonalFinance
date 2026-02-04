@@ -45,79 +45,69 @@ struct FieldMappingView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                descriptionSection
+        Form {
+            descriptionSection
 
-                ForEach(CSVFieldSection.allCases) { section in
-                    Section(section.rawValue) {
-                        ForEach(fieldsForSection(section)) { mapping in
-                            FieldMappingRow(
-                                mapping: mapping,
-                                onTap: { selectedField = mapping.field }
-                            )
-                        }
+            ForEach(CSVFieldSection.allCases) { section in
+                Section(section.rawValue) {
+                    ForEach(fieldsForSection(section)) { mapping in
+                        FieldMappingRow(
+                            mapping: mapping,
+                            onTap: { selectedField = mapping.field }
+                        )
                     }
                 }
+            }
 
-                dateFormatSection
+            dateFormatSection
 
-                optionsSection
+            optionsSection
 
-                previewSection
-            }
-            .navigationTitle("Assegna campi")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                    }
+            previewSection
+        }
+        .navigationTitle("Assegna campi")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Importa") {
+                    performImport()
                 }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Importa") {
-                        performImport()
-                    }
-                    .disabled(!isMappingValid || isImporting)
-                }
+                .disabled(!isMappingValid || isImporting)
             }
-            .sheet(item: $selectedField) { field in
-                ColumnPickerView(
-                    field: field,
-                    headers: parseResult.headers,
-                    sampleValues: Array(parseResult.rows.prefix(3)),
-                    selection: bindingForField(field)
-                )
+        }
+        .sheet(item: $selectedField) { field in
+            ColumnPickerView(
+                field: field,
+                headers: parseResult.headers,
+                sampleValues: Array(parseResult.rows.prefix(3)),
+                selection: bindingForField(field)
+            )
+        }
+        .sheet(isPresented: $showingDateFormatPicker) {
+            DateFormatPickerView(selection: $options.dateFormat)
+        }
+        .sheet(isPresented: $showingPreview) {
+            ImportPreviewView(
+                previewRows: previewRows,
+                totalRows: parseResult.rowCount,
+                onConfirm: performImport
+            )
+        }
+        .alert("Import completato", isPresented: $showingImportResult) {
+            Button("OK") {
+                dismiss()
             }
-            .sheet(isPresented: $showingDateFormatPicker) {
-                DateFormatPickerView(selection: $options.dateFormat)
+        } message: {
+            if let result = importResult {
+                Text(importResultMessage(result))
             }
-            .sheet(isPresented: $showingPreview) {
-                ImportPreviewView(
-                    previewRows: previewRows,
-                    totalRows: parseResult.rowCount,
-                    onConfirm: performImport
-                )
-            }
-            .alert("Import completato", isPresented: $showingImportResult) {
-                Button("OK") {
-                    dismiss()
-                }
-            } message: {
-                if let result = importResult {
-                    Text(importResultMessage(result))
-                }
-            }
-            .onAppear {
-                initializeMappings()
-            }
-            .overlay {
-                if isImporting {
-                    importProgressOverlay
-                }
+        }
+        .onAppear {
+            initializeMappings()
+        }
+        .overlay {
+            if isImporting {
+                importProgressOverlay
             }
         }
     }
