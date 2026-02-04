@@ -597,21 +597,23 @@ struct AboutView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 24) {
-                Image(systemName: "creditcard.fill")
-                    .font(.system(size: 64))
-                    .foregroundColor(.accentColor)
-                
+                Image("logo-forgia")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+
                 VStack(spacing: 8) {
-                    Text("Personal Finance")
+                    Text("Forgia")
                         .font(.title)
                         .fontWeight(.bold)
-                    
+
                     Text("Versione 1.0.0")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
-                Text("Un'app semplice e potente per gestire le tue finanze personali. Tieni traccia delle entrate, spese e budget con facilità.")
+
+                Text("Forgia il tuo futuro finanziario. Gestisci entrate, spese e budget con consapevolezza per costruire una solida base di risparmio.")
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 

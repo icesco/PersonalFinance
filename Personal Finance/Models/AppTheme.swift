@@ -8,6 +8,7 @@
 import SwiftUI
 
 enum AppTheme: String, CaseIterable, Codable, Identifiable {
+    case forgia = "forgia"  // Tema default - fuoco e forgiatura
     case blue = "blue"
     case indigo = "indigo"
     case purple = "purple"
@@ -24,6 +25,7 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
 
     var displayName: String {
         switch self {
+        case .forgia: return "Forgia"
         case .blue: return "Blu"
         case .indigo: return "Indaco"
         case .purple: return "Viola"
@@ -40,6 +42,7 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
 
     var color: Color {
         switch self {
+        case .forgia: return Color(red: 0.95, green: 0.45, blue: 0.15)  // Arancione fuoco
         case .blue: return .blue
         case .indigo: return .indigo
         case .purple: return .purple
@@ -57,6 +60,7 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
     /// Colore secondario complementare per gradienti e accenti
     var secondaryColor: Color {
         switch self {
+        case .forgia: return Color(red: 1.0, green: 0.65, blue: 0.2)  // Arancione dorato/brace
         case .blue: return .cyan
         case .indigo: return .purple
         case .purple: return .pink
@@ -83,11 +87,12 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
     /// Icona rappresentativa del tema
     var icon: String {
         switch self {
+        case .forgia: return "flame.fill"
         case .blue: return "drop.fill"
         case .indigo: return "sparkles"
         case .purple: return "crown.fill"
         case .pink: return "heart.fill"
-        case .red: return "flame.fill"
+        case .red: return "bolt.fill"
         case .orange: return "sun.max.fill"
         case .yellow: return "star.fill"
         case .green: return "leaf.fill"
@@ -108,12 +113,12 @@ final class ThemeManager {
     }
 
     init() {
-        // Carica il tema salvato o usa il default
+        // Carica il tema salvato o usa il default (Forgia)
         if let savedTheme = UserDefaults.standard.string(forKey: "appTheme"),
            let theme = AppTheme(rawValue: savedTheme) {
             self.currentTheme = theme
         } else {
-            self.currentTheme = .blue
+            self.currentTheme = .forgia
         }
     }
 

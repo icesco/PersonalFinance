@@ -13,10 +13,11 @@ struct OnboardingView: View {
 
     private let pages: [OnboardingPage] = [
         OnboardingPage(
-            icon: "dollarsign.circle.fill",
-            title: "Benvenuto in Personal Finance",
-            description: "Gestisci le tue finanze personali in modo semplice e intuitivo. Traccia entrate, spese e monitora i tuoi budget.",
-            iconColor: .blue
+            icon: "flame.fill",
+            title: "Benvenuto in Forgia",
+            description: "Forgia il tuo futuro finanziario. Traccia entrate, spese e monitora i tuoi budget con consapevolezza.",
+            iconColor: Color(red: 0.95, green: 0.45, blue: 0.15),
+            useLogo: true
         ),
         OnboardingPage(
             icon: "creditcard.fill",
@@ -103,6 +104,15 @@ struct OnboardingPage {
     let title: String
     let description: String
     let iconColor: Color
+    let useLogo: Bool  // Se true, usa il logo dell'app invece dell'icona SF Symbol
+
+    init(icon: String, title: String, description: String, iconColor: Color, useLogo: Bool = false) {
+        self.icon = icon
+        self.title = title
+        self.description = description
+        self.iconColor = iconColor
+        self.useLogo = useLogo
+    }
 }
 
 struct OnboardingPageView: View {
@@ -112,11 +122,20 @@ struct OnboardingPageView: View {
         VStack(spacing: 30) {
             Spacer()
 
-            // Icon
-            Image(systemName: page.icon)
-                .font(.system(size: 80))
-                .foregroundStyle(page.iconColor.gradient)
-                .padding(.bottom, 20)
+            // Icon o Logo
+            if page.useLogo {
+                Image("logo-forgia")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .padding(.bottom, 20)
+            } else {
+                Image(systemName: page.icon)
+                    .font(.system(size: 80))
+                    .foregroundStyle(page.iconColor.gradient)
+                    .padding(.bottom, 20)
+            }
 
             // Title
             Text(page.title)
