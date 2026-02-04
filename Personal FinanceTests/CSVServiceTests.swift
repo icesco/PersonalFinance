@@ -338,4 +338,101 @@ struct CSVServiceTests {
 
         #expect(result.rows[0][1] == "Description with, comma inside")
     }
+
+    // MARK: - Multi-Account Filter Tests
+
+    @Test func extractUniqueAccountValues_shouldExtractUniqueValues() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        // Source Account è alla colonna 6
+        let accountValues = await csvService.extractUniqueAccountValues(from: result, columnIndex: 6)
+
+        #expect(accountValues.count == 2)
+
+        let accountNames = accountValues.map { $0.value }
+        #expect(accountNames.contains("Conto Crédit Agricole"))
+        #expect(accountNames.contains("PAC"))
+    }
+
+    @Test func extractUniqueAccountValues_shouldCountRowsCorrectly() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        // Source Account è alla colonna 6
+        let accountValues = await csvService.extractUniqueAccountValues(from: result, columnIndex: 6)
+
+        // "Conto Crédit Agricole" appare 5 volte, "PAC" appare 1 volta
+        let creditAgricole = accountValues.first { $0.value == "Conto Crédit Agricole" }
+        let pac = accountValues.first { $0.value == "PAC" }
+
+        #expect(creditAgricole?.rowCount == 5)
+        #expect(pac?.rowCount == 1)
+    }
+
+    @Test func extractUniqueAccountValues_shouldBeSortedByRowCount() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        let accountValues = await csvService.extractUniqueAccountValues(from: result, columnIndex: 6)
+
+        // Il primo elemento dovrebbe essere quello con più righe
+        #expect(accountValues.first?.value == "Conto Crédit Agricole")
+        #expect(accountValues.first?.rowCount == 5)
+    }
+
+    @Test func filterRows_shouldFilterByAccountValue() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        // Filtra solo le righe con "PAC" come Source Account (colonna 6)
+        let filtered = await csvService.filterRows(from: result, columnIndex: 6, value: "PAC")
+
+        #expect(filtered.rowCount == 1)
+        #expect(filtered.rows[0][6] == "PAC")
+    }
+
+    @Test func filterRows_shouldPreserveHeaders() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        let filtered = await csvService.filterRows(from: result, columnIndex: 6, value: "PAC")
+
+        #expect(filtered.headers == result.headers)
+        #expect(filtered.columnCount == result.columnCount)
+    }
+
+    @Test func filterRows_shouldFilterMultipleRows() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        // Filtra le righe con "Conto Crédit Agricole" come Source Account
+        let filtered = await csvService.filterRows(from: result, columnIndex: 6, value: "Conto Crédit Agricole")
+
+        #expect(filtered.rowCount == 5)
+
+        // Verifica che tutte le righe filtrate abbiano il valore corretto
+        for row in filtered.rows {
+            #expect(row[6] == "Conto Crédit Agricole")
+        }
+    }
+
+    @Test func filterRows_shouldReturnEmptyForNonExistentValue() async throws {
+        let result = await csvService.parseCSVContent(sampleCSVContent)
+
+        let filtered = await csvService.filterRows(from: result, columnIndex: 6, value: "Conto Inesistente")
+
+        #expect(filtered.rowCount == 0)
+        #expect(filtered.headers == result.headers)
+    }
+
+    @Test func extractUniqueAccountValues_shouldHandleEmptyColumn() async throws {
+        let csvWithEmpty = """
+        Date,Amount,Account
+        2025-01-01,100,
+        2025-01-02,200,Conto A
+        2025-01-03,150,
+        """
+
+        let result = await csvService.parseCSVContent(csvWithEmpty)
+        let accountValues = await csvService.extractUniqueAccountValues(from: result, columnIndex: 2)
+
+        // Solo "Conto A" dovrebbe essere estratto (le righe vuote vengono ignorate)
+        #expect(accountValues.count == 1)
+        #expect(accountValues.first?.value == "Conto A")
+    }
 }

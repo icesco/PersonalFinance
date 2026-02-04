@@ -16,6 +16,8 @@ struct SettingsView: View {
 
     // MARK: - State
     @State private var showingAddConto = false
+    @State private var showingCSVImport = false
+    @State private var showingCSVExport = false
 
     // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
@@ -37,6 +39,9 @@ struct SettingsView: View {
                 // Categorie section (NavigationLink)
                 categoriesSection
 
+                // Data management section
+                dataManagementSection
+
                 // Info section
                 infoSection
             }
@@ -44,6 +49,34 @@ struct SettingsView: View {
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
             }
+            .sheet(isPresented: $showingCSVImport) {
+                CSVImportView()
+            }
+            .sheet(isPresented: $showingCSVExport) {
+                CSVExportView()
+            }
+        }
+    }
+
+    // MARK: - Data Management Section
+
+    private var dataManagementSection: some View {
+        Section {
+            Button {
+                showingCSVImport = true
+            } label: {
+                Label("Importa da CSV", systemImage: "square.and.arrow.down")
+            }
+
+            Button {
+                showingCSVExport = true
+            } label: {
+                Label("Esporta in CSV", systemImage: "square.and.arrow.up")
+            }
+        } header: {
+            Text("Gestione Dati")
+        } footer: {
+            Text("Importa ed esporta le tue transazioni in formato CSV")
         }
     }
 

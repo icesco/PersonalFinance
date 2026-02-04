@@ -25,6 +25,8 @@ struct FieldMappingView: View {
     @State private var isImporting = false
     @State private var importResult: CSVImportResult?
     @State private var previewRows: [CSVPreviewRow] = []
+    @State private var importProgress: Double = 0
+    @State private var importedRowCount: Int = 0
 
     @Query private var categories: [FinanceCore.Category]
     @Query private var conti: [Conto]
@@ -112,6 +114,43 @@ struct FieldMappingView: View {
             .onAppear {
                 initializeMappings()
             }
+            .overlay {
+                if isImporting {
+                    importProgressOverlay
+                }
+            }
+        }
+    }
+
+    // MARK: - Import Progress Overlay
+
+    private var importProgressOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView(value: importProgress)
+                    .progressViewStyle(.linear)
+                    .frame(width: 200)
+
+                VStack(spacing: 8) {
+                    Text("Importazione in corso...")
+                        .font(.headline)
+
+                    Text("\(importedRowCount) di \(parseResult.rowCount) righe")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    Text("\(Int(importProgress * 100))%")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(32)
+            .background(.regularMaterial)
+            .cornerRadius(16)
+            .shadow(radius: 10)
         }
     }
 
@@ -279,6 +318,8 @@ struct FieldMappingView: View {
         guard let account = appState.selectedAccount else { return }
 
         isImporting = true
+        importProgress = 0
+        importedRowCount = 0
 
         Task {
             do {
@@ -289,7 +330,13 @@ struct FieldMappingView: View {
                     context: modelContext,
                     existingCategories: categories,
                     existingConti: conti,
-                    account: account
+                    account: account,
+                    progressCallback: { current, total in
+                        Task { @MainActor in
+                            importedRowCount = current
+                            importProgress = Double(current) / Double(total)
+                        }
+                    }
                 )
 
                 await MainActor.run {

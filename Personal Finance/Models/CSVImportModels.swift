@@ -168,6 +168,23 @@ struct FieldMapping: Identifiable, Equatable {
     }
 }
 
+// MARK: - Account Filter Configuration
+
+struct CSVAccountFilter {
+    var isMultiAccount: Bool = false
+    var accountColumnIndex: Int?
+    var accountColumnName: String?
+    var selectedAccountValue: String?
+}
+
+// MARK: - Account Value with Row Count
+
+struct CSVAccountValue: Identifiable, Hashable {
+    let id = UUID()
+    let value: String
+    let rowCount: Int
+}
+
 // MARK: - Import Options
 
 struct CSVImportOptions {
@@ -182,6 +199,9 @@ struct CSVImportOptions {
     var delimiter: Character = ","
     var hasHeader: Bool = true
     var encoding: String.Encoding = .utf8
+
+    // Account filter options
+    var accountFilter: CSVAccountFilter = CSVAccountFilter()
 }
 
 // MARK: - Parse Result

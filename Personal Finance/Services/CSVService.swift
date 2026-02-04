@@ -74,6 +74,34 @@ actor CSVService {
         return result
     }
 
+    // MARK: - Multi-Account Filtering
+
+    /// Extracts unique values from a specific column with row counts
+    func extractUniqueAccountValues(from result: CSVParseResult, columnIndex: Int) -> [CSVAccountValue] {
+        var valueCounts: [String: Int] = [:]
+
+        for row in result.rows {
+            guard columnIndex < row.count else { continue }
+            let value = row[columnIndex].trimmingCharacters(in: .whitespaces)
+            if !value.isEmpty {
+                valueCounts[value, default: 0] += 1
+            }
+        }
+
+        return valueCounts.map { CSVAccountValue(value: $0.key, rowCount: $0.value) }
+            .sorted { $0.rowCount > $1.rowCount }
+    }
+
+    /// Filters rows to only include those matching a specific account value
+    func filterRows(from result: CSVParseResult, columnIndex: Int, value: String) -> CSVParseResult {
+        let filteredRows = result.rows.filter { row in
+            guard columnIndex < row.count else { return false }
+            return row[columnIndex].trimmingCharacters(in: .whitespaces) == value
+        }
+
+        return CSVParseResult(headers: result.headers, rows: filteredRows)
+    }
+
     // MARK: - Auto-Detection
 
     func detectColumnMapping(headers: [String]) -> [FieldMapping] {
@@ -162,7 +190,8 @@ actor CSVService {
         context: ModelContext,
         existingCategories: [FinanceCore.Category],
         existingConti: [Conto],
-        account: Account
+        account: Account,
+        progressCallback: ((Int, Int) -> Void)? = nil
     ) async throws -> CSVImportResult {
         var importedCount = 0
         var skippedCount = 0
@@ -177,8 +206,13 @@ actor CSVService {
         // Get existing transactions for duplicate detection
         let existingTransactions = try fetchExistingTransactions(context: context)
 
+        let totalRows = result.rows.count
+
         for (rowIndex, row) in result.rows.enumerated() {
             let rowNumber = rowIndex + (options.hasHeader ? 2 : 1) // Account for header and 1-based indexing
+
+            // Report progress
+            progressCallback?(rowIndex + 1, totalRows)
 
             do {
                 // Parse amount

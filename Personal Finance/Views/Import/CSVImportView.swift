@@ -15,162 +15,181 @@ struct CSVImportView: View {
 
     @State private var selectedFileURL: URL?
     @State private var parseResult: CSVParseResult?
+    @State private var filteredParseResult: CSVParseResult?
     @State private var showingFilePicker = false
-    @State private var showingFieldMapping = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var navigationPath = NavigationPath()
 
     private let csvService = CSVService()
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                // Header illustration
-                Spacer()
-
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 80))
-                    .foregroundColor(.accentColor)
-
-                VStack(spacing: 12) {
-                    Text("Importa da CSV")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text("Seleziona un file CSV contenente le transazioni da importare. Potrai poi mappare le colonne ai campi corrispondenti.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-
-                Spacer()
-
-                // Selected file info
-                if let url = selectedFileURL {
-                    VStack(spacing: 8) {
-                        HStack {
-                            Image(systemName: "doc.fill")
-                                .foregroundColor(.accentColor)
-
-                            Text(url.lastPathComponent)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-
-                            Spacer()
-
-                            Button {
-                                selectedFileURL = nil
-                                parseResult = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-
-                        if let result = parseResult {
-                            HStack {
-                                Label("\(result.rowCount) righe", systemImage: "list.number")
-                                Spacer()
-                                Label("\(result.columnCount) colonne", systemImage: "tablecells")
-                            }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
+        NavigationStack(path: $navigationPath) {
+            fileSelectionView
+                .navigationTitle("Importa CSV")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Annulla") {
+                            dismiss()
                         }
                     }
-                    .padding(.horizontal)
                 }
+                .fileImporter(
+                    isPresented: $showingFilePicker,
+                    allowedContentTypes: [UTType.commaSeparatedText, UTType.text, UTType.plainText],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleFileSelection(result)
+                }
+                .navigationDestination(for: ImportStep.self) { step in
+                    switch step {
+                    case .accountFilter:
+                        if let parseResult = parseResult {
+                            AccountFilterStepView(
+                                parseResult: parseResult,
+                                onContinue: { resultToUse in
+                                    filteredParseResult = resultToUse
+                                    navigationPath.append(ImportStep.fieldMapping)
+                                }
+                            )
+                        }
+                    case .fieldMapping:
+                        if let resultToUse = filteredParseResult ?? parseResult {
+                            FieldMappingView(parseResult: resultToUse)
+                        }
+                    }
+                }
+                .overlay {
+                    if isLoading {
+                        ProgressView("Lettura file...")
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .shadow(radius: 10)
+                    }
+                }
+        }
+    }
 
-                // Error message
-                if let error = errorMessage {
+    // MARK: - File Selection View
+
+    private var fileSelectionView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 80))
+                .foregroundColor(.accentColor)
+
+            VStack(spacing: 12) {
+                Text("Importa da CSV")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Seleziona un file CSV contenente le transazioni da importare. Potrai poi mappare le colonne ai campi corrispondenti.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            Spacer()
+
+            // Selected file info
+            if let url = selectedFileURL {
+                VStack(spacing: 8) {
                     HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                        Image(systemName: "doc.fill")
+                            .foregroundColor(.accentColor)
 
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.orange)
+                        Text(url.lastPathComponent)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        Button {
+                            selectedFileURL = nil
+                            parseResult = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(8)
-                    .padding(.horizontal)
-                }
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
 
-                Spacer()
-
-                // Buttons
-                VStack(spacing: 12) {
-                    if parseResult != nil {
-                        Button {
-                            showingFieldMapping = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "arrow.right.circle.fill")
-                                Text("Continua")
-                            }
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.accentColor)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
+                    if let result = parseResult {
+                        HStack {
+                            Label("\(result.rowCount) righe", systemImage: "list.number")
+                            Spacer()
+                            Label("\(result.columnCount) colonne", systemImage: "tablecells")
                         }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
                     }
+                }
+                .padding(.horizontal)
+            }
 
+            // Error message
+            if let error = errorMessage {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.horizontal)
+            }
+
+            Spacer()
+
+            // Buttons
+            VStack(spacing: 12) {
+                if parseResult != nil {
                     Button {
-                        showingFilePicker = true
+                        navigationPath.append(ImportStep.accountFilter)
                     } label: {
                         HStack {
-                            Image(systemName: "folder")
-                            Text(selectedFileURL == nil ? "Seleziona file CSV" : "Cambia file")
+                            Image(systemName: "arrow.right.circle.fill")
+                            Text("Continua")
                         }
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(parseResult == nil ? Color.accentColor : Color(.systemGray5))
-                        .foregroundColor(parseResult == nil ? .white : .primary)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
                         .cornerRadius(12)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 24)
-            }
-            .navigationTitle("Importa CSV")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") {
-                        dismiss()
+
+                Button {
+                    showingFilePicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "folder")
+                        Text(selectedFileURL == nil ? "Seleziona file CSV" : "Cambia file")
                     }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(parseResult == nil ? Color.accentColor : Color(.systemGray5))
+                    .foregroundColor(parseResult == nil ? .white : .primary)
+                    .cornerRadius(12)
                 }
             }
-            .fileImporter(
-                isPresented: $showingFilePicker,
-                allowedContentTypes: [UTType.commaSeparatedText, UTType.text, UTType.plainText],
-                allowsMultipleSelection: false
-            ) { result in
-                handleFileSelection(result)
-            }
-            .fullScreenCover(isPresented: $showingFieldMapping) {
-                if let parseResult = parseResult {
-                    FieldMappingView(parseResult: parseResult)
-                }
-            }
-            .overlay {
-                if isLoading {
-                    ProgressView("Lettura file...")
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
-                        .shadow(radius: 10)
-                }
-            }
+            .padding(.horizontal)
+            .padding(.bottom, 24)
         }
     }
 
@@ -212,6 +231,13 @@ struct CSVImportView: View {
             }
         }
     }
+}
+
+// MARK: - Import Step Enum
+
+enum ImportStep: Hashable {
+    case accountFilter
+    case fieldMapping
 }
 
 #Preview {
