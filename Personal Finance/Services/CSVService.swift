@@ -341,12 +341,24 @@ actor CSVService {
     // MARK: - Helper Methods
 
     private func parseAmount(_ string: String) -> Decimal? {
-        let cleanedString = string
+        var cleanedString = string
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "€", with: "")
             .replacingOccurrences(of: "$", with: "")
-            .replacingOccurrences(of: ".", with: "")  // Remove thousands separator (Italian format)
-            .replacingOccurrences(of: ",", with: ".")  // Convert decimal separator
+
+        let hasComma = cleanedString.contains(",")
+        let hasDot = cleanedString.contains(".")
+
+        if hasComma && hasDot {
+            // Both present: dot is thousands separator, comma is decimal (European format like 1.234,56)
+            cleanedString = cleanedString
+                .replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else if hasComma && !hasDot {
+            // Only comma: comma is decimal separator (European format like 1234,56)
+            cleanedString = cleanedString.replacingOccurrences(of: ",", with: ".")
+        }
+        // If only dot or neither: dot is already decimal separator (International format like 1234.56)
 
         return Decimal(string: cleanedString)
     }
