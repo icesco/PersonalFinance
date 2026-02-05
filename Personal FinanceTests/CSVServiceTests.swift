@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import SwiftData
 @testable import Personal_Finance
 @testable import FinanceCore
 
@@ -434,5 +435,178 @@ struct CSVServiceTests {
         // Solo "Conto A" dovrebbe essere estratto (le righe vuote vengono ignorate)
         #expect(accountValues.count == 1)
         #expect(accountValues.first?.value == "Conto A")
+    }
+
+    // MARK: - Integration Tests - Category Deduplication (Issue #1)
+
+    @Test func importTransactions_shouldNotCreateDuplicateCategories() async throws {
+        // Setup: create in-memory container
+        let container = try FinanceCoreModule.createModelContainer(
+            appGroupIdentifier: FinanceCoreModule.defaultAppGroupIdentifier,
+            enableCloudKit: false,
+            inMemory: true
+        )
+        let context = ModelContext(container)
+
+        // Create account and conto
+        let account = Account(name: "Test Account")
+        context.insert(account)
+
+        let conto = Conto(name: "Test Conto", type: .checking)
+        conto.account = account
+        context.insert(conto)
+
+        try context.save()
+
+        // CSV with the same category appearing multiple times
+        let csvWithDuplicateCategories = """
+        Date,Amount,Category
+        2025-01-01,100,Alimentari
+        2025-01-02,200,Alimentari
+        2025-01-03,150,Alimentari
+        """
+
+        let result = await csvService.parseCSVContent(csvWithDuplicateCategories)
+        let mappings = await csvService.detectColumnMapping(headers: result.headers)
+
+        var options = CSVImportOptions()
+        options.createMissingCategories = true
+        options.dateFormat = .iso8601
+
+        let importResult = try await csvService.importTransactions(
+            from: result,
+            mapping: mappings,
+            options: options,
+            context: context,
+            existingCategories: [],
+            existingConti: [conto],
+            account: account
+        )
+
+        // Verify all transactions were imported
+        #expect(importResult.importedCount == 3)
+
+        // Verify only ONE category was created (not 3 duplicates)
+        let categoryDescriptor = FetchDescriptor<FinanceCore.Category>()
+        let categories = try context.fetch(categoryDescriptor)
+
+        #expect(categories.count == 1)
+        #expect(categories.first?.name == "Alimentari")
+    }
+
+    @Test func importTransactions_shouldReuseExistingCategoriesWithDifferentCase() async throws {
+        // Setup: create in-memory container
+        let container = try FinanceCoreModule.createModelContainer(
+            appGroupIdentifier: FinanceCoreModule.defaultAppGroupIdentifier,
+            enableCloudKit: false,
+            inMemory: true
+        )
+        let context = ModelContext(container)
+
+        // Create account and conto
+        let account = Account(name: "Test Account")
+        context.insert(account)
+
+        let conto = Conto(name: "Test Conto", type: .checking)
+        conto.account = account
+        context.insert(conto)
+
+        try context.save()
+
+        // CSV with same category in different cases
+        let csvWithMixedCaseCategories = """
+        Date,Amount,Category
+        2025-01-01,100,alimentari
+        2025-01-02,200,ALIMENTARI
+        2025-01-03,150,Alimentari
+        """
+
+        let result = await csvService.parseCSVContent(csvWithMixedCaseCategories)
+        let mappings = await csvService.detectColumnMapping(headers: result.headers)
+
+        var options = CSVImportOptions()
+        options.createMissingCategories = true
+        options.dateFormat = .iso8601
+
+        let importResult = try await csvService.importTransactions(
+            from: result,
+            mapping: mappings,
+            options: options,
+            context: context,
+            existingCategories: [],
+            existingConti: [conto],
+            account: account
+        )
+
+        // Verify all transactions were imported
+        #expect(importResult.importedCount == 3)
+
+        // Verify only ONE category was created (case-insensitive matching)
+        let categoryDescriptor = FetchDescriptor<FinanceCore.Category>()
+        let categories = try context.fetch(categoryDescriptor)
+
+        #expect(categories.count == 1)
+    }
+
+    @Test func importTransactions_shouldReusePreexistingCategory() async throws {
+        // Setup: create in-memory container
+        let container = try FinanceCoreModule.createModelContainer(
+            appGroupIdentifier: FinanceCoreModule.defaultAppGroupIdentifier,
+            enableCloudKit: false,
+            inMemory: true
+        )
+        let context = ModelContext(container)
+
+        // Create account and conto
+        let account = Account(name: "Test Account")
+        context.insert(account)
+
+        let conto = Conto(name: "Test Conto", type: .checking)
+        conto.account = account
+        context.insert(conto)
+
+        // Create a pre-existing category
+        let existingCategory = FinanceCore.Category(name: "Alimentari")
+        existingCategory.account = account
+        context.insert(existingCategory)
+
+        try context.save()
+
+        // Fetch the existing category
+        let categoryDescriptor = FetchDescriptor<FinanceCore.Category>()
+        let existingCategories = try context.fetch(categoryDescriptor)
+
+        // CSV that references the existing category
+        let csvContent = """
+        Date,Amount,Category
+        2025-01-01,100,Alimentari
+        2025-01-02,200,Alimentari
+        """
+
+        let result = await csvService.parseCSVContent(csvContent)
+        let mappings = await csvService.detectColumnMapping(headers: result.headers)
+
+        var options = CSVImportOptions()
+        options.createMissingCategories = true
+        options.dateFormat = .iso8601
+
+        let importResult = try await csvService.importTransactions(
+            from: result,
+            mapping: mappings,
+            options: options,
+            context: context,
+            existingCategories: existingCategories,
+            existingConti: [conto],
+            account: account
+        )
+
+        // Verify all transactions were imported
+        #expect(importResult.importedCount == 2)
+
+        // Verify still only ONE category exists (the pre-existing one was reused)
+        let categoriesAfterImport = try context.fetch(categoryDescriptor)
+
+        #expect(categoriesAfterImport.count == 1)
+        #expect(categoriesAfterImport.first?.id == existingCategory.id)
     }
 }
