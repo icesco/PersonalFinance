@@ -190,7 +190,7 @@ struct CSVAccountValue: Identifiable, Hashable {
 struct CSVImportOptions {
     var dateFormat: CSVDateFormat = .iso8601Offset
     var ignoreZeroAmounts: Bool = false
-    var ignoreDuplicates: Bool = false
+    var ignoreDuplicates: Bool = true
     var createMissingCategories: Bool = true
     var createMissingConti: Bool = false
     var defaultContoId: UUID?
