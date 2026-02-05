@@ -241,6 +241,19 @@ struct SettingsTabView: View {
                     Text("Backup e Ripristino")
                 }
             }
+
+            // Erase Data
+            NavigationLink {
+                EraseDataView()
+            } label: {
+                HStack {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                        .frame(width: 24)
+
+                    Text("Cancella Dati")
+                }
+            }
         }
     }
     
