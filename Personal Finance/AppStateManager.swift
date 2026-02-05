@@ -9,6 +9,20 @@ import SwiftUI
 import SwiftData
 import FinanceCore
 
+// MARK: - Dashboard Style
+
+enum DashboardStyle: String, CaseIterable, Codable {
+    case classic = "classic"
+    case crypto = "crypto"
+
+    var displayName: String {
+        switch self {
+        case .classic: return "Classico"
+        case .crypto: return "Moderno"
+        }
+    }
+}
+
 /// Main application state manager using @Observable
 /// Handles tab selection, account management, and modal presentation
 @Observable
@@ -16,17 +30,60 @@ final class AppStateManager {
     // MARK: - Tab Navigation
     var selectedTab: AppTab = .dashboard
 
+    // MARK: - Dashboard Style
+    var dashboardStyle: DashboardStyle = .classic {
+        didSet {
+            saveDashboardStyle()
+        }
+    }
+
     // MARK: - Data Refresh
     /// Incremented when data changes to trigger view updates
     var dataRefreshTrigger: Int = 0
 
-    // MARK: - Account Management
+    // MARK: - Libro Management (Account in data model)
+    /// The selected Libro (top-level container)
     var selectedAccount: Account? {
         didSet {
-            // Persist selected account ID
+            // Persist selected libro ID
             if let accountID = selectedAccount?.id.uuidString {
                 UserDefaults.standard.set(accountID, forKey: "selectedAccountID")
             }
+            // Reset conto selection when libro changes
+            if selectedAccount != nil {
+                selectedConto = nil
+                showAllConti = true
+            }
+        }
+    }
+
+    /// When true, dashboard shows aggregated data from all libri
+    var showAllAccounts: Bool = false {
+        didSet {
+            UserDefaults.standard.set(showAllAccounts, forKey: "showAllAccounts")
+            if showAllAccounts {
+                selectedConto = nil
+                showAllConti = true
+            }
+        }
+    }
+
+    // MARK: - Conto Management (Account in UI terminology)
+    /// The selected Conto (individual account like credit card, bank account)
+    var selectedConto: Conto? {
+        didSet {
+            if let contoID = selectedConto?.id.uuidString {
+                UserDefaults.standard.set(contoID, forKey: "selectedContoID")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedContoID")
+            }
+        }
+    }
+
+    /// When true, shows all conti within the selected libro
+    var showAllConti: Bool = true {
+        didSet {
+            UserDefaults.standard.set(showAllConti, forKey: "showAllConti")
         }
     }
     
@@ -59,8 +116,35 @@ final class AppStateManager {
     }
 
     init() {
+        loadDashboardStyle()
+        loadShowAllAccounts()
+        loadShowAllConti()
         loadSelectedAccount()
         checkOnboardingStatus()
+    }
+
+    private func loadDashboardStyle() {
+        if let savedStyle = UserDefaults.standard.string(forKey: "dashboardStyle"),
+           let style = DashboardStyle(rawValue: savedStyle) {
+            dashboardStyle = style
+        }
+    }
+
+    private func saveDashboardStyle() {
+        UserDefaults.standard.set(dashboardStyle.rawValue, forKey: "dashboardStyle")
+    }
+
+    private func loadShowAllAccounts() {
+        showAllAccounts = UserDefaults.standard.bool(forKey: "showAllAccounts")
+    }
+
+    private func loadShowAllConti() {
+        // Default to true if not set
+        if UserDefaults.standard.object(forKey: "showAllConti") == nil {
+            showAllConti = true
+        } else {
+            showAllConti = UserDefaults.standard.bool(forKey: "showAllConti")
+        }
     }
 
     private func checkOnboardingStatus() {
@@ -83,10 +167,28 @@ final class AppStateManager {
     }
     
     // MARK: - Account Management
-    
+
     func selectAccount(_ account: Account) {
+        showAllAccounts = false
         selectedAccount = account
         dismissAccountSelection()
+    }
+
+    func selectAllAccounts() {
+        showAllAccounts = true
+        dismissAccountSelection()
+    }
+
+    // MARK: - Conto Selection
+
+    func selectConto(_ conto: Conto) {
+        showAllConti = false
+        selectedConto = conto
+    }
+
+    func selectAllConti() {
+        showAllConti = true
+        selectedConto = nil
     }
     
     func loadSelectedAccount(from accounts: [Account]? = nil) {

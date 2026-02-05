@@ -238,7 +238,7 @@ struct CryptoDashboardView: View {
     // Fetched data
     @State private var monthlyIncome: Decimal = 0
     @State private var monthlyExpenses: Decimal = 0
-    @State private var previousMonthBalance: Decimal = 0
+    @State private var periodStartBalance: Decimal = 0  // Balance at start of selected period
     @State private var balanceHistory: [BalanceDataPoint] = []
     @State private var multiAccountHistory: [AccountBalanceDataPoint] = []
     @State private var multiContoHistory: [AccountBalanceDataPoint] = []  // Reuse same struct for conti
@@ -332,12 +332,15 @@ struct CryptoDashboardView: View {
     }
 
     private var absoluteChange: Decimal {
-        totalBalance - previousMonthBalance
+        totalBalance - periodStartBalance
     }
 
     private var percentageChange: Double {
-        guard previousMonthBalance != 0 else { return 0 }
-        let change = (absoluteChange / previousMonthBalance) * 100
+        guard periodStartBalance != 0 else { return 0 }
+        // Use absolute value of start balance to avoid counterintuitive percentages
+        // when going from negative to positive balance
+        let absStartBalance = periodStartBalance < 0 ? -periodStartBalance : periodStartBalance
+        let change = (absoluteChange / absStartBalance) * 100
         return NSDecimalNumber(decimal: change).doubleValue
     }
 
@@ -484,7 +487,7 @@ struct CryptoDashboardView: View {
     // MARK: - Gradient Background
 
     private var gradientBackground: some View {
-        theme.dashboardGradient
+        AnimatedMeshGradient(baseColor: theme.color)
             .ignoresSafeArea()
     }
 
@@ -497,18 +500,26 @@ struct CryptoDashboardView: View {
                 .foregroundStyle(.white)
 
             HStack(spacing: 8) {
+                // Percentage change with pill background for visibility
                 HStack(spacing: 4) {
                     Image(systemName: isPositiveChange ? "arrow.up.right" : "arrow.down.right")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.caption.weight(.bold))
 
-                    Text(String(format: "%+.2f%%", percentageChange))
-                        .font(.subheadline.weight(.semibold))
+                    Text(String(format: "%.1f%%", abs(percentageChange)))
+                        .font(.caption.weight(.bold))
                 }
-                .foregroundStyle(isPositiveChange ? Color(hex: "#4CAF50") : Color(hex: "#FF5252"))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(isPositiveChange ? Color(hex: "#4CAF50") : Color(hex: "#FF5252"))
+                )
 
-                Text(absoluteChange.currencyFormatted)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.6))
+                // Absolute change
+                Text((isPositiveChange ? "+" : "") + absoluteChange.currencyFormatted)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.8))
             }
         }
     }
@@ -727,6 +738,7 @@ struct CryptoDashboardView: View {
     /// Returns the full date range for the chart X-axis
     private var chartDateRange: ClosedRange<Date> {
         let calendar = Calendar.current
+        let now = Date()
 
         if selectedPeriod == .oneMonth {
             // Full month range for the selected month
@@ -734,10 +746,12 @@ struct CryptoDashboardView: View {
             let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
             return startOfMonth...endOfMonth
         } else {
-            // For other periods, use the data range or calculate from period
-            let now = Date()
+            // For other periods, start from the beginning of the month X months ago
             let monthsBack = selectedPeriod.monthsCount ?? 24
-            let startDate = calendar.date(byAdding: .month, value: -monthsBack, to: now)!
+            // Go back (monthsBack - 1) months to include current month in count
+            // e.g., 3M in February should show Dec, Jan, Feb (go back 2 months from start of current month)
+            let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+            let startDate = calendar.date(byAdding: .month, value: -(monthsBack - 1), to: startOfCurrentMonth)!
             return startDate...now
         }
     }
@@ -750,7 +764,13 @@ struct CryptoDashboardView: View {
     }
 
     /// Balance history after today (dashed line for future/planned)
+    /// Only shown for 1M view - other periods show only past data
     private var futureBalanceHistory: [BalanceDataPoint] {
+        // Only show future data for 1M view
+        guard selectedPeriod == .oneMonth else {
+            return []
+        }
+
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let endOfToday = calendar.date(byAdding: .day, value: 1, to: today)!
@@ -766,27 +786,22 @@ struct CryptoDashboardView: View {
         // Always start future line from today's balance for continuity
         let todayPoint = BalanceDataPoint(date: today, balance: lastPast.balance)
 
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
+        let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
+
         if future.isEmpty {
-            // No future transactions - create projection to end of period
-            if selectedPeriod == .oneMonth {
-                let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-                let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
-                if endOfMonth > today {
-                    return [todayPoint, BalanceDataPoint(date: endOfMonth, balance: lastPast.balance)]
-                }
+            // No future transactions - create projection to end of month
+            if endOfMonth > today {
+                return [todayPoint, BalanceDataPoint(date: endOfMonth, balance: lastPast.balance)]
             }
             return []
         } else {
             // Has future transactions - connect from today
             future.insert(todayPoint, at: 0)
 
-            // For 1M view, also extend to end of month if needed
-            if selectedPeriod == .oneMonth {
-                let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-                let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
-                if let lastFuture = future.last, lastFuture.date < endOfMonth {
-                    future.append(BalanceDataPoint(date: endOfMonth, balance: lastFuture.balance))
-                }
+            // Extend to end of month if needed
+            if let lastFuture = future.last, lastFuture.date < endOfMonth {
+                future.append(BalanceDataPoint(date: endOfMonth, balance: lastFuture.balance))
             }
 
             return future
@@ -820,27 +835,27 @@ struct CryptoDashboardView: View {
                 }
         } else {
             Chart {
-                // Past data - solid line
+                // Past data - solid white line
                 ForEach(pastBalanceHistory, id: \.date) { item in
                     LineMark(
-                        x: .value("Data", item.date, unit: selectedPeriod.useWeeklyAxis ? .day : .month),
+                        x: .value("Data", item.date, unit: .day),
                         y: .value("Saldo", item.balance),
                         series: .value("Serie", "Passato")
                     )
-                    .foregroundStyle(theme.color)
-                    .interpolationMethod(.stepEnd)
+                    .foregroundStyle(.white)
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 3))
                 }
 
-                // Future data - dashed line with lighter color
+                // Future data - dashed white line with lower opacity
                 ForEach(futureBalanceHistory, id: \.date) { item in
                     LineMark(
-                        x: .value("Data", item.date, unit: selectedPeriod.useWeeklyAxis ? .day : .month),
+                        x: .value("Data", item.date, unit: .day),
                         y: .value("Saldo", item.balance),
                         series: .value("Serie", "Futuro")
                     )
-                    .foregroundStyle(theme.color.opacity(0.5))
-                    .interpolationMethod(.stepEnd)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 2, dash: [8, 4]))
                 }
             }
@@ -903,11 +918,11 @@ struct CryptoDashboardView: View {
             } else {
                 Chart(multiAccountHistory) { item in
                     LineMark(
-                        x: .value("Data", item.date, unit: selectedPeriod.useWeeklyAxis ? .day : .month),
+                        x: .value("Data", item.date, unit: .day),
                         y: .value("Saldo", item.balance)
                     )
                     .foregroundStyle(by: .value("Account", item.accountName))
-                    .interpolationMethod(.stepEnd)
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                 }
                 .chartXAxis {
@@ -991,11 +1006,11 @@ struct CryptoDashboardView: View {
             } else {
                 Chart(multiContoHistory) { item in
                     LineMark(
-                        x: .value("Data", item.date, unit: selectedPeriod.useWeeklyAxis ? .day : .month),
+                        x: .value("Data", item.date, unit: .day),
                         y: .value("Saldo", item.balance)
                     )
                     .foregroundStyle(by: .value("Conto", item.accountName))
-                    .interpolationMethod(.stepEnd)
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                 }
                 .chartXAxis {
@@ -1256,8 +1271,8 @@ struct CryptoDashboardView: View {
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
 
-        // Calculate previous month balance
-        loadPreviousMonthBalance(contiIDs: allContiIDs, startOfMonth: startOfMonth)
+        // Calculate balance at start of selected period
+        loadPeriodStartBalance(contiIDs: allContiIDs)
 
         // Load monthly totals
         loadMonthlyTotals(contiIDs: allContiIDs, startOfMonth: startOfMonth, endOfMonth: endOfMonth)
@@ -1286,7 +1301,7 @@ struct CryptoDashboardView: View {
     private func resetData() {
         monthlyIncome = 0
         monthlyExpenses = 0
-        previousMonthBalance = 0
+        periodStartBalance = 0
         balanceHistory = []
         multiAccountHistory = []
         multiContoHistory = []
@@ -1295,22 +1310,37 @@ struct CryptoDashboardView: View {
         hasTransactionsInPeriod = true
     }
 
-    private func loadPreviousMonthBalance(contiIDs: Set<UUID>, startOfMonth: Date) {
+    private func loadPeriodStartBalance(contiIDs: Set<UUID>) {
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Calculate period start date based on selected period
+        let periodStartDate: Date
+        if selectedPeriod == .oneMonth {
+            periodStartDate = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
+        } else {
+            let monthsBack = selectedPeriod.monthsCount ?? 24
+            let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+            periodStartDate = calendar.date(byAdding: .month, value: -(monthsBack - 1), to: startOfCurrentMonth)!
+        }
+
         var descriptor = FetchDescriptor<FinanceTransaction>()
         descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= startOfMonth
+            transaction.date >= periodStartDate
         }
 
         do {
             let transactions = try modelContext.fetch(descriptor)
 
+            // Filter to only transactions up to now (exclude future)
             let filtered = transactions.filter { transaction in
+                guard transaction.date <= now else { return false }
                 if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
                 if let id = transaction.toContoId, contiIDs.contains(id) { return true }
                 return false
             }
 
-            let monthNet = filtered.reduce(Decimal(0)) { result, transaction in
+            let periodNet = filtered.reduce(Decimal(0)) { result, transaction in
                 switch transaction.type {
                 case .income:
                     return result + (transaction.amount ?? 0)
@@ -1321,9 +1351,9 @@ struct CryptoDashboardView: View {
                 }
             }
 
-            previousMonthBalance = totalBalance - monthNet
+            periodStartBalance = totalBalance - periodNet
         } catch {
-            previousMonthBalance = totalBalance
+            periodStartBalance = totalBalance
         }
     }
 
@@ -1372,9 +1402,12 @@ struct CryptoDashboardView: View {
             let endOfSelectedMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: periodStartDate)!
             periodEndDate = endOfSelectedMonth // Include full month with future transactions
         } else {
-            // Calculate from current date
-            let monthsToLoad = selectedPeriod.monthsCount ?? 24
-            guard let start = calendar.date(byAdding: .month, value: -monthsToLoad, to: now) else {
+            // Calculate from current date - start from beginning of month X months ago
+            let monthsBack = selectedPeriod.monthsCount ?? 24
+            // Go back (monthsBack - 1) months to include current month in count
+            // e.g., 3M in February should show Dec, Jan, Feb
+            let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+            guard let start = calendar.date(byAdding: .month, value: -(monthsBack - 1), to: startOfCurrentMonth) else {
                 balanceHistory = []
                 return
             }

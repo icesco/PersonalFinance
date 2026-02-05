@@ -18,6 +18,9 @@ struct SettingsView: View {
     @State private var showingAddConto = false
     @State private var showingCSVImport = false
     @State private var showingCSVExport = false
+    @State private var showingDemoAlert = false
+    @State private var isGeneratingDemo = false
+    @State private var showingDemoSuccess = false
 
     // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
@@ -42,6 +45,9 @@ struct SettingsView: View {
                 // Data management section
                 dataManagementSection
 
+                // Development section
+                developmentSection
+
                 // Info section
                 infoSection
             }
@@ -54,6 +60,69 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingCSVExport) {
                 CSVExportView()
+            }
+            .alert("Modalità Demo", isPresented: $showingDemoAlert) {
+                Button("Annulla", role: .cancel) { }
+                Button("Genera Dati") {
+                    generateDemoData()
+                }
+            } message: {
+                Text("Verranno creati 2 account di esempio con conti, categorie e transazioni degli ultimi 6 mesi. I dati esistenti non verranno modificati.")
+            }
+            .alert("Demo Creata", isPresented: $showingDemoSuccess) {
+                Button("OK") {
+                    appState.triggerDataRefresh()
+                }
+            } message: {
+                Text("I dati demo sono stati generati con successo! Troverai 2 nuovi account: 'Personale' e 'Famiglia'.")
+            }
+        }
+    }
+
+    // MARK: - Development Section
+
+    private var developmentSection: some View {
+        Section {
+            Button {
+                showingDemoAlert = true
+            } label: {
+                HStack {
+                    Label("Genera Dati Demo", systemImage: "wand.and.stars")
+
+                    Spacer()
+
+                    if isGeneratingDemo {
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(isGeneratingDemo)
+        } header: {
+            Text("Sviluppo")
+        } footer: {
+            Text("Crea account di esempio con transazioni realistiche per testare l'app")
+        }
+    }
+
+    // MARK: - Demo Data Generation
+
+    private func generateDemoData() {
+        isGeneratingDemo = true
+
+        Task {
+            do {
+                let demoService = DemoDataService(modelContext: modelContext)
+                try await demoService.generateDemoData()
+
+                await MainActor.run {
+                    isGeneratingDemo = false
+                    showingDemoSuccess = true
+                }
+            } catch {
+                await MainActor.run {
+                    isGeneratingDemo = false
+                }
+                print("Error generating demo data: \(error)")
             }
         }
     }
@@ -73,10 +142,17 @@ struct SettingsView: View {
             } label: {
                 Label("Esporta in CSV", systemImage: "square.and.arrow.up")
             }
+
+            NavigationLink {
+                EraseDataView()
+            } label: {
+                Label("Cancella Dati", systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
         } header: {
             Text("Gestione Dati")
         } footer: {
-            Text("Importa ed esporta le tue transazioni in formato CSV")
+            Text("Importa, esporta o cancella i tuoi dati")
         }
     }
 
@@ -119,6 +195,23 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+
+            // Dashboard Style
+            HStack {
+                Label("Stile Dashboard", systemImage: "square.grid.2x2")
+
+                Spacer()
+
+                Picker("", selection: Binding(
+                    get: { appState.dashboardStyle },
+                    set: { appState.dashboardStyle = $0 }
+                )) {
+                    ForEach(DashboardStyle.allCases, id: \.self) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
             }
         } header: {
             Text("Personalizzazione")

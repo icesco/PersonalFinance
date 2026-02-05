@@ -34,6 +34,15 @@ struct DashboardView: View {
     }
 
     var body: some View {
+        // Check dashboard style preference
+        if appState.dashboardStyle == .crypto {
+            CryptoDashboardView()
+        } else {
+            classicDashboardContent
+        }
+    }
+
+    private var classicDashboardContent: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 20) {
