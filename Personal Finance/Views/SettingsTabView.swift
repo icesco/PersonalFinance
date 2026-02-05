@@ -16,7 +16,8 @@ struct SettingsTabView: View {
     
     @Query private var accounts: [Account]
     @State private var showingAccountCreation = false
-    @State private var showingDataExport = false
+    @State private var showingCSVImport = false
+    @State private var showingCSVExport = false
     @State private var showingAbout = false
     
     var body: some View {
@@ -39,8 +40,11 @@ struct SettingsTabView: View {
         .sheet(isPresented: $showingAccountCreation) {
             CreateAccountView()
         }
-        .sheet(isPresented: $showingDataExport) {
-            DataExportView()
+        .sheet(isPresented: $showingCSVImport) {
+            CSVImportView()
+        }
+        .sheet(isPresented: $showingCSVExport) {
+            CSVExportView()
         }
         .sheet(isPresented: $showingAbout) {
             AboutView()
@@ -193,23 +197,39 @@ struct SettingsTabView: View {
     
     private var dataManagementSection: some View {
         Section("Gestione Dati") {
-            // Export Data
+            // Import CSV
             Button {
-                showingDataExport = true
+                showingCSVImport = true
             } label: {
                 HStack {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(.accentColor)
+                    Image(systemName: "square.and.arrow.down")
+                        .foregroundColor(.blue)
                         .frame(width: 24)
-                    
-                    Text("Esporta Dati")
-                    
+
+                    Text("Importa da CSV")
+
                     Spacer()
                 }
             }
             .foregroundColor(.primary)
-            
-            // Backup & Restore (placeholder)
+
+            // Export CSV
+            Button {
+                showingCSVExport = true
+            } label: {
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.green)
+                        .frame(width: 24)
+
+                    Text("Esporta in CSV")
+
+                    Spacer()
+                }
+            }
+            .foregroundColor(.primary)
+
+            // Backup & Restore
             NavigationLink {
                 BackupRestoreView()
             } label: {
@@ -217,8 +237,21 @@ struct SettingsTabView: View {
                     Image(systemName: "externaldrive")
                         .foregroundColor(.accentColor)
                         .frame(width: 24)
-                    
+
                     Text("Backup e Ripristino")
+                }
+            }
+
+            // Erase Data
+            NavigationLink {
+                EraseDataView()
+            } label: {
+                HStack {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                        .frame(width: 24)
+
+                    Text("Cancella Dati")
                 }
             }
         }
@@ -557,39 +590,6 @@ struct BackupRestoreView: View {
         }
         .navigationTitle("Backup e Ripristino")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct DataExportView: View {
-    var body: some View {
-        NavigationView {
-            List {
-                Section("Formato Esportazione") {
-                    Button("Esporta come CSV") {
-                        // Implement CSV export
-                    }
-                    
-                    Button("Esporta come JSON") {
-                        // Implement JSON export
-                    }
-                }
-                
-                Section("Opzioni") {
-                    Toggle("Includi Transazioni Eliminate", isOn: .constant(false))
-                    Toggle("Includi Categorie", isOn: .constant(true))
-                    Toggle("Includi Budget", isOn: .constant(true))
-                }
-            }
-            .navigationTitle("Esporta Dati")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Chiudi") {
-                        // Dismiss
-                    }
-                }
-            }
-        }
     }
 }
 
