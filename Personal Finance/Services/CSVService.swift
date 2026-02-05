@@ -200,6 +200,9 @@ actor CSVService {
         var duplicatesSkipped = 0
         var zeroAmountsSkipped = 0
 
+        // Track categories created during this import session to avoid duplicates
+        var createdCategories: [String: FinanceCore.Category] = [:]
+
         // Create mapping dictionary for quick lookup
         let mappingDict = Dictionary(uniqueKeysWithValues: mapping.map { ($0.field, $0) })
 
@@ -287,6 +290,7 @@ actor CSVService {
                     row: row,
                     mapping: mappingDict,
                     existingCategories: existingCategories,
+                    createdCategories: &createdCategories,
                     options: options,
                     context: context,
                     account: account
@@ -459,6 +463,7 @@ actor CSVService {
         row: [String],
         mapping: [CSVField: FieldMapping],
         existingCategories: [FinanceCore.Category],
+        createdCategories: inout [String: FinanceCore.Category],
         options: CSVImportOptions,
         context: ModelContext,
         account: Account
@@ -472,8 +477,15 @@ actor CSVService {
         let categoryName = row[categoryIndex].trimmingCharacters(in: .whitespaces)
         guard !categoryName.isEmpty else { return nil }
 
-        // Try to find existing category
-        if let existing = existingCategories.first(where: { $0.name?.lowercased() == categoryName.lowercased() }) {
+        let normalizedName = categoryName.lowercased()
+
+        // First, check categories created during this import session
+        if let created = createdCategories[normalizedName] {
+            return created
+        }
+
+        // Try to find existing category in database
+        if let existing = existingCategories.first(where: { $0.name?.lowercased() == normalizedName }) {
             return existing
         }
 
@@ -482,6 +494,8 @@ actor CSVService {
             let newCategory = FinanceCore.Category(name: categoryName)
             newCategory.account = account
             context.insert(newCategory)
+            // Track this category for subsequent rows
+            createdCategories[normalizedName] = newCategory
             return newCategory
         }
 
