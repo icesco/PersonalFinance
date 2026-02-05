@@ -1,0 +1,810 @@
+Date,Amount,Source Currency,Target Currency,Exchange Rate,Budget Book,Source Account,Target Account,Folder,Category,Payee,Tags,Notes,Pending
+2025-01-02T00:00:00+0100,-0.16,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Addebito commissioni per num. 1 SMS informativi inviati nel  mese di Dicembre 2024 al costo di 0,16 Utenza: C7RWOF BIANCO  FRANCESCO                                                  ",False
+2025-01-02T00:00:00+0100,-304.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Regali Tech","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 31/12/24 ORE 15:32 C /O APPLE STORE R547 BRESCIA ITA                                                                                          ",False
+2025-01-02T00:00:00+0100,-73.96,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 31/12/24 ORE 16:06 C /O DECATHLON 00002568 LONATO DEL BS ITA                                                                                  ",False
+2025-01-02T00:00:00+0100,-35.2,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 31/12/24 ORE 16:37 C /O IPER STATION LONATO DEL BS ITA                                                                                        ",False
+2025-01-02T00:00:00+0100,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","RIF.00005-0086201512-PREMIO RIN.650163008 CAA 02/01/25                                                                                                                                ",False
+2025-01-02T00:00:00+0100,-53.43,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Animali domestici","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 30/12/24 ORE 18:00 C /O 6672 - SUZZARA PET SUZZARA ITA                                                                                        ",False
+2025-01-03T00:00:00+0100,-38.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 01/01/25 ORE 02:00 C /O KIYOMI SRSL SUZZARA ITA                                                                                               ",False
+2025-01-07T00:00:00+0100,-52.02,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 02/01/25 ORE 12:01 C /O IPER PO-SUZZARA SUZZARA MN ITA                                                                                        ",False
+2025-01-07T00:00:00+0100,-39.12,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","SDD A : FINDOMESTIC BANCA S.P.A. 100911788920512026827386900 010091178892051 BIANCO FRANCESCO PREL. IL 050125 ADDEBITO SD D NUMERO 5186223418                                         ",False
+2025-01-10T00:00:00+0100,-450.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  10/01/2025 17:15:13 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-01-10T00:00:00+0100,1442.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","ORD:SCYTALE SOCIETA A RESPONSABILITA DT.ORD:000000 DESCR.OPE RAZIONE SCT:RETRIBUZIONE DICEMBRE 2024<*> RIFERIMENTO SCT:N8 GZZSK8A5J0C17363434980970.5609785 STIPENDIO IDENTIFICATIVO S",False
+2025-01-13T00:00:00+0100,-21.58,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 10/01/25 ORE 10:19 C /O FARMACIA 2M DI MORSE SUZZARA ITA                                                                                      ",False
+2025-01-13T00:00:00+0100,-100.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 10/01/25 ORE 11:25 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-01-14T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-01-14T00:00:00+0100,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-01-15T00:00:00+0100,-910.23,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Carta di Credito","","","SDD A : NEXI S.P.A. CORSO SEMP ADDEBITO SPESE CARTA DI CREDI TO ESTRATTO CONTO DEL : 31/12/2024 ADDEBITO SDD NUMERO 02846 83007                                                       ",False
+2025-01-15T00:00:00+0100,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","SDD A : SANTANDER CONSUMER BANK SPA PAGAMENTO DELLA RATA N 0 40 DELLA PRATICA N 000015818839 FATTURA N ADDEBITO SDD NUMER O 5187136218                                                ",False
+2025-01-15T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Imposta bollo prodotti finanziari DATA 31/12/2024 RAPP.00513 /0000005048954 TIT                                                                                                       ",False
+2025-01-17T00:00:00+0100,-64.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 15/01/25 ORE 21:16 C /O KIYOMI SRSL SUZZARA ITA                                                                                               ",False
+2025-01-20T00:00:00+0100,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  19/01/2025 17:23:46 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO RICARICA                                          ",False
+2025-01-21T00:00:00+0100,-25.47,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 18/01/25 ORE 10:28 C /O ENI02075 SUZZARA MN ITA                                                                                               ",False
+2025-01-23T00:00:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE CARTA CA DEBIT VISA N. ****9829 PERIODO DAL 2 3/12/24 AL 22/01/25                                                                                                      ",False
+2025-01-24T00:00:00+0100,-78.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 22/01/25 ORE 18:02 C /O CENTRO REVISIONI GIR MANTOVA ITA                                                                                      ",False
+2025-01-27T00:00:00+0100,-40.25,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 23/01/25 ORE 08:38 C /O ENI02075 SUZZARA MN ITA                                                                                               ",False
+2025-01-28T00:00:00+0100,-77.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 26/01/25 ORE 13:26 C /O FUOCO E FIAMME LERICI SP ITA                                                                                          ",False
+2025-01-28T00:00:00+0100,-40.35,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 26/01/25 ORE 16:45 C /O YP SELF 1 SUZZARA ITA                                                                                                 ",False
+2025-01-29T00:00:00+0100,-120.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 27/01/25 ORE 09:41 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-01-30T00:00:00+0100,-6.99,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 28/01/25 ORE 13:42 C /O DECATHLON 00000597 CURTATONE MN ITA                                                                                   ",False
+2025-01-30T00:00:00+0100,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  30/01/2025 10:15:10 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-01-31T00:00:00+0100,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE C/C - 202501                                                                                                                                                           ",False
+2025-02-03T00:00:00+0100,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","RIF.00005-0087412146-PREMIO RIN.650163008 CAA 02/02/25                                                                                                                                ",False
+2025-02-03T00:00:00+0100,-60.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 30/01/25 ORE 13:44 C /O DECATHLON 00000597 CURTATONE MN ITA                                                                                   ",False
+2025-02-03T00:00:00+0100,30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","ORD:SATISPAY EUROPE S.A. DT.ORD:000000 DESCR.OPERAZIONE SCT: ACCREDITO DALL APP SATISPAY<*> RIFERIMENTO SCT:0A8E55324CE84 64B99FC8DC377B39591 IDENTIFICATIVO SCT:0A8E55324CE8464B99FC8",False
+2025-02-04T00:00:00+0100,-100.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 01/02/25 ORE 15:26 C /O SCUOLA ITALIANA SCI PEIO ITA                                                                                          ",False
+2025-02-04T00:00:00+0100,-40.23,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 01/02/25 ORE 09:21 C /O ENI 57835 SUZZARA MN ITA                                                                                              ",False
+2025-02-05T00:00:00+0100,-75.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 02/02/25 ORE 11:32 C /O PEJO FUNIVIE PEIO ITA                                                                                                 ",False
+2025-02-05T00:00:00+0100,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","SDD A : FINDOMESTIC BANCA S.P.A. 100911788920512026827386900 010091178892051 BIANCO FRANCESCO PREL. IL 050225 ADDEBITO SD D NUMERO 5188979279                                         ",False
+2025-02-07T00:00:00+0100,1898.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","ORD:SCYTALE SOCIETA A RESPONSABILITA DT.ORD:000000 DESCR.OPE RAZIONE SCT:PAGA GENNAIO 2025<*> RIFERIMENTO SCT:N8GZZSK8A5J 0C17388390678420.810974 STIPENDIO IDENTIFICATIVO SCT:0306926",False
+2025-02-10T00:00:00+0100,-64.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 06/02/25 ORE 13:09 C /O IL CANTUCCIO PEIO TN ITA                                                                                              ",False
+2025-02-11T00:00:00+0100,-130.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 09/02/25 ORE 18:03 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-02-11T00:00:00+0100,-500.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  11/02/2025 10:22:08 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-02-11T00:00:00+0100,-15.09,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 09/02/25 ORE 17:50 C /O IPER PO-SUZZARA SUZZARA MN ITA                                                                                        ",False
+2025-02-12T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","Imposta bollo prodotti finanziari DATA 31/01/2025 RAPP.00513 /0000005048954 TIT                                                                                                       ",False
+2025-02-13T00:00:00+0100,-90.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 11/02/25 ORE 08:57 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-02-14T00:00:00+0100,50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","ORD:SATISPAY EUROPE S.A. DT.ORD:000000 DESCR.OPERAZIONE SCT: ACCREDITO DALL APP SATISPAY<*> RIFERIMENTO SCT:397F841F84774 1F7B3DC885FBB530D2E IDENTIFICATIVO SCT:397F841F847741F7B3DC8",False
+2025-02-17T00:00:00+0100,-38.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 15/02/25 ORE 14:26 C /O KURA HAIR SPA TRICHO SUZZARA MN ITA                                                                                   ",False
+2025-02-17T00:00:00+0100,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","SDD A : SANTANDER CONSUMER BANK SPA PAGAMENTO DELLA RATA N 0 41 DELLA PRATICA N 000015818839 FATTURA N ADDEBITO SDD NUMER O 5190811498                                                ",False
+2025-02-17T00:00:00+0100,-673.57,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Carta di Credito","","","SDD A : NEXI S.P.A. CORSO SEMP ADDEBITO SPESE CARTA DI CREDI TO ESTRATTO CONTO DEL : 31/01/2025 ADDEBITO SDD NUMERO 02905 29555                                                       ",False
+2025-02-18T00:00:00+0100,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","SDD A : SATISPAY EUROPE S.A. RICARICA DELL APP SATISPAY ADDE BITO SDD NUMERO 5191074185                                                                                               ",False
+2025-02-18T00:00:00+0100,-110.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 16/02/25 ORE 15:31 C /O FERRARI STORE C O ME MODENA MO ITA                                                                                    ",False
+2025-02-18T00:00:00+0100,-39.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 16/02/25 ORE 14:05 C /O TRI SOSI SRL MARANELLO ITA                                                                                            ",False
+2025-02-18T00:00:00+0100,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 15/02/25 ORE 10:41 C /O YP CASSA 3 SUZZARA ITA                                                                                                ",False
+2025-02-19T00:00:00+0100,50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","ACC. REVERSAL                                                                                                                                                                         ",False
+2025-02-24T00:00:00+0100,-20.05,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 21/02/25 ORE 18:06 C /O ENI02075 SUZZARA MN ITA                                                                                               ",False
+2025-02-25T00:00:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE CARTA CA DEBIT VISA N. ****9829 PERIODO DAL 2 3/01/25 AL 22/02/25                                                                                                      ",False
+2025-02-27T00:00:00+0100,-0.67,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","COMMISSIONI SU BONIFICO N. 607014056                                                                                                                                                  ",False
+2025-02-27T00:00:00+0100,-109.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Sport","","","00760 BIANCO FRANCESCO 000000607014056 ASDR TENNIS E PADEL S UZZARA V/ORDINE E CONTO DESCR.OPERAZIONE SCT:FRANCESCO BIANC O QUOTA SOCIAL E 2025<*> IDENTIFICATIVO SCT:0623028777705810",False
+2025-02-28T00:00:00+0100,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE C/C - 202502                                                                                                                                                           ",False
+2025-03-03T00:00:00+0100,-0.64,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Addebito commissioni per num. 4 SMS informativi inviati nel  mese di Febbraio 2025 al costo di 0,16 Utenza: C7RWOF BIANCO  FRANCESCO                                                  ",False
+2025-03-03T00:00:00+0100,-58.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 01/03/25 ORE 16:29 C /O KURA HAIR SPA TRICHO SUZZARA MN ITA                                                                                   ",False
+2025-03-04T00:00:00+0100,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","RIF.00005-0088628183-PREMIO RIN.650163008 CAA 02/03/25                                                                                                                                ",False
+2025-03-05T00:00:00+0100,-20.11,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 03/03/25 ORE 18:09 C /O DISTRIBUTORE AGIP CURTATONE MN ITA                                                                                    ",False
+2025-03-05T00:00:00+0100,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Regali Tech","","","SDD A : FINDOMESTIC BANCA S.P.A. 100911788920512026827386900 010091178892051 BIANCO FRANCESCO PREL. IL 050325 ADDEBITO SD D NUMERO 5192206818                                         ",False
+2025-03-06T00:00:00+0100,1931.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","ORD:SCYTALE SOCIETA A RESPONSABILITA DT.ORD:000000 DESCR.OPE RAZIONE SCT:PAGA FEBBRAIO 2025<*> RIFERIMENTO SCT:N8GZZSK8A5 J0C17411642818190.8713545 STIPENDIO IDENTIFICATIVO SCT:03069",False
+2025-03-07T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-03-07T00:00:00+0100,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-03-10T00:00:00+0100,-30.11,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 07/03/25 ORE 18:43 C /O IPER PO-SUZZARA SUZZARA MN ITA                                                                                        ",False
+2025-03-10T00:00:00+0100,-19.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 07/03/25 ORE 13:35 C /O 6370 PET MANTOVA MANTOVA MN ITA                                                                                       ",False
+2025-03-11T00:00:00+0100,-39.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 08/03/25 ORE 09:31 C /O IL SEMINATORE SUZZARA MN ITA                                                                                          ",False
+2025-03-11T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  11/03/2025 07:52:26 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-03-11T00:00:00+0100,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 09/03/25 ORE 10:51 C /O GREEN £ FLOWER'S SUZZARA MN ITA                                                                                       ",False
+2025-03-12T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Imposta bollo prodotti finanziari DATA 28/02/2025 RAPP.00513 /0000005048954 TIT                                                                                                       ",False
+2025-03-17T00:00:00+0100,-737.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Carta di Credito","","","SDD A : NEXI S.P.A. CORSO SEMP ADDEBITO SPESE CARTA DI CREDI TO ESTRATTO CONTO DEL : 28/02/2025 ADDEBITO SDD NUMERO 02948 91052                                                       ",False
+2025-03-17T00:00:00+0100,-73.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 15/03/25 ORE 16:09 C /O KURA HAIR SPA TRICHO SUZZARA MN ITA                                                                                   ",False
+2025-03-17T00:00:00+0100,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","SDD A : SANTANDER CONSUMER BANK SPA PAGAMENTO DELLA RATA N 0 42 DELLA PRATICA N 000015818839 FATTURA N ADDEBITO SDD NUMER O 5193991972                                                ",False
+2025-03-19T00:00:00+0100,-35.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 17/03/25 ORE 10:11 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-03-20T00:00:00+0100,-100.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  20/03/2025 07:46:31 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-03-21T00:00:00+0100,-15.52,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 19/03/25 ORE 18:50 C /O IPER PO-SUZZARA SUZZARA MN ITA                                                                                        ",False
+2025-03-24T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","COMMISSIONI SU BONIFICO N. 615707239                                                                                                                                                  ",False
+2025-03-24T00:00:00+0100,-500.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  24/03/2025 16:27:22 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-03-24T00:00:00+0100,-500.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","00760 BIANCO FRANCESCO 000000615707239 FRANCESCO BIANCO V/OR DINE E CONTO DESCR.OPERAZIONE:SCT ISTANTANEO DEL 24/03/2025  ORE 19:33<*> IDENTIFICATIVO SCT:0623036208408310480010058010",False
+2025-03-24T00:00:00+0100,2000.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Mancia","","","ORD:CHIZZOLINI MONICA DT.ORD:240325 DESCR.OPERAZIONE SCT:REG ALO<*> IDENTIFICATIVO SCT:0623024508108300489999958010IT IBA N:IT70Z0623058010000010564589 DA:06230/58010                ",False
+2025-03-24T00:00:00+0100,-27.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 20/03/25 ORE 18:38 C /O NAPUL'E' DI FORTUNAT SUZZARA MN ITA                                                                                   ",False
+2025-03-24T00:00:00+0100,533.61,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Vendita Titoli","","","ORD:PICTET PAYING AGENT ITALY DT.ORD:000000 DESCR.OPERAZIONE  SCT:0623002025001041996:20250319:RIMB SIC AV:F0693:LU019016 2189:CRPPIT2PXXX:1502474763-EUR<*> RIFERIMENTO SCT:180746548",False
+2025-03-24T00:00:00+0100,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  24/03/2025 08:58:54 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-03-25T00:00:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE CARTA CA DEBIT VISA N. ****9829 PERIODO DAL 2 3/02/25 AL 22/03/25                                                                                                      ",False
+2025-03-28T00:00:00+0100,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  28/03/2025 11:11:04 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-03-29T00:00:00+0100,-104.97,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","UNES SUPERMERCATI U088  SUZZARA",False
+2025-03-29T00:00:00+0100,-50.43,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","L'ISOLA DEI TESORI      SUZZARA",False
+2025-03-31T00:00:00+0200,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE C/C - 202503                                                                                                                                                           ",False
+2025-03-31T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 27/03/25 ORE 16:23 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-03-31T00:00:00+0200,-38.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 29/03/25 ORE 16:06 C /O KURA HAIR SPA TRICHO SUZZARA MN ITA                                                                                   ",False
+2025-03-31T00:00:00+0200,-3.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 29/03/25 ORE 17:55 C /O FARMACIA 2M DI MORSE SUZZARA ITA                                                                                      ",False
+2025-03-31T00:00:00+0200,-68.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 28/03/25 ORE 16:05 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-04-01T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 30/03/25 ORE 18:07 C /O CIOCAPIAT PORTO MANTOMN ITA                                                                                           ",False
+2025-04-02T00:00:00+0200,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","RIF.00005-0089923785-PREMIO RIN.650163008 CAA 02/04/25                                                                                                                                ",False
+2025-04-02T00:00:00+0200,-0.64,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Addebito commissioni per num. 4 SMS informativi inviati nel  mese di Marzo 2025 al costo di 0,16 Utenza: C7RWOF BIANCO FR ANCESCO                                                     ",False
+2025-04-03T00:00:00+0200,-2.78,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","LIDL                    MANTOVA",False
+2025-04-04T00:00:00+0200,-130.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Vacanze","","","NAV. CINQUE TERRE       LA SPEZIA",False
+2025-04-05T00:00:00+0200,-60.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Aperitivo","","","CAFFE DEI POETI SRL     LERICI",False
+2025-04-06T00:00:00+0200,-17.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Aperitivo","","","CAFFE DEI POETI SRL     LERICI",False
+2025-04-06T00:00:00+0200,-30.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","ENI11309                LA SPEZIA",False
+2025-04-07T00:00:00+0200,-15.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 03/04/25 ORE 19:35 C /O PAK DONER KEBAB SUZZARA MN ITA                                                                                        ",False
+2025-04-07T00:00:00+0200,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 03/04/25 ORE 19:18 C /O DIGITAL FOTO NOIDUE SUZZARA MN ITA                                                                                    ",False
+2025-04-07T00:00:00+0200,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","SDD A : FINDOMESTIC BANCA S.P.A. 100911788920512026827386900 010091178892051 BIANCO FRANCESCO PREL. IL 050425 ADDEBITO SD D NUMERO 5196621631                                         ",False
+2025-04-07T00:00:00+0200,466.44,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Vendita Titoli","","","ORD:FRANCESCO BIANCO DT.ORD:070425 DESCR.OPERAZIONE ::SCT IS TANTANEO DEL 07/04/2025 O RE 14:55<*> IDENTIFICATIVO SCT:A02 E7D4FFDF54CBF923F68E7B1692EC5 IBAN:IT96Z03674016000006077179",False
+2025-04-07T00:00:00+0200,-41.07,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","L'ISOLA DEI TESORI      MANTOVA",False
+2025-04-08T00:00:00+0200,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  08/04/2025 09:24:55 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-04-08T00:00:00+0200,98.78,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","ORD:FRANCESCO BIANCO DT.ORD:080425 DESCR.OPERAZIONE ::SCT IS TANTANEO DEL 08/04/2025 O RE 18:45<*> IDENTIFICATIVO SCT:EB8 420B1792D4EBAB2AB6D6A882048BB IBAN:IT96Z03674016000006077179",False
+2025-04-09T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-04-09T00:00:00+0200,1890.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","ORD:SCYTALE SOCIETA A RESPONSABILITA DT.ORD:000000 DESCR.OPE RAZIONE SCT:RETRIBUZIONE MARZO<*> RIFERIMENTO SCT:N8GZZSK8A5 J0C17440995541350.0179364 STIPENDIO IDENTIFICATIVO SCT:03069",False
+2025-04-09T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-04-10T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Imposta bollo prodotti finanziari DATA 31/03/2025 RAPP.00513 /0000005048954 TIT                                                                                                       ",False
+2025-04-12T00:00:00+0200,-57.57,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","IPER PO-SUZZARA         SUZZARA",False
+2025-04-12T00:00:00+0200,-39.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","PAYPAL *PLAYSTATION     02039017000",False
+2025-04-12T00:00:00+0200,-32.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","AMZN MKTP IT*RH7NB7ZQ4  800-279-6620",False
+2025-04-14T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 10/04/25 ORE 18:14 C /O DISTRIBUTORE BONATTI SUZZARA MN ITA                                                                                   ",False
+2025-04-14T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 11/04/25 ORE 13:50 C /O LA BRUSCHETTA MANTOVA ITA                                                                                             ",False
+2025-04-14T00:00:00+0200,-32.73,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","L'ISOLA DEI TESORI      SUZZARA",False
+2025-04-14T00:00:00+0200,-5.54,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","GUMROAD* KEIR ANSELL    SAN FRANCISCO",False
+2025-04-15T00:00:00+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 12/04/25 ORE 17:23 C /O GELATERIA FIORE SNC SUZZARA MN ITA                                                                                    ",False
+2025-04-15T00:00:00+0200,-500.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  15/04/2025 11:02:46 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-04-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","SDD A : SANTANDER CONSUMER BANK SPA PAGAMENTO DELLA RATA N 0 43 DELLA PRATICA N 000015818839 FATTURA N ADDEBITO SDD NUMER O 5197306816                                                ",False
+2025-04-15T00:00:00+0200,-778.47,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Carta di Credito","","","SDD A : NEXI S.P.A. CORSO SEMP ADDEBITO SPESE CARTA DI CREDI TO ESTRATTO CONTO DEL : 31/03/2025 ADDEBITO SDD NUMERO 03059 65092                                                       ",False
+2025-04-15T00:00:00+0200,-59.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Cover iPhone",False
+2025-04-15T00:00:00+0200,-8.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","PAYPAL *ITUNESAPPST APP 214284208",False
+2025-04-16T00:00:00+0200,-22.17,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","CHATGPT Plus",False
+2025-04-16T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","PAYPAL *ITUNESAPPST APP 214284208",False
+2025-04-17T00:00:00+0200,-17.48,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","AMZN MKTP IT*RA6W61CI4  800-279-6620",False
+2025-04-17T00:00:00+0200,-4.52,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","DIGG.COM                LOS ANGELES",False
+2025-04-18T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","PAYPAL *ASDRTENNISS     4029357733",False
+2025-04-18T00:00:00+0200,-11.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 16/04/25 ORE 12:59 C /O IL LOCALINO BAR MANTOVA MN ITA                                                                                        ",False
+2025-04-19T00:00:00+0200,-7.56,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","IPER PO-SUZZARA         SUZZARA",False
+2025-04-19T00:00:00+0200,-15.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","AMZN MKTP IT*RA3QT6HU4  800-279-6620",False
+2025-04-20T00:00:00+0200,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","IMPOSTA DI BOLLO",False
+2025-04-21T00:00:00+0200,-26.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","TOYS DISTRIBUTION       SONA",False
+2025-04-22T00:00:00+0200,-10.65,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Videogames","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 17/04/25 ORE 14:04 C /O aliexpress Luxembourg LUX                                                                                             ",False
+2025-04-22T00:00:00+0200,-14.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 18/04/25 ORE 13:12 C /O BURGER KING CURTATON CURTATONE ITA                                                                                    ",False
+2025-04-22T00:00:00+0200,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  22/04/2025 18:59:39 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-04-22T00:00:00+0200,-6.76,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","LIDL                    MANTOVA",False
+2025-04-23T00:00:00+0200,-2.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE CARTA CA DEBIT VISA N. ****9829 PERIODO DAL 2 3/03/25 AL 22/04/25                                                                                                      ",False
+2025-04-23T00:00:00+0200,-39.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 21/04/25 ORE 14:09 C /O PITTARELLO SONA VR ITA                                                                                                ",False
+2025-04-24T00:00:00+0200,-17.06,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","PAYPAL *ALIPAY EUR      4029357733",False
+2025-04-24T00:00:00+0200,-24.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 22/04/25 ORE 20:47 C /O PAK DONER KEBAB SUZZARA MN ITA                                                                                        ",False
+2025-04-25T00:00:00+0200,-21.3,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Aperitivo","","","SPESA INTELLIGENTE SPA  SUZZARA",False
+2025-04-26T00:00:00+0200,-30.22,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","ENI57835                SUZZARA",False
+2025-04-26T00:00:00+0200,-22.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Aperitivo","","","CAFFE DEI POETI SRL     LERICI",False
+2025-04-26T00:00:00+0200,-6.67,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-04-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-04-26T00:00:00+0200,-63.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","PAYPAL *PAYPAL CREDIT   0689386461",False
+2025-04-27T00:00:00+0200,-69.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-04-28T00:00:00+0200,-17.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 24/04/25 ORE 13:47 C /O TIME OUT RISTOCAFFE MANTOVA MN ITA                                                                                    ",False
+2025-04-28T00:00:00+0200,-13.2,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-04-28T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 25/04/25 ORE 12:28 C /O GELATERIA FIORE SNC SUZZARA MN ITA                                                                                    ",False
+2025-04-29T00:00:00+0200,-8.1,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 27/04/25 ORE 09:44 C /O TEDDY BAR SNC LERICI SP ITA                                                                                           ",False
+2025-04-29T00:00:00+0200,-3.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 27/04/25 ORE 09:47 C /O EDICOLA LERICI SP ITA                                                                                                 ",False
+2025-04-29T00:00:00+0200,-58.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 26/04/25 ORE 13:03 C /O KURA HAIR SPA TRICHO SUZZARA MN ITA                                                                                   ",False
+2025-04-29T19:39:55+0200,-33.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-04-30T00:00:00+0200,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE C/C - 202504                                                                                                                                                           ",False
+2025-04-30T00:00:00+0200,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","01479 BIANCO FRANCESCO GIRO A CONTO 00513/00000576199/96 DEL  30/04/2025 12:07:44 BIANCO FRANCESCO VALENZA DEBORA V/ORDIN E E CONTO GIROCONTO A VS. FAVORE                            ",False
+2025-04-30T00:00:00+0200,-9.79,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 28/04/25 ORE 11:45 C /O FARMACIA DEGLI ANGEL MANTOVA MN ITA                                                                                   ",False
+2025-04-30T09:36:56+0200,-30.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-04-30T12:58:42+0200,-5.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-05-01T18:11:10+0200,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","",False
+2025-05-02T00:00:00+0200,-0.32,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Addebito commissioni per num. 2 SMS informativi inviati nel  mese di Aprile 2025 al costo di 0,16 Utenza: C7RWOF BIANCO F RANCESCO                                                    ",False
+2025-05-02T00:00:00+0200,-5.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 30/04/25 ORE 12:58 C /O IL LOCALINO BAR MANTOVA MN ITA                                                                                        ",False
+2025-05-02T00:00:00+0200,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","RIF.00005-0091112876-PREMIO RIN.650163008 CAA 02/05/25                                                                                                                                ",False
+2025-05-02T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 29/04/25 ORE 09:28 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-05-02T09:38:00+0200,-6.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-05-02T10:39:21+0200,-16.11,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-05-02T12:21:48+0200,-31.52,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-05-05T00:00:00+0200,742.72,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","Tasse","Carta di Credito","","","",False
+2025-05-05T00:00:00+0200,-742.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","Tasse","Carta di Credito","","","",False
+2025-05-05T00:00:00+0200,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","",False
+2025-05-06T00:00:00+0200,1883.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-05-06T10:05:53+0200,-406.05,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Assicurazione","","","",False
+2025-05-06T10:05:55+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-05-06T14:51:12+0200,-27.54,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","",False
+2025-05-07T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-05-07T00:00:00+0200,-503.12,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Saldo finanziamento robot aspirapolvere",False
+2025-05-07T00:00:00+0200,4000.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-05-07T00:00:00+0200,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","",False
+2025-05-08T09:59:56+0200,-470.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-05-09T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-05-09T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-05-09T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-05-09T11:10:49+0200,-9.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-05-09T14:30:27+0200,-11.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","Pagamento quota acqua ufficio",False
+2025-05-09T17:33:30+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Subscriptions","","","Ricarica Revolut",False
+2025-05-10T11:24:55+0200,-79.9,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Vestiti su SHEIN ",False
+2025-05-10T11:30:48+0200,-16.9,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-05-10T13:25:32+0200,-28.53,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","",False
+2025-05-10T15:22:16+0200,-23.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-05-10T20:55:59+0200,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-05-11T00:00:00+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-05-11T20:42:07+0200,-17.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2025-05-12T00:00:00+0200,10.46,EUR,EUR,1.0,"Conto Principale","AMEX","","Redditi","Rimborso","","","",False
+2025-05-12T00:00:00+0200,-8.85,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-05-12T00:00:00+0200,-11.48,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-05-13T00:00:00+0200,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-05-13T00:00:00+0200,-5.45,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-05-14T09:17:47+0200,-475.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","Pagamento rata condominio",False
+2025-05-14T09:25:00+0200,-438.32,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","",False
+2025-05-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-05-15T00:00:00+0200,-38.38,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Carta di Credito","","","",False
+2025-05-16T00:00:00+0200,-21.76,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Chat GPT",False
+2025-05-16T00:00:00+0200,-36.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","",False
+2025-05-17T00:00:00+0200,-28.12,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-05-17T00:00:00+0200,-10.48,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","",False
+2025-05-18T00:00:00+0200,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","",False
+2025-05-18T17:39:38+0200,-8.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","",False
+2025-05-18T19:52:23+0200,-34.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2025-05-20T00:00:00+0200,-5.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-05-20T00:00:00+0200,-4.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-05-21T00:00:00+0200,-15.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-05-21T00:00:00+0200,-76.1,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-05-22T14:35:19+0200,-14.11,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-05-22T19:28:55+0200,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2025-05-23T00:00:00+0200,-23.89,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-05-23T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-05-24T00:00:00+0200,-73.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-05-24T18:17:38+0200,-20.68,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-05-25T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","",False
+2025-05-25T09:43:00+0200,-9.97,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-05-25T11:15:03+0200,-23.16,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-05-26T00:00:00+0200,-35.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-05-26T00:00:00+0200,-63.34,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-05-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-05-26T12:04:57+0200,-6.17,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-05-26T12:05:43+0200,-55.58,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-05-26T19:44:32+0200,-26.14,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-05-27T00:00:00+0200,-83.15,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-05-27T15:21:24+0200,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-05-29T19:20:04+0200,-10.08,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","",False
+2025-05-31T00:00:00+0200,-120.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-06-02T16:09:47+0200,24.19,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","Rimborso",False
+2025-06-03T00:00:00+0200,784.18,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","Tasse","Carta di Credito","","","",False
+2025-06-03T00:00:00+0200,-784.18,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","Tasse","Carta di Credito","","","",False
+2025-06-04T00:00:00+0200,-50.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-06-05T18:19:40+0200,-16.3,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-06-06T00:00:00+0200,-6.85,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-06-06T10:53:05+0200,-30.19,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-06-06T12:35:52+0200,-13.72,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-06-06T12:50:59+0200,-4.8,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-06-07T00:00:00+0200,-30.2,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-06-07T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-06-08T00:00:00+0200,-72.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Vacanze","","","DECATHLON CURTATONE     CURTATONE",False
+2025-06-08T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","PAYPAL *ITUNESAPPST APP 214284208",False
+2025-06-09T00:00:00+0200,-4.8,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 06/06/25 ORE 12:49 C /O BURGER KING CURTATON CURTATONE ITA                                                                                    ",False
+2025-06-09T00:00:00+0200,-39.14,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 07/06/25 ORE 08:03 C /O BIANALISI SPA SUZZARA MN ITA                                                                                          ",False
+2025-06-09T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Carta prepagata","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 07/06/25 ORE 10:10 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-06-09T00:00:00+0200,-30.19,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 06/06/25 ORE 10:48 C /O TAMOIL 8980 MANTOVA MN ITA                                                                                            ",False
+2025-06-09T00:00:00+0200,-450.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-06-09T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-06-09T00:00:00+0200,1890.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-06-09T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-06-09T00:00:00+0200,-40.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 06/06/25 ORE 11:45 C /O DENTALCOOP SRL MANTOVA ITA                                                                                            ",False
+2025-06-09T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-06-09T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 07/06/25 ORE 10:47 C /O KURA HAIR SPA TRICHO SUZZARA MN ITA                                                                                   ",False
+2025-06-10T00:00:00+0200,-161.76,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","AFT CARTA CA DEBIT VISA N. ****9829 DEL 08/06/25 ORE 09:58 C /O Revolut**1202* Dublin IRL                                                                                             ",False
+2025-06-10T00:00:00+0200,107.84,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","ORD:VICARI ILARIA DT.ORD:000000 DESCR.OPERAZIONE SCT:PAGAMEN TO VIESTE ILA E ANDRE<*> IDENTIFICATIVO SCT:0306901891670401 S95801158011IT IBAN:IT02Z0306958011100000005982 DA: 03069/58",False
+2025-06-10T00:00:00+0200,-32.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 08/06/25 ORE 19:32 C /O RIST.PIZZERIA LA PIC SUZZARA MN ITA                                                                                   ",False
+2025-06-10T20:55:59+0200,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-06-11T00:00:00+0200,-420.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 09/06/25 ORE 18:31 C /O GIORGI AUTO S.A.S. SUZZARA ITA                                                                                        ",False
+2025-06-12T00:00:00+0200,-5.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","IPER PO-SUZZARA         SUZZARA",False
+2025-06-12T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Imposta bollo prodotti finanziari DATA 31/05/2025 RAPP.00513 /0000005048954 TIT                                                                                                       ",False
+2025-06-15T00:00:00+0200,-85.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-06-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-06-16T00:00:00+0200,-50.48,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","APRON SRL               VEGLIE",False
+2025-06-16T00:00:00+0200,-22.17,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Chat GPT",False
+2025-06-16T00:00:00+0200,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","PREL CARTA CA DEBIT VISA N.****9829 DEL 13/06/25 ORE 21:0 3  CRÉDIT AGRICOLE ITALIA SPA-SPORT. 7250 AG. DI SUZZARA                                                                    ",False
+2025-06-17T00:00:00+0200,-60.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","CERAMICA ANNA TRANI     GROTTAGLIE",False
+2025-06-20T00:00:00+0200,-35.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 18/06/25 ORE 12:37 C /O DE PACE CHIARA PORTO CESARLE ITA                                                                                      ",False
+2025-06-20T00:00:00+0200,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","IMPOSTA DI BOLLO",False
+2025-06-21T00:00:00+0200,-14.56,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","PAYPAL *ILARIA.VICARI96 4029357733",False
+2025-06-22T00:00:00+0200,-31.3,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Vacanze","","","PAYPAL *PAG PUB AMM PAG 4029357733",False
+2025-06-23T00:00:00+0200,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 20/06/25 ORE 22:47 C /O ST JUNIPER CAMPI SALENLE ITA                                                                                          ",False
+2025-06-23T00:00:00+0200,-7.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali Tech","","","AMZN MKTP IT*1F80R49W5  800-279-6620",False
+2025-06-24T00:00:00+0200,-2.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","CANONE MENSILE CARTA CA DEBIT VISA N. ****9829 PERIODO DAL 2 3/05/25 AL 22/06/25                                                                                                      ",False
+2025-06-24T00:00:00+0200,-40.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 21/06/25 ORE 17:38 C /O 40956 MONDOLFO MONDOLFO PU ITA                                                                                        ",False
+2025-06-24T00:00:00+0200,-84.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","POS CARTA CA DEBIT VISA N. ****9829 DEL 21/06/25 ORE 08:37 C /O PV8871 LECCE LE ITA                                                                                                   ",False
+2025-06-25T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-06-25T00:00:00+0200,-20.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Subscriptions","","","SDD A : FASTWEB SPA ADDEBITO FASTWEB 2025-M019740851 SDD 240 56011 ADDEBITO SDD NUMERO 5206045711                                                                                     ",False
+2025-06-26T00:00:00+0200,-63.34,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-06-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-06-27T00:00:00+0200,-83.15,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-06-28T00:00:00+0200,-43.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-07-01T00:00:00+0200,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Interessi/competenze",False
+2025-07-01T00:00:00+0200,-40.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-07-01T00:00:00+0200,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","",False
+2025-07-01T13:11:56+0200,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-07-02T09:49:50+0200,-7.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-07-02T13:26:29+0200,47.99,EUR,EUR,1.0,"Conto Principale","Revolut","","","","","","Riconciliazione del conto",False
+2025-07-03T00:00:00+0200,992.1,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","Tasse","Carta di Credito","","","",False
+2025-07-03T00:00:00+0200,-40.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-07-03T00:00:00+0200,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-07-03T00:00:00+0200,-992.1,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","Tasse","Carta di Credito","","","",False
+2025-07-04T15:13:48+0200,-49.59,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","",False
+2025-07-04T19:43:52+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Mobilità","Auto","","","Lavaggio auto",False
+2025-07-04T19:50:10+0200,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-07-05T00:00:00+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Aperitivo","","","Gelato",False
+2025-07-05T00:00:00+0200,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2025-07-05T00:00:00+0200,-3.45,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-07-05T00:00:00+0200,-45.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-07-06T00:00:00+0200,-11.87,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-07-07T00:00:00+0200,-16.19,EUR,EUR,1.0,"Conto Principale","Revolut","","","","","","",False
+2025-07-07T00:00:00+0200,1882.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-07-07T00:00:00+0200,-9.8,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","Pagamento acqua ufficio",False
+2025-07-07T00:00:00+0200,-178.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Redditi","Commercialista","","","",False
+2025-07-08T00:00:00+0200,-11.29,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-07-08T00:00:00+0200,-19.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-07-08T10:18:08+0200,-400.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-07-08T21:01:00+0200,-61.3,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-07-09T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-07-09T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-07-09T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-07-09T21:15:03+0200,-4.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-07-10T00:00:00+0200,-9.11,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-07-10T10:10:11+0200,-26.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","ChatGPT Plus per tre mesi in sconto",False
+2025-07-10T20:55:59+0200,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-07-11T00:00:00+0200,-62.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-07-11T00:00:00+0200,-79.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-07-11T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-07-12T00:00:00+0200,-44.9,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-07-14T00:00:00+0200,-16.12,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","",False
+2025-07-14T17:34:16+0200,-74.71,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Videogames","","","Formula 1 2025",False
+2025-07-15T00:00:00+0200,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-07-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-07-16T00:00:00+0200,-22.17,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Chat GPT",False
+2025-07-17T00:00:00+0200,-30.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-07-18T13:11:24+0200,-15.28,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-07-18T17:51:42+0200,-6.32,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-07-19T00:00:00+0200,-84.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Animali domestici","","","",False
+2025-07-19T00:00:00+0200,-15.28,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-07-20T00:00:00+0200,-17.76,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","",False
+2025-07-21T00:00:00+0200,-99.67,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-07-22T00:00:00+0200,-40.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-07-22T00:00:00+0200,-22.1,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-07-24T00:00:00+0200,-45.97,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-07-24T00:00:00+0200,-313.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Assicurazione Mutuo","","","",False
+2025-07-25T00:00:00+0200,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Subscriptions","","","Fastweb",False
+2025-07-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-07-27T00:00:00+0200,-83.15,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-07-28T00:00:00+0200,-43.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-07-30T00:00:00+0200,-43.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","Trattamento capelli",False
+2025-07-31T00:00:00+0200,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-07-31T11:06:00+0200,-59.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-07-31T12:15:11+0200,600.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Mancia","","","",False
+2025-08-01T00:00:00+0200,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-08-01T00:00:00+0200,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Regali","","","",False
+2025-08-01T00:00:00+0200,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","",False
+2025-08-02T00:00:00+0200,-5.19,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","",False
+2025-08-02T00:00:00+0200,-40.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-08-03T00:00:00+0200,-26.1,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-08-04T00:00:00+0200,-3.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Canone annuale pagobancomat",False
+2025-08-04T00:00:00+0200,-2.27,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-08-04T00:00:00+0200,-0.32,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Sms spediti nel mese precedente",False
+2025-08-04T00:00:00+0200,1007.9,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","Tasse","Carta di Credito","","","",False
+2025-08-04T00:00:00+0200,-1007.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","Tasse","Carta di Credito","","","",False
+2025-08-05T00:00:00+0200,-19.02,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-08-05T00:00:00+0200,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2025-08-06T00:00:00+0200,-12.2,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-08-06T00:00:00+0200,3.3,EUR,EUR,1.0,"Conto Principale","Revolut","","","","","","",False
+2025-08-06T00:00:00+0200,10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","",False
+2025-08-07T00:00:00+0200,-5.21,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-08-07T00:00:00+0200,-40.03,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-08-07T00:00:00+0200,4119.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-08-08T00:00:00+0200,-200.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-08-08T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-08-08T00:00:00+0200,-14.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Hexen + Heretic su PSN",False
+2025-08-08T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-08-08T00:00:00+0200,-13.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-08-09T00:00:00+0200,-14.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Hexen + Heretic su retroid da GOG",False
+2025-08-09T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-08-09T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-08-10T00:00:00+0200,-5.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Giochi Corriere della Sera",False
+2025-08-10T20:55:59+0200,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-08-11T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-08-12T00:00:00+0200,-42.8,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","Sushi MIHO a Sarzana ",False
+2025-08-12T00:00:00+0200,160.7,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Vacanze","","","Metà Debora vacanza in montagna",False
+2025-08-12T00:00:00+0200,-104.67,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Vacanze","","","",False
+2025-08-12T00:00:00+0200,105.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-08-12T00:00:00+0200,-105.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-08-12T00:00:00+0200,-160.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-08-12T10:43:30+0200,4.51,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Vendita Titoli","","","",False
+2025-08-13T00:00:00+0200,-5.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-08-14T00:00:00+0200,99.67,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Riscossi con punti Amex",False
+2025-08-14T00:00:00+0200,-11.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Aperitivo","","","Gelato",False
+2025-08-15T00:00:00+0200,-5.4,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","Colazione al teddy ",False
+2025-08-15T00:00:00+0200,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-08-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-08-16T00:00:00+0200,-35.1,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","Spesa per casa al mare",False
+2025-08-17T00:00:00+0200,-13.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","Lettini",False
+2025-08-17T19:08:37+0200,-22.58,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-08-18T00:00:00+0200,-30.64,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-08-21T00:00:00+0200,-50.54,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","Benzina per andare in montagna",False
+2025-08-21T00:00:00+0200,-99.67,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-08-22T00:00:00+0200,-6.7,EUR,EUR,1.0,"Conto Principale","Revolut","","Mobilità","Auto","","","Parcheggio",False
+2025-08-22T00:00:00+0200,-105.4,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Vacanze","","","Ristorante e tassa soggiorno albergo",False
+2025-08-23T00:00:00+0200,-69.13,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","Macelleria",False
+2025-08-23T00:00:00+0200,-69.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","Sushi",False
+2025-08-24T00:00:00+0200,-14.16,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-08-24T10:07:00+0200,-10.49,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Bastone muschiato per monstera",False
+2025-08-25T00:00:00+0200,-9.8,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","Acqua per ufficio ",False
+2025-08-25T00:00:00+0200,-70.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Subscriptions","","","Disney plus annuale.",False
+2025-08-25T00:00:00+0200,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Subscriptions","","","Fastweb",False
+2025-08-26T00:00:00+0200,-43.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-08-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-08-26T00:00:00+0200,-19.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-08-26T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali Tech","","","Kindle",False
+2025-08-27T00:00:00+0200,-13.21,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","Cibo per Ettore ",False
+2025-08-27T00:00:00+0200,-60.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-08-28T00:00:00+0200,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","Prelievo contanti per pizza",False
+2025-08-28T00:00:00+0200,-7.88,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-08-28T00:00:00+0200,-22.49,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-08-29T00:00:00+0200,-100.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-08-30T00:00:00+0200,-5.61,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-08-30T09:12:38+0200,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-08-31T00:00:00+0200,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-08-31T17:52:18+0200,-12.86,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Aperitivo","","","",False
+2025-09-02T00:00:00+0200,-2.29,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-09-02T00:00:00+0200,-617.44,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","Tasse","Carta di Credito","","","",False
+2025-09-02T00:00:00+0200,617.44,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","Tasse","Carta di Credito","","","",False
+2025-09-04T00:00:00+0200,-109.8,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude Max",False
+2025-09-04T00:00:00+0200,-5.87,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-05T00:00:00+0200,-7.39,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-09-05T00:00:00+0200,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2025-09-05T00:00:00+0200,1910.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-09-05T00:00:00+0200,26.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-05T00:00:00+0200,10.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-07T00:00:00+0200,-64.44,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-09-08T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-09-08T09:41:45+0200,-365.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-09-08T12:48:34+0200,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","Prelievo contanti",False
+2025-09-08T12:48:34+0200,50.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-09-09T00:00:00+0200,-67.06,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-09-09T00:00:00+0200,-5.35,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Cagate Inutili","","","",False
+2025-09-09T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-09-10T00:00:00+0200,-9.43,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-09-10T00:00:00+0200,-40.15,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-09-10T20:55:59+0200,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-09-11T00:00:00+0200,-21.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-11T00:00:00+0200,-25.8,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-12T00:00:00+0200,-3.15,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Convertitore presa inglese",False
+2025-09-12T00:00:00+0200,-15.14,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-09-12T00:00:00+0200,-104.67,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Vacanze","","","",False
+2025-09-13T00:00:00+0200,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","Lavaggio Auto",False
+2025-09-15T00:00:00+0200,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-09-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-09-15T00:00:00+0200,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-09-17T00:00:00+0200,-16.73,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-09-17T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-18T11:18:06+0200,10.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-09-18T11:18:06+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-09-18T11:18:16+0200,-9.8,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-19T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-09-19T00:00:00+0200,10.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-09-19T00:00:00+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-09-19T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-09-20T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-09-20T00:00:00+0200,-21.23,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-09-20T00:00:00+0200,-9.48,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-09-20T00:00:00+0200,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-09-21T00:00:00+0200,-99.67,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-09-21T00:00:00+0200,-41.8,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-09-22T00:00:00+0200,-1.19,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-09-22T00:00:00+0200,12.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-09-22T00:00:00+0200,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-09-22T00:00:00+0200,-50.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-09-23T00:00:00+0200,-69.13,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","Macelleria",False
+2025-09-23T00:00:00+0200,-57.59,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","",False
+2025-09-23T00:00:00+0200,-4.78,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-24T00:00:00+0200,9.99,EUR,EUR,1.0,"Conto Principale","Revolut","","","","","","",False
+2025-09-24T10:30:18+0200,-9.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","",False
+2025-09-25T00:00:00+0200,-11.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-09-25T00:00:00+0200,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Subscriptions","","","Fastweb",False
+2025-09-26T00:00:00+0200,-150.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-09-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-09-26T00:00:00+0200,-17.51,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-09-27T00:00:00+0200,-47.74,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-09-27T00:00:00+0200,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-09-28T17:11:01+0200,-5.28,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-09-30T00:00:00+0200,-13.44,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-09-30T00:00:00+0200,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Interessi/competenze",False
+2025-09-30T10:10:07+0200,-13.4,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-01T00:00:00+0200,-49.28,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Fiverr",False
+2025-10-01T00:00:00+0200,-5.68,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-01T00:00:00+0200,-49.9,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Amazon Prime",False
+2025-10-02T00:00:00+0200,-43.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-10-02T00:00:00+0200,-8.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-02T00:00:00+0200,-23.49,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-10-02T00:00:00+0200,-2.29,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-10-03T00:00:00+0200,701.78,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2025-10-03T00:00:00+0200,-701.78,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2025-10-04T00:00:00+0200,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude",False
+2025-10-04T00:00:00+0200,-41.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Regali","","","",False
+2025-10-04T00:00:00+0200,-11.72,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-05T00:00:00+0200,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2025-10-06T00:00:00+0200,1902.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-10-06T10:45:05+0200,-250.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-10-06T10:49:50+0200,-90.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-10-06T10:49:50+0200,90.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-10-06T13:59:27+0200,-2.55,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-07T10:31:15+0200,-110.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","",False
+2025-10-08T00:00:00+0200,-14.66,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-10-08T00:00:00+0200,-9.75,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Medicine","","","",False
+2025-10-08T12:11:22+0200,-224.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Assicurazione Mutuo","","","Assicurazione casa + cane",False
+2025-10-09T00:00:00+0200,-52.24,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-09T00:00:00+0200,-67.06,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-10-09T00:00:00+0200,33.75,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-09T00:00:00+0200,-1.84,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-09T00:00:00+0200,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-10-09T20:15:27+0200,-40.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-10-10T00:00:00+0200,-4.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Parcel",False
+2025-10-10T00:00:00+0200,-2.59,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-10T00:00:00+0200,-2.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","",False
+2025-10-10T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-10-10T00:00:00+0200,-21.6,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","ChatGPT",False
+2025-10-10T20:55:59+0200,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-10-11T00:00:00+0200,-122.15,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-11T00:00:00+0200,-10.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-10-12T00:00:00+0200,-104.67,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Vacanze","","","",False
+2025-10-12T00:00:00+0200,-5.14,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-12T00:00:00+0200,-21.9,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","",False
+2025-10-14T00:00:00+0200,-9.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-10-15T00:00:00+0200,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-10-15T00:00:00+0200,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-10-15T00:00:00+0200,-18.2,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-16T00:00:00+0200,-247.68,EUR,EUR,1.0,"Conto Principale","Revolut","","Mobilità","Auto","","","Bollo auto",False
+2025-10-16T00:00:00+0200,250.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Mancia","","","Mancia papà",False
+2025-10-16T00:00:00+0200,-13.3,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-10-17T00:00:00+0200,-5.63,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-17T00:00:00+0200,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-10-17T00:00:00+0200,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-10-17T00:00:00+0200,-1.15,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-17T10:37:07+0200,-10.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-10-18T00:00:00+0200,-10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Mobilità","Auto","","","Lavaggio Auto",False
+2025-10-19T00:00:00+0200,-1.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Amazon Prime Video senza pubblicità",False
+2025-10-19T00:00:00+0200,-14.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","Gilet Ettore",False
+2025-10-19T00:00:00+0200,-15.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Mobilità","Auto","","","Lavaggio Auto",False
+2025-10-19T00:00:00+0200,-3.6,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Aperitivo","","","",False
+2025-10-20T00:00:00+0200,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-10-20T00:00:00+0200,-5.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","Quota per bollitore",False
+2025-10-20T10:04:15+0200,-10.98,EUR,EUR,1.0,"Conto Principale","Revolut","","","","","","Riconciliazione del conto",False
+2025-10-21T00:00:00+0200,-8.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Vetro temprato iPhone",False
+2025-10-21T12:34:08+0200,2.51,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-10-21T12:34:08+0200,-2.51,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-10-21T12:34:30+0200,-20.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Acquisti","","","Ricarica telefonica nonna",False
+2025-10-22T00:00:00+0200,-6.35,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-23T00:00:00+0200,-5.21,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","Bar",False
+2025-10-23T00:00:00+0200,-60.17,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-10-23T00:00:00+0200,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-10-23T00:00:00+0200,-46.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-10-23T00:00:00+0200,-3.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-24T00:00:00+0200,73.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Rimborso","","","",False
+2025-10-24T00:00:00+0200,-146.1,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","Caffe e aeroccino",False
+2025-10-25T00:00:00+0200,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Telefono","","","Fastweb",False
+2025-10-25T00:00:00+0200,-91.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Mele di montagna",False
+2025-10-26T00:00:00+0200,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-10-26T00:00:00+0200,-35.42,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-10-27T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-10-27T00:00:00+0100,-13.43,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-10-27T00:00:00+0100,-10.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-10-27T00:00:00+0100,-9.3,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-28T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-10-28T00:00:00+0100,-30.05,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-10-29T00:00:00+0100,-8.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-10-29T00:00:00+0100,-63.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Spese quotidiane","Acquisti Casa","","","",False
+2025-10-30T00:00:00+0100,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Canone mensile conto corrente",False
+2025-10-30T00:00:00+0100,-14.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2025-10-30T00:00:00+0100,-49.8,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-10-30T00:00:00+0100,28.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Rimborso","","","",False
+2025-10-30T09:58:57+0100,86.52,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","","","","","Riconciliazione del conto",False
+2025-10-31T00:00:00+0100,-17.8,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-10-31T00:00:00+0100,-29.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Spese quotidiane","Acquisti Casa","","","",False
+2025-11-01T00:00:00+0100,-2.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-11-02T00:00:00+0100,-31.88,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","Valvole per termosifoni",False
+2025-11-03T00:00:00+0100,486.75,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2025-11-03T00:00:00+0100,673.08,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2025-11-03T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-11-03T00:00:00+0100,-2.29,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-11-03T00:00:00+0100,-434.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Assicurazione","","","",False
+2025-11-03T00:00:00+0100,-486.75,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2025-11-03T00:00:00+0100,-673.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2025-11-04T00:00:00+0100,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude",False
+2025-11-04T00:00:00+0100,-43.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2025-11-05T00:00:00+0100,-10.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","Bar crestani",False
+2025-11-05T00:00:00+0100,-15.67,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-11-05T00:00:00+0100,-30.03,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-11-05T00:00:00+0100,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2025-11-06T00:00:00+0100,-18.6,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-11-06T00:00:00+0100,1910.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-11-07T12:14:51+0100,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Sport","","","",False
+2025-11-08T00:00:00+0100,-14.25,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","",False
+2025-11-08T00:00:00+0100,-19.5,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Medicine","","","",False
+2025-11-08T00:00:00+0100,-31.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","Dispensa Emilia",False
+2025-11-08T00:00:00+0100,-3.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","Noleggio film su amazon.",False
+2025-11-09T00:00:00+0100,-67.06,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-11-09T00:00:00+0100,-5.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","Cinesi",False
+2025-11-09T00:00:00+0100,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-11-10T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-11-10T20:55:59+0100,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-11-11T00:00:00+0100,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-11-11T00:00:00+0100,-9.8,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","Acqua per ufficio ",False
+2025-11-11T00:00:00+0100,10.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-11-13T00:00:00+0100,-14.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Season pass di clash royale",False
+2025-11-14T00:00:00+0100,-70.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Spese quotidiane","Acquisti Casa","","","Supporto asciugatrice",False
+2025-11-14T00:00:00+0100,-7.68,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-11-14T00:00:00+0100,-9.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Cagate Inutili","","","App per iPhone",False
+2025-11-15T00:00:00+0100,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-11-15T00:00:00+0100,-17.19,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-11-15T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","Fanetti",False
+2025-11-15T00:00:00+0100,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-11-15T00:00:00+0100,-7.98,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","Cinesi",False
+2025-11-16T00:00:00+0100,-25.11,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2025-11-16T00:00:00+0100,-22.7,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","La Piadineria",False
+2025-11-17T00:00:00+0100,-330.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-11-17T00:00:00+0100,-13.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Acquisto in app Clash Royale",False
+2025-11-18T00:00:00+0100,-11.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","Bar",False
+2025-11-18T00:00:00+0100,-43.25,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Finanziamento","","","Acquisto Asciugatrice",False
+2025-11-19T00:00:00+0100,-1.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Amazon Prime Video senza pubblicità",False
+2025-11-19T00:00:00+0100,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-11-19T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-11-20T00:00:00+0100,-25.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","Sostituzione gomme auto",False
+2025-11-20T00:00:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-11-20T00:00:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-11-21T00:00:00+0100,10.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Rimborso","","","",False
+2025-11-21T00:00:00+0100,-6.1,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude AI boost",False
+2025-11-21T00:00:00+0100,-21.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-11-22T00:00:00+0100,-23.71,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-11-22T00:00:00+0100,-4.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","Bar",False
+2025-11-22T00:00:00+0100,-35.56,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","Macelleria",False
+2025-11-25T00:00:00+0100,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Telefono","","","Fastweb",False
+2025-11-25T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Tasse Carta di Debito",False
+2025-11-25T00:00:00+0100,-30.86,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Utilizzo extra Claude",False
+2025-11-25T00:00:00+0100,-12.2,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-11-25T13:11:13+0100,-33.38,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-11-26T00:00:00+0100,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-11-26T10:27:19+0100,100.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Mancia","","","",False
+2025-11-27T00:00:00+0100,20.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-11-27T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-11-27T00:00:00+0100,-47.8,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","Asporto Kebab",False
+2025-11-28T00:00:00+0100,-21.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-11-28T00:00:00+0100,-182.49,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali Tech","","","Playastation Portal",False
+2025-11-29T00:00:00+0100,-32.91,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-11-29T00:00:00+0100,-4.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Acquisti in app Clash Royale",False
+2025-11-29T00:00:00+0100,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Tasse conto corrente",False
+2025-11-30T00:00:00+0100,-49.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","Sushi da asporto",False
+2025-12-01T12:07:56+0100,-14.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Pass Clash Royale",False
+2025-12-02T00:00:00+0100,-18.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-12-03T00:00:00+0100,565.24,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2025-12-03T00:00:00+0100,-565.24,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2025-12-03T00:00:00+0100,356.92,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2025-12-03T00:00:00+0100,-356.92,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2025-12-04T00:00:00+0100,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude",False
+2025-12-04T00:00:00+0100,-13.97,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","",False
+2025-12-04T00:00:00+0100,-11.6,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Accessori Aliexpress",False
+2025-12-05T00:00:00+0100,-500.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","",False
+2025-12-05T00:00:00+0100,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2025-12-05T08:34:29+0100,1966.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-12-06T00:00:00+0100,-31.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Acquisti in app Clash Royale",False
+2025-12-07T00:00:00+0100,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-12-07T00:00:00+0100,-33.41,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-12-07T00:00:00+0100,-51.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Piante",False
+2025-12-07T00:00:00+0100,-151.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","PlayStation plus",False
+2025-12-07T00:00:00+0100,-131.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Regali","","","Regali di Natale",False
+2025-12-07T00:00:00+0100,50.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-12-07T00:00:00+0100,-89.17,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Vestiti",False
+2025-12-07T10:06:00+0100,-1.89,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","Conad per nonna",False
+2025-12-08T00:00:00+0100,-12.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-12-08T00:00:00+0100,-9.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Storytell Debora",False
+2025-12-08T00:00:00+0100,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","Lavaggio Auto",False
+2025-12-08T10:07:05+0100,9.99,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Rimborso","","","Rimborso Storytell Debora",False
+2025-12-09T00:00:00+0100,-67.06,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-12-09T00:00:00+0100,-5.49,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","ES-DE",False
+2025-12-09T00:00:00+0100,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2025-12-09T00:00:00+0100,-9.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","Bar crestani",False
+2025-12-10T00:00:00+0100,-14.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-10T20:55:59+0100,-13.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2025-12-11T00:00:00+0100,-28.04,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","Accessori Playstation Portal",False
+2025-12-11T00:00:00+0100,8.73,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Accessori Aliexpress",False
+2025-12-11T00:00:00+0100,-14.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-12T00:00:00+0100,-10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-12T00:00:00+0100,-2.6,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-13T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","Toelettatura Ettore",False
+2025-12-13T00:00:00+0100,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Aperitivo","","","",False
+2025-12-14T00:00:00+0100,-33.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","Regalo di Natale",False
+2025-12-14T00:00:00+0100,-5.55,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Animali domestici","","","Giochino Ettore",False
+2025-12-14T00:00:00+0100,-33.75,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","McDonalds",False
+2025-12-14T00:00:00+0100,-20.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Regali","","","",False
+2025-12-15T00:00:00+0100,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2025-12-15T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2025-12-15T00:00:00+0100,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2025-12-16T00:00:00+0100,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2025-12-17T00:00:00+0100,25.5,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-17T00:00:00+0100,-33.8,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-18T00:00:00+0100,-5.95,EUR,EUR,1.0,"Conto Principale","Revolut","","Spese quotidiane","Acquisti Casa","","","",False
+2025-12-18T00:00:00+0100,-7.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2025-12-18T00:00:00+0100,-43.25,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Finanziamento","","","Acquisto Asciugatrice",False
+2025-12-19T00:00:00+0100,-1.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Amazon Prime Video senza pubblicità",False
+2025-12-19T00:00:00+0100,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2025-12-19T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2025-12-20T00:00:00+0100,-17.55,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","",False
+2025-12-20T00:00:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-12-20T09:57:00+0100,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2025-12-21T00:00:00+0100,-34.04,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-12-22T00:00:00+0100,-31.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Supermercato","","","Pescheria",False
+2025-12-22T09:58:37+0100,-52.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-12-23T00:00:00+0100,-5.34,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Medicine","","","",False
+2025-12-23T00:00:00+0100,-15.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-12-23T00:00:00+0100,-25.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Spese quotidiane","Acquisti Casa","","","Tessera Socio Coop Lombardia",False
+2025-12-23T00:00:00+0100,15.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-12-23T00:00:00+0100,1742.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2025-12-23T00:00:00+0100,-14.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2025-12-25T00:00:00+0100,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Telefono","","","Fastweb",False
+2025-12-26T00:00:00+0100,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2025-12-27T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2025-12-27T00:00:00+0100,-32.33,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","",False
+2025-12-29T00:00:00+0100,-25.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2025-12-29T00:00:00+0100,-25.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Spese quotidiane","Acquisti Casa","","","Tessera socio coop alleanza 3.0",False
+2025-12-29T00:00:00+0100,25.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2025-12-29T00:00:00+0100,-62.97,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2025-12-30T00:00:00+0100,-10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","Blackjack",False
+2025-12-31T00:00:00+0100,2.89,EUR,EUR,1.0,"Conto Principale","Revolut","","Redditi","Vendita Titoli","","","",False
+2025-12-31T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","Rata condominiale",False
+2025-12-31T00:00:00+0100,-4.9,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Canone conto corrente",False
+2026-01-01T00:00:00+0100,-12.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Auto","","","Lavaggio Auto",False
+2026-01-01T00:00:00+0100,-67.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2026-01-02T00:00:00+0100,409.08,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2026-01-02T00:00:00+0100,-409.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2026-01-02T00:00:00+0100,-42.39,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Ristorante","","","Deliveroo",False
+2026-01-02T00:00:00+0100,-42.49,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2026-01-02T00:00:00+0100,-2.29,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2026-01-02T00:00:00+0100,-18.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2026-01-02T09:56:00+0100,544.03,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2026-01-02T09:56:00+0100,-544.03,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2026-01-02T10:32:49+0100,10.4,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","AppStore",False
+2026-01-02T11:27:59+0100,-50.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","Redditi","Risparmi","","","Fondo Emergenza",False
+2026-01-02T11:27:59+0100,50.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","Redditi","Risparmi","","","Fondo Emergenza",False
+2026-01-03T00:00:00+0100,-75.25,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Piatti per casa",False
+2026-01-04T00:00:00+0100,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude",False
+2026-01-05T00:00:00+0100,-67.08,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Acquisto iPhone + Apple Watch",False
+2026-01-05T00:00:00+0100,-8.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Chat GPT Go",False
+2026-01-05T00:00:00+0100,-10.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","Tempo libero","Subscriptions","","","Claude API",False
+2026-01-05T00:00:00+0100,10.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","Tempo libero","Subscriptions","","","Claude API",False
+2026-01-07T00:00:00+0100,-7.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-07T17:07:52+0100,30.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-08T00:00:00+0100,-17.4,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-08T00:00:00+0100,20.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-08T21:22:01+0100,-10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-09T00:00:00+0100,-67.06,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2026-01-09T00:00:00+0100,1870.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Stipendio","","","",False
+2026-01-09T00:00:00+0100,-5.49,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Acquisti","","","Patreon",False
+2026-01-09T00:00:00+0100,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple Spazio iCloud",False
+2026-01-09T00:00:00+0100,-500.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","Mutuo e spesa supermercato",False
+2026-01-09T14:39:00+0100,-33.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Mobilità","Carburante","","","",False
+2026-01-09T14:39:00+0100,-15.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Chat GPT",False
+2026-01-10T00:00:00+0100,-30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","Revolut","","","","","",False
+2026-01-10T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Acquisti","","","Ricarica iliad nonna",False
+2026-01-10T00:00:00+0100,30.0,EUR,EUR,1.0,"Conto Principale","Revolut","Conto Crédit Agricole","","","","","",False
+2026-01-10T00:00:00+0100,21.95,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-10T12:08:53+0100,30.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Rimborso","","","Deposito contanti",False
+2026-01-12T09:21:30+0100,-6.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Bar","","","",False
+2026-01-13T00:00:00+0100,-37.57,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Videogames","","","",False
+2026-01-14T19:07:07+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Parrucchiere","","","",False
+2026-01-15T00:00:00+0100,-75.72,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Redditi","Prestito","","","",False
+2026-01-15T00:00:00+0100,-156.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Finanziamento","","","Finanziamento Auto",False
+2026-01-15T10:06:43+0100,-77.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","Acqua per ufficio ",False
+2026-01-15T10:07:05+0100,44.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","Acqua per ufficio ",False
+2026-01-15T14:36:33+0100,-50.8,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-15T14:37:13+0100,-10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-15T14:37:57+0100,25.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-15T19:31:43+0100,-36.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2026-01-16T00:00:00+0100,10.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-18T00:00:00+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-18T00:00:00+0100,-36.31,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Regali","","","",False
+2026-01-18T00:00:00+0100,-43.25,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Finanziamento","","","Acquisto Asciugatrice",False
+2026-01-19T00:00:00+0100,-1.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Amazon Prime Video senza pubblicità",False
+2026-01-19T00:00:00+0100,300.0,EUR,EUR,1.0,"Conto Principale","PAC","Conto Crédit Agricole","Redditi","Risparmi","","","",False
+2026-01-19T00:00:00+0100,-300.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","PAC","Redditi","Risparmi","","","",False
+2026-01-20T00:00:00+0100,-70.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-20T00:00:00+0100,20.42,EUR,EUR,1.0,"Conto Principale","Revolut","","Tempo libero","Gioco D’azzardo","","","",False
+2026-01-20T00:00:00+0100,-10.85,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Subscription MiniMax",False
+2026-01-20T16:51:31+0100,-19.21,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Bar","","","",False
+2026-01-21T15:13:51+0100,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2026-01-21T15:13:51+0100,-2.0,EUR,EUR,1.0,"Conto Principale","AMEX","","Tasse","Tasse conto/carta","","","Imposta di bollo",False
+2026-01-21T18:11:42+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2026-01-22T00:00:00+0100,-11.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","HBO Max",False
+2026-01-22T13:57:49+0100,-20.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-23T00:00:00+0100,8.0,EUR,EUR,1.0,"Conto Principale","Revolut","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-23T00:00:00+0100,-17.3,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Pranzo lavoro","","","",False
+2026-01-24T00:00:00+0100,-2.99,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2026-01-25T00:00:00+0100,-10.95,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Telefono","","","Fastweb",False
+2026-01-25T00:00:00+0100,-1.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","Canone mensile carta debit visa",False
+2026-01-25T00:00:00+0100,-49.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Ristorante","","","",False
+2026-01-26T00:00:00+0100,-25.95,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Apple One",False
+2026-01-28T00:00:00+0100,-31.5,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Sport","","","Elettrocardiogramma",False
+2026-01-29T08:48:23+0100,-50.05,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Mobilità","Carburante","","","",False
+2026-01-31T00:00:00+0100,-40.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tempo libero","Acquisti","","","Prelievo contanti",False
+2026-01-31T00:00:00+0100,-28.0,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Cibo e bevande","Animali domestici","","","",False
+2026-01-31T00:00:00+0100,-5.21,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Tasse","Tasse conto/carta","","","",False
+2026-01-31T00:00:00+0100,-172.18,EUR,EUR,1.0,"Conto Principale","AMEX","","Cibo e bevande","Supermercato","","","",False
+2026-02-02T00:00:00+0100,-463.17,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2026-02-02T00:00:00+0100,-189.8,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","AMEX","","","","","",False
+2026-02-02T00:00:00+0100,463.17,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2026-02-02T00:00:00+0100,189.8,EUR,EUR,1.0,"Conto Principale","AMEX","Conto Crédit Agricole","","","","","",False
+2026-02-02T00:00:00+0100,-18.98,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Netflix",False
+2026-02-04T00:00:00+0100,-21.96,EUR,EUR,1.0,"Conto Principale","AMEX","","Tempo libero","Subscriptions","","","Claude",False
+2026-03-13T00:00:00+0100,-644.87,EUR,EUR,1.0,"Conto Principale","Conto Crédit Agricole","","Spese quotidiane","Acquisti Casa","","","Mutuo e tasse condominiali e spesa",True

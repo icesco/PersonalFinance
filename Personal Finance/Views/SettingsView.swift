@@ -16,6 +16,8 @@ struct SettingsView: View {
 
     // MARK: - State
     @State private var showingAddConto = false
+    @State private var showingCSVImport = false
+    @State private var showingCSVExport = false
 
     // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
@@ -28,11 +30,17 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // Personalizzazione section
+                appearanceSection
+
                 // Conti section
                 contiSection
 
                 // Categorie section (NavigationLink)
                 categoriesSection
+
+                // Data management section
+                dataManagementSection
 
                 // Info section
                 infoSection
@@ -41,6 +49,81 @@ struct SettingsView: View {
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
             }
+            .sheet(isPresented: $showingCSVImport) {
+                CSVImportView()
+            }
+            .sheet(isPresented: $showingCSVExport) {
+                CSVExportView()
+            }
+        }
+    }
+
+    // MARK: - Data Management Section
+
+    private var dataManagementSection: some View {
+        Section {
+            Button {
+                showingCSVImport = true
+            } label: {
+                Label("Importa da CSV", systemImage: "square.and.arrow.down")
+            }
+
+            Button {
+                showingCSVExport = true
+            } label: {
+                Label("Esporta in CSV", systemImage: "square.and.arrow.up")
+            }
+        } header: {
+            Text("Gestione Dati")
+        } footer: {
+            Text("Importa ed esporta le tue transazioni in formato CSV")
+        }
+    }
+
+    // MARK: - Appearance Section
+
+    private var appearanceSection: some View {
+        Section {
+            NavigationLink {
+                ExperienceLevelSelectionView()
+            } label: {
+                HStack {
+                    Label("Modalità", systemImage: "slider.horizontal.3")
+
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        Image(systemName: appState.experienceLevelManager.currentLevel.icon)
+                            .foregroundStyle(appState.experienceLevelManager.currentLevel.iconColor)
+
+                        Text(appState.experienceLevelManager.currentLevel.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            NavigationLink {
+                ThemeSelectionView()
+            } label: {
+                HStack {
+                    Label("Tema", systemImage: "paintbrush.fill")
+
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(appState.themeManager.currentTheme.color)
+                            .frame(width: 20, height: 20)
+
+                        Text(appState.themeManager.currentTheme.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Text("Personalizzazione")
+        } footer: {
+            Text("Personalizza l'aspetto e il livello di dettaglio dell'app")
         }
     }
 

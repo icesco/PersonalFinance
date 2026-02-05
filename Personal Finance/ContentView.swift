@@ -44,15 +44,23 @@ struct ContentView: View {
                         }
                         .environment(appState)
                     }
+                    .sheet(isPresented: Binding(
+                        get: { appState.showingOnboarding },
+                        set: { _ in appState.dismissOnboarding() }
+                    )) {
+                        OnboardingView()
+                            .environment(appState)
+                    }
             }
         }
+        .tint(appState.themeManager.currentTheme.color)
         .onAppear {
             initializeAppState()
         }
         .onChange(of: accounts) { _, newAccounts in
             // Handle account changes (creation, deletion)
             appState.loadSelectedAccount(from: newAccounts)
-            
+
             // If no accounts exist after deletion, this will trigger the account creation flow
         }
     }

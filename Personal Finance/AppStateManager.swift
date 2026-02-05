@@ -34,15 +34,39 @@ final class AppStateManager {
     var showingAccountSelection = false
     var showingQuickTransaction = false
     var showingAccountCreation = false
-    
+    var showingOnboarding = false
+
     // MARK: - Quick Transaction Context
     var quickTransactionType: TransactionType = .expense
-    
+
     // MARK: - Navigation Context
     var navigationRouter = NavigationRouter()
-    
+
+    // MARK: - Theme Management
+    var themeManager = ThemeManager()
+
+    // MARK: - Experience Level Management
+    var experienceLevelManager = ExperienceLevelManager()
+
+    // MARK: - Onboarding
+    var hasCompletedOnboarding: Bool {
+        get {
+            UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "hasCompletedOnboarding")
+        }
+    }
+
     init() {
         loadSelectedAccount()
+        checkOnboardingStatus()
+    }
+
+    private func checkOnboardingStatus() {
+        if !hasCompletedOnboarding {
+            showingOnboarding = true
+        }
     }
     
     // MARK: - Tab Management
@@ -116,7 +140,16 @@ final class AppStateManager {
     func dismissAccountCreation() {
         showingAccountCreation = false
     }
-    
+
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        showingOnboarding = false
+    }
+
+    func dismissOnboarding() {
+        showingOnboarding = false
+    }
+
     // MARK: - Account Data
     
     func activeConti(for account: Account?) -> [Conto] {
