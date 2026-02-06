@@ -422,7 +422,7 @@ actor CSVService {
         amount: Decimal,
         mapping: [CSVField: FieldMapping]
     ) -> TransactionType {
-        // Check if type is explicitly specified
+        // Check if type is explicitly specified in a dedicated column
         if let typeMapping = mapping[.transactionType],
            let typeIndex = typeMapping.csvColumnIndex,
            typeIndex < row.count {
@@ -437,12 +437,12 @@ actor CSVService {
             }
         }
 
-        // Check if both source and target accounts are specified (transfer)
+        // Check if both source and target accounts are specified (indicates transfer)
         let hasSourceAccount = mapping[.sourceAccount]?.isAssigned ?? false
         let hasTargetAccount = mapping[.targetAccount]?.isAssigned ?? false
 
         if hasSourceAccount && hasTargetAccount {
-            // Check if both have values
+            // Check if both have non-empty values in this row
             if let sourceMapping = mapping[.sourceAccount],
                let sourceIndex = sourceMapping.csvColumnIndex,
                sourceIndex < row.count,
@@ -455,7 +455,9 @@ actor CSVService {
             }
         }
 
-        // Determine based on amount sign
+        // Fallback: infer type from amount sign
+        // Positive amount = income (entrata)
+        // Negative amount = expense (spesa)
         return amount >= 0 ? .income : .expense
     }
 
