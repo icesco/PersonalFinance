@@ -24,7 +24,22 @@ final class DashboardViewModel {
     var averageMonthlyExpenses: Decimal = 0
     var periodAverageIncome: Decimal = 0
     var periodAverageExpenses: Decimal = 0
-    var monthlyExpensesTrend: [(month: String, expenses: Decimal)] = []
+    var monthlyExpensesTrend: [(month: String, income: Decimal, expenses: Decimal)] = []
+
+    var monthlySavingsRates: [(month: String, rate: Double)] {
+        monthlyExpensesTrend.map { item in
+            let rate: Double = item.income > 0
+                ? NSDecimalNumber(decimal: (item.income - item.expenses) / item.income * 100).doubleValue
+                : 0
+            return (month: item.month, rate: rate)
+        }
+    }
+
+    var monthlyNetSavings: [(month: String, net: Decimal)] {
+        monthlyExpensesTrend.map { item in
+            (month: item.month, net: item.income - item.expenses)
+        }
+    }
 
     // MARK: - Selection State
 
@@ -385,7 +400,7 @@ final class DashboardViewModel {
         formatter.dateFormat = "MMM"
         formatter.locale = Locale(identifier: "it_IT")
 
-        var trend: [(month: String, expenses: Decimal)] = []
+        var trend: [(month: String, income: Decimal, expenses: Decimal)] = []
         var pastTotalIncome: Decimal = 0
         var pastTotalExpenses: Decimal = 0
 
@@ -402,7 +417,7 @@ final class DashboardViewModel {
             )
 
             let label = formatter.string(from: start)
-            trend.append((month: label, expenses: totals.expenses))
+            trend.append((month: label, income: totals.income, expenses: totals.expenses))
 
             // Accumulate past months (exclude last = reference month) for averages
             if i > 0 {

@@ -11,6 +11,7 @@ struct BalanceDistributionWidget: View {
     let periodAvgExpenses: Decimal
     let periodLabel: String
     let theme: AppTheme
+    var onTap: (() -> Void)? = nil
 
     // Use current month if available, otherwise fall back to period averages
     private var hasCurrentMonth: Bool { income + expenses > 0 }
@@ -28,59 +29,60 @@ struct BalanceDistributionWidget: View {
     }
 
     var body: some View {
-        GlassCard(cornerRadius: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: "chart.bar.fill")
-                        .font(.caption)
-                        .foregroundStyle(theme.color)
-                    Text("Distribuzione")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-
-                if displayTotal == 0 {
-                    emptyState
-                } else {
-                    VStack(spacing: 8) {
-                        DistributionBar(
-                            label: "Entrate",
-                            amount: displayIncome,
-                            percent: incomePercent,
-                            color: Color(hex: "#4CAF50"),
-                            total: displayTotal,
-                            periodAvg: hasCurrentMonth ? periodAvgIncome : 0
-                        )
-
-                        DistributionBar(
-                            label: "Uscite",
-                            amount: displayExpenses,
-                            percent: expensePercent,
-                            color: Color(hex: "#FF5252"),
-                            total: displayTotal,
-                            periodAvg: hasCurrentMonth ? periodAvgExpenses : 0
-                        )
-                    }
-
-                    // Context label
-                    Text(hasCurrentMonth ? "Questo mese vs media \(periodLabel)" : "Media \(periodLabel)")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.white.opacity(0.35))
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.caption)
+                    .foregroundStyle(theme.color)
+                Text("Distribuzione")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
-            .padding(14)
+
+            if displayTotal == 0 {
+                emptyState
+            } else {
+                VStack(spacing: 8) {
+                    DistributionBar(
+                        label: "Entrate",
+                        amount: displayIncome,
+                        percent: incomePercent,
+                        color: Color(hex: "#4CAF50"),
+                        total: displayTotal,
+                        periodAvg: hasCurrentMonth ? periodAvgIncome : 0
+                    )
+
+                    DistributionBar(
+                        label: "Uscite",
+                        amount: displayExpenses,
+                        percent: expensePercent,
+                        color: Color(hex: "#FF5252"),
+                        total: displayTotal,
+                        periodAvg: hasCurrentMonth ? periodAvgExpenses : 0
+                    )
+                }
+
+                // Context label
+                Text(hasCurrentMonth ? "Questo mese vs media \(periodLabel)" : "Media \(periodLabel)")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.tertiary)
+            }
         }
+        .padding(14)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+        .onTapGesture { onTap?() }
     }
 
     private var emptyState: some View {
         VStack(spacing: 4) {
             Image(systemName: "chart.bar")
                 .font(.title3)
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(.tertiary)
             Text("Nessun dato")
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(.quaternary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -111,17 +113,17 @@ private struct DistributionBar: View {
             HStack {
                 Text(label)
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(String(format: "%.0f%%", percent))
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(.primary.opacity(0.8))
             }
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.1))
+                        .fill(.primary.opacity(0.1))
                         .frame(height: 6)
 
                     Capsule()
@@ -131,7 +133,7 @@ private struct DistributionBar: View {
                     // Period average marker
                     if periodAvg > 0 {
                         Rectangle()
-                            .fill(Color.white.opacity(0.6))
+                            .fill(.primary.opacity(0.6))
                             .frame(width: 2, height: 10)
                             .offset(x: geo.size.width * avgFraction - 1)
                     }
@@ -142,12 +144,12 @@ private struct DistributionBar: View {
             HStack {
                 Text(amount.currencyFormatted)
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.secondary)
                 if periodAvg > 0 {
                     Spacer()
                     Text("media " + periodAvg.currencyFormatted)
                         .font(.system(size: 8))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(.tertiary)
                 }
             }
         }
@@ -163,6 +165,7 @@ struct SavingsRateWidget: View {
     let periodAvgExpenses: Decimal
     let periodLabel: String
     let theme: AppTheme
+    var onTap: (() -> Void)? = nil
 
     // Use current month if it has income, otherwise fall back to period averages
     private var hasCurrentMonth: Bool { income > 0 }
@@ -184,74 +187,75 @@ struct SavingsRateWidget: View {
     private var hasData: Bool { displayIncome > 0 }
 
     var body: some View {
-        GlassCard(cornerRadius: 16) {
-            VStack(spacing: 8) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: "percent")
-                        .font(.caption)
-                        .foregroundStyle(theme.color)
-                    Text("Risparmio")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Spacer()
+        VStack(spacing: 8) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "percent")
+                    .font(.caption)
+                    .foregroundStyle(theme.color)
+                Text("Risparmio")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            if !hasData {
+                VStack(spacing: 4) {
+                    Text("N/D")
+                        .font(.title2.weight(.bold).monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                    Text("Nessun dato")
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            } else {
+                // Gauge ring
+                ZStack {
+                    Circle()
+                        .stroke(.primary.opacity(0.1), lineWidth: 6)
 
-                if !hasData {
-                    VStack(spacing: 4) {
-                        Text("N/D")
-                            .font(.title2.weight(.bold).monospacedDigit())
-                            .foregroundStyle(.white.opacity(0.3))
-                        Text("Nessun dato")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.4))
+                    Circle()
+                        .trim(from: 0, to: CGFloat(max(0, min(displayRate, 100)) / 100))
+                        .stroke(
+                            displayRate >= 0 ? theme.color : Color(hex: "#FF5252"),
+                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+
+                    VStack(spacing: 0) {
+                        Text(String(format: "%.0f%%", displayRate))
+                            .font(.title3.weight(.bold).monospacedDigit())
+                            .foregroundStyle(.primary)
+                        Text(hasCurrentMonth ? "del mese" : "media")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                } else {
-                    // Gauge ring
-                    ZStack {
-                        Circle()
-                            .stroke(Color.white.opacity(0.1), lineWidth: 6)
+                }
+                .frame(width: 80, height: 80)
 
-                        Circle()
-                            .trim(from: 0, to: CGFloat(max(0, min(displayRate, 100)) / 100))
-                            .stroke(
-                                displayRate >= 0 ? theme.color : Color(hex: "#FF5252"),
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
-
-                        VStack(spacing: 0) {
-                            Text(String(format: "%.0f%%", displayRate))
-                                .font(.title3.weight(.bold).monospacedDigit())
-                                .foregroundStyle(.white)
-                            Text(hasCurrentMonth ? "del mese" : "media")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white.opacity(0.5))
-                        }
-                    }
-                    .frame(width: 80, height: 80)
-
-                    // Context: show period comparison if current month, or period label if fallback
-                    if hasCurrentMonth, periodAvgIncome > 0 {
-                        HStack(spacing: 4) {
-                            Text("Media \(periodLabel):")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.white.opacity(0.35))
-                            Text(String(format: "%.0f%%", periodSavingsRate))
-                                .font(.system(size: 9, weight: .medium).monospacedDigit())
-                                .foregroundStyle(.white.opacity(0.5))
-                        }
-                    } else {
-                        Text(periodLabel)
+                // Context: show period comparison if current month, or period label if fallback
+                if hasCurrentMonth, periodAvgIncome > 0 {
+                    HStack(spacing: 4) {
+                        Text("Media \(periodLabel):")
                             .font(.system(size: 8))
-                            .foregroundStyle(.white.opacity(0.35))
+                            .foregroundStyle(.tertiary)
+                        Text(String(format: "%.0f%%", periodSavingsRate))
+                            .font(.system(size: 9, weight: .medium).monospacedDigit())
+                            .foregroundStyle(.secondary)
                     }
+                } else {
+                    Text(periodLabel)
+                        .font(.system(size: 8))
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .padding(14)
         }
+        .padding(14)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+        .onTapGesture { onTap?() }
     }
 }
 
@@ -260,9 +264,10 @@ struct SavingsRateWidget: View {
 struct SpendingTrendWidget: View {
     let currentMonthExpenses: Decimal
     let averageExpenses: Decimal
-    let trend: [(month: String, expenses: Decimal)]
+    let trend: [(month: String, income: Decimal, expenses: Decimal)]
     let periodLabel: String
     let theme: AppTheme
+    var onTap: (() -> Void)? = nil
 
     private var trendMessage: String {
         guard averageExpenses > 0 else {
@@ -284,81 +289,81 @@ struct SpendingTrendWidget: View {
     }
 
     private var trendColor: Color {
-        guard averageExpenses > 0 else { return .white.opacity(0.5) }
+        guard averageExpenses > 0 else { return .secondary }
         if currentMonthExpenses < averageExpenses { return Color(hex: "#4CAF50") }
         if currentMonthExpenses > averageExpenses { return Color(hex: "#FF5252") }
-        return .white.opacity(0.7)
+        return .secondary
     }
 
     var body: some View {
-        GlassCard(cornerRadius: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.caption)
-                        .foregroundStyle(theme.color)
-                    Text("Andamento spese")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Spacer()
+        VStack(alignment: .leading, spacing: 10) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.caption)
+                    .foregroundStyle(theme.color)
+                Text("Andamento spese")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
 
-                    // Trend indicator
-                    HStack(spacing: 3) {
-                        Image(systemName: trendIcon)
-                            .font(.caption2)
-                        Text(trendMessage)
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(trendColor)
+                // Trend indicator
+                HStack(spacing: 3) {
+                    Image(systemName: trendIcon)
+                        .font(.caption2)
+                    Text(trendMessage)
+                        .font(.caption2)
                 }
-
-                if trend.isEmpty {
-                    emptyState
-                } else {
-                    HStack(spacing: 16) {
-                        // Current month value
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Questo mese")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white.opacity(0.5))
-                            Text(currentMonthExpenses.currencyFormatted)
-                                .font(.subheadline.weight(.bold).monospacedDigit())
-                                .foregroundStyle(trendColor)
-                        }
-
-                        // Average value
-                        if averageExpenses > 0 {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Media \(periodLabel)")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.white.opacity(0.5))
-                                Text(averageExpenses.currencyFormatted)
-                                    .font(.subheadline.weight(.medium).monospacedDigit())
-                                    .foregroundStyle(.white.opacity(0.5))
-                            }
-                        }
-
-                        Spacer()
-                    }
-
-                    // Mini chart
-                    miniChart
-                        .frame(height: 60)
-                }
+                .foregroundStyle(trendColor)
             }
-            .padding(14)
+
+            if trend.isEmpty {
+                emptyState
+            } else {
+                HStack(spacing: 16) {
+                    // Current month value
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Questo mese")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Text(currentMonthExpenses.currencyFormatted)
+                            .font(.subheadline.weight(.bold).monospacedDigit())
+                            .foregroundStyle(trendColor)
+                    }
+
+                    // Average value
+                    if averageExpenses > 0 {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Media \(periodLabel)")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                            Text(averageExpenses.currencyFormatted)
+                                .font(.subheadline.weight(.medium).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+                }
+
+                // Mini chart
+                miniChart
+                    .frame(height: 60)
+            }
         }
+        .padding(14)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+        .onTapGesture { onTap?() }
     }
 
     private var emptyState: some View {
         VStack(spacing: 4) {
             Image(systemName: "chart.line.downtrend.xyaxis")
                 .font(.title3)
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(.tertiary)
             Text("Nessun dato")
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(.quaternary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -375,7 +380,7 @@ struct SpendingTrendWidget: View {
                 .foregroundStyle(
                     index == trend.count - 1
                         ? trendColor.opacity(0.8)
-                        : Color.white.opacity(0.2)
+                        : Color.primary.opacity(0.2)
                 )
                 .cornerRadius(3)
             }
@@ -383,14 +388,14 @@ struct SpendingTrendWidget: View {
             // Average line
             if averageExpenses > 0 {
                 RuleMark(y: .value("Media", averageExpenses))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(.primary.opacity(0.4))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
             }
         }
         .chartXAxis {
             AxisMarks { _ in
                 AxisValueLabel()
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.secondary)
                     .font(.system(size: 8))
             }
         }
