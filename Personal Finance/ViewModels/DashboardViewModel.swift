@@ -19,10 +19,30 @@ final class DashboardViewModel {
     var recentTransactions: [FinanceCore.Transaction] = []
     var hasTransactionsInPeriod: Bool = true
 
+    // MARK: - Analytics State
+
+    var averageMonthlyExpenses: Decimal = 0
+    var periodAverageIncome: Decimal = 0
+    var periodAverageExpenses: Decimal = 0
+    var monthlyExpensesTrend: [(month: String, expenses: Decimal)] = []
+
     // MARK: - Selection State
 
-    var selectedPeriod: ChartPeriod = .sixMonths
+    var selectedPeriod: ChartPeriod {
+        didSet { UserDefaults.standard.set(selectedPeriod.rawValue, forKey: "dashboardPeriod") }
+    }
     var selectedMonth: Date = Date()
+
+    // MARK: - Init
+
+    init() {
+        if let saved = UserDefaults.standard.string(forKey: "dashboardPeriod"),
+           let period = ChartPeriod(rawValue: saved) {
+            self.selectedPeriod = period
+        } else {
+            self.selectedPeriod = .oneMonth
+        }
+    }
 
     // MARK: - Computed Properties (delegating to BalanceCalculator)
 
@@ -113,6 +133,14 @@ final class DashboardViewModel {
         monthlyIncome = totals.income
         monthlyExpenses = totals.expenses
 
+        // Monthly expenses trend (last 6 months)
+        loadMonthlyExpensesTrend(
+            allSnapshots: allSnapshots,
+            contiIDs: allContiIDs,
+            now: now,
+            calendar: calendar
+        )
+
         // Balance history based on view mode
         if showAllAccounts && displayedAccounts.count > 1 {
             loadMultiAccountBalanceHistory(
@@ -156,6 +184,10 @@ final class DashboardViewModel {
         contiChanges = [:]
         recentTransactions = []
         hasTransactionsInPeriod = true
+        averageMonthlyExpenses = 0
+        periodAverageIncome = 0
+        periodAverageExpenses = 0
+        monthlyExpensesTrend = []
     }
 
     // MARK: - Private Helpers
@@ -335,6 +367,60 @@ final class DashboardViewModel {
             )
         } catch {
             recentTransactions = []
+        }
+    }
+
+    private func loadMonthlyExpensesTrend(
+        allSnapshots: [TransactionSnapshot],
+        contiIDs: Set<UUID>,
+        now: Date,
+        calendar: Calendar
+    ) {
+        // Use selected period to determine how many months to show
+        let monthsBack = selectedPeriod.monthsCount ?? 24
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        formatter.locale = Locale(identifier: "it_IT")
+
+        var trend: [(month: String, expenses: Decimal)] = []
+        var pastTotalIncome: Decimal = 0
+        var pastTotalExpenses: Decimal = 0
+
+        for i in (0..<monthsBack).reversed() {
+            guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
+            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
+            let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+            let totals = BalanceCalculator.monthlyTotals(
+                transactions: allSnapshots,
+                contiIDs: contiIDs,
+                start: startOfMonth,
+                end: endOfMonth
+            )
+
+            let label = formatter.string(from: startOfMonth)
+            trend.append((month: label, expenses: totals.expenses))
+
+            // Accumulate past months (exclude current = last entry) for averages
+            if i > 0 {
+                pastTotalIncome += totals.income
+                pastTotalExpenses += totals.expenses
+            }
+        }
+
+        monthlyExpensesTrend = trend
+
+        // Averages from completed months (excluding current month)
+        let completedMonths = monthsBack - 1
+        if completedMonths > 0 {
+            periodAverageIncome = pastTotalIncome / Decimal(completedMonths)
+            periodAverageExpenses = pastTotalExpenses / Decimal(completedMonths)
+            averageMonthlyExpenses = periodAverageExpenses
+        } else {
+            periodAverageIncome = 0
+            periodAverageExpenses = 0
+            averageMonthlyExpenses = 0
         }
     }
 }

@@ -172,6 +172,9 @@ struct CryptoDashboardView: View {
     // Chart Y-axis visibility (toggle on tap)
     @State private var showYAxis: Bool = false
 
+    // Dashboard page index (0 = chart, 1 = analytics)
+    @State private var dashboardPage: Int = 0
+
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
     // Custom detents
@@ -320,8 +323,8 @@ struct CryptoDashboardView: View {
                         // Quick Actions
                         quickActionsSection
 
-                        // Balance Chart - fills remaining space to sheet
-                        balanceChartSection(height: dynamicChartHeight)
+                        // Balance Chart / Analytics - fills remaining space to sheet
+                        dashboardPageView(height: dynamicChartHeight)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
@@ -511,6 +514,30 @@ struct CryptoDashboardView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Dashboard Page View (Chart + Analytics)
+
+    @ViewBuilder
+    private func dashboardPageView(height: CGFloat) -> some View {
+        TabView(selection: $dashboardPage) {
+            balanceChartSection(height: height)
+                .tag(0)
+
+            AnalyticsWidgetsPage(
+                viewModel: viewModel,
+                theme: theme,
+                height: height
+            )
+            .tag(1)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .always))
+        .frame(height: height)
+        .onAppear {
+            // White page dots on dark background
+            UIPageControl.appearance().currentPageIndicatorTintColor = .white
+            UIPageControl.appearance().pageIndicatorTintColor = UIColor.white.withAlphaComponent(0.3)
         }
     }
 
