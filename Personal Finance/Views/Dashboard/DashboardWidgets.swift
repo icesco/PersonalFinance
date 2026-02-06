@@ -12,14 +12,19 @@ struct BalanceDistributionWidget: View {
     let periodLabel: String
     let theme: AppTheme
 
-    private var total: Decimal { income + expenses }
+    // Use current month if available, otherwise fall back to period averages
+    private var hasCurrentMonth: Bool { income + expenses > 0 }
+    private var displayIncome: Decimal { hasCurrentMonth ? income : periodAvgIncome }
+    private var displayExpenses: Decimal { hasCurrentMonth ? expenses : periodAvgExpenses }
+    private var displayTotal: Decimal { displayIncome + displayExpenses }
+
     private var incomePercent: Double {
-        guard total > 0 else { return 0 }
-        return NSDecimalNumber(decimal: income / total * 100).doubleValue
+        guard displayTotal > 0 else { return 0 }
+        return NSDecimalNumber(decimal: displayIncome / displayTotal * 100).doubleValue
     }
     private var expensePercent: Double {
-        guard total > 0 else { return 0 }
-        return NSDecimalNumber(decimal: expenses / total * 100).doubleValue
+        guard displayTotal > 0 else { return 0 }
+        return NSDecimalNumber(decimal: displayExpenses / displayTotal * 100).doubleValue
     }
 
     var body: some View {
@@ -35,37 +40,33 @@ struct BalanceDistributionWidget: View {
                         .foregroundStyle(.white.opacity(0.7))
                 }
 
-                if total == 0 {
+                if displayTotal == 0 {
                     emptyState
                 } else {
                     VStack(spacing: 8) {
-                        // Income bar
                         DistributionBar(
                             label: "Entrate",
-                            amount: income,
+                            amount: displayIncome,
                             percent: incomePercent,
                             color: Color(hex: "#4CAF50"),
-                            total: total,
-                            periodAvg: periodAvgIncome
+                            total: displayTotal,
+                            periodAvg: hasCurrentMonth ? periodAvgIncome : 0
                         )
 
-                        // Expense bar
                         DistributionBar(
                             label: "Uscite",
-                            amount: expenses,
+                            amount: displayExpenses,
                             percent: expensePercent,
                             color: Color(hex: "#FF5252"),
-                            total: total,
-                            periodAvg: periodAvgExpenses
+                            total: displayTotal,
+                            periodAvg: hasCurrentMonth ? periodAvgExpenses : 0
                         )
                     }
 
-                    // Period reference
-                    if periodAvgExpenses > 0 {
-                        Text("vs media \(periodLabel)")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.white.opacity(0.35))
-                    }
+                    // Context label
+                    Text(hasCurrentMonth ? "Questo mese vs media \(periodLabel)" : "Media \(periodLabel)")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.white.opacity(0.35))
                 }
             }
             .padding(14)
@@ -163,9 +164,14 @@ struct SavingsRateWidget: View {
     let periodLabel: String
     let theme: AppTheme
 
-    private var savingsRate: Double {
-        guard income > 0 else { return 0 }
-        let rate = (income - expenses) / income * 100
+    // Use current month if it has income, otherwise fall back to period averages
+    private var hasCurrentMonth: Bool { income > 0 }
+    private var displayIncome: Decimal { hasCurrentMonth ? income : periodAvgIncome }
+    private var displayExpenses: Decimal { hasCurrentMonth ? expenses : periodAvgExpenses }
+
+    private var displayRate: Double {
+        guard displayIncome > 0 else { return 0 }
+        let rate = (displayIncome - displayExpenses) / displayIncome * 100
         return NSDecimalNumber(decimal: rate).doubleValue
     }
 
@@ -175,7 +181,7 @@ struct SavingsRateWidget: View {
         return NSDecimalNumber(decimal: rate).doubleValue
     }
 
-    private var isValid: Bool { income > 0 }
+    private var hasData: Bool { displayIncome > 0 }
 
     var body: some View {
         GlassCard(cornerRadius: 16) {
@@ -191,12 +197,12 @@ struct SavingsRateWidget: View {
                     Spacer()
                 }
 
-                if !isValid {
+                if !hasData {
                     VStack(spacing: 4) {
                         Text("N/D")
                             .font(.title2.weight(.bold).monospacedDigit())
                             .foregroundStyle(.white.opacity(0.3))
-                        Text("Nessuna entrata")
+                        Text("Nessun dato")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.4))
                     }
@@ -209,26 +215,26 @@ struct SavingsRateWidget: View {
                             .stroke(Color.white.opacity(0.1), lineWidth: 6)
 
                         Circle()
-                            .trim(from: 0, to: CGFloat(max(0, min(savingsRate, 100)) / 100))
+                            .trim(from: 0, to: CGFloat(max(0, min(displayRate, 100)) / 100))
                             .stroke(
-                                savingsRate >= 0 ? theme.color : Color(hex: "#FF5252"),
+                                displayRate >= 0 ? theme.color : Color(hex: "#FF5252"),
                                 style: StrokeStyle(lineWidth: 6, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
 
                         VStack(spacing: 0) {
-                            Text(String(format: "%.0f%%", savingsRate))
+                            Text(String(format: "%.0f%%", displayRate))
                                 .font(.title3.weight(.bold).monospacedDigit())
                                 .foregroundStyle(.white)
-                            Text("del mese")
+                            Text(hasCurrentMonth ? "del mese" : "media")
                                 .font(.system(size: 9))
                                 .foregroundStyle(.white.opacity(0.5))
                         }
                     }
                     .frame(width: 80, height: 80)
 
-                    // Period comparison
-                    if periodAvgIncome > 0 {
+                    // Context: show period comparison if current month, or period label if fallback
+                    if hasCurrentMonth, periodAvgIncome > 0 {
                         HStack(spacing: 4) {
                             Text("Media \(periodLabel):")
                                 .font(.system(size: 8))
@@ -238,9 +244,9 @@ struct SavingsRateWidget: View {
                                 .foregroundStyle(.white.opacity(0.5))
                         }
                     } else {
-                        Text((income - expenses).currencyFormatted)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.5))
+                        Text(periodLabel)
+                            .font(.system(size: 8))
+                            .foregroundStyle(.white.opacity(0.35))
                     }
                 }
             }

@@ -106,7 +106,9 @@ final class DashboardViewModel {
         let calendar = Calendar.current
         let now = Date()
 
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        // Use selectedMonth when period is 1M, otherwise current month
+        let referenceDate = selectedPeriod == .oneMonth ? selectedMonth : now
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
         let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
 
         // Fetch all transactions once for snapshot-based calculations
@@ -133,11 +135,11 @@ final class DashboardViewModel {
         monthlyIncome = totals.income
         monthlyExpenses = totals.expenses
 
-        // Monthly expenses trend (last 6 months)
+        // Monthly expenses trend (based on selected period)
         loadMonthlyExpensesTrend(
             allSnapshots: allSnapshots,
             contiIDs: allContiIDs,
-            now: now,
+            referenceDate: referenceDate,
             calendar: calendar
         )
 
@@ -373,7 +375,7 @@ final class DashboardViewModel {
     private func loadMonthlyExpensesTrend(
         allSnapshots: [TransactionSnapshot],
         contiIDs: Set<UUID>,
-        now: Date,
+        referenceDate: Date,
         calendar: Calendar
     ) {
         // Use selected period to determine how many months to show
@@ -388,21 +390,21 @@ final class DashboardViewModel {
         var pastTotalExpenses: Decimal = 0
 
         for i in (0..<monthsBack).reversed() {
-            guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
-            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
-            let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+            guard let monthDate = calendar.date(byAdding: .month, value: -i, to: referenceDate) else { continue }
+            let start = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
+            let end = calendar.date(byAdding: .month, value: 1, to: start)!
 
             let totals = BalanceCalculator.monthlyTotals(
                 transactions: allSnapshots,
                 contiIDs: contiIDs,
-                start: startOfMonth,
-                end: endOfMonth
+                start: start,
+                end: end
             )
 
-            let label = formatter.string(from: startOfMonth)
+            let label = formatter.string(from: start)
             trend.append((month: label, expenses: totals.expenses))
 
-            // Accumulate past months (exclude current = last entry) for averages
+            // Accumulate past months (exclude last = reference month) for averages
             if i > 0 {
                 pastTotalIncome += totals.income
                 pastTotalExpenses += totals.expenses
@@ -411,7 +413,7 @@ final class DashboardViewModel {
 
         monthlyExpensesTrend = trend
 
-        // Averages from completed months (excluding current month)
+        // Averages from completed months (excluding reference month)
         let completedMonths = monthsBack - 1
         if completedMonths > 0 {
             periodAverageIncome = pastTotalIncome / Decimal(completedMonths)

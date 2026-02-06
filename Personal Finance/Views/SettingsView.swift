@@ -73,20 +73,20 @@ struct SettingsView: View {
             .sheet(isPresented: $showingCSVExport) {
                 CSVExportView()
             }
-            .alert("Modalità Demo", isPresented: $showingDemoAlert) {
+            .alert("Dati Demo", isPresented: $showingDemoAlert) {
                 Button("Annulla", role: .cancel) { }
                 Button("Genera Dati") {
                     generateDemoData()
                 }
             } message: {
-                Text("Verranno creati 2 account di esempio con conti, categorie e transazioni degli ultimi 6 mesi. I dati esistenti non verranno modificati.")
+                Text("Verra' creato un libro contabile \"Demo\" con un conto corrente e transazioni di esempio per il mese corrente e quello precedente.")
             }
             .alert("Demo Creata", isPresented: $showingDemoSuccess) {
                 Button("OK") {
                     appState.triggerDataRefresh()
                 }
             } message: {
-                Text("I dati demo sono stati generati con successo! Troverai 2 nuovi account: 'Personale' e 'Famiglia'.")
+                Text("Libro \"Demo\" creato con successo! Selezionalo dal menu in alto a destra nella dashboard.")
             }
         }
     }
