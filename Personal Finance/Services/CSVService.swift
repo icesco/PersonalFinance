@@ -187,12 +187,32 @@ actor CSVService {
         from result: CSVParseResult,
         mapping: [FieldMapping],
         options: CSVImportOptions,
-        context: ModelContext,
-        existingCategories: [FinanceCore.Category],
-        existingConti: [Conto],
-        account: Account,
+        container: ModelContainer,
+        accountId: UUID,
         progressCallback: ((Int, Int) -> Void)? = nil
     ) async throws -> CSVImportResult {
+        // Create a dedicated ModelContext for this actor to avoid cross-thread access
+        let context = ModelContext(container)
+
+        // Fetch account, categories, and conti in the local context
+        let accountPredicate = #Predicate<Account> { $0.id == accountId }
+        var accountDescriptor = FetchDescriptor(predicate: accountPredicate)
+        accountDescriptor.fetchLimit = 1
+        guard let account = try context.fetch(accountDescriptor).first else {
+            return CSVImportResult(
+                totalRows: result.rowCount,
+                importedCount: 0,
+                skippedCount: 0,
+                errorCount: 1,
+                errors: [ImportError(rowNumber: 0, message: "Account non trovato", field: nil, rawValue: nil)],
+                duplicatesSkipped: 0,
+                zeroAmountsSkipped: 0
+            )
+        }
+
+        let existingCategories = try context.fetch(FetchDescriptor<FinanceCore.Category>())
+        let existingConti = try context.fetch(FetchDescriptor<Conto>())
+
         var importedCount = 0
         var skippedCount = 0
         var errorCount = 0

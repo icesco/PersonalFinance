@@ -477,10 +477,8 @@ struct CSVServiceTests {
             from: result,
             mapping: mappings,
             options: options,
-            context: context,
-            existingCategories: [],
-            existingConti: [conto],
-            account: account
+            container: container,
+            accountId: account.id
         )
 
         // Verify all transactions were imported
@@ -532,10 +530,8 @@ struct CSVServiceTests {
             from: result,
             mapping: mappings,
             options: options,
-            context: context,
-            existingCategories: [],
-            existingConti: [conto],
-            account: account
+            container: container,
+            accountId: account.id
         )
 
         // Verify all transactions were imported
@@ -594,10 +590,8 @@ struct CSVServiceTests {
             from: result,
             mapping: mappings,
             options: options,
-            context: context,
-            existingCategories: existingCategories,
-            existingConti: [conto],
-            account: account
+            container: container,
+            accountId: account.id
         )
 
         // Verify all transactions were imported

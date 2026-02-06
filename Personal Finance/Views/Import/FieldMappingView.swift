@@ -28,9 +28,6 @@ struct FieldMappingView: View {
     @State private var importProgress: Double = 0
     @State private var importedRowCount: Int = 0
 
-    @Query private var categories: [FinanceCore.Category]
-    @Query private var conti: [Conto]
-
     private let csvService = CSVService()
 
     private var isMappingValid: Bool {
@@ -317,10 +314,8 @@ struct FieldMappingView: View {
                     from: parseResult,
                     mapping: mappings,
                     options: options,
-                    context: modelContext,
-                    existingCategories: categories,
-                    existingConti: conti,
-                    account: account,
+                    container: modelContext.container,
+                    accountId: account.id,
                     progressCallback: { current, total in
                         Task { @MainActor in
                             importedRowCount = current
