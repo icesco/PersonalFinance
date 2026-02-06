@@ -75,16 +75,16 @@ public final class Conto {
     
     public var balance: Decimal {
         // Only sum transactions of the correct type to prevent incorrect balance calculations
-        let incoming = (incomingTransactions ?? []).reduce(0) { sum, transaction in
+        let incoming = (incomingTransactions ?? []).reduce(Decimal(0)) { sum, transaction in
             // Only income and incoming transfers should add to balance
             guard transaction.type == .income || transaction.type == .transfer else { return sum }
-            return sum + (transaction.amount ?? 0)
+            return sum + (transaction.amount ?? Decimal(0))
         }
 
-        let outgoing = (outgoingTransactions ?? []).reduce(0) { sum, transaction in
+        let outgoing = (outgoingTransactions ?? []).reduce(Decimal(0)) { sum, transaction in
             // Only expenses and outgoing transfers should subtract from balance
             guard transaction.type == .expense || transaction.type == .transfer else { return sum }
-            return sum + (transaction.amount ?? 0)
+            return sum + (transaction.amount ?? Decimal(0))
         }
 
         return (initialBalance ?? 0) + incoming - outgoing

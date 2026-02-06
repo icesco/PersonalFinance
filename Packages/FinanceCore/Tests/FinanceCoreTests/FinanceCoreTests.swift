@@ -503,12 +503,10 @@ struct FinanceCoreTests {
 
     @Test func subcategoryCreation() async throws {
         let parent = Category(name: "Food", color: "#FF0000", icon: "cart")
-        let child = Category(name: "Groceries", color: "#FF0000", icon: "cart", isSubcategory: true)
-
-        child.parentCategory = parent
+        let child = Category(name: "Groceries", color: "#FF0000", icon: "cart", parentCategoryId: parent.id)
 
         #expect(child.isSubcategory == true)
-        #expect(child.parentCategory === parent)
+        #expect(child.parentCategoryId == parent.id)
     }
 
     @Test func categoryWithMultipleTransactions() async throws {

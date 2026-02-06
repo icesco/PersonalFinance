@@ -535,12 +535,7 @@ struct DashboardView: View {
 }
 
 // MARK: - Data Models
-
-struct BalanceDataPoint: Identifiable {
-    let id = UUID()
-    let date: Date
-    let balance: Decimal
-}
+// BalanceDataPoint is now in FinanceCore
 
 struct SpendingCategory: Identifiable {
     let id = UUID()

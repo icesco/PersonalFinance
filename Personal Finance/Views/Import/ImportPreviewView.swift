@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FinanceCore
 
 struct ImportPreviewView: View {
     @Environment(\.dismiss) private var dismiss

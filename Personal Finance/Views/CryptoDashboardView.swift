@@ -153,69 +153,7 @@ enum SheetDetent: Equatable, Hashable {
     }
 }
 
-// MARK: - Chart Period
-
-enum ChartPeriod: String, CaseIterable, Identifiable {
-    case oneMonth = "1M"
-    case threeMonths = "3M"
-    case sixMonths = "6M"
-    case oneYear = "1A"
-    case all = "Tutto"
-
-    var id: String { rawValue }
-
-    var monthsCount: Int? {
-        switch self {
-        case .oneMonth: return 1
-        case .threeMonths: return 3
-        case .sixMonths: return 6
-        case .oneYear: return 12
-        case .all: return nil // All available data
-        }
-    }
-
-    /// Whether X-axis should show weeks instead of months
-    var useWeeklyAxis: Bool {
-        self == .oneMonth
-    }
-
-    /// Calendar component for X-axis stride
-    var axisStrideComponent: Calendar.Component {
-        useWeeklyAxis ? .weekOfMonth : .month
-    }
-
-    /// Number of units between X-axis labels
-    var axisStrideCount: Int {
-        switch self {
-        case .oneMonth: return 1  // Every week
-        case .threeMonths: return 1
-        case .sixMonths: return 1
-        case .oneYear: return 2
-        case .all: return 3
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case .oneMonth: return "1 Mese"
-        case .threeMonths: return "3 Mesi"
-        case .sixMonths: return "6 Mesi"
-        case .oneYear: return "1 Anno"
-        case .all: return "Tutto"
-        }
-    }
-}
-
-// MARK: - Multi-Account Balance History
-
-struct AccountBalanceDataPoint: Identifiable {
-    let id = UUID()
-    let accountId: UUID
-    let accountName: String
-    let date: Date
-    let balance: Decimal
-    let color: Color
-}
+// ChartPeriod and AccountBalanceDataPoint are now in FinanceCore
 
 struct CryptoDashboardView: View {
     @Environment(\.modelContext) private var modelContext
@@ -223,28 +161,16 @@ struct CryptoDashboardView: View {
 
     @Query private var allAccounts: [Account]
 
+    // ViewModel for all data/business logic
+    @State private var viewModel = DashboardViewModel()
+
     // Sheet detent tracking
     @State private var selectedDetent: SheetDetent = .height(280)
     @State private var currentSheetHeight: CGFloat = 280  // Real-time height during drag
     @State private var isSheetDismissed: Bool = false  // When true, sheet is hidden and FAB is shown
 
-    // Chart period
-    @State private var selectedPeriod: ChartPeriod = .sixMonths
-    @State private var selectedMonth: Date = Date() // For 1M period - which specific month
-
     // Chart Y-axis visibility (toggle on tap)
     @State private var showYAxis: Bool = false
-
-    // Fetched data
-    @State private var monthlyIncome: Decimal = 0
-    @State private var monthlyExpenses: Decimal = 0
-    @State private var periodStartBalance: Decimal = 0  // Balance at start of selected period
-    @State private var balanceHistory: [BalanceDataPoint] = []
-    @State private var multiAccountHistory: [AccountBalanceDataPoint] = []
-    @State private var multiContoHistory: [AccountBalanceDataPoint] = []  // Reuse same struct for conti
-    @State private var contiChanges: [UUID: Decimal] = [:]
-    @State private var recentTransactions: [FinanceTransaction] = []
-    @State private var hasTransactionsInPeriod: Bool = true
 
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
@@ -326,25 +252,22 @@ struct CryptoDashboardView: View {
         }
     }
 
-    // Total balance across displayed accounts
+    // Computed properties delegating to ViewModel/BalanceCalculator
     private var totalBalance: Decimal {
-        displayedAccounts.reduce(Decimal(0)) { $0 + $1.totalBalance }
+        viewModel.totalBalance(for: displayedAccounts)
     }
 
     private var absoluteChange: Decimal {
-        totalBalance - periodStartBalance
+        viewModel.absoluteChange(for: displayedAccounts)
     }
 
     private var percentageChange: Double {
-        guard periodStartBalance != 0 else { return 0 }
-        // Use absolute value of start balance to avoid counterintuitive percentages
-        // when going from negative to positive balance
-        let absStartBalance = periodStartBalance < 0 ? -periodStartBalance : periodStartBalance
-        let change = (absoluteChange / absStartBalance) * 100
-        return NSDecimalNumber(decimal: change).doubleValue
+        viewModel.percentageChange(for: displayedAccounts)
     }
 
-    private var isPositiveChange: Bool { absoluteChange >= 0 }
+    private var isPositiveChange: Bool {
+        viewModel.isPositiveChange(for: displayedAccounts)
+    }
 
     // Display name for libro/account switcher
     private var displayName: String {
@@ -627,15 +550,15 @@ struct CryptoDashboardView: View {
             Menu {
                 ForEach(ChartPeriod.allCases) { period in
                     Button {
-                        selectedPeriod = period
+                        viewModel.selectedPeriod = period
                         if period == .oneMonth {
-                            selectedMonth = Date() // Reset to current month
+                            viewModel.selectedMonth = Date()
                         }
                         loadChartData()
                     } label: {
                         HStack {
                             Text(period.displayName)
-                            if period == selectedPeriod {
+                            if period == viewModel.selectedPeriod {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -643,7 +566,7 @@ struct CryptoDashboardView: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(selectedPeriod.rawValue)
+                    Text(viewModel.selectedPeriod.rawValue)
                         .font(.subheadline.weight(.medium))
                     Image(systemName: "chevron.down")
                         .font(.caption2)
@@ -652,7 +575,7 @@ struct CryptoDashboardView: View {
             }
 
             // Month picker when 1M is selected
-            if selectedPeriod == .oneMonth {
+            if viewModel.selectedPeriod == .oneMonth {
                 monthSelector
             }
         }
@@ -662,12 +585,12 @@ struct CryptoDashboardView: View {
         Menu {
             ForEach(availableMonths, id: \.self) { month in
                 Button {
-                    selectedMonth = month
+                    viewModel.selectedMonth = month
                     loadChartData()
                 } label: {
                     HStack {
                         Text(monthYearFormatter.string(from: month))
-                        if Calendar.current.isDate(month, equalTo: selectedMonth, toGranularity: .month) {
+                        if Calendar.current.isDate(month, equalTo: viewModel.selectedMonth, toGranularity: .month) {
                             Image(systemName: "checkmark")
                         }
                     }
@@ -675,7 +598,7 @@ struct CryptoDashboardView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(monthYearFormatter.string(from: selectedMonth))
+                Text(monthYearFormatter.string(from: viewModel.selectedMonth))
                     .font(.subheadline.weight(.medium))
                 Image(systemName: "chevron.down")
                     .font(.caption2)
@@ -710,29 +633,8 @@ struct CryptoDashboardView: View {
         return formatter
     }
 
-    /// Returns the Y-axis domain based on actual data with some padding
     private var chartYDomain: ClosedRange<Decimal> {
-        let allPoints = pastBalanceHistory + futureBalanceHistory
-        guard !allPoints.isEmpty else { return 0...100 }
-
-        let values = allPoints.map { $0.balance }
-        let minValue = values.min() ?? 0
-        let maxValue = values.max() ?? 100
-
-        // Add 10% padding above and below
-        let range = maxValue - minValue
-        let padding = range * Decimal(0.1)
-
-        // Don't go below 0 for the minimum unless data is negative
-        let lowerBound = minValue >= 0 ? max(0, minValue - padding) : minValue - padding
-        let upperBound = maxValue + padding
-
-        // Ensure there's always some range
-        if lowerBound == upperBound {
-            return (lowerBound - 50)...(upperBound + 50)
-        }
-
-        return lowerBound...upperBound
+        viewModel.chartYDomain(for: displayedAccounts)
     }
 
     /// Returns the full date range for the chart X-axis
@@ -740,92 +642,33 @@ struct CryptoDashboardView: View {
         let calendar = Calendar.current
         let now = Date()
 
-        if selectedPeriod == .oneMonth {
-            // Full month range for the selected month
-            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
+        if viewModel.selectedPeriod == .oneMonth {
+            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: viewModel.selectedMonth))!
             let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
             return startOfMonth...endOfMonth
         } else {
-            // For other periods, start from the beginning of the month X months ago
-            let monthsBack = selectedPeriod.monthsCount ?? 24
-            // Go back (monthsBack - 1) months to include current month in count
-            // e.g., 3M in February should show Dec, Jan, Feb (go back 2 months from start of current month)
+            let monthsBack = viewModel.selectedPeriod.monthsCount ?? 24
             let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
             let startDate = calendar.date(byAdding: .month, value: -(monthsBack - 1), to: startOfCurrentMonth)!
             return startDate...now
         }
     }
 
-    /// Balance history up to and including today (solid line)
     private var pastBalanceHistory: [BalanceDataPoint] {
-        let calendar = Calendar.current
-        let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        return balanceHistory.filter { $0.date < endOfToday }
+        viewModel.pastBalanceHistory(for: displayedAccounts)
     }
 
-    /// Balance history after today (dashed line for future/planned)
-    /// Only shown for 1M view - other periods show only past data
     private var futureBalanceHistory: [BalanceDataPoint] {
-        // Only show future data for 1M view
-        guard selectedPeriod == .oneMonth else {
-            return []
-        }
-
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let endOfToday = calendar.date(byAdding: .day, value: 1, to: today)!
-
-        // Get future points from balance history
-        var future = balanceHistory.filter { $0.date >= endOfToday }
-
-        // We need a connection point from the last past value
-        guard let lastPast = pastBalanceHistory.last else {
-            return future
-        }
-
-        // Always start future line from today's balance for continuity
-        let todayPoint = BalanceDataPoint(date: today, balance: lastPast.balance)
-
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-        let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
-
-        if future.isEmpty {
-            // No future transactions - create projection to end of month
-            if endOfMonth > today {
-                return [todayPoint, BalanceDataPoint(date: endOfMonth, balance: lastPast.balance)]
-            }
-            return []
-        } else {
-            // Has future transactions - connect from today
-            future.insert(todayPoint, at: 0)
-
-            // Extend to end of month if needed
-            if let lastFuture = future.last, lastFuture.date < endOfMonth {
-                future.append(BalanceDataPoint(date: endOfMonth, balance: lastFuture.balance))
-            }
-
-            return future
-        }
+        viewModel.futureBalanceHistory(for: displayedAccounts)
     }
 
     private func loadChartData() {
-        let allContiIDs = Set(allDisplayedConti.map { $0.id })
-
-        if appState.showAllAccounts && displayedAccounts.count > 1 {
-            // Multiple Libri selected - show by Libro
-            loadMultiAccountBalanceHistory()
-        } else if !appState.showAllAccounts && appState.showAllConti && allDisplayedConti.count > 1 {
-            // Single Libro with all conti - show by Conto
-            loadMultiContoBalanceHistory()
-        } else {
-            // Single conto or aggregated view
-            loadBalanceHistory(contiIDs: allContiIDs)
-        }
+        loadDashboardData()
     }
 
     @ViewBuilder
     private func singleAccountChartView(height: CGFloat) -> some View {
-        if balanceHistory.isEmpty {
+        if viewModel.balanceHistory.isEmpty {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.05))
                 .frame(height: height)
@@ -860,7 +703,7 @@ struct CryptoDashboardView: View {
                 }
             }
             .chartXAxis {
-                if selectedPeriod.useWeeklyAxis {
+                if viewModel.selectedPeriod.useWeeklyAxis {
                     AxisMarks(values: .stride(by: .day, count: 7)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                             .foregroundStyle(.white.opacity(0.2))
@@ -868,7 +711,7 @@ struct CryptoDashboardView: View {
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 } else {
-                    AxisMarks(values: .stride(by: .month, count: selectedPeriod.axisStrideCount)) { _ in
+                    AxisMarks(values: .stride(by: .month, count: viewModel.selectedPeriod.axisStrideCount)) { _ in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                             .foregroundStyle(.white.opacity(0.2))
                         AxisValueLabel(format: .dateTime.month(.abbreviated))
@@ -881,7 +724,7 @@ struct CryptoDashboardView: View {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
                     AxisValueLabel {
                         if let decimal = value.as(Decimal.self) {
-                            Text(formatCompactCurrency(decimal))
+                            Text(BalanceCalculator.formatCompactCurrency(decimal))
                                 .font(.caption2)
                                 .foregroundStyle(.white.opacity(0.6))
                         }
@@ -907,7 +750,7 @@ struct CryptoDashboardView: View {
     @ViewBuilder
     private func multiAccountChartView(height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            if multiAccountHistory.isEmpty {
+            if viewModel.multiAccountHistory.isEmpty {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.05))
                     .frame(height: height)
@@ -916,7 +759,7 @@ struct CryptoDashboardView: View {
                             .foregroundStyle(.white.opacity(0.5))
                     }
             } else {
-                Chart(multiAccountHistory) { item in
+                Chart(viewModel.multiAccountHistory) { item in
                     LineMark(
                         x: .value("Data", item.date, unit: .day),
                         y: .value("Saldo", item.balance)
@@ -926,7 +769,7 @@ struct CryptoDashboardView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                 }
                 .chartXAxis {
-                    if selectedPeriod.useWeeklyAxis {
+                    if viewModel.selectedPeriod.useWeeklyAxis {
                         AxisMarks(values: .stride(by: .day, count: 7)) { value in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                                 .foregroundStyle(.white.opacity(0.2))
@@ -934,7 +777,7 @@ struct CryptoDashboardView: View {
                                 .foregroundStyle(.white.opacity(0.6))
                         }
                     } else {
-                        AxisMarks(values: .stride(by: .month, count: selectedPeriod.axisStrideCount)) { _ in
+                        AxisMarks(values: .stride(by: .month, count: viewModel.selectedPeriod.axisStrideCount)) { _ in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                                 .foregroundStyle(.white.opacity(0.2))
                             AxisValueLabel(format: .dateTime.month(.abbreviated))
@@ -947,7 +790,7 @@ struct CryptoDashboardView: View {
                     AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
                         AxisValueLabel {
                             if let decimal = value.as(Decimal.self) {
-                                Text(formatCompactCurrency(decimal))
+                                Text(BalanceCalculator.formatCompactCurrency(decimal))
                                     .font(.caption2)
                                     .foregroundStyle(.white.opacity(0.6))
                             }
@@ -990,7 +833,7 @@ struct CryptoDashboardView: View {
     @ViewBuilder
     private func multiContoChartView(height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            if multiContoHistory.isEmpty {
+            if viewModel.multiContoHistory.isEmpty {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.05))
                     .frame(height: height)
@@ -1004,7 +847,7 @@ struct CryptoDashboardView: View {
                         }
                     }
             } else {
-                Chart(multiContoHistory) { item in
+                Chart(viewModel.multiContoHistory) { item in
                     LineMark(
                         x: .value("Data", item.date, unit: .day),
                         y: .value("Saldo", item.balance)
@@ -1014,7 +857,7 @@ struct CryptoDashboardView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                 }
                 .chartXAxis {
-                    if selectedPeriod.useWeeklyAxis {
+                    if viewModel.selectedPeriod.useWeeklyAxis {
                         AxisMarks(values: .stride(by: .day, count: 7)) { value in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                                 .foregroundStyle(.white.opacity(0.2))
@@ -1022,7 +865,7 @@ struct CryptoDashboardView: View {
                                 .foregroundStyle(.white.opacity(0.6))
                         }
                     } else {
-                        AxisMarks(values: .stride(by: .month, count: selectedPeriod.axisStrideCount)) { _ in
+                        AxisMarks(values: .stride(by: .month, count: viewModel.selectedPeriod.axisStrideCount)) { _ in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                                 .foregroundStyle(.white.opacity(0.2))
                             AxisValueLabel(format: .dateTime.month(.abbreviated))
@@ -1035,7 +878,7 @@ struct CryptoDashboardView: View {
                     AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
                         AxisValueLabel {
                             if let decimal = value.as(Decimal.self) {
-                                Text(formatCompactCurrency(decimal))
+                                Text(BalanceCalculator.formatCompactCurrency(decimal))
                                     .font(.caption2)
                                     .foregroundStyle(.white.opacity(0.6))
                             }
@@ -1096,7 +939,7 @@ struct CryptoDashboardView: View {
                         } label: {
                             CryptoContoRow(
                                 conto: conto,
-                                change: contiChanges[conto.id] ?? 0,
+                                change: viewModel.contiChanges[conto.id] ?? 0,
                                 theme: theme,
                                 showLibroName: true
                             )
@@ -1136,14 +979,14 @@ struct CryptoDashboardView: View {
             .padding(.top, 20)
             .padding(.horizontal, 20)
 
-            if recentTransactions.isEmpty {
+            if viewModel.recentTransactions.isEmpty {
                 emptyStateView(icon: "list.bullet", message: "Nessuna transazione")
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(recentTransactions, id: \.id) { transaction in
+                    ForEach(viewModel.recentTransactions, id: \.id) { transaction in
                         CryptoTransactionRow(transaction: transaction, theme: theme)
 
-                        if transaction.id != recentTransactions.last?.id {
+                        if transaction.id != viewModel.recentTransactions.last?.id {
                             Divider()
                                 .background(Color.white.opacity(0.1))
                                 .padding(.horizontal, 20)
@@ -1241,661 +1084,16 @@ struct CryptoDashboardView: View {
         }
     }
 
-    // MARK: - Formatting
-
-    private func formatCompactCurrency(_ value: Decimal) -> String {
-        let doubleValue = NSDecimalNumber(decimal: value).doubleValue
-        let absValue = abs(doubleValue)
-
-        if absValue >= 1_000_000 {
-            return String(format: "%.1fM €", doubleValue / 1_000_000)
-        } else if absValue >= 1_000 {
-            return String(format: "%.0fK €", doubleValue / 1_000)
-        } else {
-            return String(format: "%.0f €", doubleValue)
-        }
-    }
-
     // MARK: - Data Loading
 
     private func loadDashboardData() {
-        guard !displayedAccounts.isEmpty else {
-            resetData()
-            return
-        }
-
-        let allContiIDs = Set(allDisplayedConti.map { $0.id })
-        let calendar = Calendar.current
-        let now = Date()
-
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-
-        // Calculate balance at start of selected period
-        loadPeriodStartBalance(contiIDs: allContiIDs)
-
-        // Load monthly totals
-        loadMonthlyTotals(contiIDs: allContiIDs, startOfMonth: startOfMonth, endOfMonth: endOfMonth)
-
-        // Load balance history based on view mode
-        if appState.showAllAccounts && displayedAccounts.count > 1 {
-            // Multiple Libri - show by Libro
-            loadMultiAccountBalanceHistory()
-        } else if !appState.showAllAccounts && appState.showAllConti && allDisplayedConti.count > 1 {
-            // Single Libro with all conti - show by Conto
-            loadMultiContoBalanceHistory()
-        } else {
-            // Single conto or aggregated
-            loadBalanceHistory(contiIDs: allContiIDs)
-        }
-
-        // Load conto changes
-        loadContiChanges(startOfMonth: startOfMonth, endOfMonth: endOfMonth)
-
-        // Load recent transactions (for single account view)
-        if !appState.showAllAccounts {
-            loadRecentTransactions(contiIDs: allContiIDs)
-        }
-    }
-
-    private func resetData() {
-        monthlyIncome = 0
-        monthlyExpenses = 0
-        periodStartBalance = 0
-        balanceHistory = []
-        multiAccountHistory = []
-        multiContoHistory = []
-        contiChanges = [:]
-        recentTransactions = []
-        hasTransactionsInPeriod = true
-    }
-
-    private func loadPeriodStartBalance(contiIDs: Set<UUID>) {
-        let calendar = Calendar.current
-        let now = Date()
-
-        // Calculate period start date based on selected period
-        let periodStartDate: Date
-        if selectedPeriod == .oneMonth {
-            periodStartDate = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-        } else {
-            let monthsBack = selectedPeriod.monthsCount ?? 24
-            let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-            periodStartDate = calendar.date(byAdding: .month, value: -(monthsBack - 1), to: startOfCurrentMonth)!
-        }
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= periodStartDate
-        }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-
-            // Filter to only transactions up to now (exclude future)
-            let filtered = transactions.filter { transaction in
-                guard transaction.date <= now else { return false }
-                if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                if let id = transaction.toContoId, contiIDs.contains(id) { return true }
-                return false
-            }
-
-            let periodNet = filtered.reduce(Decimal(0)) { result, transaction in
-                switch transaction.type {
-                case .income:
-                    return result + (transaction.amount ?? 0)
-                case .expense:
-                    return result - (transaction.amount ?? 0)
-                case .transfer:
-                    return result
-                }
-            }
-
-            periodStartBalance = totalBalance - periodNet
-        } catch {
-            periodStartBalance = totalBalance
-        }
-    }
-
-    private func loadMonthlyTotals(contiIDs: Set<UUID>, startOfMonth: Date, endOfMonth: Date) {
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= startOfMonth && transaction.date < endOfMonth
-        }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-
-            let filtered = transactions.filter { transaction in
-                if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                if let id = transaction.toContoId, contiIDs.contains(id) { return true }
-                return false
-            }
-
-            monthlyIncome = filtered
-                .filter { $0.type == .income }
-                .reduce(0) { $0 + ($1.amount ?? 0) }
-
-            monthlyExpenses = filtered
-                .filter { $0.type == .expense }
-                .reduce(0) { $0 + ($1.amount ?? 0) }
-        } catch {
-            monthlyIncome = 0
-            monthlyExpenses = 0
-        }
-    }
-
-    private func loadBalanceHistory(contiIDs: Set<UUID>) {
-        let calendar = Calendar.current
-        let now = Date()
-
-        // Get initial balance for selected conti
-        let initialBalance: Decimal = allDisplayedConti.reduce(Decimal(0)) { $0 + ($1.initialBalance ?? 0) }
-
-        // Determine date range based on selected period
-        let periodStartDate: Date
-        let periodEndDate: Date
-
-        if selectedPeriod == .oneMonth {
-            // Use the selected specific month - include future transactions too
-            periodStartDate = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-            let endOfSelectedMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: periodStartDate)!
-            periodEndDate = endOfSelectedMonth // Include full month with future transactions
-        } else {
-            // Calculate from current date - start from beginning of month X months ago
-            let monthsBack = selectedPeriod.monthsCount ?? 24
-            // Go back (monthsBack - 1) months to include current month in count
-            // e.g., 3M in February should show Dec, Jan, Feb
-            let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-            guard let start = calendar.date(byAdding: .month, value: -(monthsBack - 1), to: startOfCurrentMonth) else {
-                balanceHistory = []
-                return
-            }
-            periodStartDate = start
-            periodEndDate = now
-        }
-
-        guard periodStartDate <= periodEndDate else {
-            balanceHistory = []
-            return
-        }
-
-        // Fetch all transactions for these conti, sorted by date
-        let descriptor = FetchDescriptor<FinanceTransaction>(
-            sortBy: [SortDescriptor(\.date, order: .forward)]
+        viewModel.loadDashboardData(
+            displayedAccounts: displayedAccounts,
+            allDisplayedConti: allDisplayedConti,
+            showAllAccounts: appState.showAllAccounts,
+            showAllConti: appState.showAllConti,
+            modelContext: modelContext
         )
-
-        do {
-            let allTransactions = try modelContext.fetch(descriptor)
-
-            // Filter to only transactions for our conti
-            let relevantTransactions = allTransactions.filter { transaction in
-                if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                if let id = transaction.toContoId, contiIDs.contains(id) { return true }
-                return false
-            }
-
-            // Calculate balance BEFORE the period start
-            var balanceBeforePeriod = initialBalance
-            for transaction in relevantTransactions {
-                let transactionDate = transaction.date
-                guard transactionDate < periodStartDate else { continue }
-
-                let amount = transaction.amount ?? 0
-                switch transaction.type {
-                case .income:
-                    if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                        balanceBeforePeriod += amount
-                    }
-                case .expense:
-                    if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                        balanceBeforePeriod -= amount
-                    }
-                case .transfer:
-                    if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                        balanceBeforePeriod -= amount
-                    }
-                    if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                        balanceBeforePeriod += amount
-                    }
-                }
-            }
-
-            // Filter transactions within the period
-            let periodTransactions = relevantTransactions.filter { transaction in
-                transaction.date >= periodStartDate && transaction.date <= periodEndDate
-            }
-
-            // Build balance history with monthly anchor points + transaction points
-            var data: [BalanceDataPoint] = []
-            var runningBalance = balanceBeforePeriod
-
-            // Generate month end dates for the period
-            var monthEndDates: [Date] = []
-            var currentMonth = periodStartDate
-            while currentMonth <= periodEndDate {
-                // Get end of this month (or periodEndDate if it's the last month)
-                let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!)!
-                let effectiveEnd = min(endOfMonth, periodEndDate)
-                monthEndDates.append(effectiveEnd)
-
-                guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) else { break }
-                currentMonth = nextMonth
-            }
-
-            // Start with a point at the beginning of the period
-            data.append(BalanceDataPoint(date: periodStartDate, balance: runningBalance))
-
-            // Group transactions by day and calculate daily ending balances
-            var transactionsByDay: [Date: [FinanceTransaction]] = [:]
-            for transaction in periodTransactions {
-                let dayStart = calendar.startOfDay(for: transaction.date)
-                transactionsByDay[dayStart, default: []].append(transaction)
-            }
-
-            // Get sorted unique days with transactions
-            let sortedDays = transactionsByDay.keys.sorted()
-
-            // Process each day's transactions
-            for day in sortedDays {
-                guard let dayTransactions = transactionsByDay[day] else { continue }
-
-                // Apply all transactions for this day
-                for transaction in dayTransactions {
-                    let amount = transaction.amount ?? 0
-                    switch transaction.type {
-                    case .income:
-                        if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                            runningBalance += amount
-                        }
-                    case .expense:
-                        if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                            runningBalance -= amount
-                        }
-                    case .transfer:
-                        if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                            runningBalance -= amount
-                        }
-                        if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                            runningBalance += amount
-                        }
-                    }
-                }
-
-                // Add single data point for this day with final balance
-                data.append(BalanceDataPoint(date: day, balance: runningBalance))
-            }
-
-            // Add month-end anchor points for months without transactions
-            for monthEnd in monthEndDates {
-                if let lastPoint = data.last, !calendar.isDate(lastPoint.date, inSameDayAs: monthEnd) {
-                    // Check if we already have a point after the start of this month
-                    let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: monthEnd))!
-                    let hasPointInMonth = data.contains { calendar.isDate($0.date, equalTo: monthEnd, toGranularity: .month) }
-                    if !hasPointInMonth || data.last!.date < monthEnd {
-                        data.append(BalanceDataPoint(date: monthEnd, balance: runningBalance))
-                    }
-                }
-            }
-
-            // Sort data by date to ensure correct order
-            balanceHistory = data.sorted { $0.date < $1.date }
-        } catch {
-            balanceHistory = []
-        }
-    }
-
-    private func loadMultiAccountBalanceHistory() {
-        let calendar = Calendar.current
-        let now = Date()
-        var data: [AccountBalanceDataPoint] = []
-
-        // Determine number of months based on selected period
-        let monthsToLoad = selectedPeriod.monthsCount ?? 24
-
-        for (accountIndex, account) in displayedAccounts.enumerated() {
-            let contiIDs = Set(account.activeConti.map { $0.id })
-            let color = colorForAccount(at: accountIndex)
-            let accountName = account.name ?? "Account"
-
-            // Calculate balance as of today (excluding future transactions)
-            var balanceAsOfToday: Decimal = account.activeConti.reduce(Decimal(0)) { $0 + ($1.initialBalance ?? 0) }
-
-            var todayDescriptor = FetchDescriptor<FinanceTransaction>()
-            todayDescriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-                transaction.date <= now
-            }
-
-            do {
-                let allTransactions = try modelContext.fetch(todayDescriptor)
-                let relevantTransactions = allTransactions.filter { transaction in
-                    if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                    if let id = transaction.toContoId, contiIDs.contains(id) { return true }
-                    return false
-                }
-
-                for transaction in relevantTransactions {
-                    let amount = transaction.amount ?? 0
-                    switch transaction.type {
-                    case .income:
-                        if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                            balanceAsOfToday += amount
-                        }
-                    case .expense:
-                        if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                            balanceAsOfToday -= amount
-                        }
-                    case .transfer:
-                        // Internal transfers within same account net to zero
-                        if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                            balanceAsOfToday -= amount
-                        }
-                        if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                            balanceAsOfToday += amount
-                        }
-                    }
-                }
-            } catch {
-                balanceAsOfToday = account.totalBalance
-            }
-
-            // Collect monthly net changes for this account
-            var monthlyNetChanges: [(date: Date, net: Decimal)] = []
-
-            for i in 0..<monthsToLoad {
-                guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
-
-                let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
-                let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-                let effectiveEndDate = i == 0 ? now : endOfMonth
-
-                var descriptor = FetchDescriptor<FinanceTransaction>()
-                descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-                    transaction.date >= startOfMonth && transaction.date <= effectiveEndDate
-                }
-
-                do {
-                    let transactions = try modelContext.fetch(descriptor)
-
-                    let filtered = transactions.filter { transaction in
-                        if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                        if let id = transaction.toContoId, contiIDs.contains(id) { return true }
-                        return false
-                    }
-
-                    var netChange: Decimal = 0
-                    for transaction in filtered {
-                        let amount = transaction.amount ?? 0
-                        switch transaction.type {
-                        case .income:
-                            if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                                netChange += amount
-                            }
-                        case .expense:
-                            if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                                netChange -= amount
-                            }
-                        case .transfer:
-                            if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
-                                netChange -= amount
-                            }
-                            if let toId = transaction.toContoId, contiIDs.contains(toId) {
-                                netChange += amount
-                            }
-                        }
-                    }
-
-                    monthlyNetChanges.append((date: startOfMonth, net: netChange))
-                } catch {
-                    monthlyNetChanges.append((date: startOfMonth, net: 0))
-                }
-            }
-
-            // Build balance history by working backwards
-            var accountData: [AccountBalanceDataPoint] = []
-            var runningBalance = balanceAsOfToday
-
-            for (index, monthData) in monthlyNetChanges.enumerated() {
-                if index == 0 {
-                    accountData.append(AccountBalanceDataPoint(
-                        accountId: account.id,
-                        accountName: accountName,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        color: color
-                    ))
-                } else {
-                    let recentMonthNet = monthlyNetChanges[index - 1].net
-                    runningBalance -= recentMonthNet
-                    accountData.append(AccountBalanceDataPoint(
-                        accountId: account.id,
-                        accountName: accountName,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        color: color
-                    ))
-                }
-            }
-
-            // Add reversed data (oldest first) for this account
-            data.append(contentsOf: accountData.reversed())
-        }
-
-        multiAccountHistory = data
-    }
-
-    private func loadMultiContoBalanceHistory() {
-        let calendar = Calendar.current
-        let now = Date()
-        var data: [AccountBalanceDataPoint] = []
-
-        // Determine number of months based on selected period
-        let monthsToLoad = selectedPeriod.monthsCount ?? 24
-
-        for (contoIndex, conto) in allDisplayedConti.enumerated() {
-            let contoID = conto.id
-            let color = colorForAccount(at: contoIndex)
-            let contoName = conto.name ?? "Conto"
-
-            // Calculate balance as of today (excluding future transactions)
-            var balanceAsOfToday = conto.initialBalance ?? 0
-
-            var todayDescriptor = FetchDescriptor<FinanceTransaction>()
-            todayDescriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-                transaction.date <= now
-            }
-
-            do {
-                let allTransactions = try modelContext.fetch(todayDescriptor)
-                let relevantTransactions = allTransactions.filter { transaction in
-                    transaction.fromContoId == contoID || transaction.toContoId == contoID
-                }
-
-                for transaction in relevantTransactions {
-                    let amount = transaction.amount ?? 0
-                    switch transaction.type {
-                    case .income:
-                        if transaction.toContoId == contoID {
-                            balanceAsOfToday += amount
-                        }
-                    case .expense:
-                        if transaction.fromContoId == contoID {
-                            balanceAsOfToday -= amount
-                        }
-                    case .transfer:
-                        if transaction.fromContoId == contoID {
-                            balanceAsOfToday -= amount
-                        }
-                        if transaction.toContoId == contoID {
-                            balanceAsOfToday += amount
-                        }
-                    }
-                }
-            } catch {
-                balanceAsOfToday = conto.balance
-            }
-
-            // Collect monthly net changes for this conto
-            var monthlyNetChanges: [(date: Date, net: Decimal)] = []
-            var hasAnyTransactions = false
-
-            for i in 0..<monthsToLoad {
-                guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
-
-                let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
-                let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-                let effectiveEndDate = i == 0 ? now : endOfMonth
-
-                var descriptor = FetchDescriptor<FinanceTransaction>()
-                descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-                    transaction.date >= startOfMonth && transaction.date <= effectiveEndDate
-                }
-
-                do {
-                    let transactions = try modelContext.fetch(descriptor)
-
-                    let filtered = transactions.filter { transaction in
-                        transaction.fromContoId == contoID || transaction.toContoId == contoID
-                    }
-
-                    if !filtered.isEmpty {
-                        hasAnyTransactions = true
-                    }
-
-                    var netChange: Decimal = 0
-                    for transaction in filtered {
-                        let amount = transaction.amount ?? 0
-                        switch transaction.type {
-                        case .income:
-                            if transaction.toContoId == contoID {
-                                netChange += amount
-                            }
-                        case .expense:
-                            if transaction.fromContoId == contoID {
-                                netChange -= amount
-                            }
-                        case .transfer:
-                            if transaction.fromContoId == contoID {
-                                netChange -= amount
-                            }
-                            if transaction.toContoId == contoID {
-                                netChange += amount
-                            }
-                        }
-                    }
-
-                    monthlyNetChanges.append((date: startOfMonth, net: netChange))
-                } catch {
-                    monthlyNetChanges.append((date: startOfMonth, net: 0))
-                }
-            }
-
-            // Only add this conto if it has transactions
-            guard hasAnyTransactions else { continue }
-
-            // Build balance history by working backwards
-            var contoData: [AccountBalanceDataPoint] = []
-            var runningBalance = balanceAsOfToday
-
-            for (index, monthData) in monthlyNetChanges.enumerated() {
-                if index == 0 {
-                    contoData.append(AccountBalanceDataPoint(
-                        accountId: contoID,
-                        accountName: contoName,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        color: color
-                    ))
-                } else {
-                    let recentMonthNet = monthlyNetChanges[index - 1].net
-                    runningBalance -= recentMonthNet
-                    contoData.append(AccountBalanceDataPoint(
-                        accountId: contoID,
-                        accountName: contoName,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        color: color
-                    ))
-                }
-            }
-
-            // Add reversed data (oldest first) for this conto
-            data.append(contentsOf: contoData.reversed())
-        }
-
-        multiContoHistory = data
-    }
-
-    private func loadContiChanges(startOfMonth: Date, endOfMonth: Date) {
-        var changes: [UUID: Decimal] = [:]
-
-        for conto in allDisplayedConti {
-            var descriptor = FetchDescriptor<FinanceTransaction>()
-            descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-                transaction.date >= startOfMonth && transaction.date < endOfMonth
-            }
-
-            do {
-                let transactions = try modelContext.fetch(descriptor)
-
-                let contoTransactions = transactions.filter { transaction in
-                    transaction.fromContoId == conto.id || transaction.toContoId == conto.id
-                }
-
-                let change = contoTransactions.reduce(Decimal(0)) { result, transaction in
-                    switch transaction.type {
-                    case .income:
-                        if transaction.toContoId == conto.id {
-                            return result + (transaction.amount ?? 0)
-                        }
-                        return result
-                    case .expense:
-                        if transaction.fromContoId == conto.id {
-                            return result - (transaction.amount ?? 0)
-                        }
-                        return result
-                    case .transfer:
-                        if transaction.fromContoId == conto.id {
-                            return result - (transaction.amount ?? 0)
-                        } else if transaction.toContoId == conto.id {
-                            return result + (transaction.amount ?? 0)
-                        }
-                        return result
-                    }
-                }
-
-                changes[conto.id] = change
-            } catch {
-                changes[conto.id] = 0
-            }
-        }
-
-        contiChanges = changes
-    }
-
-    private func loadRecentTransactions(contiIDs: Set<UUID>) {
-        // Fetch more transactions to ensure we find enough for the selected conto
-        let descriptor = FetchDescriptor<FinanceTransaction>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        // Don't limit the fetch - filter first, then take the most recent 10
-
-        do {
-            let allTransactions = try modelContext.fetch(descriptor)
-
-            // Filter by selected conti and take only the first 10
-            recentTransactions = Array(
-                allTransactions
-                    .filter { transaction in
-                        if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                        if let id = transaction.toContoId, contiIDs.contains(id) { return true }
-                        return false
-                    }
-                    .prefix(10)
-            )
-        } catch {
-            recentTransactions = []
-        }
     }
 }
 

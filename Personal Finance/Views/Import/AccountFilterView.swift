@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FinanceCore
 
 // MARK: - Account Filter Step View (for NavigationStack)
 
@@ -18,8 +19,6 @@ struct AccountFilterStepView: View {
     @State private var selectedColumnIndex: Int? = nil
     @State private var selectedAccountValue: String? = nil
     @State private var accountValues: [CSVAccountValue] = []
-
-    private let csvService = CSVService()
 
     private enum FilterStep {
         case askMultiAccount
@@ -276,16 +275,12 @@ struct AccountFilterStepView: View {
                 let transactionCount = accountValues.first { $0.value == selectedValue }?.rowCount ?? 0
 
                 Button {
-                    Task {
-                        let filteredResult = await csvService.filterRows(
-                            from: parseResult,
-                            columnIndex: columnIndex,
-                            value: selectedValue
-                        )
-                        await MainActor.run {
-                            onContinue(filteredResult)
-                        }
-                    }
+                    let filteredResult = CSVParser.filterRows(
+                        from: parseResult,
+                        columnIndex: columnIndex,
+                        value: selectedValue
+                    )
+                    onContinue(filteredResult)
                 } label: {
                     HStack {
                         Image(systemName: "arrow.down.doc.fill")
@@ -315,12 +310,7 @@ struct AccountFilterStepView: View {
     // MARK: - Helper Methods
 
     private func loadAccountValues(columnIndex: Int) {
-        Task {
-            let values = await csvService.extractUniqueAccountValues(from: parseResult, columnIndex: columnIndex)
-            await MainActor.run {
-                accountValues = values
-            }
-        }
+        accountValues = CSVParser.extractUniqueAccountValues(from: parseResult, columnIndex: columnIndex)
     }
 }
 

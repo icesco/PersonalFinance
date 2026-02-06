@@ -278,27 +278,18 @@ struct FieldMappingView: View {
 
     private func initializeMappings() {
         if mappings.isEmpty {
-            Task {
-                let detected = await csvService.detectColumnMapping(headers: parseResult.headers)
-                await MainActor.run {
-                    mappings = detected
-                }
-            }
+            mappings = CSVParser.detectColumnMapping(headers: parseResult.headers)
         }
     }
 
     private func generatePreview() {
-        Task {
-            let preview = await csvService.generatePreview(
-                from: parseResult,
-                mapping: mappings,
-                options: options
-            )
-            await MainActor.run {
-                previewRows = preview
-                showingPreview = true
-            }
-        }
+        let preview = CSVParser.generatePreview(
+            from: parseResult,
+            mapping: mappings,
+            options: options
+        )
+        previewRows = preview
+        showingPreview = true
     }
 
     private func performImport() {

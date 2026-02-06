@@ -25,6 +25,7 @@ let package = Package(
         .testTarget(
             name: "FinanceCoreTests",
             dependencies: ["FinanceCore"],
+            resources: [.copy("Resources")],
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency")
             ]),
