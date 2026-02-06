@@ -29,6 +29,14 @@ struct TransactionListView: View {
     @State private var selectedTimeframe: TransactionTimeframe = .month
     @State private var showSummaryDetail = false
     @State private var isSearching = false
+    @State private var transactionToEdit: FinanceTransaction?
+    @State private var transactionToDelete: FinanceTransaction?
+    @State private var showingDeleteAlert = false
+
+    // Selection mode
+    @State private var isInSelectionMode = false
+    @State private var selectedTransactions: Set<UUID> = []
+    @State private var showingBatchDeleteAlert = false
 
     // Fetched data
     @State private var transactions: [FinanceTransaction] = []
@@ -88,6 +96,10 @@ struct TransactionListView: View {
                     emptyState
                 } else {
                     transactionList
+
+                    if isInSelectionMode {
+                        selectionBottomBar
+                    }
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -121,6 +133,9 @@ struct TransactionListView: View {
             .sheet(isPresented: $showingTransferSheet) {
                 CreateTransactionView(conto: availableConti.first, transactionType: .transfer)
             }
+            .sheet(item: $transactionToEdit) { transaction in
+                EditTransactionView(transaction: transaction)
+            }
             .onAppear {
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
@@ -133,6 +148,7 @@ struct TransactionListView: View {
             .onChange(of: selectedConto) { _, _ in resetAndFetch() }
             .onChange(of: selectedCategories) { _, _ in resetAndFetch() }
             .onChange(of: searchText) { _, _ in resetAndFetch() }
+            .onChange(of: appState.dataRefreshTrigger) { _, _ in fetchTransactions() }
         }
     }
 
@@ -151,6 +167,20 @@ struct TransactionListView: View {
 
     private var toolbarMenu: some View {
         Menu {
+            Button {
+                withAnimation {
+                    isInSelectionMode.toggle()
+                    if !isInSelectionMode {
+                        selectedTransactions.removeAll()
+                    }
+                }
+            } label: {
+                Label(
+                    isInSelectionMode ? "Fine selezione" : "Seleziona",
+                    systemImage: isInSelectionMode ? "xmark.circle" : "checkmark.circle"
+                )
+            }
+
             Button {
                 withAnimation { showSummaryDetail.toggle() }
             } label: {
@@ -505,12 +535,53 @@ struct TransactionListView: View {
             ForEach(sectionedTransactions) { section in
                 Section {
                     ForEach(section.transactions, id: \.id) { transaction in
-                        TransactionCell(transaction: transaction, showConto: showContoInCell)
-                            .swipeActions(edge: .trailing) {
-                                Button("Elimina", role: .destructive) {
-                                    deleteTransaction(transaction)
+                        if isInSelectionMode {
+                            Button {
+                                toggleSelection(transaction)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: selectedTransactions.contains(transaction.id) ? "checkmark.circle.fill" : "circle")
+                                        .font(.title3)
+                                        .foregroundStyle(selectedTransactions.contains(transaction.id) ? Color.accentColor : .secondary)
+                                    TransactionCell(transaction: transaction, showConto: showContoInCell)
                                 }
                             }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink {
+                                TransactionDetailView(transaction: transaction)
+                            } label: {
+                                TransactionCell(transaction: transaction, showConto: showContoInCell)
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    transactionToEdit = transaction
+                                } label: {
+                                    Label("Modifica", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button("Elimina", role: .destructive) {
+                                    transactionToDelete = transaction
+                                    showingDeleteAlert = true
+                                }
+                            }
+                            .contextMenu {
+                                Button {
+                                    transactionToEdit = transaction
+                                } label: {
+                                    Label("Modifica", systemImage: "pencil")
+                                }
+                                Divider()
+                                Button(role: .destructive) {
+                                    transactionToDelete = transaction
+                                    showingDeleteAlert = true
+                                } label: {
+                                    Label("Elimina", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
                 } header: {
                     HStack(spacing: 6) {
@@ -530,7 +601,28 @@ struct TransactionListView: View {
                 loadMoreRow
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
+        .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
+            Button("Elimina", role: .destructive) {
+                if let transaction = transactionToDelete {
+                    deleteTransaction(transaction)
+                }
+                transactionToDelete = nil
+            }
+            Button("Annulla", role: .cancel) {
+                transactionToDelete = nil
+            }
+        } message: {
+            Text("Sei sicuro di voler eliminare questa transazione? Questa azione non può essere annullata.")
+        }
+        .alert("Elimina Transazioni", isPresented: $showingBatchDeleteAlert) {
+            Button("Elimina \(selectedTransactions.count)", role: .destructive) {
+                deleteSelectedTransactions()
+            }
+            Button("Annulla", role: .cancel) { }
+        } message: {
+            Text("Sei sicuro di voler eliminare \(selectedTransactions.count) transazioni? Questa azione non può essere annullata.")
+        }
     }
 
     private var loadMoreRow: some View {
@@ -707,6 +799,60 @@ struct TransactionListView: View {
             selectedCategories = []
             searchText = ""
         }
+    }
+
+    // MARK: - Selection Mode
+
+    private var selectionBottomBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack {
+                Button(selectedTransactions.count == transactions.count ? "Deseleziona tutto" : "Seleziona tutto") {
+                    if selectedTransactions.count == transactions.count {
+                        selectedTransactions.removeAll()
+                    } else {
+                        selectedTransactions = Set(transactions.map { $0.id })
+                    }
+                }
+                .font(.subheadline)
+
+                Spacer()
+
+                Text("\(selectedTransactions.count) selezionate")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Elimina", role: .destructive) {
+                    showingBatchDeleteAlert = true
+                }
+                .font(.subheadline.weight(.semibold))
+                .disabled(selectedTransactions.isEmpty)
+            }
+            .padding()
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private func toggleSelection(_ transaction: FinanceTransaction) {
+        if selectedTransactions.contains(transaction.id) {
+            selectedTransactions.remove(transaction.id)
+        } else {
+            selectedTransactions.insert(transaction.id)
+        }
+    }
+
+    private func deleteSelectedTransactions() {
+        let toDelete = transactions.filter { selectedTransactions.contains($0.id) }
+        for transaction in toDelete {
+            modelContext.delete(transaction)
+        }
+        try? modelContext.save()
+        selectedTransactions.removeAll()
+        isInSelectionMode = false
+        fetchTransactions()
+        appState.triggerDataRefresh()
     }
 
     private func deleteTransaction(_ transaction: FinanceTransaction) {

@@ -78,6 +78,16 @@ final class DashboardViewModel {
         absoluteChange(for: accounts) >= 0
     }
 
+    // Conto-level overloads (used when a specific conto is selected)
+
+    func absoluteChange(currentTotal: Decimal) -> Decimal {
+        BalanceCalculator.absoluteChange(current: currentTotal, periodStart: periodStartBalance)
+    }
+
+    func percentageChange(currentTotal: Decimal) -> Double {
+        BalanceCalculator.percentageChange(current: currentTotal, periodStart: periodStartBalance)
+    }
+
     func chartYDomain(for accounts: [Account]) -> ClosedRange<Decimal> {
         let allPoints = pastBalanceHistory(for: accounts) + futureBalanceHistory(for: accounts)
         return BalanceCalculator.chartYDomain(dataPoints: allPoints)
@@ -128,7 +138,7 @@ final class DashboardViewModel {
 
         // Fetch all transactions once for snapshot-based calculations
         let allSnapshots = fetchAllTransactionSnapshots(contiIDs: allContiIDs, modelContext: modelContext)
-        let currentTotal = BalanceCalculator.totalBalance(contiBalances: displayedAccounts.map(\.totalBalance))
+        let currentTotal = allDisplayedConti.reduce(Decimal(0)) { $0 + $1.balance }
 
         // Period start balance (with transfer bug fix)
         let periodStart = computePeriodStartDate(now: now, calendar: calendar)

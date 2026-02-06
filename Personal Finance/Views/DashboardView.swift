@@ -583,9 +583,13 @@ struct ContoRowView: View {
 
             Spacer()
 
-            Text(conto.balance.currencyFormatted)
-                .font(.subheadline).fontWeight(.semibold)
-                .foregroundColor(conto.balance >= 0 ? .primary : .red)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(conto.displayBalance.currencyFormatted)
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundColor(conto.displayBalance >= 0 ? .primary : .red)
+
+                ContoTypeSpecificInfoView(conto: conto, compact: true)
+            }
         }
         .padding(.vertical, 8)
     }

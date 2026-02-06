@@ -252,6 +252,12 @@ final class AppStateManager {
         showingOnboarding = false
     }
 
+    func resetOnboarding() {
+        hasCompletedOnboarding = false
+        showingOnboarding = true
+        selectedAccount = nil
+    }
+
     // MARK: - Account Data
     
     func activeConti(for account: Account?) -> [Conto] {

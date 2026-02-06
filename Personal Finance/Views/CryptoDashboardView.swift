@@ -164,6 +164,9 @@ struct CryptoDashboardView: View {
     // ViewModel for all data/business logic
     @State private var viewModel = DashboardViewModel()
 
+    @State private var transactionToEdit: FinanceTransaction?
+    @State private var transactionToDetail: FinanceTransaction?
+
     // Sheet detent tracking
     @State private var selectedDetent: SheetDetent = .height(280)
     @State private var currentSheetHeight: CGFloat = 280  // Real-time height during drag
@@ -255,21 +258,24 @@ struct CryptoDashboardView: View {
         }
     }
 
-    // Computed properties delegating to ViewModel/BalanceCalculator
+    // Computed properties — use allDisplayedConti so the balance updates
+    // when switching between "all conti" and a single conto.
+    // Uses balance (not displayBalance) so the total reflects real liquidity,
+    // not credit card plafond which isn't the user's money.
     private var totalBalance: Decimal {
-        viewModel.totalBalance(for: displayedAccounts)
+        allDisplayedConti.reduce(Decimal(0)) { $0 + $1.balance }
     }
 
     private var absoluteChange: Decimal {
-        viewModel.absoluteChange(for: displayedAccounts)
+        viewModel.absoluteChange(currentTotal: totalBalance)
     }
 
     private var percentageChange: Double {
-        viewModel.percentageChange(for: displayedAccounts)
+        viewModel.percentageChange(currentTotal: totalBalance)
     }
 
     private var isPositiveChange: Bool {
-        viewModel.isPositiveChange(for: displayedAccounts)
+        absoluteChange >= 0
     }
 
     // Display name for libro/account switcher
@@ -392,6 +398,14 @@ struct CryptoDashboardView: View {
             .onChange(of: appState.selectedConto) { _, _ in loadDashboardData() }
             .onChange(of: appState.showAllConti) { _, _ in loadDashboardData() }
             .onChange(of: appState.dataRefreshTrigger) { _, _ in loadDashboardData() }
+            .sheet(item: $transactionToEdit) { transaction in
+                EditTransactionView(transaction: transaction)
+            }
+            .sheet(item: $transactionToDetail) { transaction in
+                NavigationStack {
+                    TransactionDetailView(transaction: transaction)
+                }
+            }
         }
     }
 
@@ -1012,6 +1026,20 @@ struct CryptoDashboardView: View {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.recentTransactions, id: \.id) { transaction in
                         CryptoTransactionRow(transaction: transaction, theme: theme)
+                            .contentShape(Rectangle())
+                            .onTapGesture { transactionToDetail = transaction }
+                            .contextMenu {
+                                Button {
+                                    transactionToDetail = transaction
+                                } label: {
+                                    Label("Dettagli", systemImage: "info.circle")
+                                }
+                                Button {
+                                    transactionToEdit = transaction
+                                } label: {
+                                    Label("Modifica", systemImage: "pencil")
+                                }
+                            }
 
                         if transaction.id != viewModel.recentTransactions.last?.id {
                             Divider()
@@ -1247,7 +1275,7 @@ struct CryptoContoRow: View {
 
             // Balance and change
             VStack(alignment: .trailing, spacing: 2) {
-                Text(conto.balance.currencyFormatted)
+                Text(conto.displayBalance.currencyFormatted)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
 
@@ -1256,6 +1284,8 @@ struct CryptoContoRow: View {
                         .font(.caption)
                         .foregroundStyle(isPositiveChange ? Color(hex: "#4CAF50") : Color(hex: "#FF5252"))
                 }
+
+                ContoTypeSpecificInfoView(conto: conto, compact: true)
             }
 
             Image(systemName: "chevron.right")

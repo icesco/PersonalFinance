@@ -511,10 +511,19 @@ struct AddContoSheet: View {
     @State private var name = ""
     @State private var type: ContoType = .checking
     @State private var initialBalance = ""
+    @State private var creditLimit: Decimal?
+    @State private var statementClosingDay: Int?
+    @State private var paymentDueDay: Int?
+    @State private var annualInterestRate: Decimal?
+    @State private var savingsGoal: Decimal?
 
     // MARK: - Computed Properties
     private var isValid: Bool {
         !name.isEmpty
+    }
+
+    private var currency: String {
+        appState.selectedAccount?.currency ?? "EUR"
     }
 
     // MARK: - Body
@@ -543,6 +552,16 @@ struct AddContoSheet: View {
                             .keyboardType(.decimalPad)
                     }
                 }
+
+                ContoTypeSpecificFieldsView(
+                    selectedType: type,
+                    currency: currency,
+                    creditLimit: $creditLimit,
+                    statementClosingDay: $statementClosingDay,
+                    paymentDueDay: $paymentDueDay,
+                    annualInterestRate: $annualInterestRate,
+                    savingsGoal: $savingsGoal
+                )
             }
             .navigationTitle("Nuovo Conto")
             .navigationBarTitleDisplayMode(.inline)
@@ -555,6 +574,13 @@ struct AddContoSheet: View {
                         .disabled(!isValid)
                 }
             }
+            .onChange(of: type) {
+                creditLimit = nil
+                statementClosingDay = nil
+                paymentDueDay = nil
+                annualInterestRate = nil
+                savingsGoal = nil
+            }
         }
     }
 
@@ -562,7 +588,16 @@ struct AddContoSheet: View {
         guard let account = appState.selectedAccount else { return }
 
         let balance = Decimal(string: initialBalance.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let conto = Conto(name: name, type: type, initialBalance: balance)
+        let conto = Conto(
+            name: name,
+            type: type,
+            initialBalance: balance,
+            creditLimit: type == .credit ? creditLimit : nil,
+            statementClosingDay: type == .credit ? statementClosingDay : nil,
+            paymentDueDay: type == .credit ? paymentDueDay : nil,
+            annualInterestRate: type == .investment ? annualInterestRate : nil,
+            savingsGoal: type == .savings ? savingsGoal : nil
+        )
         conto.account = account
 
         modelContext.insert(conto)

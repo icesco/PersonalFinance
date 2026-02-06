@@ -639,4 +639,121 @@ struct FinanceCoreTests {
         #expect(goal.progressPercentage == 60.0)
         #expect(goal.remainingAmount == 400)
     }
+
+    // MARK: - Conto Type-Specific Properties Tests
+
+    @Test func contoWithCreditLimit() async throws {
+        let conto = Conto(
+            name: "Visa",
+            type: .credit,
+            initialBalance: 0,
+            creditLimit: Decimal(3000),
+            statementClosingDay: 15,
+            paymentDueDay: 5
+        )
+        #expect(conto.creditLimit == Decimal(3000))
+        #expect(conto.statementClosingDay == 15)
+        #expect(conto.paymentDueDay == 5)
+        // No type-specific props for other types
+        #expect(conto.annualInterestRate == nil)
+        #expect(conto.savingsGoal == nil)
+    }
+
+    @Test func contoWithAnnualInterestRate() async throws {
+        let conto = Conto(
+            name: "ETF Portfolio",
+            type: .investment,
+            initialBalance: 10000,
+            annualInterestRate: Decimal(5)
+        )
+        #expect(conto.annualInterestRate == Decimal(5))
+        #expect(conto.projectedAnnualReturn == Decimal(500))
+        // Other type-specific props are nil
+        #expect(conto.creditLimit == nil)
+        #expect(conto.savingsGoal == nil)
+    }
+
+    @Test func contoWithSavingsGoal() async throws {
+        let conto = Conto(
+            name: "Fondo Emergenza",
+            type: .savings,
+            initialBalance: 3000,
+            savingsGoal: Decimal(10000)
+        )
+        #expect(conto.savingsGoal == Decimal(10000))
+        let progress = try #require(conto.savingsGoalProgress)
+        #expect(progress == 0.3)
+        let remaining = try #require(conto.savingsGoalRemaining)
+        #expect(remaining == Decimal(7000))
+    }
+
+    @Test func contoNoTypeSpecificProperties() async throws {
+        let conto = Conto(name: "Conto Corrente", type: .checking, initialBalance: 500)
+        #expect(conto.creditLimit == nil)
+        #expect(conto.statementClosingDay == nil)
+        #expect(conto.paymentDueDay == nil)
+        #expect(conto.annualInterestRate == nil)
+        #expect(conto.savingsGoal == nil)
+        #expect(conto.creditLimitUsageRatio == nil)
+        #expect(conto.creditLimitRemaining == nil)
+        #expect(conto.projectedAnnualReturn == nil)
+        #expect(conto.savingsGoalProgress == nil)
+        #expect(conto.savingsGoalRemaining == nil)
+        #expect(conto.nextStatementClosingDate == nil)
+        #expect(conto.nextPaymentDueDate == nil)
+    }
+
+    @Test func savingsGoalExceeded() async throws {
+        let conto = Conto(
+            name: "Risparmio",
+            type: .savings,
+            initialBalance: 15000,
+            savingsGoal: Decimal(10000)
+        )
+        let progress = try #require(conto.savingsGoalProgress)
+        #expect(progress == 1.5) // 150%
+        let remaining = try #require(conto.savingsGoalRemaining)
+        #expect(remaining == Decimal(0)) // Already exceeded
+    }
+
+    @Test func investmentWithZeroBalance() async throws {
+        let conto = Conto(
+            name: "Nuovo Investimento",
+            type: .investment,
+            initialBalance: 0,
+            annualInterestRate: Decimal(7)
+        )
+        let annualReturn = try #require(conto.projectedAnnualReturn)
+        #expect(annualReturn == Decimal(0))
+    }
+
+    @Test func creditLimitComputedProperties() async throws {
+        let conto = Conto(
+            name: "Carta",
+            type: .credit,
+            initialBalance: 0,
+            creditLimit: Decimal(1000)
+        )
+        // With no transactions, spending should be 0
+        #expect(conto.currentMonthSpending == Decimal(0))
+        let ratio = try #require(conto.creditLimitUsageRatio)
+        #expect(ratio == 0.0)
+        let remaining = try #require(conto.creditLimitRemaining)
+        #expect(remaining == Decimal(1000))
+    }
+
+    @Test func nextDateComputedProperties() async throws {
+        let conto = Conto(
+            name: "Carta",
+            type: .credit,
+            initialBalance: 0,
+            statementClosingDay: 15,
+            paymentDueDay: 25
+        )
+        let closingDate = try #require(conto.nextStatementClosingDate)
+        let paymentDate = try #require(conto.nextPaymentDueDate)
+        // Both dates should be in the future or today
+        #expect(closingDate >= Calendar.current.startOfDay(for: Date()))
+        #expect(paymentDate >= Calendar.current.startOfDay(for: Date()))
+    }
 }

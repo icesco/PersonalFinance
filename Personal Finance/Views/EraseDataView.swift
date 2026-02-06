@@ -97,7 +97,7 @@ struct EraseDataView: View {
                 }
                 .listRowBackground(Color.red)
             } footer: {
-                Text("Elimina tutti gli account e i relativi dati. Verrà ricreato un account predefinito vuoto.")
+                Text("Elimina tutti gli account e i relativi dati. Verrà mostrato nuovamente il setup iniziale.")
             }
         }
         .navigationTitle("Cancella Dati")
@@ -143,7 +143,7 @@ struct EraseDataView: View {
         .sheet(isPresented: $showingFactoryResetConfirmation) {
             TimedConfirmationSheet(
                 title: "Ripristino di Fabbrica",
-                message: "Tutti gli account e i dati associati verranno eliminati permanentemente. Verrà ricreato un account predefinito vuoto.",
+                message: "Tutti gli account e i dati associati verranno eliminati permanentemente.",
                 delaySeconds: 5,
                 onConfirm: {
                     eraseAllData()
@@ -179,9 +179,9 @@ struct EraseDataView: View {
             print("Error erasing account: \(error)")
         }
 
-        // If no accounts remain, create a default one
+        // If no accounts remain, reset onboarding so user sees setup again
         if isLastAccount {
-            createDefaultAccount()
+            appState.resetOnboarding()
         } else if wasSelected {
             // Select the first remaining account
             if let firstAccount = accounts.first(where: { $0.id != account.id }) {
@@ -208,40 +208,8 @@ struct EraseDataView: View {
             print("Error erasing all data: \(error)")
         }
 
-        // Create default account
-        createDefaultAccount()
-    }
-
-    private func createDefaultAccount() {
-        let account = Account(name: "Account Principale", currency: "EUR")
-        modelContext.insert(account)
-
-        // Create default categories
-        createDefaultCategories(for: account)
-
-        // Create a default checking account
-        let checkingAccount = Conto(
-            name: "Conto Corrente",
-            type: .checking,
-            initialBalance: 0
-        )
-        checkingAccount.account = account
-        modelContext.insert(checkingAccount)
-
-        do {
-            try modelContext.save()
-            appState.selectAccount(account)
-        } catch {
-            print("Error creating default account: \(error)")
-        }
-    }
-
-    private func createDefaultCategories(for account: Account) {
-        for (name, color, icon) in Category.defaultCategories {
-            let category = Category(name: name, color: color, icon: icon)
-            category.account = account
-            modelContext.insert(category)
-        }
+        // Reset onboarding so user sees setup again
+        appState.resetOnboarding()
     }
 }
 
