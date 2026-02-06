@@ -122,6 +122,18 @@ public enum CSVDateFormat: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String { rawValue }
 
+    /// Preferred fallback order: EU formats first (Italian app), then ISO, then US
+    public static let fallbackOrder: [CSVDateFormat] = [
+        // European (most likely for Italian users)
+        .euSlashDateOnly, .euDashDateOnly, .euSlash, .euDash, .euDot, .euSlashShort,
+        // ISO 8601
+        .iso8601DateOnly, .iso8601, .iso8601Z, .iso8601Offset,
+        // US
+        .usSlashDateOnly, .usSlash, .usDash, .usDot, .usSlashShort,
+        // Text / other
+        .longWeekday, .shortWeekday, .monthYear, .shortMonth, .rfc2822,
+    ]
+
     public var example: String {
         let formatter = DateFormatter()
         formatter.dateFormat = rawValue
@@ -224,7 +236,7 @@ public struct CSVImportOptions: Sendable {
     public var accountFilter: CSVAccountFilter
 
     public init(
-        dateFormat: CSVDateFormat = .iso8601Offset,
+        dateFormat: CSVDateFormat = .euSlashDateOnly,
         ignoreZeroAmounts: Bool = false,
         ignoreDuplicates: Bool = true,
         createMissingCategories: Bool = true,

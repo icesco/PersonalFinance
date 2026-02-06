@@ -26,6 +26,9 @@ struct TransactionListView: View {
     @State private var showingRecurring = false
     @State private var showingCategoryFilter = false
     @State private var showingTransferSheet = false
+    @State private var selectedTimeframe: TransactionTimeframe = .month
+    @State private var showSummaryDetail = false
+    @State private var isSearching = false
 
     // Fetched data
     @State private var transactions: [FinanceTransaction] = []
@@ -55,13 +58,13 @@ struct TransactionListView: View {
     }
 
     // Monthly totals (calculated from fetched transactions)
-    private var monthlyIncome: Decimal {
+    private var periodIncome: Decimal {
         transactions
             .filter { $0.type == .income }
             .reduce(0) { $0 + ($1.amount ?? 0) }
     }
 
-    private var monthlyExpenses: Decimal {
+    private var periodExpenses: Decimal {
         transactions
             .filter { $0.type == .expense }
             .reduce(0) { $0 + ($1.amount ?? 0) }
@@ -77,10 +80,7 @@ struct TransactionListView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                monthSelectorHeader
-                filtersBar
-
+            VStack {
                 if isLoading && transactions.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -92,11 +92,19 @@ struct TransactionListView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(navigationTitle)
-            .searchable(text: $searchText, prompt: "Cerca...")
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .searchable(text: $searchText, isPresented: $isSearching, prompt: "Cerca...")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     toolbarMenu
                 }
+            }
+            .safeAreaBar(edge: horizontalSizeClass == .compact ? .bottom : .top) {
+                VStack(spacing: 0) {
+                    compactPeriodHeader
+                    unifiedFiltersBar
+                }
+                .padding(.bottom, horizontalSizeClass == .compact ? 8 : 0)
             }
             .sheet(isPresented: $showingRecurring) {
                 RecurringTransactionsSheet(
@@ -120,6 +128,7 @@ struct TransactionListView: View {
                 fetchTransactions()
             }
             .onChange(of: selectedMonth) { _, _ in resetAndFetch() }
+            .onChange(of: selectedTimeframe) { _, _ in resetAndFetch() }
             .onChange(of: selectedType) { _, _ in resetAndFetch() }
             .onChange(of: selectedConto) { _, _ in resetAndFetch() }
             .onChange(of: selectedCategories) { _, _ in resetAndFetch() }
@@ -142,6 +151,15 @@ struct TransactionListView: View {
 
     private var toolbarMenu: some View {
         Menu {
+            Button {
+                withAnimation { showSummaryDetail.toggle() }
+            } label: {
+                Label(
+                    showSummaryDetail ? "Nascondi dettagli" : "Mostra dettagli",
+                    systemImage: showSummaryDetail ? "eye.slash" : "eye"
+                )
+            }
+
             Button {
                 showingRecurring = true
             } label: {
@@ -180,142 +198,332 @@ struct TransactionListView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis")
         }
     }
 
-    // MARK: - Month Selector Header
+    // MARK: - Compact Period Header
 
-    private var monthSelectorHeader: some View {
-        VStack(spacing: 12) {
-            HStack {
+    private var isAtCurrentPeriod: Bool {
+        let granularity: Calendar.Component = selectedTimeframe == .month ? .month : .year
+        return Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: granularity)
+    }
+
+    private var periodBalance: Decimal {
+        periodIncome - periodExpenses
+    }
+
+    private var balanceExplanation: String {
+        let hasFuture = transactions.contains { $0.date > Date() }
+        if selectedTimeframe == .month {
+            return hasFuture
+                ? "Bilancio previsto a fine mese, incluse transazioni future"
+                : "Bilancio del mese"
+        } else {
+            return hasFuture
+                ? "Bilancio previsto per l'anno, incluse transazioni future"
+                : "Bilancio dell'anno"
+        }
+    }
+
+    private var compactPeriodHeader: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                // Back chevron
                 Button {
+                    let component: Calendar.Component = selectedTimeframe == .month ? .month : .year
                     withAnimation {
-                        selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+                        selectedMonth = Calendar.current.date(byAdding: component, value: -1, to: selectedMonth) ?? selectedMonth
                     }
                 } label: {
-                    Image(systemName: "chevron.left").font(.title3)
+                    Image(systemName: "chevron.left")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 32, height: 32)
+                }
+                .glassEffect(.regular.interactive(), in: .circle)
+
+                // Timeframe menu (M/A)
+                Menu {
+                    ForEach(TransactionTimeframe.allCases, id: \.self) { timeframe in
+                        Button {
+                            withAnimation { selectedTimeframe = timeframe }
+                        } label: {
+                            HStack {
+                                Text(timeframe.displayName)
+                                if selectedTimeframe == timeframe {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Text(selectedTimeframe == .month ? "M" : "A")
+                        .font(.subheadline.weight(.bold))
+                        .frame(width: 32, height: 32)
+                }
+                .glassEffect(.regular.interactive(), in: .circle)
+
+                Spacer()
+
+                // Period label
+                if selectedTimeframe == .month {
+                    Text(selectedMonth, format: .dateTime.month(.wide).year())
+                        .font(.subheadline.weight(.semibold))
+                } else {
+                    Text(selectedMonth, format: .dateTime.year())
+                        .font(.subheadline.weight(.semibold))
                 }
 
                 Spacer()
 
-                Text(selectedMonth, format: .dateTime.month(.wide).year())
-                    .font(.title3)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
+                // Balance capsule (tap to show detail)
                 Button {
+                    withAnimation { showSummaryDetail.toggle() }
+                } label: {
+                    Text((periodBalance >= 0 ? "+" : "") + periodBalance.currencyFormatted)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(periodBalance >= 0 ? Color.green : Color.red)
+                        .clipShape(Capsule())
+                }
+
+                // Forward chevron
+                Button {
+                    let component: Calendar.Component = selectedTimeframe == .month ? .month : .year
                     withAnimation {
-                        selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+                        selectedMonth = Calendar.current.date(byAdding: component, value: 1, to: selectedMonth) ?? selectedMonth
                     }
                 } label: {
-                    Image(systemName: "chevron.right").font(.title3)
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 32, height: 32)
                 }
-                .disabled(Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: .month))
+                .glassEffect(.regular.interactive(), in: .circle)
+                .disabled(isAtCurrentPeriod)
+                .opacity(isAtCurrentPeriod ? 0.4 : 1)
             }
             .padding(.horizontal)
 
-            HStack(spacing: 24) {
-                VStack(spacing: 4) {
-                    Text("Entrate").font(.caption).foregroundStyle(.secondary)
-                    Text("+\(monthlyIncome.currencyFormatted)")
-                        .font(.subheadline).fontWeight(.semibold).foregroundStyle(.green)
+            // Expandable summary detail row
+            if showSummaryDetail {
+                VStack(spacing: 6) {
+                    HStack(spacing: 16) {
+                        Label("+\(periodIncome.currencyFormatted)", systemImage: "arrow.down.circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.green)
+                        Label("-\(periodExpenses.currencyFormatted)", systemImage: "arrow.up.circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.red)
+                    }
+                    Text(balanceExplanation)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-
-                Divider().frame(height: 30)
-
-                VStack(spacing: 4) {
-                    Text("Uscite").font(.caption).foregroundStyle(.secondary)
-                    Text("-\(monthlyExpenses.currencyFormatted)")
-                        .font(.subheadline).fontWeight(.semibold).foregroundStyle(.red)
-                }
-
-                Divider().frame(height: 30)
-
-                VStack(spacing: 4) {
-                    Text("Bilancio").font(.caption).foregroundStyle(.secondary)
-                    let balance = monthlyIncome - monthlyExpenses
-                    Text(balance.currencyFormatted)
-                        .font(.subheadline).fontWeight(.semibold)
-                        .foregroundStyle(balance >= 0 ? .green : .red)
-                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 16)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
+        .padding(.vertical, 10)
     }
 
-    // MARK: - Filters Bar
+    // MARK: - Unified Filters Bar
 
-    private var filtersBar: some View {
-        VStack(spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
-                        FilterChip(title: type.displayName, isSelected: selectedType == type) {
-                            withAnimation { selectedType = type }
-                        }
+    private var unifiedFiltersBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                // Type filters
+                ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
+                    FilterChip(title: type.displayNameShort, isSelected: selectedType == type) {
+                        withAnimation { selectedType = type }
                     }
                 }
-                .padding(.horizontal)
-            }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    FilterChip(title: "Tutti i conti", isSelected: selectedConto == nil) {
-                        withAnimation { selectedConto = nil }
-                    }
+                Divider().frame(height: 24).padding(.horizontal, 2)
 
-                    ForEach(availableConti, id: \.id) { conto in
-                        FilterChip(
-                            title: conto.name ?? "Conto",
-                            icon: conto.type?.icon,
-                            isSelected: selectedConto?.id == conto.id
-                        ) {
-                            withAnimation { selectedConto = conto }
-                        }
-                    }
-
-                    Divider().frame(height: 24)
-
-                    categoryFilterButton
+                // Conto filters
+                FilterChip(title: "Tutti", isSelected: selectedConto == nil) {
+                    withAnimation { selectedConto = nil }
                 }
-                .padding(.horizontal)
+
+                ForEach(availableConti, id: \.id) { conto in
+                    FilterChip(
+                        title: conto.name ?? "Conto",
+                        icon: conto.type?.icon,
+                        isSelected: selectedConto?.id == conto.id
+                    ) {
+                        withAnimation { selectedConto = conto }
+                    }
+                }
+
+                Divider().frame(height: 24).padding(.horizontal, 2)
+
+                // Category filter
+                categoryFilterButton
             }
+            .padding(.horizontal)
         }
-        .padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .padding(.vertical, 6)
     }
 
     private var categoryFilterButton: some View {
         Button { showingCategoryFilter = true } label: {
             HStack(spacing: 4) {
                 Image(systemName: "tag").font(.caption)
-                Text(selectedCategories.isEmpty ? "Categorie" : "\(selectedCategories.count) categorie")
+                Text(selectedCategories.isEmpty ? "Cat." : "\(selectedCategories.count)")
                 Image(systemName: "chevron.down").font(.caption2)
             }
             .font(.subheadline)
             .fontWeight(selectedCategories.isEmpty ? .regular : .semibold)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .background(selectedCategories.isEmpty ? Color(.systemGray5) : Color.accentColor)
             .foregroundColor(selectedCategories.isEmpty ? .primary : .white)
             .clipShape(Capsule())
         }
     }
 
+    // MARK: - Sectioning Logic
+
+    private var sectionedTransactions: [TransactionSection] {
+        if selectedTimeframe == .year {
+            return buildYearSections()
+        } else {
+            return buildMonthSections()
+        }
+    }
+
+    private func buildMonthSections() -> [TransactionSection] {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
+        let isCurrentMonth = calendar.isDate(selectedMonth, equalTo: now, toGranularity: .month)
+        let isFutureMonth = startOfMonth > now
+
+        if isCurrentMonth {
+            let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now)!)
+            let upcoming = transactions.filter { $0.date >= startOfTomorrow }.sorted { $0.date < $1.date }
+            let past = transactions.filter { $0.date < startOfTomorrow }.sorted { $0.date > $1.date }
+
+            var sections: [TransactionSection] = []
+            if !upcoming.isEmpty {
+                sections.append(TransactionSection(id: "upcoming", title: "In Arrivo", transactions: upcoming, isUpcoming: true))
+            }
+            if !past.isEmpty {
+                sections.append(TransactionSection(id: "past", title: "Passate", transactions: past, isUpcoming: false))
+            }
+            return sections
+        } else if isFutureMonth {
+            return [TransactionSection(id: "upcoming", title: "In Arrivo", transactions: transactions.sorted { $0.date < $1.date }, isUpcoming: true)]
+        } else {
+            return [TransactionSection(id: "past", title: "Passate", transactions: transactions.sorted { $0.date > $1.date }, isUpcoming: false)]
+        }
+    }
+
+    private func buildYearSections() -> [TransactionSection] {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now)!)
+
+        // Group by (year, month)
+        let grouped = Dictionary(grouping: transactions) { transaction in
+            let comps = calendar.dateComponents([.year, .month], from: transaction.date)
+            return comps
+        }
+
+        // Sort month groups newest-first
+        let sortedKeys = grouped.keys.sorted { a, b in
+            let dateA = calendar.date(from: a)!
+            let dateB = calendar.date(from: b)!
+            return dateA > dateB
+        }
+
+        let monthFormatter: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "it_IT")
+            f.dateFormat = "MMMM yyyy"
+            return f
+        }()
+
+        var sections: [TransactionSection] = []
+
+        for key in sortedKeys {
+            guard let monthTransactions = grouped[key] else { continue }
+            let monthDate = calendar.date(from: key)!
+            let monthName = monthFormatter.string(from: monthDate).localizedCapitalized
+            let isCurrentMonth = calendar.isDate(monthDate, equalTo: now, toGranularity: .month)
+            let isFutureMonth = monthDate > now && !isCurrentMonth
+
+            if isCurrentMonth {
+                let upcoming = monthTransactions.filter { $0.date >= startOfTomorrow }.sorted { $0.date < $1.date }
+                let past = monthTransactions.filter { $0.date < startOfTomorrow }.sorted { $0.date > $1.date }
+
+                if !upcoming.isEmpty {
+                    sections.append(TransactionSection(
+                        id: "upcoming-\(key.year!)-\(key.month!)",
+                        title: "\(monthName) \u{00B7} In Arrivo",
+                        transactions: upcoming,
+                        isUpcoming: true
+                    ))
+                }
+                if !past.isEmpty {
+                    sections.append(TransactionSection(
+                        id: "past-\(key.year!)-\(key.month!)",
+                        title: "\(monthName) \u{00B7} Passate",
+                        transactions: past,
+                        isUpcoming: false
+                    ))
+                }
+            } else if isFutureMonth {
+                sections.append(TransactionSection(
+                    id: "upcoming-\(key.year!)-\(key.month!)",
+                    title: "\(monthName) \u{00B7} In Arrivo",
+                    transactions: monthTransactions.sorted { $0.date < $1.date },
+                    isUpcoming: true
+                ))
+            } else {
+                sections.append(TransactionSection(
+                    id: "past-\(key.year!)-\(key.month!)",
+                    title: monthName,
+                    transactions: monthTransactions.sorted { $0.date > $1.date },
+                    isUpcoming: false
+                ))
+            }
+        }
+
+        return sections
+    }
+
     // MARK: - Transaction List
 
     private var transactionList: some View {
         List {
-            ForEach(transactions, id: \.id) { transaction in
-                TransactionCell(transaction: transaction, showConto: showContoInCell)
-                    .swipeActions(edge: .trailing) {
-                        Button("Elimina", role: .destructive) {
-                            deleteTransaction(transaction)
-                        }
+            ForEach(sectionedTransactions) { section in
+                Section {
+                    ForEach(section.transactions, id: \.id) { transaction in
+                        TransactionCell(transaction: transaction, showConto: showContoInCell)
+                            .swipeActions(edge: .trailing) {
+                                Button("Elimina", role: .destructive) {
+                                    deleteTransaction(transaction)
+                                }
+                            }
                     }
+                } header: {
+                    HStack(spacing: 6) {
+                        if section.isUpcoming {
+                            Image(systemName: "clock")
+                                .font(.caption)
+                        }
+                        Text(section.title)
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(section.isUpcoming ? .blue : .secondary)
+                }
             }
 
             if hasMoreTransactions {
@@ -356,7 +564,9 @@ struct TransactionListView: View {
             } else if selectedConto != nil {
                 Text("Nessuna transazione per questo conto")
             } else {
-                Text("Nessuna transazione per questo mese")
+                Text(selectedTimeframe == .year
+                     ? "Nessuna transazione per questo anno"
+                     : "Nessuna transazione per questo mese")
             }
         } actions: {
             VStack(spacing: 12) {
@@ -385,8 +595,18 @@ struct TransactionListView: View {
         isLoading = true
 
         let calendar = Calendar.current
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+        let periodStart: Date
+        let periodEnd: Date
+
+        if selectedTimeframe == .year {
+            let yearStart = calendar.date(from: calendar.dateComponents([.year], from: selectedMonth))!
+            periodStart = yearStart
+            periodEnd = calendar.date(byAdding: .year, value: 1, to: yearStart)!
+        } else {
+            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
+            periodStart = startOfMonth
+            periodEnd = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+        }
 
         // Get conto IDs to filter
         let contoIDs: Set<UUID>
@@ -403,7 +623,7 @@ struct TransactionListView: View {
 
         // Base predicate: date range (date is non-optional now)
         descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= startOfMonth && transaction.date < endOfMonth
+            transaction.date >= periodStart && transaction.date < periodEnd
         }
 
         descriptor.fetchLimit = currentLimit
@@ -471,7 +691,7 @@ struct TransactionListView: View {
     }
 
     private func resetAndFetch() {
-        currentLimit = pageSize
+        currentLimit = selectedTimeframe == .year ? pageSize * 4 : pageSize
         fetchTransactions()
     }
 
@@ -655,8 +875,8 @@ struct FilterChip: View {
                 Text(title).font(.subheadline)
             }
             .fontWeight(isSelected ? .semibold : .regular)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .background(isSelected ? Color.accentColor : Color(.systemGray5))
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(Capsule())
@@ -774,6 +994,37 @@ enum TransactionTypeFilter: CaseIterable {
         case .transfer: return "Trasferimenti"
         }
     }
+
+    var displayNameShort: String {
+        switch self {
+        case .all: return "Tutte"
+        case .income: return "Ent."
+        case .expense: return "Usc."
+        case .transfer: return "Trasf."
+        }
+    }
+}
+
+// MARK: - Transaction Timeframe
+
+enum TransactionTimeframe: String, CaseIterable {
+    case month, year
+
+    var displayName: String {
+        switch self {
+        case .month: return "Mese"
+        case .year: return "Anno"
+        }
+    }
+}
+
+// MARK: - Transaction Section
+
+private struct TransactionSection: Identifiable {
+    let id: String
+    let title: String
+    let transactions: [FinanceTransaction]
+    let isUpcoming: Bool
 }
 
 // MARK: - Preview

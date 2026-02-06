@@ -16,11 +16,15 @@ struct SettingsView: View {
 
     // MARK: - State
     @State private var showingAddConto = false
+    @State private var showingAddAccount = false
     @State private var showingCSVImport = false
     @State private var showingCSVExport = false
     @State private var showingDemoAlert = false
     @State private var isGeneratingDemo = false
     @State private var showingDemoSuccess = false
+
+    // MARK: - Queries
+    @Query(sort: \Account.name) private var allAccounts: [Account]
 
     // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
@@ -35,6 +39,9 @@ struct SettingsView: View {
             List {
                 // Personalizzazione section
                 appearanceSection
+
+                // Libri contabili section
+                libriContabiliSection
 
                 // Conti section
                 contiSection
@@ -54,6 +61,11 @@ struct SettingsView: View {
             .navigationTitle("Impostazioni")
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
+            }
+            .sheet(isPresented: $showingAddAccount) {
+                CreateAccountView { newAccount in
+                    appState.selectAccount(newAccount)
+                }
             }
             .sheet(isPresented: $showingCSVImport) {
                 CSVImportView()
@@ -217,6 +229,56 @@ struct SettingsView: View {
             Text("Personalizzazione")
         } footer: {
             Text("Personalizza l'aspetto e il livello di dettaglio dell'app")
+        }
+    }
+
+    // MARK: - Libri Contabili Section
+
+    private var libriContabiliSection: some View {
+        Section {
+            ForEach(allAccounts, id: \.id) { acc in
+                libroRow(acc)
+            }
+
+            Button {
+                showingAddAccount = true
+            } label: {
+                Label("Nuovo Libro Contabile", systemImage: "plus.circle.fill")
+            }
+        } header: {
+            Text("Libri Contabili")
+        } footer: {
+            Text("Ogni libro contabile raggruppa i conti correlati (es. Personale, Famiglia, Lavoro)")
+        }
+    }
+
+    private func libroRow(_ acc: Account) -> some View {
+        let isCurrent = acc.id == account?.id
+        return Button {
+            appState.selectAccount(acc)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "book.closed")
+                    .font(.title3)
+                    .frame(width: 32)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(acc.name ?? "Libro")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text(acc.currency ?? "EUR")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isCurrent {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .foregroundStyle(.primary)
         }
     }
 

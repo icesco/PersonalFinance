@@ -187,13 +187,24 @@ actor CSVService {
                         transaction.setToConto(conto)
                     }
                 case .transfer:
-                    if let sourceConto = findSourceConto(row: row, mapping: mappingDict, existingConti: existingConti) {
+                    let sourceConto = findSourceConto(row: row, mapping: mappingDict, existingConti: existingConti)
+                    let targetConto = findTargetConto(row: row, mapping: mappingDict, existingConti: existingConti)
+
+                    if let sourceConto {
                         transaction.setFromConto(sourceConto)
                     }
-                    if let targetConto = findTargetConto(row: row, mapping: mappingDict, existingConti: existingConti) {
+                    if let targetConto {
                         transaction.setToConto(targetConto)
-                    } else if let conto = conto {
-                        transaction.setToConto(conto)
+                    }
+
+                    // When neither source nor target account is explicitly mapped,
+                    // use the original amount sign to determine direction
+                    if sourceConto == nil && targetConto == nil, let conto = conto {
+                        if amount < 0 {
+                            transaction.setFromConto(conto) // Money leaving → outgoing
+                        } else {
+                            transaction.setToConto(conto)   // Money arriving → incoming
+                        }
                     }
                 }
 

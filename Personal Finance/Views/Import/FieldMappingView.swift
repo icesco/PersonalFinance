@@ -27,8 +27,13 @@ struct FieldMappingView: View {
     @State private var previewRows: [CSVPreviewRow] = []
     @State private var importProgress: Double = 0
     @State private var importedRowCount: Int = 0
+    @State private var importTotalRowCount: Int = 0
 
     private let csvService = CSVService()
+
+    private var availableConti: [Conto] {
+        appState.selectedAccount?.activeConti ?? []
+    }
 
     private var isMappingValid: Bool {
         let validationErrors = mappings.filter { $0.field.isRequired && !$0.isAssigned }
@@ -58,6 +63,7 @@ struct FieldMappingView: View {
 
             dateFormatSection
 
+            contoSelectionSection
             optionsSection
 
             previewSection
@@ -82,13 +88,6 @@ struct FieldMappingView: View {
         }
         .sheet(isPresented: $showingDateFormatPicker) {
             DateFormatPickerView(selection: $options.dateFormat)
-        }
-        .sheet(isPresented: $showingPreview) {
-            ImportPreviewView(
-                previewRows: previewRows,
-                totalRows: parseResult.rowCount,
-                onConfirm: performImport
-            )
         }
         .alert("Import completato", isPresented: $showingImportResult) {
             Button("OK") {
@@ -125,7 +124,7 @@ struct FieldMappingView: View {
                     Text("Importazione in corso...")
                         .font(.headline)
 
-                    Text("\(importedRowCount) di \(parseResult.rowCount) righe")
+                    Text("\(importedRowCount) di \(importTotalRowCount) righe")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
 
@@ -199,6 +198,25 @@ struct FieldMappingView: View {
         }
     }
 
+    private var contoSelectionSection: some View {
+        Section {
+            Picker("Importa in", selection: $options.defaultContoId) {
+                Text("Automatico").tag(nil as UUID?)
+                ForEach(availableConti, id: \.id) { conto in
+                    HStack {
+                        Image(systemName: conto.type?.icon ?? "creditcard")
+                        Text(conto.name ?? "Conto")
+                    }
+                    .tag(conto.id as UUID?)
+                }
+            }
+        } header: {
+            Text("Conto di destinazione")
+        } footer: {
+            Text("Seleziona il conto in cui importare le transazioni")
+        }
+    }
+
     private var optionsSection: some View {
         Section("Opzioni") {
             Toggle(isOn: $options.ignoreZeroAmounts) {
@@ -235,25 +253,88 @@ struct FieldMappingView: View {
 
     private var previewSection: some View {
         Section {
-            Button {
-                generatePreview()
-            } label: {
-                HStack {
-                    Image(systemName: "eye")
-                        .foregroundColor(.accentColor)
-                        .frame(width: 24)
+            if isMappingValid {
+                let preview = CSVParser.generatePreview(
+                    from: parseResult,
+                    mapping: mappings,
+                    options: options,
+                    maxRows: 5
+                )
+                if preview.isEmpty {
+                    Text("Nessuna riga da mostrare")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(preview) { row in
+                        inlinePreviewRow(row)
+                    }
+                }
+            } else {
+                Text("Completa la mappatura dei campi obbligatori per vedere l'anteprima")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Anteprima (\(parseResult.rowCount) righe)")
+        } footer: {
+            if isMappingValid {
+                Text("Prime 5 righe. Verifica che importi e tipi siano corretti.")
+            }
+        }
+    }
 
-                    Text("Anteprima importazione")
+    private func inlinePreviewRow(_ row: CSVPreviewRow) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                if let desc = row.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                } else {
+                    Text("Riga \(row.rowNumber)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
 
-                    Spacer()
+                Spacer()
 
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
+                if let amount = row.amount {
+                    Text(amount >= 0 ? "+\(amount)" : "\(amount)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(amount >= 0 ? .green : .red)
                 }
             }
-            .disabled(!isMappingValid)
+
+            HStack(spacing: 8) {
+                if let date = row.date {
+                    Text(date, format: .dateTime.day().month(.abbreviated).year())
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let type = row.type {
+                    Text(type)
+                        .font(.caption2.weight(.medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+
+                if let category = row.category, !category.isEmpty {
+                    Text(category)
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+
+                if row.hasError, let error = row.errorMessage {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
         }
+        .padding(.vertical, 2)
     }
 
     // MARK: - Helper Methods
@@ -282,15 +363,6 @@ struct FieldMappingView: View {
         }
     }
 
-    private func generatePreview() {
-        let preview = CSVParser.generatePreview(
-            from: parseResult,
-            mapping: mappings,
-            options: options
-        )
-        previewRows = preview
-        showingPreview = true
-    }
 
     private func performImport() {
         guard let account = appState.selectedAccount else { return }
@@ -310,6 +382,7 @@ struct FieldMappingView: View {
                     progressCallback: { current, total in
                         Task { @MainActor in
                             importedRowCount = current
+                            importTotalRowCount = total
                             importProgress = Double(current) / Double(total)
                         }
                     }

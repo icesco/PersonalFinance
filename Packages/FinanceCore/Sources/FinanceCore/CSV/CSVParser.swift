@@ -11,6 +11,39 @@ public struct CSVParser: Sendable {
 
     // MARK: - Parsing
 
+    /// Detects the delimiter used in a CSV by counting occurrences of common delimiters in the first line.
+    public static func detectDelimiter(in content: String) -> Character {
+        guard let firstLine = content.components(separatedBy: .newlines).first(where: { !$0.isEmpty }) else {
+            return ","
+        }
+
+        // Count delimiters outside of quoted strings
+        var commaCount = 0
+        var semicolonCount = 0
+        var tabCount = 0
+        var inQuotes = false
+
+        for char in firstLine {
+            if char == "\"" {
+                inQuotes.toggle()
+            } else if !inQuotes {
+                switch char {
+                case ",": commaCount += 1
+                case ";": semicolonCount += 1
+                case "\t": tabCount += 1
+                default: break
+                }
+            }
+        }
+
+        if semicolonCount > commaCount && semicolonCount >= tabCount {
+            return ";"
+        } else if tabCount > commaCount && tabCount > semicolonCount {
+            return "\t"
+        }
+        return ","
+    }
+
     public static func parseCSVContent(_ content: String, options: CSVImportOptions = CSVImportOptions()) -> CSVParseResult {
         let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
 
@@ -18,7 +51,13 @@ public struct CSVParser: Sendable {
             return CSVParseResult(headers: [], rows: [])
         }
 
-        let delimiter = String(options.delimiter)
+        // Auto-detect delimiter if using the default comma
+        let delimiter: String
+        if options.delimiter == "," {
+            delimiter = String(detectDelimiter(in: content))
+        } else {
+            delimiter = String(options.delimiter)
+        }
 
         let headers: [String]
         let dataLines: [String]
@@ -189,7 +228,8 @@ public struct CSVParser: Sendable {
             return date
         }
 
-        for otherFormat in CSVDateFormat.allCases where otherFormat != format {
+        // Fallback: try EU formats first (Italian app), then ISO, then US
+        for otherFormat in CSVDateFormat.fallbackOrder where otherFormat != format {
             if let date = otherFormat.parse(string) {
                 return date
             }
@@ -200,6 +240,12 @@ public struct CSVParser: Sendable {
 
     // MARK: - Transaction Type Detection
 
+    /// Standard type values recognized in a dedicated "Type" column.
+    /// Only exact matches (case-insensitive) — no locale-specific guessing.
+    private static let incomeValues: Set<String> = ["income", "entrata"]
+    private static let expenseValues: Set<String> = ["expense", "spesa"]
+    private static let transferValues: Set<String> = ["transfer", "trasferimento"]
+
     public static func determineTransactionType(
         row: [String],
         amount: Decimal,
@@ -209,15 +255,18 @@ public struct CSVParser: Sendable {
         if let typeMapping = mapping[.transactionType],
            let typeIndex = typeMapping.csvColumnIndex,
            typeIndex < row.count {
-            let typeString = row[typeIndex].lowercased()
+            let typeString = row[typeIndex]
+                .trimmingCharacters(in: .whitespaces)
+                .lowercased()
 
-            if typeString.contains("entrata") || typeString.contains("income") || typeString.contains("ricavo") {
+            if incomeValues.contains(typeString) {
                 return .income
-            } else if typeString.contains("trasferimento") || typeString.contains("transfer") || typeString.contains("giroconto") {
-                return .transfer
-            } else if typeString.contains("spesa") || typeString.contains("expense") || typeString.contains("uscita") {
+            } else if expenseValues.contains(typeString) {
                 return .expense
+            } else if transferValues.contains(typeString) {
+                return .transfer
             }
+            // Unknown value in type column → fall through to sign-based detection
         }
 
         // Check if both source and target accounts are specified (indicates transfer)

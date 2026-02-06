@@ -938,3 +938,146 @@ struct BankCSVPreviewTests {
         #expect(preview[0].description?.contains("BIANCO FRANCESCO") == true)
     }
 }
+
+// MARK: - Bank CSV: Transaction Type Detection
+
+struct BankCSVTransactionTypeTests {
+
+    @Test func bankCSV_salariesShouldBeIncome_withAutoDetection() throws {
+        let result = try parseBankCSV()
+        let mappings = CSVParser.detectColumnMapping(headers: result.headers)
+        let mappingDict = Dictionary(uniqueKeysWithValues: mappings.map { ($0.field, $0) })
+
+        // transactionType should NOT be mapped by auto-detection
+        #expect(mappingDict[.transactionType]?.isAssigned == false)
+
+        let salaryRows = result.rows.filter { $0[2] == "ACCREDITO EMOLUMENTI" }
+        #expect(salaryRows.count == 13)
+
+        for row in salaryRows {
+            let amount = CSVParser.parseAmount(row[4])!
+            let type = CSVParser.determineTransactionType(row: row, amount: amount, mapping: mappingDict)
+            #expect(type == .income, "Salary with amount \(amount) should be .income, got \(type)")
+        }
+    }
+
+    @Test func bankCSV_outgoingGirocontiShouldBeExpense_withAutoDetection() throws {
+        let result = try parseBankCSV()
+        let mappings = CSVParser.detectColumnMapping(headers: result.headers)
+        let mappingDict = Dictionary(uniqueKeysWithValues: mappings.map { ($0.field, $0) })
+
+        let girocontoRows = result.rows.filter { $0[2] == "GIROCONTO/BONIFICO" }
+
+        for row in girocontoRows {
+            let amount = CSVParser.parseAmount(row[4])!
+            let type = CSVParser.determineTransactionType(row: row, amount: amount, mapping: mappingDict)
+
+            if amount < 0 {
+                // Outgoing giroconti should be expenses (not transfers)
+                #expect(type == .expense, "Outgoing giroconto \(amount) should be .expense, got \(type)")
+            } else {
+                // Incoming giroconti (e.g. Satispay credits) should be income
+                #expect(type == .income, "Incoming giroconto \(amount) should be .income, got \(type)")
+            }
+        }
+    }
+
+    @Test func bankCSV_whenCausaleMappedToType_girocontiFallToSignDetection() throws {
+        let result = try parseBankCSV()
+        var mappings = CSVParser.detectColumnMapping(headers: result.headers)
+
+        // Simulate user mapping Causale (index 2) to transactionType
+        if let idx = mappings.firstIndex(where: { $0.field == .transactionType }) {
+            mappings[idx] = FieldMapping(field: .transactionType, csvColumnIndex: 2, csvColumnName: "Causale")
+        }
+        let mappingDict = Dictionary(uniqueKeysWithValues: mappings.map { ($0.field, $0) })
+
+        let girocontoRows = result.rows.filter { $0[2] == "GIROCONTO/BONIFICO" }
+
+        for row in girocontoRows {
+            let amount = CSVParser.parseAmount(row[4])!
+            let type = CSVParser.determineTransactionType(row: row, amount: amount, mapping: mappingDict)
+            // "GIROCONTO/BONIFICO" is not a standard type value → falls to sign detection
+            if amount < 0 {
+                #expect(type == .expense, "Negative giroconto should be .expense, got \(type)")
+            } else {
+                #expect(type == .income, "Positive giroconto should be .income, got \(type)")
+            }
+        }
+    }
+
+    @Test func bankCSV_whenCausaleMappedToType_salariesShouldStillBeIncome() throws {
+        let result = try parseBankCSV()
+        var mappings = CSVParser.detectColumnMapping(headers: result.headers)
+
+        // Simulate user mapping Causale (index 2) to transactionType
+        if let idx = mappings.firstIndex(where: { $0.field == .transactionType }) {
+            mappings[idx] = FieldMapping(field: .transactionType, csvColumnIndex: 2, csvColumnName: "Causale")
+        }
+        let mappingDict = Dictionary(uniqueKeysWithValues: mappings.map { ($0.field, $0) })
+
+        let salaryRows = result.rows.filter { $0[2] == "ACCREDITO EMOLUMENTI" }
+
+        for row in salaryRows {
+            let amount = CSVParser.parseAmount(row[4])!
+            let type = CSVParser.determineTransactionType(row: row, amount: amount, mapping: mappingDict)
+            // "ACCREDITO EMOLUMENTI" doesn't match any keyword, falls to sign check
+            #expect(type == .income, "Salary should be .income even with Causale mapped, got \(type)")
+        }
+    }
+
+    // MARK: - Date Format Fallback (EU-first order)
+
+    @Test func bankCSV_dateFallback_shouldPreferEUFormat() throws {
+        // After fix: fallback order tries EU formats before US.
+        // So dd/MM/yyyy is tried before MM/dd/yyyy for ambiguous dates.
+        let result = try parseBankCSV()
+        let salaryRows = result.rows.filter { $0[2] == "ACCREDITO EMOLUMENTI" }
+
+        let calendar = Calendar.current
+
+        for row in salaryRows {
+            let dateStr = row[0]
+            // Parse with a non-matching format (triggers fallback)
+            let fallbackDate = CSVParser.parseDate(dateStr, format: .iso8601Offset)
+            // Parse with correct EU format directly
+            let correctDate = CSVParser.parseDate(dateStr, format: .euSlashDateOnly)
+
+            guard let fb = fallbackDate, let correct = correctDate else {
+                Issue.record("Failed to parse date: \(dateStr)")
+                continue
+            }
+
+            let fbMonth = calendar.component(.month, from: fb)
+            let correctMonth = calendar.component(.month, from: correct)
+
+            #expect(fbMonth == correctMonth, "Date \(dateStr): fallback month \(fbMonth) should equal EU month \(correctMonth)")
+        }
+    }
+
+    @Test func bankCSV_defaultOptionsNowUseEUDateFormat() throws {
+        let options = CSVImportOptions()
+        #expect(options.dateFormat == .euSlashDateOnly)
+    }
+
+    @Test func bankCSV_unknownCausale_fallsBackToAmountSign() throws {
+        let result = try parseBankCSV()
+        var mappings = CSVParser.detectColumnMapping(headers: result.headers)
+
+        // Map Causale to transactionType
+        if let idx = mappings.firstIndex(where: { $0.field == .transactionType }) {
+            mappings[idx] = FieldMapping(field: .transactionType, csvColumnIndex: 2, csvColumnName: "Causale")
+        }
+        let mappingDict = Dictionary(uniqueKeysWithValues: mappings.map { ($0.field, $0) })
+
+        // "ACCREDITO EMOLUMENTI" doesn't match any keyword → falls to sign check
+        let salaryRows = result.rows.filter { $0[2] == "ACCREDITO EMOLUMENTI" }
+
+        for row in salaryRows {
+            let amount = CSVParser.parseAmount(row[4])!
+            let type = CSVParser.determineTransactionType(row: row, amount: amount, mapping: mappingDict)
+            // Positive amount → .income via sign fallback
+            #expect(type == .income, "Positive salary should be .income via sign fallback, got \(type)")
+        }
+    }
+}
