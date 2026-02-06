@@ -129,12 +129,26 @@ struct DashboardView: View {
                 return false
             }
 
+            // Calculate income: only count if toConto is in the filtered set
             monthlyIncome = filtered
-                .filter { $0.type == .income }
+                .filter { transaction in
+                    guard transaction.type == .income else { return false }
+                    if let toId = transaction.toContoId, contiIDs.contains(toId) {
+                        return true
+                    }
+                    return false
+                }
                 .reduce(0) { $0 + ($1.amount ?? 0) }
 
+            // Calculate expenses: only count if fromConto is in the filtered set
             monthlyExpenses = filtered
-                .filter { $0.type == .expense }
+                .filter { transaction in
+                    guard transaction.type == .expense else { return false }
+                    if let fromId = transaction.fromContoId, contiIDs.contains(fromId) {
+                        return true
+                    }
+                    return false
+                }
                 .reduce(0) { $0 + ($1.amount ?? 0) }
         } catch {
             monthlyIncome = 0
@@ -175,10 +189,11 @@ struct DashboardView: View {
         do {
             let transactions = try modelContext.fetch(descriptor)
 
+            // Only include expenses where fromConto is in the filtered set
             let expenses = transactions.filter { transaction in
                 guard transaction.type == .expense else { return false }
-                if let id = transaction.fromContoId, contiIDs.contains(id) { return true }
-                return false
+                guard let fromId = transaction.fromContoId else { return false }
+                return contiIDs.contains(fromId)
             }
 
             var categoryTotals: [String: (amount: Decimal, color: String, icon: String)] = [:]
@@ -239,12 +254,22 @@ struct DashboardView: View {
                     return false
                 }
 
+                // Calculate income: only count if toConto is in the filtered set
                 let monthIncome = filtered
-                    .filter { $0.type == .income }
+                    .filter { transaction in
+                        guard transaction.type == .income else { return false }
+                        guard let toId = transaction.toContoId else { return false }
+                        return contiIDs.contains(toId)
+                    }
                     .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
 
+                // Calculate expenses: only count if fromConto is in the filtered set
                 let monthExpenses = filtered
-                    .filter { $0.type == .expense }
+                    .filter { transaction in
+                        guard transaction.type == .expense else { return false }
+                        guard let fromId = transaction.fromContoId else { return false }
+                        return contiIDs.contains(fromId)
+                    }
                     .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
 
                 let estimatedBalance = i == 0 ? currentBalance : currentBalance - (monthIncome - monthExpenses) * Decimal(i)
