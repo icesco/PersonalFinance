@@ -14,10 +14,21 @@ struct BalanceTrendSection: View {
     let useWeeklyAxis: Bool
     let axisStrideCount: Int
     let themeColor: Color
+    var onExpand: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Andamento Saldo").font(.headline)
+            HStack {
+                Text("Andamento Saldo").font(.headline)
+                if onExpand != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onExpand?() }
 
             if pastData.isEmpty && futureData.isEmpty {
                 ContentUnavailableView {

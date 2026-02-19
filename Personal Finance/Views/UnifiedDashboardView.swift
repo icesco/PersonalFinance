@@ -49,6 +49,8 @@ struct UnifiedDashboardView: View {
     @State private var transactionToDetail: FinanceTransaction?
     @State private var transactionToEdit: FinanceTransaction?
     @State private var showingCustomization = false
+    @State private var widgetDetail: UnifiedWidgetDetail?
+    @State private var currentMonthTransactions: [FinanceTransaction] = []
 
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
@@ -168,6 +170,42 @@ struct UnifiedDashboardView: View {
             .sheet(isPresented: $showingCustomization) {
                 DashboardCustomizationView(layoutManager: layoutManager)
             }
+            .sheet(item: $widgetDetail) { detail in
+                NavigationStack {
+                    switch detail {
+                    case .heatmap:
+                        HeatmapDetailView(
+                            dailyFlow: dailyFlow,
+                            transactions: currentMonthTransactions,
+                            referenceDate: viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
+                        )
+                    case .spendingDistribution:
+                        SpendingDistributionDetailView(categories: spendingByCategory)
+                    case .balanceTrend:
+                        BalanceTrendDetailView(
+                            pastData: cachedPastData,
+                            futureData: cachedFutureData,
+                            yDomain: cachedYDomain,
+                            themeColor: theme.color
+                        )
+                    case .financialHealth:
+                        FinancialHealthDetailView(healthScore: healthScore)
+                    case .topExpenses:
+                        TopExpensesDetailView(
+                            expenses: currentMonthTransactions
+                                .filter { $0.type == .expense }
+                                .sorted { ($0.amount ?? 0) > ($1.amount ?? 0) },
+                            onTapTransaction: { tx in
+                                widgetDetail = nil
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    transactionToDetail = tx
+                                }
+                            }
+                        )
+                    }
+                }
+                .environment(\.cardTint, theme.color)
+            }
         }
     }
 
@@ -250,7 +288,10 @@ struct UnifiedDashboardView: View {
                 savings: cachedMonthlySavings
             )
         case .spendingDistribution:
-            SpendingDistributionSection(categories: spendingByCategory)
+            SpendingDistributionSection(
+                categories: spendingByCategory,
+                onExpand: { widgetDetail = .spendingDistribution }
+            )
         case .savingsRate:
             SavingsRateSection(
                 savingsRate: cachedSavingsRate,
@@ -260,7 +301,8 @@ struct UnifiedDashboardView: View {
         case .topExpenses:
             TopExpensesSection(
                 expenses: topExpenses,
-                onTapTransaction: { transactionToDetail = $0 }
+                onTapTransaction: { transactionToDetail = $0 },
+                onExpand: { widgetDetail = .topExpenses }
             )
         case .monthComparison:
             MonthComparisonSection(trend: viewModel.monthlyExpensesTrend)
@@ -271,7 +313,8 @@ struct UnifiedDashboardView: View {
                 yDomain: cachedYDomain,
                 useWeeklyAxis: viewModel.selectedPeriod.useWeeklyAxis,
                 axisStrideCount: viewModel.selectedPeriod.axisStrideCount,
-                themeColor: theme.color
+                themeColor: theme.color,
+                onExpand: { widgetDetail = .balanceTrend }
             )
         case .contiList:
             ContiListSection(conti: cachedConti)
@@ -292,11 +335,15 @@ struct UnifiedDashboardView: View {
         case .upcomingRecurring:
             UpcomingRecurringSection(items: upcomingRecurring)
         case .financialHealth:
-            FinancialHealthSection(healthScore: healthScore)
+            FinancialHealthSection(
+                healthScore: healthScore,
+                onExpand: { widgetDetail = .financialHealth }
+            )
         case .expenseHeatmap:
             ExpenseHeatmapSection(
                 dailyFlow: dailyFlow,
-                referenceDate: viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
+                referenceDate: viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date(),
+                onExpand: { widgetDetail = .heatmap }
             )
         case .spendingAnomalies:
             SpendingAnomaliesSection(anomalies: spendingAnomalies)
@@ -522,7 +569,7 @@ struct UnifiedDashboardView: View {
         let currentMonthExpenses = relevantExpenses.filter {
             $0.date >= startOfMonth && $0.date < endOfMonth
         }
-        let currentMonthTransactions = relevant.filter {
+        let monthTransactions = relevant.filter {
             ($0.type == .income || $0.type == .expense) && $0.date >= startOfMonth && $0.date < endOfMonth
         }
         let relevantRecurring = relevant.filter { $0.isRecurring == true }
@@ -547,9 +594,10 @@ struct UnifiedDashboardView: View {
                 return
             }
 
+            currentMonthTransactions = monthTransactions
             processSpendingByCategory(from: currentMonthExpenses)
             processTopExpenses(from: currentMonthExpenses)
-            processDailyFlow(from: currentMonthTransactions, calendar: calendar)
+            processDailyFlow(from: monthTransactions, calendar: calendar)
             processTopPayees(from: currentMonthExpenses)
             processSpendingAnomalies(
                 from: relevantExpenses, calendar: calendar, now: now,
@@ -583,6 +631,7 @@ struct UnifiedDashboardView: View {
         incomeVsExpensesData = []
         topPayeesData = []
         savingsGoalData = .empty
+        currentMonthTransactions = []
     }
 
     // MARK: - Budget Loading (separate entity)

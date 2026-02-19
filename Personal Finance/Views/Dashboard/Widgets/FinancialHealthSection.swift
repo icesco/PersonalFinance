@@ -8,11 +8,17 @@ import FinanceCore
 
 struct FinancialHealthSection: View {
     let healthScore: FinancialHealthResult
+    var onExpand: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 16) {
             HStack {
                 Text("Financial Health").font(.headline)
+                if onExpand != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
                 Spacer()
                 Text(healthScore.label)
                     .font(.caption.weight(.semibold))
@@ -22,6 +28,8 @@ struct FinancialHealthSection: View {
                     .background(healthScore.color.opacity(0.15))
                     .clipShape(Capsule())
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onExpand?() }
 
             ZStack {
                 Circle()

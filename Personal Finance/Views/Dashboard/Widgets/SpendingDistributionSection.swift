@@ -9,10 +9,21 @@ import FinanceCore
 
 struct SpendingDistributionSection: View {
     let categories: [SpendingCategory]
+    var onExpand: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Dove vanno i soldi").font(.headline)
+            HStack {
+                Text("Dove vanno i soldi").font(.headline)
+                if onExpand != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onExpand?() }
 
             if categories.isEmpty {
                 ContentUnavailableView {

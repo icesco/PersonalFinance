@@ -9,10 +9,21 @@ import FinanceCore
 struct TopExpensesSection: View {
     let expenses: [FinanceTransaction]
     var onTapTransaction: ((FinanceTransaction) -> Void)?
+    var onExpand: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Top Spese del Mese").font(.headline)
+            HStack {
+                Text("Top Spese del Mese").font(.headline)
+                if onExpand != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onExpand?() }
 
             if expenses.isEmpty {
                 ContentUnavailableView {
