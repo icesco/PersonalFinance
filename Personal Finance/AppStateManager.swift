@@ -33,7 +33,7 @@ final class AppStateManager {
     var selectedTab: AppTab = .dashboard
 
     // MARK: - Dashboard Style
-    var dashboardStyle: DashboardStyle = .classic {
+    var dashboardStyle: DashboardStyle = .unified {
         didSet {
             saveDashboardStyle()
         }
