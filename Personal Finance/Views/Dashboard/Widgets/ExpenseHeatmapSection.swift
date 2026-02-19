@@ -11,6 +11,13 @@ struct ExpenseHeatmapSection: View {
     let referenceDate: Date
     let themeColor: Color
 
+    private static let monthYearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        f.locale = Locale(identifier: "it_IT")
+        return f
+    }()
+
     var body: some View {
         let calendar = Calendar.current
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
@@ -24,10 +31,7 @@ struct ExpenseHeatmapSection: View {
             HStack {
                 Text("Heatmap Spese").font(.headline)
                 Spacer()
-                let monthFormatter = DateFormatter()
-                let _ = monthFormatter.dateFormat = "MMMM yyyy"
-                let _ = monthFormatter.locale = Locale(identifier: "it_IT")
-                Text(monthFormatter.string(from: startOfMonth).capitalized)
+                Text(Self.monthYearFormatter.string(from: startOfMonth).capitalized)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

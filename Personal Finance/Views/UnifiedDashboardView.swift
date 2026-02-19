@@ -39,6 +39,12 @@ struct UnifiedDashboardView: View {
     @State private var cachedPastData: [BalanceDataPoint] = []
     @State private var cachedFutureData: [BalanceDataPoint] = []
     @State private var cachedYDomain: ClosedRange<Decimal> = 0...1
+    @State private var cachedTotalBalance: Decimal = 0
+    @State private var cachedAbsoluteChange: Decimal = 0
+    @State private var cachedPercentageChange: Double = 0
+    @State private var cachedMonthlySavings: Decimal = 0
+    @State private var cachedSavingsRate: Double = 0
+    @State private var cachedConti: [Conto] = []
 
     @State private var transactionToDetail: FinanceTransaction?
     @State private var transactionToEdit: FinanceTransaction?
@@ -82,25 +88,6 @@ struct UnifiedDashboardView: View {
         }
     }
 
-    private var totalBalance: Decimal {
-        allDisplayedConti.reduce(Decimal(0)) { $0 + $1.balance }
-    }
-
-    private var absoluteChange: Decimal {
-        viewModel.absoluteChange(currentTotal: totalBalance)
-    }
-
-    private var percentageChange: Double {
-        viewModel.percentageChange(currentTotal: totalBalance)
-    }
-
-    private var monthlySavings: Decimal { viewModel.monthlyIncome - viewModel.monthlyExpenses }
-
-    private var savingsRate: Double {
-        guard viewModel.monthlyIncome > 0 else { return 0 }
-        return NSDecimalNumber(decimal: monthlySavings / viewModel.monthlyIncome * 100).doubleValue
-    }
-
     private var displayName: String {
         if appState.showAllAccounts { return "Tutti i Libri" }
         if let libro = appState.selectedAccount {
@@ -126,9 +113,9 @@ struct UnifiedDashboardView: View {
                 LazyVStack(spacing: 16) {
                     // Pinned: always visible, full width
                     BalanceHeroSection(
-                        totalBalance: totalBalance,
-                        percentageChange: percentageChange,
-                        absoluteChange: absoluteChange
+                        totalBalance: cachedTotalBalance,
+                        percentageChange: cachedPercentageChange,
+                        absoluteChange: cachedAbsoluteChange
                     )
                     quickActionsSection
 
@@ -259,13 +246,13 @@ struct UnifiedDashboardView: View {
             MonthlyStatsSection(
                 income: viewModel.monthlyIncome,
                 expenses: viewModel.monthlyExpenses,
-                savings: monthlySavings
+                savings: cachedMonthlySavings
             )
         case .spendingDistribution:
             SpendingDistributionSection(categories: spendingByCategory)
         case .savingsRate:
             SavingsRateSection(
-                savingsRate: savingsRate,
+                savingsRate: cachedSavingsRate,
                 monthlyIncome: viewModel.monthlyIncome,
                 monthlyExpenses: viewModel.monthlyExpenses
             )
@@ -286,7 +273,7 @@ struct UnifiedDashboardView: View {
                 themeColor: theme.color
             )
         case .contiList:
-            ContiListSection(conti: allDisplayedConti)
+            ContiListSection(conti: cachedConti)
         case .recentTransactions:
             RecentTransactionsSection(
                 transactions: viewModel.recentTransactions,
@@ -330,12 +317,23 @@ struct UnifiedDashboardView: View {
 
     // MARK: - Toolbar: Period Selector
 
+    private static let shortMonthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM yy"
+        f.locale = Locale(identifier: "it_IT")
+        return f
+    }()
+
+    private static let fullMonthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        f.locale = Locale(identifier: "it_IT")
+        return f
+    }()
+
     private var periodLabel: String {
         if viewModel.selectedPeriod == .oneMonth {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM yy"
-            formatter.locale = Locale(identifier: "it_IT")
-            return formatter.string(from: viewModel.selectedMonth).capitalized
+            return Self.shortMonthFormatter.string(from: viewModel.selectedMonth).capitalized
         }
         return viewModel.selectedPeriod.rawValue
     }
@@ -401,12 +399,7 @@ struct UnifiedDashboardView: View {
         return months
     }
 
-    private var monthYearFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        formatter.locale = Locale(identifier: "it_IT")
-        return formatter
-    }
+    private var monthYearFormatter: DateFormatter { Self.fullMonthFormatter }
 
     // MARK: - Toolbar: Account Switcher
 
@@ -503,6 +496,16 @@ struct UnifiedDashboardView: View {
         cachedPastData = past
         cachedFutureData = future
         cachedYDomain = BalanceCalculator.chartYDomain(dataPoints: past + future)
+
+        // 2b. Cache derived values (avoids recomputing on every body eval)
+        let balance = conti.reduce(Decimal(0)) { $0 + $1.balance }
+        cachedTotalBalance = balance
+        cachedAbsoluteChange = viewModel.absoluteChange(currentTotal: balance)
+        cachedPercentageChange = viewModel.percentageChange(currentTotal: balance)
+        cachedMonthlySavings = viewModel.monthlyIncome - viewModel.monthlyExpenses
+        cachedSavingsRate = viewModel.monthlyIncome > 0
+            ? NSDecimalNumber(decimal: cachedMonthlySavings / viewModel.monthlyIncome * 100).doubleValue : 0
+        cachedConti = conti
 
         guard !contiIDs.isEmpty else {
             resetWidgetData()
@@ -853,7 +856,7 @@ struct UnifiedDashboardView: View {
     private func computeHealthScore() {
         var savingsPoints: Double = 0
         if viewModel.monthlyIncome > 0 {
-            let rate = NSDecimalNumber(decimal: monthlySavings / viewModel.monthlyIncome).doubleValue
+            let rate = NSDecimalNumber(decimal: cachedMonthlySavings / viewModel.monthlyIncome).doubleValue
             savingsPoints = min(30, max(0, rate * 150))
         }
 
