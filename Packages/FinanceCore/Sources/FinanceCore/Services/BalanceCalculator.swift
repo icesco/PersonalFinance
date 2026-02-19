@@ -194,25 +194,24 @@ public struct BalanceCalculator: Sendable {
             data.append(BalanceDataPoint(date: day, balance: runningBalance))
         }
 
-        // Add month-end anchor points
-        var monthEndDates: [Date] = []
+        // Add month-end anchor points using the balance at or before each month-end
+        let sortedData = data.sorted { $0.date < $1.date }
         var currentMonth = periodStart
         while currentMonth <= periodEnd {
             let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
             let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
             let effectiveEnd = min(endOfMonth, periodEnd)
-            monthEndDates.append(effectiveEnd)
+
+            let alreadyHasPoint = sortedData.contains { calendar.isDate($0.date, inSameDayAs: effectiveEnd) }
+            if !alreadyHasPoint {
+                // Find the most recent balance at or before this month-end
+                let balanceAtMonthEnd = sortedData
+                    .last { $0.date <= effectiveEnd }?.balance ?? balanceBeforePeriod
+                data.append(BalanceDataPoint(date: effectiveEnd, balance: balanceAtMonthEnd))
+            }
+
             guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) else { break }
             currentMonth = nextMonth
-        }
-
-        for monthEnd in monthEndDates {
-            if let lastPoint = data.last, !calendar.isDate(lastPoint.date, inSameDayAs: monthEnd) {
-                let hasPointInMonth = data.contains { calendar.isDate($0.date, equalTo: monthEnd, toGranularity: .month) }
-                if !hasPointInMonth || data.last!.date < monthEnd {
-                    data.append(BalanceDataPoint(date: monthEnd, balance: runningBalance))
-                }
-            }
         }
 
         return data.sorted { $0.date < $1.date }
@@ -301,30 +300,20 @@ public struct BalanceCalculator: Sendable {
                 monthlyNetChanges.append((date: startOfMonth, net: netChange))
             }
 
-            // Build history working backwards
+            // Build history working backwards: subtract each month's net
+            // before recording that month-start's balance
             var accountData: [AccountBalanceDataPoint] = []
             var runningBalance = balanceAsOfNow
 
-            for (index, monthData) in monthlyNetChanges.enumerated() {
-                if index == 0 {
-                    accountData.append(AccountBalanceDataPoint(
-                        accountId: account.id,
-                        accountName: account.name,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        colorIndex: account.colorIndex
-                    ))
-                } else {
-                    let recentMonthNet = monthlyNetChanges[index - 1].net
-                    runningBalance -= recentMonthNet
-                    accountData.append(AccountBalanceDataPoint(
-                        accountId: account.id,
-                        accountName: account.name,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        colorIndex: account.colorIndex
-                    ))
-                }
+            for monthData in monthlyNetChanges {
+                runningBalance -= monthData.net
+                accountData.append(AccountBalanceDataPoint(
+                    accountId: account.id,
+                    accountName: account.name,
+                    date: monthData.date,
+                    balance: runningBalance,
+                    colorIndex: account.colorIndex
+                ))
             }
 
             data.append(contentsOf: accountData.reversed())
@@ -385,30 +374,20 @@ public struct BalanceCalculator: Sendable {
 
             guard hasAnyTransactions else { continue }
 
-            // Build history working backwards
+            // Build history working backwards: subtract each month's net
+            // before recording that month-start's balance
             var contoData: [AccountBalanceDataPoint] = []
             var runningBalance = balanceAsOfNow
 
-            for (index, monthData) in monthlyNetChanges.enumerated() {
-                if index == 0 {
-                    contoData.append(AccountBalanceDataPoint(
-                        accountId: contoID,
-                        accountName: conto.name,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        colorIndex: conto.colorIndex
-                    ))
-                } else {
-                    let recentMonthNet = monthlyNetChanges[index - 1].net
-                    runningBalance -= recentMonthNet
-                    contoData.append(AccountBalanceDataPoint(
-                        accountId: contoID,
-                        accountName: conto.name,
-                        date: monthData.date,
-                        balance: runningBalance,
-                        colorIndex: conto.colorIndex
-                    ))
-                }
+            for monthData in monthlyNetChanges {
+                runningBalance -= monthData.net
+                contoData.append(AccountBalanceDataPoint(
+                    accountId: contoID,
+                    accountName: conto.name,
+                    date: monthData.date,
+                    balance: runningBalance,
+                    colorIndex: conto.colorIndex
+                ))
             }
 
             data.append(contentsOf: contoData.reversed())
