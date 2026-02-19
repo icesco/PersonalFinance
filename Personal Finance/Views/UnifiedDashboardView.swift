@@ -52,6 +52,7 @@ struct UnifiedDashboardView: View {
     @State private var widgetDetail: UnifiedWidgetDetail?
     @State private var currentMonthTransactions: [FinanceTransaction] = []
     @State private var helpSection: DashboardSection?
+    @State private var showInlineBalance = false
 
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
@@ -150,10 +151,39 @@ struct UnifiedDashboardView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 100)
             }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y > 50
+            } action: { _, scrolledPastHero in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showInlineBalance = scrolledPastHero
+                }
+            }
             .environment(\.cardTint, theme.color)
             .themedBackground()
-            .navigationTitle("Dashboard")
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    ZStack {
+                        if showInlineBalance {
+                            VStack(spacing: 0) {
+                                Text(cachedTotalBalance.currencyFormatted)
+                                    .font(.headline.weight(.bold))
+                                    .monospacedDigit()
+                                    .contentTransition(.numericText(value: cachedTotalBalance.doubleValue))
+                                Text(displayName)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        } else {
+                            Text("Dashboard")
+                                .font(.headline)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                    .frame(height: 34)
+                    .clipped()
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     periodSelector
                 }
