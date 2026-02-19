@@ -79,6 +79,51 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    var helpText: String {
+        switch self {
+        case .monthlyStats:
+            return "Riepilogo di entrate, uscite e risparmi del periodo selezionato. I risparmi sono la differenza tra entrate e uscite."
+        case .spendingDistribution:
+            return "Grafico a torta che mostra come sono distribuite le spese per categoria. Le percentuali indicano il peso di ogni categoria sul totale delle uscite del periodo."
+        case .savingsRate:
+            return "Percentuale di entrate che riesci a risparmiare. Positivo = stai risparmiando, negativo = stai spendendo piu\u{0300} di quanto guadagni. Un tasso sopra il 20% e\u{0300} considerato ottimo."
+        case .topExpenses:
+            return "Le spese piu\u{0300} alte del periodo, ordinate per importo. Utile per identificare le uscite piu\u{0300} significative e dove intervenire."
+        case .monthComparison:
+            return "Confronta entrate e uscite del mese corrente con il mese precedente. Le percentuali mostrano la variazione: verde = miglioramento, rosso = peggioramento."
+        case .balanceTrend:
+            return "Andamento del saldo totale nel tempo. La linea continua mostra il passato, quella tratteggiata la proiezione futura basata sulle transazioni ricorrenti."
+        case .contiList:
+            return "Lista dei tuoi conti con il saldo attuale di ciascuno. Tocca un conto per vedere le sue transazioni."
+        case .recentTransactions:
+            return "Le ultime transazioni registrate in ordine cronologico. Tocca una transazione per vederne i dettagli."
+        case .activeBudgets:
+            return "I budget attivi con il progresso di spesa. La barra mostra quanto hai speso rispetto al limite impostato. Rosso = budget superato."
+        case .spendingPace:
+            return "Confronta il ritmo di spesa attuale del mese con la media giornaliera dei mesi precedenti. Se stai spendendo piu\u{0300} velocemente del solito, il widget lo segnala."
+        case .upcomingRecurring:
+            return "Transazioni ricorrenti previste nei prossimi giorni. Basato sulle ricorrenze impostate sulle transazioni (es. abbonamenti mensili, stipendio)."
+        case .financialHealth:
+            return "Punteggio da 0 a 100 che valuta la salute finanziaria complessiva. Composto da: capacita\u{0300} di risparmio (30pt), rispetto dei budget (25pt), stabilita\u{0300} delle entrate (20pt), trend delle spese (25pt)."
+        case .expenseHeatmap:
+            return "Calendario del mese con i flussi giornalieri. Verde = giorno con entrate dominanti, rosso = uscite dominanti. Piu\u{0300} il colore e\u{0300} intenso, maggiore l'importo. Tocca un giorno nel dettaglio per vedere le transazioni."
+        case .spendingAnomalies:
+            return "Identifica categorie dove stai spendendo significativamente piu\u{0300} della media degli ultimi 3 mesi. Utile per individuare spese fuori controllo prima che diventino un problema."
+        case .categorySparklines:
+            return "Mini-grafici che mostrano l'andamento delle spese per le categorie principali negli ultimi mesi. La freccia indica se il trend e\u{0300} in aumento (rosso) o diminuzione (verde)."
+        case .cashFlowForecast:
+            return "Previsione dei flussi di cassa per le prossime 4 settimane. Basata sulle transazioni ricorrenti programmate e sulla media delle spese non ricorrenti passate."
+        case .spendingByWeekday:
+            return "Media delle spese per giorno della settimana, calcolata sugli ultimi 3 mesi. Utile per capire in quali giorni tendi a spendere di piu\u{0300} (es. weekend vs. giorni lavorativi)."
+        case .incomeVsExpensesTimeline:
+            return "Confronto mensile tra entrate e uscite visualizzato come grafico a barre affiancate. Permette di vedere a colpo d'occhio i mesi in attivo e quelli in passivo."
+        case .topPayees:
+            return "Classifica dei destinatari a cui hai pagato di piu\u{0300} nel periodo, con importo totale e numero di transazioni per ciascuno."
+        case .savingsGoal:
+            return "Obiettivo di risparmio mensile calcolato automaticamente come media dei tuoi risparmi positivi degli ultimi 3 mesi. Mostra il progresso attuale e una proiezione di fine mese basata sul ritmo di risparmio giornaliero."
+        }
+    }
+
     var icon: String {
         switch self {
         case .monthlyStats: return "chart.bar.fill"

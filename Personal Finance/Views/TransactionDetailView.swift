@@ -140,6 +140,8 @@ struct TransactionDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .themedBackground()
         .navigationTitle("Dettaglio")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

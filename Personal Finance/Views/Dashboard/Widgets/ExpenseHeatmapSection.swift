@@ -9,6 +9,7 @@ import FinanceCore
 struct ExpenseHeatmapSection: View {
     let dailyFlow: [Date: DailyFlow]
     let referenceDate: Date
+    var onInfoTap: (() -> Void)?
     var onExpand: (() -> Void)?
 
     private static let monthYearFormatter: DateFormatter = {
@@ -38,6 +39,13 @@ struct ExpenseHeatmapSection: View {
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.tertiary)
+                }
+                if let onInfoTap {
+                    Button { onInfoTap() } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 Spacer()
                 Text(Self.monthYearFormatter.string(from: startOfMonth).capitalized)

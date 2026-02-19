@@ -102,7 +102,7 @@ struct TransactionListView: View {
                     }
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .themedBackground()
             .navigationTitle(navigationTitle)
             .toolbarTitleDisplayMode(.inlineLarge)
             .searchable(text: $searchText, isPresented: $isSearching, prompt: "Cerca...")
@@ -602,6 +602,7 @@ struct TransactionListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
             Button("Elimina", role: .destructive) {
                 if let transaction = transactionToDelete {

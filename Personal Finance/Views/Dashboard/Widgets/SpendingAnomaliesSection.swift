@@ -8,11 +8,19 @@ import FinanceCore
 
 struct SpendingAnomaliesSection: View {
     let anomalies: [SpendingAnomaly]
+    var onInfoTap: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Anomalie di Spesa").font(.headline)
+                if let onInfoTap {
+                    Button { onInfoTap() } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 Spacer()
                 if !anomalies.isEmpty {
                     Text("\(anomalies.count)")

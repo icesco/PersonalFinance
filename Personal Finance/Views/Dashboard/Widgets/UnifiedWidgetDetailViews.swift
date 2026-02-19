@@ -83,6 +83,7 @@ struct HeatmapDetailView: View {
             }
             .padding()
         }
+        .themedBackground()
         .navigationTitle("Heatmap Flussi")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -336,7 +337,7 @@ struct SpendingDistributionDetailView: View {
     }
 
     private var maxCategoryAmount: Decimal {
-        categories.first?.amount ?? Decimal(1)
+        totalSpending > 0 ? totalSpending : Decimal(1)
     }
 
     var body: some View {
@@ -385,6 +386,7 @@ struct SpendingDistributionDetailView: View {
             }
             .padding()
         }
+        .themedBackground()
         .navigationTitle("Distribuzione Spese")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -467,6 +469,7 @@ struct BalanceTrendDetailView: View {
             }
             .padding()
         }
+        .themedBackground()
         .navigationTitle("Andamento Saldo")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -654,6 +657,7 @@ struct FinancialHealthDetailView: View {
             }
             .padding()
         }
+        .themedBackground()
         .navigationTitle("Financial Health")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -940,6 +944,7 @@ struct TopExpensesDetailView: View {
             }
             .padding()
         }
+        .themedBackground()
         .navigationTitle("Top Spese")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

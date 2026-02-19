@@ -39,6 +39,13 @@ final class AppStateManager {
         }
     }
 
+    // MARK: - Tinted Backgrounds
+    var tintedBackgrounds: Bool = true {
+        didSet {
+            UserDefaults.standard.set(tintedBackgrounds, forKey: "tintedBackgrounds")
+        }
+    }
+
     // MARK: - Data Refresh
     /// Incremented when data changes to trigger view updates
     var dataRefreshTrigger: Int = 0
@@ -92,6 +99,7 @@ final class AppStateManager {
     // MARK: - Modal States
     var showingAccountSelection = false
     var showingQuickTransaction = false
+    var showingTransferSheet = false
     var showingAccountCreation = false
     var showingOnboarding = false
 
@@ -119,6 +127,7 @@ final class AppStateManager {
 
     init() {
         loadDashboardStyle()
+        loadTintedBackgrounds()
         loadShowAllAccounts()
         loadShowAllConti()
         loadSelectedAccount()
@@ -134,6 +143,14 @@ final class AppStateManager {
 
     private func saveDashboardStyle() {
         UserDefaults.standard.set(dashboardStyle.rawValue, forKey: "dashboardStyle")
+    }
+
+    private func loadTintedBackgrounds() {
+        if UserDefaults.standard.object(forKey: "tintedBackgrounds") == nil {
+            tintedBackgrounds = true
+        } else {
+            tintedBackgrounds = UserDefaults.standard.bool(forKey: "tintedBackgrounds")
+        }
     }
 
     private func loadShowAllAccounts() {
@@ -229,12 +246,20 @@ final class AppStateManager {
     }
     
     func presentQuickTransaction(type: TransactionType = .expense) {
-        quickTransactionType = type
-        showingQuickTransaction = true
+        if type == .transfer {
+            showingTransferSheet = true
+        } else {
+            quickTransactionType = type
+            showingQuickTransaction = true
+        }
     }
-    
+
     func dismissQuickTransaction() {
         showingQuickTransaction = false
+    }
+
+    func dismissTransferSheet() {
+        showingTransferSheet = false
     }
     
     func presentAccountCreation() {

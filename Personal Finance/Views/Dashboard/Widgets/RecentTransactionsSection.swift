@@ -9,6 +9,7 @@ import FinanceCore
 struct RecentTransactionsSection: View {
     let transactions: [FinanceTransaction]
     var onViewAll: (() -> Void)?
+    var onInfoTap: (() -> Void)?
     var onTapTransaction: ((FinanceTransaction) -> Void)?
     var onEditTransaction: ((FinanceTransaction) -> Void)?
 
@@ -17,6 +18,13 @@ struct RecentTransactionsSection: View {
             HStack {
                 Text("Ultime transazioni")
                     .font(.headline)
+                if let onInfoTap {
+                    Button { onInfoTap() } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 Spacer()
                 Button("Vedi tutte") { onViewAll?() }
                     .font(.subheadline)

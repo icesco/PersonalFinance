@@ -40,10 +40,16 @@ struct DashboardCustomizationView: View {
                                 .foregroundStyle(config.isVisible ? Color.accentColor : .secondary)
                                 .frame(width: 28)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(config.section.displayName)
-                                    .foregroundStyle(config.isVisible ? .primary : .secondary)
-                                levelBadge(for: config.section.minimumLevel)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Text(config.section.displayName)
+                                        .foregroundStyle(config.isVisible ? .primary : .secondary)
+                                    levelBadge(for: config.section.minimumLevel)
+                                }
+                                Text(config.section.helpText)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(2)
                             }
 
                             Spacer()

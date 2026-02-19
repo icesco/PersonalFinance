@@ -58,6 +58,8 @@ struct SettingsView: View {
                 // Info section
                 infoSection
             }
+            .scrollContentBackground(.hidden)
+            .themedBackground()
             .navigationTitle("Impostazioni")
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
@@ -224,6 +226,14 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+            }
+
+            // Tinted backgrounds toggle
+            Toggle(isOn: Binding(
+                get: { appState.tintedBackgrounds },
+                set: { appState.tintedBackgrounds = $0 }
+            )) {
+                Label("Sfondi Colorati", systemImage: "paintpalette")
             }
         } header: {
             Text("Personalizzazione")

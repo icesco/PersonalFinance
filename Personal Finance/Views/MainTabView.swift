@@ -14,6 +14,10 @@ struct MainTabView: View {
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
+    private var themeColor: Color {
+        appState.themeManager.currentTheme.color
+    }
+
     var body: some View {
         Group {
             if horizontalSizeClass == .regular {
@@ -22,11 +26,19 @@ struct MainTabView: View {
                 iPhoneLayout
             }
         }
+        .environment(\.cardTint, themeColor)
+        .environment(\.tintedBackgrounds, appState.tintedBackgrounds)
         .sheet(isPresented: Binding(
             get: { appState.showingQuickTransaction },
             set: { _ in appState.dismissQuickTransaction() }
         )) {
             QuickTransactionModal()
+        }
+        .sheet(isPresented: Binding(
+            get: { appState.showingTransferSheet },
+            set: { _ in appState.dismissTransferSheet() }
+        )) {
+            CreateTransactionView(conto: nil, transactionType: .transfer)
         }
         .sheet(isPresented: Binding(
             get: { appState.showingAccountSelection },

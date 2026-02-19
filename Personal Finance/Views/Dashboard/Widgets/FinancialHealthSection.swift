@@ -8,6 +8,7 @@ import FinanceCore
 
 struct FinancialHealthSection: View {
     let healthScore: FinancialHealthResult
+    var onInfoTap: (() -> Void)?
     var onExpand: (() -> Void)?
 
     var body: some View {
@@ -18,6 +19,13 @@ struct FinancialHealthSection: View {
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.tertiary)
+                }
+                if let onInfoTap {
+                    Button { onInfoTap() } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 Spacer()
                 Text(healthScore.label)

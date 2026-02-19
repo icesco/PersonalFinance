@@ -51,6 +51,7 @@ struct UnifiedDashboardView: View {
     @State private var showingCustomization = false
     @State private var widgetDetail: UnifiedWidgetDetail?
     @State private var currentMonthTransactions: [FinanceTransaction] = []
+    @State private var helpSection: DashboardSection?
 
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
@@ -136,12 +137,12 @@ struct UnifiedDashboardView: View {
                     if horizontalSizeClass == .regular {
                         StaggeredGrid(columns: 2, horizontalSpacing: 16, verticalSpacing: 16) {
                             ForEach(activeSections) { section in
-                                sectionView(for: section)
+                                sectionWithHelp(for: section)
                             }
                         }
                     } else {
                         ForEach(activeSections) { section in
-                            sectionView(for: section)
+                            sectionWithHelp(for: section)
                         }
                     }
                 }
@@ -150,16 +151,7 @@ struct UnifiedDashboardView: View {
                 .padding(.bottom, 100)
             }
             .environment(\.cardTint, theme.color)
-            .background {
-                LinearGradient(
-                    colors: colorScheme == .dark
-                        ? [theme.color.opacity(0.15), Color(.systemBackground)]
-                        : [Color(.systemBackground), theme.color.opacity(0.08)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            }
+            .themedBackground()
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -216,6 +208,9 @@ struct UnifiedDashboardView: View {
                     }
                 }
                 .environment(\.cardTint, theme.color)
+            }
+            .sheet(item: $helpSection) { section in
+                WidgetHelpSheet(section: section)
             }
         }
     }
@@ -335,6 +330,7 @@ struct UnifiedDashboardView: View {
             RecentTransactionsSection(
                 transactions: viewModel.recentTransactions,
                 onViewAll: { appState.selectTab(.transactions) },
+                onInfoTap: { helpSection = .recentTransactions },
                 onTapTransaction: { transactionToDetail = $0 },
                 onEditTransaction: { transactionToEdit = $0 }
             )
@@ -350,16 +346,21 @@ struct UnifiedDashboardView: View {
         case .financialHealth:
             FinancialHealthSection(
                 healthScore: healthScore,
+                onInfoTap: { helpSection = .financialHealth },
                 onExpand: { widgetDetail = .financialHealth }
             )
         case .expenseHeatmap:
             ExpenseHeatmapSection(
                 dailyFlow: dailyFlow,
                 referenceDate: viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date(),
+                onInfoTap: { helpSection = .expenseHeatmap },
                 onExpand: { widgetDetail = .heatmap }
             )
         case .spendingAnomalies:
-            SpendingAnomaliesSection(anomalies: spendingAnomalies)
+            SpendingAnomaliesSection(
+                anomalies: spendingAnomalies,
+                onInfoTap: { helpSection = .spendingAnomalies }
+            )
         case .categorySparklines:
             CategorySparklinesSection(trends: categoryTrends)
         case .cashFlowForecast:
@@ -372,6 +373,32 @@ struct UnifiedDashboardView: View {
             TopPayeesSection(payees: topPayeesData, themeColor: theme.color)
         case .savingsGoal:
             SavingsGoalSection(data: savingsGoalData, themeColor: theme.color)
+        }
+    }
+
+    // MARK: - Section with Help Overlay
+
+    /// Sections whose header already contains trailing content (badge, button, text)
+    /// so the info button must live inside the header instead of as a card overlay.
+    private static let sectionsWithInlineHelp: Set<DashboardSection> = [
+        .financialHealth, .recentTransactions, .expenseHeatmap, .spendingAnomalies
+    ]
+
+    @ViewBuilder
+    private func sectionWithHelp(for section: DashboardSection) -> some View {
+        if Self.sectionsWithInlineHelp.contains(section) {
+            sectionView(for: section)
+        } else {
+            sectionView(for: section)
+                .overlay(alignment: .topTrailing) {
+                    Button { helpSection = section } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.top, 18)
+                    .padding(.trailing, 18)
+                }
         }
     }
 

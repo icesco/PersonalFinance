@@ -85,6 +85,40 @@ struct AnimatedMeshGradient: View {
     }
 }
 
+// MARK: - Subtle Mesh Gradient (Static)
+
+/// A static mesh gradient with very desaturated colors, used as a soft background
+/// when "Sfondi Colorati" is enabled. No animation — just a gentle color wash.
+struct SubtleMeshGradient: View {
+    let baseColor: Color
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let opacity = colorScheme == .dark ? 0.12 : 0.06
+        let c1 = baseColor.opacity(opacity)
+        let c2 = baseColor.lighter(by: 0.3).opacity(opacity * 0.7)
+        let c3 = baseColor.darker(by: 0.2).opacity(opacity * 1.2)
+        let c4 = baseColor.mix(with: .white, by: 0.5).opacity(opacity * 0.5)
+
+        MeshGradient(
+            width: 4,
+            height: 4,
+            points: [
+                [0.0, 0.0], [0.33, 0.0], [0.66, 0.0], [1.0, 0.0],
+                [0.0, 0.33], [0.25, 0.35],  [0.75, 0.30],  [1.0, 0.33],
+                [0.0, 0.66], [0.30, 0.70],  [0.70, 0.65],  [1.0, 0.66],
+                [0.0, 1.0], [0.33, 1.0], [0.66, 1.0], [1.0, 1.0]
+            ],
+            colors: [
+                c1, c2, c1, c4,
+                c3, c1, c3, c4,
+                c2, c3, c4, c2,
+                c4, c2, c3, c1
+            ]
+        )
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
