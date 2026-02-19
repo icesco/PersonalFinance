@@ -18,6 +18,13 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
     case balanceTrend
     case contiList
     case recentTransactions
+    case activeBudgets
+    case spendingPace
+    case upcomingRecurring
+    case financialHealth
+    case expenseHeatmap
+    case spendingAnomalies
+    case categorySparklines
 
     var id: String { rawValue }
 
@@ -31,6 +38,13 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
         case .balanceTrend: return "Andamento Saldo"
         case .contiList: return "I tuoi conti"
         case .recentTransactions: return "Ultime transazioni"
+        case .activeBudgets: return "Budget in Corso"
+        case .spendingPace: return "Velocità di Spesa"
+        case .upcomingRecurring: return "Spese Ricorrenti in Arrivo"
+        case .financialHealth: return "Financial Health Score"
+        case .expenseHeatmap: return "Heatmap Spese"
+        case .spendingAnomalies: return "Anomalie di Spesa"
+        case .categorySparklines: return "Trend per Categoria"
         }
     }
 
@@ -44,6 +58,13 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
         case .balanceTrend: return "chart.line.uptrend.xyaxis"
         case .contiList: return "creditcard.fill"
         case .recentTransactions: return "list.bullet.rectangle.fill"
+        case .activeBudgets: return "target"
+        case .spendingPace: return "speedometer"
+        case .upcomingRecurring: return "calendar.badge.clock"
+        case .financialHealth: return "heart.circle.fill"
+        case .expenseHeatmap: return "square.grid.3x3.fill"
+        case .spendingAnomalies: return "exclamationmark.triangle.fill"
+        case .categorySparklines: return "chart.xyaxis.line"
         }
     }
 }
