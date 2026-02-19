@@ -7,9 +7,8 @@ import SwiftUI
 import FinanceCore
 
 struct ExpenseHeatmapSection: View {
-    let dailyExpenses: [Date: Decimal]
+    let dailyFlow: [Date: DailyFlow]
     let referenceDate: Date
-    let themeColor: Color
 
     private static let monthYearFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -24,12 +23,16 @@ struct ExpenseHeatmapSection: View {
         let daysInMonth = calendar.range(of: .day, in: .month, for: startOfMonth)?.count ?? 30
         let firstWeekday = calendar.component(.weekday, from: startOfMonth)
         let mondayOffset = (firstWeekday + 5) % 7
-        let maxExpense = dailyExpenses.values.max() ?? Decimal(1)
         let weekdayLabels = ["L", "M", "M", "G", "V", "S", "D"]
+
+        // Compute max absolute values for scaling intensity
+        let allFlows = dailyFlow.values
+        let maxExpense = allFlows.map(\.expenses).max() ?? Decimal(1)
+        let maxIncome = allFlows.map(\.income).max() ?? Decimal(1)
 
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Heatmap Spese").font(.headline)
+                Text("Heatmap Flussi").font(.headline)
                 Spacer()
                 Text(Self.monthYearFormatter.string(from: startOfMonth).capitalized)
                     .font(.caption)
@@ -57,20 +60,18 @@ struct ExpenseHeatmapSection: View {
 
                             if dayNumber >= 1 && dayNumber <= daysInMonth {
                                 let date = calendar.date(byAdding: .day, value: dayNumber - 1, to: startOfMonth)!
-                                let expense = dailyExpenses[calendar.startOfDay(for: date)] ?? Decimal(0)
-                                let intensity = maxExpense > 0
-                                    ? CGFloat((expense / maxExpense).doubleValue)
-                                    : 0
+                                let flow = dailyFlow[calendar.startOfDay(for: date)]
+                                let cellColor = cellColor(
+                                    for: flow, maxExpense: maxExpense, maxIncome: maxIncome
+                                )
 
                                 RoundedRectangle(cornerRadius: 4)
-                                    .fill(intensity > 0
-                                          ? themeColor.opacity(0.15 + Double(intensity) * 0.85)
-                                          : Color(.tertiarySystemFill))
+                                    .fill(cellColor)
                                     .aspectRatio(1, contentMode: .fit)
                                     .overlay {
                                         Text("\(dayNumber)")
                                             .font(.system(size: 10))
-                                            .foregroundStyle(intensity > 0.6 ? .white : .secondary)
+                                            .foregroundStyle(textColor(for: flow, maxExpense: maxExpense, maxIncome: maxIncome))
                                     }
                             } else {
                                 RoundedRectangle(cornerRadius: 4)
@@ -82,21 +83,67 @@ struct ExpenseHeatmapSection: View {
                 }
             }
 
-            HStack(spacing: 4) {
-                Text("Meno")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                ForEach(0..<5, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(i == 0 ? Color(.tertiarySystemFill) : themeColor.opacity(Double(i) / 4.0))
-                        .frame(width: 14, height: 14)
-                }
-                Text("Pi\u{00F9}")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            // Legend
+            HStack(spacing: 12) {
+                legendRow(label: "Entrate", color: .green)
+                legendRow(label: "Uscite", color: .red)
+                legendRow(label: "Nessuna", color: Color(.tertiarySystemFill))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .unifiedCard()
+    }
+
+    // MARK: - Helpers
+
+    private func cellColor(for flow: DailyFlow?, maxExpense: Decimal, maxIncome: Decimal) -> Color {
+        guard let flow else { return Color(.tertiarySystemFill) }
+
+        let hasExpenses = flow.expenses > 0
+        let hasIncome = flow.income > 0
+
+        if hasIncome && hasExpenses {
+            // Mixed day: use net to decide color
+            let net = flow.net
+            if net >= 0 {
+                let intensity = maxIncome > 0 ? CGFloat(flow.income.doubleValue / maxIncome.doubleValue) : 0
+                return Color.green.opacity(0.15 + Double(intensity) * 0.7)
+            } else {
+                let intensity = maxExpense > 0 ? CGFloat(flow.expenses.doubleValue / maxExpense.doubleValue) : 0
+                return Color.red.opacity(0.15 + Double(intensity) * 0.7)
+            }
+        } else if hasExpenses {
+            let intensity = maxExpense > 0 ? CGFloat(flow.expenses.doubleValue / maxExpense.doubleValue) : 0
+            return Color.red.opacity(0.15 + Double(intensity) * 0.7)
+        } else if hasIncome {
+            let intensity = maxIncome > 0 ? CGFloat(flow.income.doubleValue / maxIncome.doubleValue) : 0
+            return Color.green.opacity(0.15 + Double(intensity) * 0.7)
+        }
+
+        return Color(.tertiarySystemFill)
+    }
+
+    private func textColor(for flow: DailyFlow?, maxExpense: Decimal, maxIncome: Decimal) -> Color {
+        guard let flow else { return .secondary }
+
+        let dominant: (amount: Decimal, max: Decimal) = flow.net >= 0
+            ? (flow.income, maxIncome)
+            : (flow.expenses, maxExpense)
+
+        let intensity = dominant.max > 0
+            ? dominant.amount.doubleValue / dominant.max.doubleValue
+            : 0
+        return intensity > 0.5 ? .white : .secondary
+    }
+
+    private func legendRow(label: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color == Color(.tertiarySystemFill) ? color : color.opacity(0.6))
+                .frame(width: 10, height: 10)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 }

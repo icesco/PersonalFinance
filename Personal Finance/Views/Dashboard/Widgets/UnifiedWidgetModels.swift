@@ -127,6 +127,14 @@ struct MonthlyIncomeExpense: Identifiable {
     let expenses: Decimal
 }
 
+// MARK: - Daily Flow (Heatmap)
+
+struct DailyFlow {
+    var income: Decimal = 0
+    var expenses: Decimal = 0
+    var net: Decimal { income - expenses }
+}
+
 // MARK: - Payee Data
 
 struct PayeeData: Identifiable {

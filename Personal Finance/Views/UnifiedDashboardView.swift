@@ -27,7 +27,7 @@ struct UnifiedDashboardView: View {
     @State private var topExpenses: [FinanceTransaction] = []
     @State private var budgetSnapshots: [BudgetSnapshot] = []
     @State private var upcomingRecurring: [(transaction: FinanceTransaction, nextDate: Date)] = []
-    @State private var dailyExpenses: [Date: Decimal] = [:]
+    @State private var dailyFlow: [Date: DailyFlow] = [:]
     @State private var healthScore: FinancialHealthResult = .empty
     @State private var spendingAnomalies: [SpendingAnomaly] = []
     @State private var categoryTrends: [CategoryTrendData] = []
@@ -295,9 +295,8 @@ struct UnifiedDashboardView: View {
             FinancialHealthSection(healthScore: healthScore)
         case .expenseHeatmap:
             ExpenseHeatmapSection(
-                dailyExpenses: dailyExpenses,
-                referenceDate: viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date(),
-                themeColor: theme.color
+                dailyFlow: dailyFlow,
+                referenceDate: viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
             )
         case .spendingAnomalies:
             SpendingAnomaliesSection(anomalies: spendingAnomalies)
@@ -523,6 +522,9 @@ struct UnifiedDashboardView: View {
         let currentMonthExpenses = relevantExpenses.filter {
             $0.date >= startOfMonth && $0.date < endOfMonth
         }
+        let currentMonthTransactions = relevant.filter {
+            ($0.type == .income || $0.type == .expense) && $0.date >= startOfMonth && $0.date < endOfMonth
+        }
         let relevantRecurring = relevant.filter { $0.isRecurring == true }
 
         // 7. Animate all state changes so Charts, bars, and numbers transition smoothly
@@ -547,7 +549,7 @@ struct UnifiedDashboardView: View {
 
             processSpendingByCategory(from: currentMonthExpenses)
             processTopExpenses(from: currentMonthExpenses)
-            processDailyExpenses(from: currentMonthExpenses, calendar: calendar)
+            processDailyFlow(from: currentMonthTransactions, calendar: calendar)
             processTopPayees(from: currentMonthExpenses)
             processSpendingAnomalies(
                 from: relevantExpenses, calendar: calendar, now: now,
@@ -572,7 +574,7 @@ struct UnifiedDashboardView: View {
         topExpenses = []
         budgetSnapshots = []
         upcomingRecurring = []
-        dailyExpenses = [:]
+        dailyFlow = [:]
         healthScore = .empty
         spendingAnomalies = []
         categoryTrends = []
@@ -655,13 +657,18 @@ struct UnifiedDashboardView: View {
         )
     }
 
-    private func processDailyExpenses(from expenses: [FinanceTransaction], calendar: Calendar) {
-        var grouped: [Date: Decimal] = [:]
-        for transaction in expenses {
-            let day = calendar.startOfDay(for: transaction.date)
-            grouped[day, default: Decimal(0)] += transaction.amount ?? Decimal(0)
+    private func processDailyFlow(from transactions: [FinanceTransaction], calendar: Calendar) {
+        var grouped: [Date: DailyFlow] = [:]
+        for tx in transactions {
+            let day = calendar.startOfDay(for: tx.date)
+            let amount = tx.amount ?? Decimal(0)
+            if tx.type == .income {
+                grouped[day, default: DailyFlow()].income += amount
+            } else {
+                grouped[day, default: DailyFlow()].expenses += amount
+            }
         }
-        dailyExpenses = grouped
+        dailyFlow = grouped
     }
 
     private func processTopPayees(from expenses: [FinanceTransaction]) {
