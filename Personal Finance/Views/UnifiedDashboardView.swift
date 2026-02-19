@@ -107,6 +107,17 @@ struct UnifiedDashboardView: View {
         return "\(aid)-\(cid)-\(appState.showAllAccounts)-\(appState.showAllConti)-\(appState.dataRefreshTrigger)-\(viewModel.selectedPeriod.rawValue)-\(viewModel.selectedMonth.timeIntervalSince1970)"
     }
 
+    /// Sections hidden when a multi-month period is selected (they only make sense for a single month).
+    private static let monthOnlySections: Set<DashboardSection> = [
+        .expenseHeatmap, .monthComparison, .spendingPace, .savingsGoal
+    ]
+
+    private var activeSections: [DashboardSection] {
+        let visible = layoutManager.visibleSections
+        guard viewModel.selectedPeriod != .oneMonth else { return visible }
+        return visible.filter { !Self.monthOnlySections.contains($0) }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -124,12 +135,12 @@ struct UnifiedDashboardView: View {
                     // Dynamic: user-customizable order and visibility
                     if horizontalSizeClass == .regular {
                         StaggeredGrid(columns: 2, horizontalSpacing: 16, verticalSpacing: 16) {
-                            ForEach(layoutManager.visibleSections) { section in
+                            ForEach(activeSections) { section in
                                 sectionView(for: section)
                             }
                         }
                     } else {
-                        ForEach(layoutManager.visibleSections) { section in
+                        ForEach(activeSections) { section in
                             sectionView(for: section)
                         }
                     }
@@ -301,6 +312,8 @@ struct UnifiedDashboardView: View {
         case .topExpenses:
             TopExpensesSection(
                 expenses: topExpenses,
+                title: viewModel.selectedPeriod == .oneMonth
+                    ? "Top Spese del Mese" : "Top Spese — \(viewModel.selectedPeriod.displayName)",
                 onTapTransaction: { transactionToDetail = $0 },
                 onExpand: { widgetDetail = .topExpenses }
             )
@@ -574,6 +587,20 @@ struct UnifiedDashboardView: View {
         }
         let relevantRecurring = relevant.filter { $0.isRecurring == true }
 
+        // 6b. Period-scoped data for adaptable widgets (distribution, top expenses, top payees)
+        let periodStart: Date
+        if let months = viewModel.selectedPeriod.monthsCount, months > 1 {
+            periodStart = calendar.date(byAdding: .month, value: -(months - 1), to: startOfMonth)!
+        } else if viewModel.selectedPeriod.monthsCount == nil {
+            periodStart = .distantPast // "Tutto"
+        } else {
+            periodStart = startOfMonth // 1M
+        }
+        let periodExpenses = relevantExpenses.filter { $0.date >= periodStart && $0.date < endOfMonth }
+        let periodTransactions = relevant.filter {
+            ($0.type == .income || $0.type == .expense) && $0.date >= periodStart && $0.date < endOfMonth
+        }
+
         // 7. Animate all state changes so Charts, bars, and numbers transition smoothly
         withAnimation(.easeOut(duration: 0.5)) {
             cachedPastData = past
@@ -594,11 +621,11 @@ struct UnifiedDashboardView: View {
                 return
             }
 
-            currentMonthTransactions = monthTransactions
-            processSpendingByCategory(from: currentMonthExpenses)
-            processTopExpenses(from: currentMonthExpenses)
+            currentMonthTransactions = periodTransactions
+            processSpendingByCategory(from: periodExpenses)
+            processTopExpenses(from: periodExpenses)
             processDailyFlow(from: monthTransactions, calendar: calendar)
-            processTopPayees(from: currentMonthExpenses)
+            processTopPayees(from: periodExpenses)
             processSpendingAnomalies(
                 from: relevantExpenses, calendar: calendar, now: now,
                 startOfMonth: startOfMonth, endOfMonth: endOfMonth

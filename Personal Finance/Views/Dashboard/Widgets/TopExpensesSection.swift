@@ -8,13 +8,14 @@ import FinanceCore
 
 struct TopExpensesSection: View {
     let expenses: [FinanceTransaction]
+    var title: String = "Top Spese del Mese"
     var onTapTransaction: ((FinanceTransaction) -> Void)?
     var onExpand: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Top Spese del Mese").font(.headline)
+                Text(title).font(.headline)
                 if onExpand != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.semibold))

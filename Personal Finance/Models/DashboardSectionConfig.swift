@@ -58,6 +58,27 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// Minimum experience level required for this section to appear in a preset.
+    var minimumLevel: UserExperienceLevel {
+        switch self {
+        // Beginner: essential, easy-to-understand widgets
+        case .monthlyStats, .spendingDistribution, .balanceTrend,
+             .contiList, .recentTransactions:
+            return .beginner
+
+        // Standard: more detail but still intuitive
+        case .savingsRate, .topExpenses, .activeBudgets, .monthComparison,
+             .expenseHeatmap, .upcomingRecurring, .topPayees:
+            return .standard
+
+        // Advanced: technical/analytical widgets
+        case .spendingPace, .financialHealth, .spendingAnomalies,
+             .categorySparklines, .cashFlowForecast, .spendingByWeekday,
+             .incomeVsExpensesTimeline, .savingsGoal:
+            return .advanced
+        }
+    }
+
     var icon: String {
         switch self {
         case .monthlyStats: return "chart.bar.fill"
@@ -120,6 +141,20 @@ final class DashboardLayoutManager {
 
     func reset() {
         sections = Self.defaultSections
+        save()
+    }
+
+    /// Apply a preset based on experience level: sections at or below the given level
+    /// become visible, others are hidden. Order is preserved.
+    func applyPreset(for level: UserExperienceLevel) {
+        let levelOrder: [UserExperienceLevel] = [.beginner, .standard, .advanced]
+        guard let targetIndex = levelOrder.firstIndex(of: level) else { return }
+
+        for i in sections.indices {
+            let sectionLevel = sections[i].section.minimumLevel
+            let sectionIndex = levelOrder.firstIndex(of: sectionLevel) ?? 0
+            sections[i].isVisible = sectionIndex <= targetIndex
+        }
         save()
     }
 
