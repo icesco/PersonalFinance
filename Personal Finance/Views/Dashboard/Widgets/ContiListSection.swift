@@ -27,6 +27,7 @@ struct ContiListSection: View {
                         ContoRowView(conto: conto)
                     }
                     .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .offset(y: 8)))
                 }
             }
         }

@@ -19,6 +19,8 @@ struct BalanceHeroSection: View {
             Text(totalBalance.currencyFormatted)
                 .font(.system(size: 44, weight: .bold, design: .rounded))
                 .foregroundColor(totalBalance >= 0 ? .primary : .red)
+                .contentTransition(.numericText(value: totalBalance.doubleValue))
+                .animation(.easeOut(duration: 0.5), value: totalBalance)
 
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
@@ -26,6 +28,7 @@ struct BalanceHeroSection: View {
                         .font(.caption.weight(.bold))
                     Text(String(format: "%.1f%%", abs(percentageChange)))
                         .font(.caption.weight(.bold))
+                        .contentTransition(.numericText(value: percentageChange))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
@@ -34,11 +37,14 @@ struct BalanceHeroSection: View {
                     Capsule()
                         .fill(isPositiveChange ? Color(hex: "#4CAF50") : Color(hex: "#FF5252"))
                 )
+                .animation(.easeOut(duration: 0.4), value: isPositiveChange)
 
                 Text((isPositiveChange ? "+" : "") + absoluteChange.currencyFormatted)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText(value: absoluteChange.doubleValue))
             }
+            .animation(.easeOut(duration: 0.5), value: percentageChange)
         }
         .padding(.vertical, 8)
     }

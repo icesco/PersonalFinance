@@ -60,6 +60,7 @@ struct ActiveBudgetsSection: View {
                             }
                         }
                     }
+                    .transition(.opacity.combined(with: .offset(y: 8)))
 
                     if budget.id != budgets.last?.id {
                         Divider()

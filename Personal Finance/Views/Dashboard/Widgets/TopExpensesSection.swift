@@ -50,6 +50,7 @@ struct TopExpensesSection: View {
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { onTapTransaction?(transaction) }
+                    .transition(.opacity.combined(with: .offset(y: 8)))
 
                     if index < expenses.count - 1 {
                         Divider()

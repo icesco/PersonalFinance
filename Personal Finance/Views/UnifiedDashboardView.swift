@@ -136,6 +136,7 @@ struct UnifiedDashboardView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 100)
             }
+            .environment(\.cardTint, theme.color)
             .background {
                 LinearGradient(
                     colors: colorScheme == .dark
@@ -493,31 +494,12 @@ struct UnifiedDashboardView: View {
             period: viewModel.selectedPeriod,
             selectedMonth: viewModel.selectedMonth
         )
-        cachedPastData = past
-        cachedFutureData = future
-        cachedYDomain = BalanceCalculator.chartYDomain(dataPoints: past + future)
-
-        // 2b. Cache derived values (avoids recomputing on every body eval)
-        let balance = conti.reduce(Decimal(0)) { $0 + $1.balance }
-        cachedTotalBalance = balance
-        cachedAbsoluteChange = viewModel.absoluteChange(currentTotal: balance)
-        cachedPercentageChange = viewModel.percentageChange(currentTotal: balance)
-        cachedMonthlySavings = viewModel.monthlyIncome - viewModel.monthlyExpenses
-        cachedSavingsRate = viewModel.monthlyIncome > 0
-            ? ( cachedMonthlySavings / viewModel.monthlyIncome * 100).doubleValue : 0
-        cachedConti = conti
-
-        guard !contiIDs.isEmpty else {
-            resetWidgetData()
-            return
-        }
-
         // 3. Single transaction fetch for all widget processing (~10 fetches → 1)
         let allTransactions: [FinanceTransaction]
         do {
             allTransactions = try modelContext.fetch(FetchDescriptor<FinanceTransaction>())
         } catch {
-            resetWidgetData()
+            withAnimation(.easeOut(duration: 0.5)) { resetWidgetData() }
             return
         }
 
@@ -543,27 +525,46 @@ struct UnifiedDashboardView: View {
         }
         let relevantRecurring = relevant.filter { $0.isRecurring == true }
 
-        // 7. Process all widgets from shared data
-        processSpendingByCategory(from: currentMonthExpenses)
-        processTopExpenses(from: currentMonthExpenses)
-        processDailyExpenses(from: currentMonthExpenses, calendar: calendar)
-        processTopPayees(from: currentMonthExpenses)
-        processSpendingAnomalies(
-            from: relevantExpenses, calendar: calendar, now: now,
-            startOfMonth: startOfMonth, endOfMonth: endOfMonth
-        )
-        processCategoryTrends(from: relevantExpenses, calendar: calendar, now: now)
-        processWeekdaySpending(from: relevantExpenses, calendar: calendar, now: now)
-        processCashFlowForecast(
-            relevant: relevant, relevantRecurring: relevantRecurring,
-            contiIDs: contiIDs, calendar: calendar, now: now
-        )
-        processUpcomingRecurring(from: relevantRecurring)
+        // 7. Animate all state changes so Charts, bars, and numbers transition smoothly
+        withAnimation(.easeOut(duration: 0.5)) {
+            cachedPastData = past
+            cachedFutureData = future
+            cachedYDomain = BalanceCalculator.chartYDomain(dataPoints: past + future)
 
-        // 8. Derived from viewModel data (no fetch needed)
-        computeHealthScore()
-        processIncomeVsExpenses()
-        processSavingsGoal(calendar: calendar, now: now)
+            let balance = conti.reduce(Decimal(0)) { $0 + $1.balance }
+            cachedTotalBalance = balance
+            cachedAbsoluteChange = viewModel.absoluteChange(currentTotal: balance)
+            cachedPercentageChange = viewModel.percentageChange(currentTotal: balance)
+            cachedMonthlySavings = viewModel.monthlyIncome - viewModel.monthlyExpenses
+            cachedSavingsRate = viewModel.monthlyIncome > 0
+                ? (cachedMonthlySavings / viewModel.monthlyIncome * 100).doubleValue : 0
+            cachedConti = conti
+
+            guard !contiIDs.isEmpty else {
+                resetWidgetData()
+                return
+            }
+
+            processSpendingByCategory(from: currentMonthExpenses)
+            processTopExpenses(from: currentMonthExpenses)
+            processDailyExpenses(from: currentMonthExpenses, calendar: calendar)
+            processTopPayees(from: currentMonthExpenses)
+            processSpendingAnomalies(
+                from: relevantExpenses, calendar: calendar, now: now,
+                startOfMonth: startOfMonth, endOfMonth: endOfMonth
+            )
+            processCategoryTrends(from: relevantExpenses, calendar: calendar, now: now)
+            processWeekdaySpending(from: relevantExpenses, calendar: calendar, now: now)
+            processCashFlowForecast(
+                relevant: relevant, relevantRecurring: relevantRecurring,
+                contiIDs: contiIDs, calendar: calendar, now: now
+            )
+            processUpcomingRecurring(from: relevantRecurring)
+
+            computeHealthScore()
+            processIncomeVsExpenses()
+            processSavingsGoal(calendar: calendar, now: now)
+        }
     }
 
     private func resetWidgetData() {

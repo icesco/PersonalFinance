@@ -56,6 +56,7 @@ struct TopPayeesSection: View {
                             cornerRadius: 3
                         )
                     }
+                    .transition(.opacity.combined(with: .offset(y: 8)))
 
                     if index < payees.count - 1 {
                         Divider()

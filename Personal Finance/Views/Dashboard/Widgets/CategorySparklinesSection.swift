@@ -42,6 +42,7 @@ struct CategorySparklinesSection: View {
                             color: Color(hex: trend.color)
                         )
                         .frame(height: 32)
+                        .clipped()
 
                         Image(systemName: trend.isIncreasing ? "arrow.up.right" : "arrow.down.right")
                             .font(.caption.weight(.bold))
@@ -71,11 +72,16 @@ private struct SparklinePath: View {
             let range = maxVal - minVal
             let yRange = range > 0 ? range : 1
 
-            let stepX = size.width / CGFloat(values.count - 1)
+            // Inset so Catmull-Rom curves don't overshoot the edges
+            let hInset: CGFloat = 8
+            let vInset: CGFloat = 3
+            let drawW = size.width - hInset * 2
+            let drawH = size.height - vInset * 2
+            let stepX = drawW / CGFloat(values.count - 1)
 
             func point(at index: Int) -> CGPoint {
-                let x = stepX * CGFloat(index)
-                let y = size.height - (CGFloat((values[index] - minVal) / yRange) * size.height)
+                let x = hInset + stepX * CGFloat(index)
+                let y = vInset + drawH - (CGFloat((values[index] - minVal) / yRange) * drawH)
                 return CGPoint(x: x, y: y)
             }
 
@@ -101,15 +107,15 @@ private struct SparklinePath: View {
 
             // Draw filled area
             var areaPath = linePath
-            areaPath.addLine(to: CGPoint(x: size.width, y: size.height))
-            areaPath.addLine(to: CGPoint(x: 0, y: size.height))
+            areaPath.addLine(to: CGPoint(x: hInset + drawW, y: size.height))
+            areaPath.addLine(to: CGPoint(x: hInset, y: size.height))
             areaPath.closeSubpath()
 
             context.fill(
                 areaPath,
                 with: .linearGradient(
                     Gradient(colors: [color.opacity(0.3), color.opacity(0.0)]),
-                    startPoint: .zero,
+                    startPoint: CGPoint(x: 0, y: vInset),
                     endPoint: CGPoint(x: 0, y: size.height)
                 )
             )

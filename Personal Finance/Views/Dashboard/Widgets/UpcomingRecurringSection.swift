@@ -23,9 +23,9 @@ struct UpcomingRecurringSection: View {
                 ForEach(Array(items.enumerated()), id: \.element.transaction.id) { index, item in
                     HStack(spacing: 12) {
                         VStack(spacing: 0) {
-                            Text(dayFormatter.string(from: item.nextDate))
+                            Text(Self.dayFormatter.string(from: item.nextDate))
                                 .font(.title3.weight(.bold))
-                            Text(monthFormatter.string(from: item.nextDate))
+                            Text(Self.monthFormatter.string(from: item.nextDate))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -56,16 +56,16 @@ struct UpcomingRecurringSection: View {
         .unifiedCard()
     }
 
-    private var dayFormatter: DateFormatter {
+    private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "d"
         return f
-    }
+    }()
 
-    private var monthFormatter: DateFormatter {
+    private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MMM"
         f.locale = Locale(identifier: "it_IT")
         return f
-    }
+    }()
 }

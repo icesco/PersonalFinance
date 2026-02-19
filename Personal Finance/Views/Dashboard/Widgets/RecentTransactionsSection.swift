@@ -45,6 +45,7 @@ struct RecentTransactionsSection: View {
                                 Label("Modifica", systemImage: "pencil")
                             }
                         }
+                        .transition(.opacity.combined(with: .offset(y: 8)))
 
                     if transaction.id != transactions.last?.id {
                         Divider()
