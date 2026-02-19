@@ -14,15 +14,19 @@ import FinanceCore
 struct UnifiedDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(AppStateManager.self) private var appState
 
     @Query private var allAccounts: [Account]
 
     @State private var viewModel = DashboardViewModel()
+    @State private var layoutManager = DashboardLayoutManager()
     @State private var spendingByCategory: [SpendingCategory] = []
+    @State private var topExpenses: [FinanceTransaction] = []
 
     @State private var transactionToDetail: FinanceTransaction?
     @State private var transactionToEdit: FinanceTransaction?
+    @State private var showingCustomization = false
 
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
@@ -93,32 +97,22 @@ struct UnifiedDashboardView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    // 1. Balance Hero
+                    // Pinned: always visible, full width
                     balanceHeroSection
-
-                    // 2. Quick Actions
                     quickActionsSection
 
-                    // 3. Monthly Stats (standard/advanced)
-                    if experienceLevel.showDetailedMetrics {
-                        monthlyStatsSection
+                    // Dynamic: user-customizable order and visibility
+                    if horizontalSizeClass == .regular {
+                        StaggeredGrid(columns: 2, horizontalSpacing: 16, verticalSpacing: 16) {
+                            ForEach(layoutManager.visibleSections) { section in
+                                sectionView(for: section)
+                            }
+                        }
+                    } else {
+                        ForEach(layoutManager.visibleSections) { section in
+                            sectionView(for: section)
+                        }
                     }
-
-                    // 4. Dove Vanno i Soldi (always visible)
-                    spendingDistributionSection
-
-                    // 5. Andamento Saldo (standard/advanced)
-                    if experienceLevel.showDetailedMetrics {
-                        balanceTrendSection
-                    }
-
-                    // 6. I Tuoi Conti (standard/advanced)
-                    if experienceLevel.showDetailedMetrics {
-                        contiSection
-                    }
-
-                    // 7. Ultime Transazioni
-                    recentTransactionsSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -158,6 +152,33 @@ struct UnifiedDashboardView: View {
             .sheet(item: $transactionToEdit) { transaction in
                 EditTransactionView(transaction: transaction)
             }
+            .sheet(isPresented: $showingCustomization) {
+                DashboardCustomizationView(layoutManager: layoutManager)
+            }
+        }
+    }
+
+    // MARK: - Section Router
+
+    @ViewBuilder
+    private func sectionView(for section: DashboardSection) -> some View {
+        switch section {
+        case .monthlyStats:
+            monthlyStatsSection
+        case .spendingDistribution:
+            spendingDistributionSection
+        case .savingsRate:
+            savingsRateSection
+        case .topExpenses:
+            topExpensesSection
+        case .monthComparison:
+            monthComparisonSection
+        case .balanceTrend:
+            balanceTrendSection
+        case .contiList:
+            contiSection
+        case .recentTransactions:
+            recentTransactionsSection
         }
     }
 
@@ -212,6 +233,14 @@ struct UnifiedDashboardView: View {
             .frame(maxWidth: .infinity)
 
             Menu {
+                Button {
+                    showingCustomization = true
+                } label: {
+                    Label("Personalizza Dashboard", systemImage: "slider.horizontal.3")
+                }
+
+                Divider()
+
                 Button {
                     appState.selectTab(.settings)
                 } label: {
@@ -274,6 +303,158 @@ struct UnifiedDashboardView: View {
                 color: monthlySavings >= 0 ? .green : .red
             )
         }
+    }
+
+    // MARK: - Savings Rate
+
+    private var savingsRate: Double {
+        guard viewModel.monthlyIncome > 0 else { return 0 }
+        return NSDecimalNumber(decimal: monthlySavings / viewModel.monthlyIncome * 100).doubleValue
+    }
+
+    private var savingsRateSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Tasso di Risparmio").font(.headline)
+                Spacer()
+                Text(String(format: "%.0f%%", savingsRate))
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(savingsRate >= 0 ? .green : .red)
+            }
+
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let clampedRate = min(max(savingsRate, -100), 100)
+                let fillFraction = abs(clampedRate) / 100.0
+
+                ZStack(alignment: .leading) {
+                    // Track
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(.tertiarySystemFill))
+                        .frame(height: 16)
+
+                    // Fill
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(savingsRate >= 0
+                              ? Color.green.gradient
+                              : Color.red.gradient)
+                        .frame(width: width * fillFraction, height: 16)
+                }
+            }
+            .frame(height: 16)
+
+            HStack {
+                Label(viewModel.monthlyIncome.currencyFormatted, systemImage: "arrow.down.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Spacer()
+                Label(viewModel.monthlyExpenses.currencyFormatted, systemImage: "arrow.up.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .unifiedCard()
+    }
+
+    // MARK: - Top Expenses
+
+    private var topExpensesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Top Spese del Mese").font(.headline)
+
+            if topExpenses.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessuna spesa", systemImage: "flame")
+                } description: {
+                    Text("Le spese maggiori appariranno qui")
+                }
+            } else {
+                ForEach(Array(topExpenses.enumerated()), id: \.element.id) { index, transaction in
+                    HStack(spacing: 12) {
+                        Text("#\(index + 1)")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24)
+
+                        Image(systemName: transaction.category?.icon ?? "arrow.up.circle")
+                            .font(.body)
+                            .foregroundStyle(Color(hex: transaction.category?.color ?? "#FF5252"))
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(transaction.transactionDescription ?? transaction.category?.name ?? "Spesa")
+                                .font(.subheadline)
+                                .lineLimit(1)
+                            Text(transaction.date, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Text((transaction.amount ?? Decimal(0)).currencyFormatted)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.red)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { transactionToDetail = transaction }
+
+                    if index < topExpenses.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .unifiedCard()
+    }
+
+    // MARK: - Month Comparison
+
+    private var monthComparisonSection: some View {
+        let trend = viewModel.monthlyExpensesTrend
+        // Current month = last entry, previous = second to last
+        let current = trend.last
+        let previous = trend.count >= 2 ? trend[trend.count - 2] : nil
+
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("Confronto Mese Precedente").font(.headline)
+
+            if let current, let previous {
+                VStack(spacing: 12) {
+                    MonthComparisonRow(
+                        label: "Entrate",
+                        current: current.income,
+                        previous: previous.income,
+                        color: .green
+                    )
+                    MonthComparisonRow(
+                        label: "Uscite",
+                        current: current.expenses,
+                        previous: previous.expenses,
+                        color: .red,
+                        invertDelta: true
+                    )
+
+                    Divider()
+
+                    let currentSavings = current.income - current.expenses
+                    let previousSavings = previous.income - previous.expenses
+                    MonthComparisonRow(
+                        label: "Risparmi",
+                        current: currentSavings,
+                        previous: previousSavings,
+                        color: currentSavings >= 0 ? .green : .red
+                    )
+                }
+            } else {
+                ContentUnavailableView {
+                    Label("Dati insufficienti", systemImage: "arrow.left.arrow.right")
+                } description: {
+                    Text("Servono almeno 2 mesi di dati")
+                }
+            }
+        }
+        .unifiedCard()
     }
 
     // MARK: - 4. Spending Distribution (Donut)
@@ -627,6 +808,7 @@ struct UnifiedDashboardView: View {
             modelContext: modelContext
         )
         loadSpendingByCategory()
+        loadTopExpenses()
     }
 
     private func loadSpendingByCategory() {
@@ -685,6 +867,91 @@ struct UnifiedDashboardView: View {
             .sorted { $0.amount > $1.amount }
         } catch {
             spendingByCategory = []
+        }
+    }
+
+    private func loadTopExpenses() {
+        let contiIDs = Set(allDisplayedConti.map(\.id))
+        guard !contiIDs.isEmpty else {
+            topExpenses = []
+            return
+        }
+
+        let calendar = Calendar.current
+        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
+        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+        var descriptor = FetchDescriptor<FinanceTransaction>(
+            sortBy: [SortDescriptor(\.amount, order: .reverse)]
+        )
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date >= startOfMonth && transaction.date < endOfMonth
+        }
+
+        do {
+            let transactions = try modelContext.fetch(descriptor)
+
+            topExpenses = Array(
+                transactions
+                    .filter { transaction in
+                        guard transaction.type == .expense else { return false }
+                        guard let fromId = transaction.fromContoId else { return false }
+                        return contiIDs.contains(fromId)
+                    }
+                    .prefix(5)
+            )
+        } catch {
+            topExpenses = []
+        }
+    }
+}
+
+// MARK: - Month Comparison Row
+
+private struct MonthComparisonRow: View {
+    let label: String
+    let current: Decimal
+    let previous: Decimal
+    let color: Color
+    var invertDelta: Bool = false
+
+    private var delta: Double {
+        guard previous != 0 else { return 0 }
+        return NSDecimalNumber(decimal: (current - previous) / abs(previous) * 100).doubleValue
+    }
+
+    /// Whether the delta is "good" (green arrow) or "bad" (red arrow)
+    private var isDeltaPositive: Bool {
+        invertDelta ? delta <= 0 : delta >= 0
+    }
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 70, alignment: .leading)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(current.currencyFormatted)
+                    .font(.subheadline.weight(.semibold))
+
+                if previous != 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: isDeltaPositive ? "arrow.up.right" : "arrow.down.right")
+                            .font(.caption2.weight(.bold))
+                        Text(String(format: "%.0f%%", abs(delta)))
+                            .font(.caption2.weight(.bold))
+                        Text("vs " + previous.currencyFormatted)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .foregroundStyle(isDeltaPositive ? .green : .red)
+                }
+            }
         }
     }
 }
