@@ -25,6 +25,11 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
     case expenseHeatmap
     case spendingAnomalies
     case categorySparklines
+    case cashFlowForecast
+    case spendingByWeekday
+    case incomeVsExpensesTimeline
+    case topPayees
+    case savingsGoal
 
     var id: String { rawValue }
 
@@ -45,6 +50,11 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
         case .expenseHeatmap: return "Heatmap Spese"
         case .spendingAnomalies: return "Anomalie di Spesa"
         case .categorySparklines: return "Trend per Categoria"
+        case .cashFlowForecast: return "Previsione Cash Flow"
+        case .spendingByWeekday: return "Spese per Giorno"
+        case .incomeVsExpensesTimeline: return "Entrate vs Uscite"
+        case .topPayees: return "Top Destinatari"
+        case .savingsGoal: return "Obiettivo Risparmio"
         }
     }
 
@@ -65,6 +75,11 @@ enum DashboardSection: String, CaseIterable, Codable, Identifiable {
         case .expenseHeatmap: return "square.grid.3x3.fill"
         case .spendingAnomalies: return "exclamationmark.triangle.fill"
         case .categorySparklines: return "chart.xyaxis.line"
+        case .cashFlowForecast: return "chart.bar.xaxis.ascending"
+        case .spendingByWeekday: return "calendar"
+        case .incomeVsExpensesTimeline: return "chart.bar.fill"
+        case .topPayees: return "person.2.fill"
+        case .savingsGoal: return "flag.checkered"
         }
     }
 }

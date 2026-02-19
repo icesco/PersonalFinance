@@ -29,6 +29,11 @@ struct UnifiedDashboardView: View {
     @State private var healthScore: FinancialHealthResult = .empty
     @State private var spendingAnomalies: [SpendingAnomaly] = []
     @State private var categoryTrends: [CategoryTrendData] = []
+    @State private var cashFlowForecast: [CashFlowWeek] = []
+    @State private var weekdaySpending: [WeekdaySpending] = []
+    @State private var incomeVsExpensesData: [MonthlyIncomeExpense] = []
+    @State private var topPayeesData: [PayeeData] = []
+    @State private var savingsGoalData: SavingsGoalData = .empty
 
     @State private var transactionToDetail: FinanceTransaction?
     @State private var transactionToEdit: FinanceTransaction?
@@ -199,6 +204,16 @@ struct UnifiedDashboardView: View {
             spendingAnomaliesSection
         case .categorySparklines:
             categorySparklinesSection
+        case .cashFlowForecast:
+            cashFlowForecastSection
+        case .spendingByWeekday:
+            spendingByWeekdaySection
+        case .incomeVsExpensesTimeline:
+            incomeVsExpensesTimelineSection
+        case .topPayees:
+            topPayeesSection
+        case .savingsGoal:
+            savingsGoalSection
         }
     }
 
@@ -1156,6 +1171,344 @@ struct UnifiedDashboardView: View {
         .unifiedCard()
     }
 
+    // MARK: - Cash Flow Forecast
+
+    private var cashFlowForecastSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Previsione Cash Flow").font(.headline)
+
+            if cashFlowForecast.isEmpty {
+                ContentUnavailableView {
+                    Label("Dati insufficienti", systemImage: "chart.bar.xaxis.ascending")
+                } description: {
+                    Text("Servono transazioni ricorrenti per la previsione")
+                }
+            } else {
+                Chart(cashFlowForecast) { week in
+                    BarMark(
+                        x: .value("Settimana", week.label),
+                        y: .value("Entrate", NSDecimalNumber(decimal: week.projectedIncome).doubleValue)
+                    )
+                    .foregroundStyle(.green.gradient)
+                    .position(by: .value("Tipo", "Entrate"))
+
+                    BarMark(
+                        x: .value("Settimana", week.label),
+                        y: .value("Uscite", NSDecimalNumber(decimal: week.projectedExpenses).doubleValue)
+                    )
+                    .foregroundStyle(.red.gradient)
+                    .position(by: .value("Tipo", "Uscite"))
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                            .foregroundStyle(.secondary.opacity(0.3))
+                        AxisValueLabel {
+                            if let v = value.as(Double.self) {
+                                Text(BalanceCalculator.formatCompactCurrency(Decimal(v)))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 180)
+
+                // Net flow summary
+                let totalNet = cashFlowForecast.reduce(Decimal(0)) { $0 + $1.projectedIncome - $1.projectedExpenses }
+                HStack(spacing: 4) {
+                    Image(systemName: totalNet >= 0 ? "arrow.up.right.circle.fill" : "arrow.down.right.circle.fill")
+                        .font(.caption)
+                    Text("Flusso netto previsto: \(totalNet.currencyFormatted)")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(totalNet >= 0 ? .green : .red)
+            }
+        }
+        .unifiedCard()
+    }
+
+    // MARK: - Spending by Weekday
+
+    private var spendingByWeekdaySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Spese per Giorno").font(.headline)
+
+            if weekdaySpending.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessun dato", systemImage: "calendar")
+                } description: {
+                    Text("Le spese per giorno appariranno qui")
+                }
+            } else {
+                let maxAmount = weekdaySpending.map(\.amount).max() ?? Decimal(1)
+
+                Chart(weekdaySpending) { day in
+                    BarMark(
+                        x: .value("Giorno", day.label),
+                        y: .value("Importo", NSDecimalNumber(decimal: day.amount).doubleValue)
+                    )
+                    .foregroundStyle(
+                        day.amount == maxAmount
+                            ? Color.red.gradient
+                            : theme.color.gradient
+                    )
+                    .cornerRadius(4)
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                            .foregroundStyle(.secondary.opacity(0.3))
+                        AxisValueLabel {
+                            if let v = value.as(Double.self) {
+                                Text(BalanceCalculator.formatCompactCurrency(Decimal(v)))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 150)
+
+                // Insight
+                if let peakDay = weekdaySpending.max(by: { $0.amount < $1.amount }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.caption)
+                        Text("Picco di spesa: **\(peakDay.fullName)** (\(peakDay.amount.currencyFormatted))")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .unifiedCard()
+    }
+
+    // MARK: - Income vs Expenses Timeline
+
+    private var incomeVsExpensesTimelineSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Entrate vs Uscite").font(.headline)
+
+            if incomeVsExpensesData.isEmpty {
+                ContentUnavailableView {
+                    Label("Dati insufficienti", systemImage: "chart.bar.fill")
+                } description: {
+                    Text("Servono almeno 2 mesi di dati")
+                }
+            } else {
+                Chart(incomeVsExpensesData) { month in
+                    BarMark(
+                        x: .value("Mese", month.label),
+                        y: .value("Entrate", NSDecimalNumber(decimal: month.income).doubleValue)
+                    )
+                    .foregroundStyle(.green.gradient)
+                    .position(by: .value("Tipo", "Entrate"))
+                    .cornerRadius(4)
+
+                    BarMark(
+                        x: .value("Mese", month.label),
+                        y: .value("Uscite", NSDecimalNumber(decimal: month.expenses).doubleValue)
+                    )
+                    .foregroundStyle(.red.gradient)
+                    .position(by: .value("Tipo", "Uscite"))
+                    .cornerRadius(4)
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                            .foregroundStyle(.secondary.opacity(0.3))
+                        AxisValueLabel {
+                            if let v = value.as(Double.self) {
+                                Text(BalanceCalculator.formatCompactCurrency(Decimal(v)))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "Entrate": Color.green,
+                    "Uscite": Color.red
+                ])
+                .frame(height: 200)
+            }
+        }
+        .unifiedCard()
+    }
+
+    // MARK: - Top Payees
+
+    private var topPayeesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Top Destinatari").font(.headline)
+
+            if topPayeesData.isEmpty {
+                ContentUnavailableView {
+                    Label("Nessun dato", systemImage: "person.2")
+                } description: {
+                    Text("I destinatari più frequenti appariranno qui")
+                }
+            } else {
+                let maxAmount = topPayeesData.first?.totalAmount ?? Decimal(1)
+
+                ForEach(Array(topPayeesData.enumerated()), id: \.element.id) { index, payee in
+                    VStack(spacing: 6) {
+                        HStack(spacing: 12) {
+                            Text("#\(index + 1)")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(payee.name)
+                                    .font(.subheadline.weight(.medium))
+                                    .lineLimit(1)
+                                Text("\(payee.transactionCount) transazioni")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Text(payee.totalAmount.currencyFormatted)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.red)
+                        }
+
+                        // Proportional bar
+                        GeometryReader { geometry in
+                            let fraction = maxAmount > 0
+                                ? CGFloat(NSDecimalNumber(decimal: payee.totalAmount / maxAmount).doubleValue)
+                                : 0
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color(.tertiarySystemFill))
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(theme.color.gradient)
+                                    .frame(width: geometry.size.width * fraction)
+                            }
+                        }
+                        .frame(height: 6)
+                    }
+
+                    if index < topPayeesData.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .unifiedCard()
+    }
+
+    // MARK: - Savings Goal
+
+    private var savingsGoalSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Obiettivo Risparmio").font(.headline)
+                Spacer()
+                if savingsGoalData.monthlyTarget > 0 {
+                    Text(savingsGoalData.monthlyTarget.currencyFormatted + "/mese")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if savingsGoalData.monthlyTarget <= 0 {
+                VStack(spacing: 8) {
+                    Image(systemName: "flag.checkered")
+                        .font(.title)
+                        .foregroundStyle(.secondary)
+                    Text("Nessun obiettivo impostato")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("Basato sulla media risparmi degli ultimi mesi")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 8)
+            } else {
+                // Circular progress
+                ZStack {
+                    Circle()
+                        .stroke(Color(.tertiarySystemFill), lineWidth: 10)
+
+                    Circle()
+                        .trim(from: 0, to: min(CGFloat(savingsGoalData.progressPercent) / 100, 1.0))
+                        .stroke(
+                            savingsGoalData.progressPercent >= 100
+                                ? Color.green.gradient
+                                : theme.color.gradient,
+                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 0.6), value: savingsGoalData.progressPercent)
+
+                    VStack(spacing: 2) {
+                        Text(savingsGoalData.currentSavings.currencyFormatted)
+                            .font(.title3.weight(.bold))
+                        Text("di \(savingsGoalData.monthlyTarget.currencyFormatted)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 120, height: 120)
+
+                // Stats row
+                HStack(spacing: 0) {
+                    VStack(spacing: 2) {
+                        Text(String(format: "%.0f%%", savingsGoalData.progressPercent))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(savingsGoalData.progressPercent >= 100 ? .green : theme.color)
+                        Text("Raggiunto")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(width: 1, height: 30)
+
+                    VStack(spacing: 2) {
+                        Text(savingsGoalData.remaining.currencyFormatted)
+                            .font(.subheadline.weight(.bold))
+                        Text("Mancanti")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(width: 1, height: 30)
+
+                    VStack(spacing: 2) {
+                        Text("\(savingsGoalData.daysRemaining)g")
+                            .font(.subheadline.weight(.bold))
+                        Text("Rimanenti")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Projection
+                if savingsGoalData.projectedEndOfMonth > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: savingsGoalData.onTrack ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .font(.caption)
+                        Text(savingsGoalData.onTrack
+                             ? "In linea! Proiezione: \(savingsGoalData.projectedEndOfMonth.currencyFormatted)"
+                             : "Attenzione: proiezione \(savingsGoalData.projectedEndOfMonth.currencyFormatted)")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(savingsGoalData.onTrack ? .green : .orange)
+                }
+            }
+        }
+        .unifiedCard()
+    }
+
     // MARK: - Toolbar: Period Selector
 
     private var periodLabel: String {
@@ -1327,6 +1680,11 @@ struct UnifiedDashboardView: View {
         computeHealthScore()
         detectSpendingAnomalies()
         loadCategoryTrends()
+        loadCashFlowForecast()
+        loadWeekdaySpending()
+        loadIncomeVsExpenses()
+        loadTopPayees()
+        loadSavingsGoal()
     }
 
     private func loadSpendingByCategory() {
@@ -1747,6 +2105,266 @@ struct UnifiedDashboardView: View {
         }
     }
 
+    private func loadCashFlowForecast() {
+        let contiIDs = Set(allDisplayedConti.map(\.id))
+        guard !contiIDs.isEmpty else {
+            cashFlowForecast = []
+            return
+        }
+
+        let calendar = Calendar.current
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
+
+        // Fetch recurring transactions
+        var descriptor = FetchDescriptor<FinanceTransaction>()
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.isRecurring == true
+        }
+
+        // Also get average weekly spending from last 3 months for non-recurring baseline
+        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else {
+            cashFlowForecast = []
+            return
+        }
+
+        var histDescriptor = FetchDescriptor<FinanceTransaction>()
+        histDescriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date >= threeMonthsAgo
+        }
+
+        do {
+            let recurringTx = try modelContext.fetch(descriptor)
+            let historicalTx = try modelContext.fetch(histDescriptor)
+
+            // Calculate average weekly income/expenses from historical data
+            let weeks = max(1.0, abs(threeMonthsAgo.timeIntervalSince(now)) / (7 * 86400))
+            var histWeeklyIncome = Decimal(0)
+            var histWeeklyExpenses = Decimal(0)
+
+            for tx in historicalTx {
+                let amount = tx.amount ?? Decimal(0)
+                if tx.type == .income {
+                    if let toId = tx.toContoId, contiIDs.contains(toId) {
+                        histWeeklyIncome += amount
+                    }
+                } else if tx.type == .expense {
+                    if let fromId = tx.fromContoId, contiIDs.contains(fromId) {
+                        histWeeklyExpenses += amount
+                    }
+                }
+            }
+            histWeeklyIncome = histWeeklyIncome / Decimal(weeks)
+            histWeeklyExpenses = histWeeklyExpenses / Decimal(weeks)
+
+            // Build 4 weeks forecast
+            var forecast: [CashFlowWeek] = []
+            let weekLabels = ["Sett. 1", "Sett. 2", "Sett. 3", "Sett. 4"]
+
+            for weekIndex in 0..<4 {
+                guard let weekStart = calendar.date(byAdding: .weekOfYear, value: weekIndex, to: today),
+                      let weekEnd = calendar.date(byAdding: .weekOfYear, value: weekIndex + 1, to: today)
+                else { continue }
+
+                var weekIncome = histWeeklyIncome
+                var weekExpenses = histWeeklyExpenses
+
+                // Add recurring transactions that fall in this week
+                for tx in recurringTx {
+                    guard tx.isRecurrenceActive() else { continue }
+                    let relevant: Bool
+                    if let fromId = tx.fromContoId, contiIDs.contains(fromId) { relevant = true }
+                    else if let toId = tx.toContoId, contiIDs.contains(toId) { relevant = true }
+                    else { relevant = false }
+                    guard relevant else { continue }
+
+                    if let nextDate = tx.nextRecurrenceDate(),
+                       nextDate >= weekStart && nextDate < weekEnd {
+                        let amount = tx.amount ?? Decimal(0)
+                        if tx.type == .income {
+                            weekIncome += amount
+                        } else if tx.type == .expense {
+                            weekExpenses += amount
+                        }
+                    }
+                }
+
+                forecast.append(CashFlowWeek(
+                    label: weekLabels[weekIndex],
+                    projectedIncome: weekIncome,
+                    projectedExpenses: weekExpenses
+                ))
+            }
+
+            cashFlowForecast = forecast
+        } catch {
+            cashFlowForecast = []
+        }
+    }
+
+    private func loadWeekdaySpending() {
+        let contiIDs = Set(allDisplayedConti.map(\.id))
+        guard !contiIDs.isEmpty else {
+            weekdaySpending = []
+            return
+        }
+
+        let calendar = Calendar.current
+        let now = Date()
+        // Last 3 months for meaningful weekday averages
+        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else {
+            weekdaySpending = []
+            return
+        }
+
+        var descriptor = FetchDescriptor<FinanceTransaction>()
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date >= threeMonthsAgo
+        }
+
+        do {
+            let transactions = try modelContext.fetch(descriptor)
+
+            var totals: [Int: Decimal] = [:] // weekday (1=Sun ... 7=Sat) → total
+            var counts: [Int: Int] = [:]
+
+            for tx in transactions {
+                guard tx.type == .expense,
+                      let fromId = tx.fromContoId, contiIDs.contains(fromId)
+                else { continue }
+
+                let weekday = calendar.component(.weekday, from: tx.date)
+                totals[weekday, default: Decimal(0)] += tx.amount ?? Decimal(0)
+                counts[weekday, default: 0] += 1
+            }
+
+            // Calculate number of each weekday in the period
+            let totalDays = calendar.dateComponents([.day], from: threeMonthsAgo, to: now).day ?? 90
+            let weeksInPeriod = max(1, totalDays / 7)
+
+            // Map to Monday-first order
+            let dayNames = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+            let fullNames = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+            // Calendar weekday: 1=Sun, 2=Mon, ..., 7=Sat
+            let mondayOrder = [2, 3, 4, 5, 6, 7, 1]
+
+            weekdaySpending = mondayOrder.enumerated().map { index, weekday in
+                let total = totals[weekday] ?? Decimal(0)
+                let avg = total / Decimal(weeksInPeriod)
+                return WeekdaySpending(
+                    weekday: weekday,
+                    label: dayNames[index],
+                    fullName: fullNames[index],
+                    amount: avg
+                )
+            }
+        } catch {
+            weekdaySpending = []
+        }
+    }
+
+    private func loadIncomeVsExpenses() {
+        let trend = viewModel.monthlyExpensesTrend
+        guard trend.count >= 2 else {
+            incomeVsExpensesData = []
+            return
+        }
+
+        incomeVsExpensesData = trend.suffix(6).map { entry in
+            MonthlyIncomeExpense(
+                label: entry.month,
+                income: entry.income,
+                expenses: entry.expenses
+            )
+        }
+    }
+
+    private func loadTopPayees() {
+        let contiIDs = Set(allDisplayedConti.map(\.id))
+        guard !contiIDs.isEmpty else {
+            topPayeesData = []
+            return
+        }
+
+        let calendar = Calendar.current
+        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
+        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+        var descriptor = FetchDescriptor<FinanceTransaction>()
+        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
+            transaction.date >= startOfMonth && transaction.date < endOfMonth
+        }
+
+        do {
+            let transactions = try modelContext.fetch(descriptor)
+
+            var payeeMap: [String: (total: Decimal, count: Int)] = [:]
+
+            for tx in transactions {
+                guard tx.type == .expense,
+                      let fromId = tx.fromContoId, contiIDs.contains(fromId)
+                else { continue }
+
+                let name = tx.transactionDescription ?? tx.category?.name ?? "Altro"
+                let amount = tx.amount ?? Decimal(0)
+                let existing = payeeMap[name] ?? (total: Decimal(0), count: 0)
+                payeeMap[name] = (total: existing.total + amount, count: existing.count + 1)
+            }
+
+            topPayeesData = payeeMap.map { name, data in
+                PayeeData(name: name, totalAmount: data.total, transactionCount: data.count)
+            }
+            .sorted { $0.totalAmount > $1.totalAmount }
+            .prefix(7)
+            .map { $0 }
+        } catch {
+            topPayeesData = []
+        }
+    }
+
+    private func loadSavingsGoal() {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+        let daysInMonth = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
+        let dayOfMonth = calendar.component(.day, from: now)
+        let daysRemaining = daysInMonth - dayOfMonth
+
+        // Use average monthly savings from trend as target
+        let trend = viewModel.monthlyExpensesTrend
+        var monthlyTarget = Decimal(0)
+        if trend.count >= 3 {
+            let recentSavings = trend.suffix(3).map { $0.income - $0.expenses }
+            let positiveSavings = recentSavings.filter { $0 > 0 }
+            if !positiveSavings.isEmpty {
+                monthlyTarget = positiveSavings.reduce(Decimal(0), +) / Decimal(positiveSavings.count)
+            }
+        }
+
+        let currentSavings = viewModel.monthlyIncome - viewModel.monthlyExpenses
+        let progressPercent = monthlyTarget > 0
+            ? NSDecimalNumber(decimal: currentSavings / monthlyTarget * 100).doubleValue
+            : 0
+        let remaining = max(Decimal(0), monthlyTarget - currentSavings)
+
+        // Project end of month savings
+        let dailySavingsRate = dayOfMonth > 0 ? currentSavings / Decimal(dayOfMonth) : Decimal(0)
+        let projectedEndOfMonth = dailySavingsRate * Decimal(daysInMonth)
+        let onTrack = projectedEndOfMonth >= monthlyTarget
+
+        savingsGoalData = SavingsGoalData(
+            monthlyTarget: monthlyTarget,
+            currentSavings: currentSavings,
+            progressPercent: progressPercent,
+            remaining: remaining,
+            daysRemaining: daysRemaining,
+            projectedEndOfMonth: projectedEndOfMonth,
+            onTrack: onTrack
+        )
+    }
+
     private func loadUpcomingRecurring() {
         let contiIDs = Set(allDisplayedConti.map(\.id))
         guard !contiIDs.isEmpty else {
@@ -1871,6 +2489,60 @@ struct CategoryTrendData: Identifiable {
     let monthlyAmounts: [Decimal]
     let currentMonth: Decimal
     let isIncreasing: Bool
+}
+
+// MARK: - Cash Flow Week
+
+struct CashFlowWeek: Identifiable {
+    let id = UUID()
+    let label: String
+    let projectedIncome: Decimal
+    let projectedExpenses: Decimal
+}
+
+// MARK: - Weekday Spending
+
+struct WeekdaySpending: Identifiable {
+    let weekday: Int
+    let label: String
+    let fullName: String
+    let amount: Decimal
+    var id: Int { weekday }
+}
+
+// MARK: - Monthly Income Expense
+
+struct MonthlyIncomeExpense: Identifiable {
+    let id = UUID()
+    let label: String
+    let income: Decimal
+    let expenses: Decimal
+}
+
+// MARK: - Payee Data
+
+struct PayeeData: Identifiable {
+    let id = UUID()
+    let name: String
+    let totalAmount: Decimal
+    let transactionCount: Int
+}
+
+// MARK: - Savings Goal Data
+
+struct SavingsGoalData {
+    let monthlyTarget: Decimal
+    let currentSavings: Decimal
+    let progressPercent: Double
+    let remaining: Decimal
+    let daysRemaining: Int
+    let projectedEndOfMonth: Decimal
+    let onTrack: Bool
+
+    static var empty: SavingsGoalData {
+        SavingsGoalData(monthlyTarget: 0, currentSavings: 0, progressPercent: 0,
+                        remaining: 0, daysRemaining: 0, projectedEndOfMonth: 0, onTrack: false)
+    }
 }
 
 // MARK: - Health Component Row
