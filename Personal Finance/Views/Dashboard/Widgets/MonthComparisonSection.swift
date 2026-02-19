@@ -66,7 +66,7 @@ private struct MonthComparisonRow: View {
 
     private var delta: Double {
         guard previous != 0 else { return 0 }
-        return NSDecimalNumber(decimal: (current - previous) / abs(previous) * 100).doubleValue
+        return ((current - previous) / abs(previous) * 100).doubleValue
     }
 
     private var isDeltaPositive: Bool {

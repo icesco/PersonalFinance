@@ -24,7 +24,7 @@ struct IncomeVsExpensesSection: View {
                 Chart(data) { month in
                     BarMark(
                         x: .value("Mese", month.label),
-                        y: .value("Entrate", NSDecimalNumber(decimal: month.income).doubleValue)
+                        y: .value("Entrate", month.income.doubleValue)
                     )
                     .foregroundStyle(.green.gradient)
                     .position(by: .value("Tipo", "Entrate"))
@@ -32,7 +32,7 @@ struct IncomeVsExpensesSection: View {
 
                     BarMark(
                         x: .value("Mese", month.label),
-                        y: .value("Uscite", NSDecimalNumber(decimal: month.expenses).doubleValue)
+                        y: .value("Uscite", month.expenses.doubleValue)
                     )
                     .foregroundStyle(.red.gradient)
                     .position(by: .value("Tipo", "Uscite"))

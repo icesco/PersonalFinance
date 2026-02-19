@@ -59,7 +59,7 @@ struct ExpenseHeatmapSection: View {
                                 let date = calendar.date(byAdding: .day, value: dayNumber - 1, to: startOfMonth)!
                                 let expense = dailyExpenses[calendar.startOfDay(for: date)] ?? Decimal(0)
                                 let intensity = maxExpense > 0
-                                    ? CGFloat(NSDecimalNumber(decimal: expense / maxExpense).doubleValue)
+                                    ? CGFloat((expense / maxExpense).doubleValue)
                                     : 0
 
                                 RoundedRectangle(cornerRadius: 4)

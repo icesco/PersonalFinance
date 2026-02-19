@@ -19,6 +19,27 @@ extension View {
     }
 }
 
+// MARK: - Percentage Bar (GeometryReader-free)
+
+struct PercentageBar: View {
+    let fraction: CGFloat
+    let color: Color
+    var height: CGFloat = 8
+    var cornerRadius: CGFloat = 4
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(Color(.tertiarySystemFill))
+            .frame(height: height)
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(color.gradient)
+                    .scaleEffect(x: min(max(fraction, 0), 1), anchor: .leading)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+}
+
 // MARK: - Unified Action Button
 
 struct UnifiedActionButton: View {

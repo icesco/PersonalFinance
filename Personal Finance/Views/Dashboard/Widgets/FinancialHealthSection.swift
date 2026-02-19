@@ -67,17 +67,10 @@ private struct HealthComponentRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 100, alignment: .leading)
 
-            GeometryReader { geometry in
-                let fraction = maxScore > 0 ? score / maxScore : 0
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.tertiarySystemFill))
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(color.gradient)
-                        .frame(width: geometry.size.width * fraction)
-                }
-            }
-            .frame(height: 8)
+            PercentageBar(
+                fraction: maxScore > 0 ? score / maxScore : 0,
+                color: color
+            )
 
             Text("\(Int(score))/\(Int(maxScore))")
                 .font(.caption2.monospacedDigit().weight(.medium))

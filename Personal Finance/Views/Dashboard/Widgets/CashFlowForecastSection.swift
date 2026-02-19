@@ -24,14 +24,14 @@ struct CashFlowForecastSection: View {
                 Chart(forecast) { week in
                     BarMark(
                         x: .value("Settimana", week.label),
-                        y: .value("Entrate", NSDecimalNumber(decimal: week.projectedIncome).doubleValue)
+                        y: .value("Entrate", week.projectedIncome.doubleValue)
                     )
                     .foregroundStyle(.green.gradient)
                     .position(by: .value("Tipo", "Entrate"))
 
                     BarMark(
                         x: .value("Settimana", week.label),
-                        y: .value("Uscite", NSDecimalNumber(decimal: week.projectedExpenses).doubleValue)
+                        y: .value("Uscite", week.projectedExpenses.doubleValue)
                     )
                     .foregroundStyle(.red.gradient)
                     .position(by: .value("Tipo", "Uscite"))

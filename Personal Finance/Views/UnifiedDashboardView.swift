@@ -504,7 +504,7 @@ struct UnifiedDashboardView: View {
         cachedPercentageChange = viewModel.percentageChange(currentTotal: balance)
         cachedMonthlySavings = viewModel.monthlyIncome - viewModel.monthlyExpenses
         cachedSavingsRate = viewModel.monthlyIncome > 0
-            ? NSDecimalNumber(decimal: cachedMonthlySavings / viewModel.monthlyIncome * 100).doubleValue : 0
+            ? ( cachedMonthlySavings / viewModel.monthlyIncome * 100).doubleValue : 0
         cachedConti = conti
 
         guard !contiIDs.isEmpty else {
@@ -605,7 +605,7 @@ struct UnifiedDashboardView: View {
             budgetSnapshots = filtered.compactMap { budget in
                 guard let name = budget.name, let limit = budget.amount, limit > 0 else { return nil }
                 let spent = (try? budget.getCurrentSpent(in: modelContext)) ?? Decimal(0)
-                let percentage = NSDecimalNumber(decimal: spent / limit).doubleValue
+                let percentage = (spent / limit).doubleValue
                 return BudgetSnapshot(
                     id: budget.id, name: name, spent: spent, limit: limit,
                     percentage: percentage, daysRemaining: budget.daysRemaining
@@ -640,7 +640,7 @@ struct UnifiedDashboardView: View {
             let percentage = total > 0 ? (data.amount / total) * 100 : Decimal(0)
             return SpendingCategory(
                 name: name, amount: data.amount, color: data.color, icon: data.icon,
-                percentage: String(format: "%.0f%%", NSDecimalNumber(decimal: percentage).doubleValue)
+                percentage: String(format: "%.0f%%", percentage.doubleValue)
             )
         }
         .sorted { $0.amount > $1.amount }
@@ -715,7 +715,7 @@ struct UnifiedDashboardView: View {
         for (catName, currentAmount) in currentByCategory {
             let avg = (historicalTotalByCategory[catName] ?? Decimal(0)) / Decimal(historicalMonths)
             guard avg > 0 else { continue }
-            let ratio = NSDecimalNumber(decimal: currentAmount / avg).doubleValue
+            let ratio = ( currentAmount / avg).doubleValue
             if ratio > 1.5 {
                 let meta = categoryMeta[catName] ?? (color: "#9E9E9E", icon: "questionmark.circle")
                 let severity: AnomalySeverity
@@ -856,7 +856,7 @@ struct UnifiedDashboardView: View {
     private func computeHealthScore() {
         var savingsPoints: Double = 0
         if viewModel.monthlyIncome > 0 {
-            let rate = NSDecimalNumber(decimal: cachedMonthlySavings / viewModel.monthlyIncome).doubleValue
+            let rate = ( cachedMonthlySavings / viewModel.monthlyIncome).doubleValue
             savingsPoints = min(30, max(0, rate * 150))
         }
 
@@ -869,7 +869,7 @@ struct UnifiedDashboardView: View {
         var incomePoints: Double = 10
         let trend = viewModel.monthlyExpensesTrend
         if trend.count >= 3 {
-            let incomes = trend.suffix(6).map { NSDecimalNumber(decimal: $0.income).doubleValue }
+            let incomes = trend.suffix(6).map { $0.income.doubleValue }
             let mean = incomes.reduce(0, +) / Double(incomes.count)
             if mean > 0 {
                 let variance = incomes.reduce(0) { $0 + pow($1 - mean, 2) } / Double(incomes.count)
@@ -880,7 +880,7 @@ struct UnifiedDashboardView: View {
 
         var spendingPoints: Double = 12.5
         if trend.count >= 2 {
-            let recentExpenses = trend.suffix(3).map { NSDecimalNumber(decimal: $0.expenses).doubleValue }
+            let recentExpenses = trend.suffix(3).map { $0.expenses.doubleValue }
             if recentExpenses.count >= 2, let last = recentExpenses.last, let first = recentExpenses.first, first > 0 {
                 let changeRate = (last - first) / first
                 spendingPoints = min(25, max(0, 25 * (1 - changeRate)))
@@ -921,7 +921,7 @@ struct UnifiedDashboardView: View {
 
         let currentSavings = viewModel.monthlyIncome - viewModel.monthlyExpenses
         let progressPercent = monthlyTarget > 0
-            ? NSDecimalNumber(decimal: currentSavings / monthlyTarget * 100).doubleValue : 0
+            ? ( currentSavings / monthlyTarget * 100).doubleValue : 0
         let remaining = max(Decimal(0), monthlyTarget - currentSavings)
         let dailySavingsRate = dayOfMonth > 0 ? currentSavings / Decimal(dayOfMonth) : Decimal(0)
         let projectedEndOfMonth = dailySavingsRate * Decimal(daysInMonth)

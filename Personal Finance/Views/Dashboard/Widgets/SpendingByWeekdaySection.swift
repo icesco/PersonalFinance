@@ -27,7 +27,7 @@ struct SpendingByWeekdaySection: View {
                 Chart(data) { day in
                     BarMark(
                         x: .value("Giorno", day.label),
-                        y: .value("Importo", NSDecimalNumber(decimal: day.amount).doubleValue)
+                        y: .value("Importo", day.amount.doubleValue)
                     )
                     .foregroundStyle(
                         day.amount == maxAmount

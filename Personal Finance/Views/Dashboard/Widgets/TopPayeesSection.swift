@@ -47,19 +47,14 @@ struct TopPayeesSection: View {
                                 .foregroundStyle(.red)
                         }
 
-                        GeometryReader { geometry in
-                            let fraction = maxAmount > 0
-                                ? CGFloat(NSDecimalNumber(decimal: payee.totalAmount / maxAmount).doubleValue)
-                                : 0
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(Color(.tertiarySystemFill))
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(themeColor.gradient)
-                                    .frame(width: geometry.size.width * fraction)
-                            }
-                        }
-                        .frame(height: 6)
+                        PercentageBar(
+                            fraction: maxAmount > 0
+                                ? CGFloat((payee.totalAmount / maxAmount).doubleValue)
+                                : 0,
+                            color: themeColor,
+                            height: 6,
+                            cornerRadius: 3
+                        )
                     }
 
                     if index < payees.count - 1 {

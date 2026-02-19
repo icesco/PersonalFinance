@@ -267,11 +267,19 @@ public final class DataStorageManager {
 // MARK: - Utility Extensions
 
 extension Decimal {
-    public var currencyFormatted: String {
+    private static let currencyFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = "EUR"
-        return formatter.string(from: self as NSDecimalNumber) ?? "€0,00"
+        return formatter
+    }()
+
+    public var currencyFormatted: String {
+        Self.currencyFormatter.string(from: self as NSDecimalNumber) ?? "€0,00"
+    }
+
+    public var doubleValue: Double {
+        NSDecimalNumber(decimal: self).doubleValue
     }
 }
 

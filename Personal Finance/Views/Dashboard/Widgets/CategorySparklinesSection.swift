@@ -5,7 +5,6 @@
 
 import SwiftUI
 import FinanceCore
-import Charts
 
 struct CategorySparklinesSection: View {
     let trends: [CategoryTrendData]
@@ -38,28 +37,10 @@ struct CategorySparklinesSection: View {
                         }
                         .frame(width: 100, alignment: .leading)
 
-                        Chart(Array(trend.monthlyAmounts.enumerated()), id: \.offset) { index, amount in
-                            LineMark(
-                                x: .value("Mese", index),
-                                y: .value("Importo", NSDecimalNumber(decimal: amount).doubleValue)
-                            )
-                            .foregroundStyle(Color(hex: trend.color))
-                            .interpolationMethod(.monotone)
-
-                            AreaMark(
-                                x: .value("Mese", index),
-                                y: .value("Importo", NSDecimalNumber(decimal: amount).doubleValue)
-                            )
-                            .foregroundStyle(
-                                .linearGradient(
-                                    colors: [Color(hex: trend.color).opacity(0.3), Color(hex: trend.color).opacity(0.0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                        }
-                        .chartXAxis(.hidden)
-                        .chartYAxis(.hidden)
+                        SparklinePath(
+                            values: trend.monthlyAmounts.map(\.doubleValue),
+                            color: Color(hex: trend.color)
+                        )
                         .frame(height: 32)
 
                         Image(systemName: trend.isIncreasing ? "arrow.up.right" : "arrow.down.right")
@@ -75,5 +56,66 @@ struct CategorySparklinesSection: View {
             }
         }
         .unifiedCard()
+    }
+}
+
+private struct SparklinePath: View {
+    let values: [Double]
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            guard values.count > 1 else { return }
+            let minVal = values.min() ?? 0
+            let maxVal = values.max() ?? 1
+            let range = maxVal - minVal
+            let yRange = range > 0 ? range : 1
+
+            let stepX = size.width / CGFloat(values.count - 1)
+
+            func point(at index: Int) -> CGPoint {
+                let x = stepX * CGFloat(index)
+                let y = size.height - (CGFloat((values[index] - minVal) / yRange) * size.height)
+                return CGPoint(x: x, y: y)
+            }
+
+            // Build monotone catmull-rom path
+            var linePath = Path()
+            linePath.move(to: point(at: 0))
+            for i in 0..<values.count - 1 {
+                let p0 = i > 0 ? point(at: i - 1) : point(at: i)
+                let p1 = point(at: i)
+                let p2 = point(at: i + 1)
+                let p3 = i + 2 < values.count ? point(at: i + 2) : point(at: i + 1)
+
+                let cp1 = CGPoint(
+                    x: p1.x + (p2.x - p0.x) / 6,
+                    y: p1.y + (p2.y - p0.y) / 6
+                )
+                let cp2 = CGPoint(
+                    x: p2.x - (p3.x - p1.x) / 6,
+                    y: p2.y - (p3.y - p1.y) / 6
+                )
+                linePath.addCurve(to: p2, control1: cp1, control2: cp2)
+            }
+
+            // Draw filled area
+            var areaPath = linePath
+            areaPath.addLine(to: CGPoint(x: size.width, y: size.height))
+            areaPath.addLine(to: CGPoint(x: 0, y: size.height))
+            areaPath.closeSubpath()
+
+            context.fill(
+                areaPath,
+                with: .linearGradient(
+                    Gradient(colors: [color.opacity(0.3), color.opacity(0.0)]),
+                    startPoint: .zero,
+                    endPoint: CGPoint(x: 0, y: size.height)
+                )
+            )
+
+            // Draw line
+            context.stroke(linePath, with: .color(color), lineWidth: 1.5)
+        }
     }
 }

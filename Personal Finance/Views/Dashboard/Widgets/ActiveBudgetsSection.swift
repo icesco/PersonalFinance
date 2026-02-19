@@ -31,28 +31,20 @@ struct ActiveBudgetsSection: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        GeometryReader { geometry in
-                            let fillWidth = geometry.size.width * min(budget.percentage, 1.0)
-                            let overflowWidth = budget.percentage > 1.0
-                                ? geometry.size.width * min(budget.percentage - 1.0, 1.0)
-                                : 0
+                        ZStack {
+                            PercentageBar(
+                                fraction: min(budget.percentage, 1.0),
+                                color: budget.barColor,
+                                height: 10,
+                                cornerRadius: 6
+                            )
 
-                            ZStack(alignment: .leading) {
+                            if budget.percentage > 1.0 {
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color(.tertiarySystemFill))
-
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(budget.barColor.gradient)
-                                    .frame(width: fillWidth)
-
-                                if overflowWidth > 0 {
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.red.opacity(0.3))
-                                        .frame(width: geometry.size.width)
-                                }
+                                    .fill(Color.red.opacity(0.3))
+                                    .frame(height: 10)
                             }
                         }
-                        .frame(height: 10)
 
                         HStack {
                             Text(String(format: "%.0f%%", budget.percentage * 100))

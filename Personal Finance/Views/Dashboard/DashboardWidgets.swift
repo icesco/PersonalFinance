@@ -21,11 +21,11 @@ struct BalanceDistributionWidget: View {
 
     private var incomePercent: Double {
         guard displayTotal > 0 else { return 0 }
-        return NSDecimalNumber(decimal: displayIncome / displayTotal * 100).doubleValue
+        return ( displayIncome / displayTotal * 100).doubleValue
     }
     private var expensePercent: Double {
         guard displayTotal > 0 else { return 0 }
-        return NSDecimalNumber(decimal: displayExpenses / displayTotal * 100).doubleValue
+        return ( displayExpenses / displayTotal * 100).doubleValue
     }
 
     var body: some View {
@@ -99,13 +99,13 @@ private struct DistributionBar: View {
 
     private var fraction: CGFloat {
         guard total > 0 else { return 0 }
-        return CGFloat(NSDecimalNumber(decimal: amount / total).doubleValue)
+        return CGFloat(( amount / total).doubleValue)
     }
 
     private var avgFraction: CGFloat {
         guard total > 0, periodAvg > 0 else { return 0 }
         // Clamp to 1.0 so the marker stays within the bar
-        return min(1.0, CGFloat(NSDecimalNumber(decimal: periodAvg / total).doubleValue))
+        return min(1.0, CGFloat(( periodAvg / total).doubleValue))
     }
 
     var body: some View {
@@ -175,13 +175,13 @@ struct SavingsRateWidget: View {
     private var displayRate: Double {
         guard displayIncome > 0 else { return 0 }
         let rate = (displayIncome - displayExpenses) / displayIncome * 100
-        return NSDecimalNumber(decimal: rate).doubleValue
+        return ( rate).doubleValue
     }
 
     private var periodSavingsRate: Double {
         guard periodAvgIncome > 0 else { return 0 }
         let rate = (periodAvgIncome - periodAvgExpenses) / periodAvgIncome * 100
-        return NSDecimalNumber(decimal: rate).doubleValue
+        return ( rate).doubleValue
     }
 
     private var hasData: Bool { displayIncome > 0 }

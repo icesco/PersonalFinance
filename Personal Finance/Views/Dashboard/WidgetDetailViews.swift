@@ -15,12 +15,12 @@ struct DistributionDetailView: View {
 
     private var incomeDeltaPercent: Double {
         guard viewModel.periodAverageIncome > 0 else { return 0 }
-        return NSDecimalNumber(decimal: (viewModel.monthlyIncome - viewModel.periodAverageIncome) / viewModel.periodAverageIncome * 100).doubleValue
+        return ( (viewModel.monthlyIncome - viewModel.periodAverageIncome) / viewModel.periodAverageIncome * 100).doubleValue
     }
 
     private var expensesDeltaPercent: Double {
         guard viewModel.periodAverageExpenses > 0 else { return 0 }
-        return NSDecimalNumber(decimal: (viewModel.monthlyExpenses - viewModel.periodAverageExpenses) / viewModel.periodAverageExpenses * 100).doubleValue
+        return ( (viewModel.monthlyExpenses - viewModel.periodAverageExpenses) / viewModel.periodAverageExpenses * 100).doubleValue
     }
 
     var body: some View {
@@ -96,7 +96,7 @@ struct DistributionDetailView: View {
             // Proportional bar
             if viewModel.monthlyIncome + viewModel.monthlyExpenses > 0 {
                 let total = viewModel.monthlyIncome + viewModel.monthlyExpenses
-                let incomeFraction = CGFloat(NSDecimalNumber(decimal: viewModel.monthlyIncome / total).doubleValue)
+                let incomeFraction = CGFloat(( viewModel.monthlyIncome / total).doubleValue)
 
                 GeometryReader { geo in
                     HStack(spacing: 2) {
@@ -259,7 +259,7 @@ struct SavingsRateDetailView: View {
 
     private var currentRate: Double {
         guard viewModel.monthlyIncome > 0 else { return 0 }
-        return NSDecimalNumber(decimal: (viewModel.monthlyIncome - viewModel.monthlyExpenses) / viewModel.monthlyIncome * 100).doubleValue
+        return ( (viewModel.monthlyIncome - viewModel.monthlyExpenses) / viewModel.monthlyIncome * 100).doubleValue
     }
 
     private var savedAmount: Decimal {
@@ -268,7 +268,7 @@ struct SavingsRateDetailView: View {
 
     private var periodAvgRate: Double {
         guard viewModel.periodAverageIncome > 0 else { return 0 }
-        return NSDecimalNumber(decimal: (viewModel.periodAverageIncome - viewModel.periodAverageExpenses) / viewModel.periodAverageIncome * 100).doubleValue
+        return ( (viewModel.periodAverageIncome - viewModel.periodAverageExpenses) / viewModel.periodAverageIncome * 100).doubleValue
     }
 
     private var hasIncome: Bool { viewModel.monthlyIncome > 0 }
@@ -524,7 +524,7 @@ struct SpendingTrendDetailView: View {
 
     private var deltaPercent: Double {
         guard avg > 0 else { return 0 }
-        return NSDecimalNumber(decimal: deltaFromAvg / avg * 100).doubleValue
+        return ( deltaFromAvg / avg * 100).doubleValue
     }
 
     private var trendColor: Color {
@@ -666,7 +666,7 @@ struct SpendingTrendDetailView: View {
             VStack(spacing: 0) {
                 ForEach(Array(trend.enumerated().reversed()), id: \.offset) { index, item in
                     let monthDelta = avg > 0 ? item.expenses - avg : Decimal(0)
-                    let monthDeltaPercent = avg > 0 ? NSDecimalNumber(decimal: monthDelta / avg * 100).doubleValue : 0.0
+                    let monthDeltaPercent = avg > 0 ? ( monthDelta / avg * 100).doubleValue : 0.0
 
                     HStack {
                         Text(item.month.capitalized)
