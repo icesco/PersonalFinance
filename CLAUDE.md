@@ -34,6 +34,57 @@ Account (Top Level)
 - **BudgetCategory**: Junction model for Budget-Category many-to-many relationship
 - **TransferLink**: Manages relationships between transfer transactions
 
+### Terminology Mapping (Data Model vs UI)
+
+**IMPORTANT**: The data model uses different names than what users see in the UI. This mapping is critical:
+
+| Data Model | UI Terminology (Italian) | Description |
+|------------|-------------------------|-------------|
+| `Account`  | **Libro Contabile** | Top-level container grouping related financial accounts |
+| `Conto`    | **Account** | Individual financial account (bank, credit card, cash, etc.) |
+| `Transaction` | **Transazione** | Single financial operation |
+
+**Hierarchy Example**:
+```
+Libro "Famiglia" (data: Account)
+├── Account "Conto Bancario" (data: Conto)
+│   └── Transazione "Spesa Supermercato" (data: Transaction)
+├── Account "Carta di Credito" (data: Conto)
+└── Account "Contanti" (data: Conto)
+
+Libro "Personale" (data: Account)
+├── Account "Conto Personale" (data: Conto)
+└── Account "Risparmi" (data: Conto)
+```
+
+### State Management (AppStateManager)
+
+The `AppStateManager` handles two-level hierarchical selection:
+
+**Libro (Account) Selection**:
+- `selectedAccount: Account?` - Currently selected Libro
+- `showAllAccounts: Bool` - When true, aggregates data across all Libri
+
+**Account (Conto) Selection**:
+- `selectedConto: Conto?` - Currently selected Account within a Libro
+- `showAllConti: Bool` - When true, shows all Accounts within selected Libro
+
+**Selection Methods**:
+```swift
+// Libro selection
+selectAccount(_ account: Account)  // Select specific Libro
+selectAllAccounts()                // Show all Libri aggregated
+
+// Account selection
+selectConto(_ conto: Conto)        // Select specific Account
+selectAllConti()                   // Show all Accounts in current Libro
+```
+
+**UI Implementation** (CryptoDashboardView):
+Uses a two-level Menu picker:
+1. First level: Choose Libro (or "Tutti i libri")
+2. Second level: Within selected Libro, choose Account (or "Tutti gli account")
+
 ## Development Commands
 
 ### Building and Running

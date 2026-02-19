@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FinanceCore
 
 struct DateFormatPickerView: View {
     @Environment(\.dismiss) private var dismiss

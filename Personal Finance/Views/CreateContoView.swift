@@ -12,6 +12,11 @@ struct CreateContoView: View {
     @State private var initialBalance: Decimal = 0
     @State private var description = ""
     @State private var selectedColor = "#007AFF"
+    @State private var creditLimit: Decimal?
+    @State private var statementClosingDay: Int?
+    @State private var paymentDueDay: Int?
+    @State private var annualInterestRate: Decimal?
+    @State private var savingsGoal: Decimal?
     
     private let colors = [
         "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
@@ -44,6 +49,16 @@ struct CreateContoView: View {
                     }
                 }
                 
+                ContoTypeSpecificFieldsView(
+                    selectedType: selectedType,
+                    currency: account.currency ?? "EUR",
+                    creditLimit: $creditLimit,
+                    statementClosingDay: $statementClosingDay,
+                    paymentDueDay: $paymentDueDay,
+                    annualInterestRate: $annualInterestRate,
+                    savingsGoal: $savingsGoal
+                )
+
                 Section("Personalizzazione") {
                     HStack {
                         Text("Colore")
@@ -66,7 +81,7 @@ struct CreateContoView: View {
                             }
                         }
                     }
-                    
+
                     TextField("Descrizione (opzionale)", text: $description, axis: .vertical)
                         .lineLimit(2...4)
                 }
@@ -85,7 +100,7 @@ struct CreateContoView: View {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") {
                         createConto()
@@ -93,21 +108,33 @@ struct CreateContoView: View {
                     .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            .onChange(of: selectedType) {
+                creditLimit = nil
+                statementClosingDay = nil
+                paymentDueDay = nil
+                annualInterestRate = nil
+                savingsGoal = nil
+            }
         }
     }
-    
+
     private func createConto() {
         let conto = Conto(
             name: contoName.trimmingCharacters(in: .whitespacesAndNewlines),
             type: selectedType,
             initialBalance: initialBalance,
             contoDescription: description.isEmpty ? nil : description,
-            color: selectedColor
+            color: selectedColor,
+            creditLimit: selectedType == .credit ? creditLimit : nil,
+            statementClosingDay: selectedType == .credit ? statementClosingDay : nil,
+            paymentDueDay: selectedType == .credit ? paymentDueDay : nil,
+            annualInterestRate: selectedType == .investment ? annualInterestRate : nil,
+            savingsGoal: selectedType == .savings ? savingsGoal : nil
         )
-        
+
         conto.account = account
         modelContext.insert(conto)
-        
+
         try? modelContext.save()
         dismiss()
     }
@@ -125,6 +152,11 @@ struct EditContoView: View {
     @State private var description = ""
     @State private var selectedColor = "#007AFF"
     @State private var showingColorPicker = false
+    @State private var creditLimit: Decimal?
+    @State private var statementClosingDay: Int?
+    @State private var paymentDueDay: Int?
+    @State private var annualInterestRate: Decimal?
+    @State private var savingsGoal: Decimal?
     
     private let colors = [
         "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
@@ -151,6 +183,16 @@ struct EditContoView: View {
                     TextField("Descrizione (opzionale)", text: $description)
                 }
                 
+                ContoTypeSpecificFieldsView(
+                    selectedType: selectedType,
+                    currency: conto.account?.currency ?? "EUR",
+                    creditLimit: $creditLimit,
+                    statementClosingDay: $statementClosingDay,
+                    paymentDueDay: $paymentDueDay,
+                    annualInterestRate: $annualInterestRate,
+                    savingsGoal: $savingsGoal
+                )
+
                 Section("Personalizzazione") {
                     HStack {
                         Text("Colore")
@@ -168,7 +210,7 @@ struct EditContoView: View {
                         }
                     }
                 }
-                
+
                 Section("Saldo Corrente") {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Saldo attuale")
@@ -212,15 +254,25 @@ struct EditContoView: View {
         selectedType = conto.type ?? .checking
         description = conto.contoDescription ?? ""
         selectedColor = conto.color ?? "#007AFF"
+        creditLimit = conto.creditLimit
+        statementClosingDay = conto.statementClosingDay
+        paymentDueDay = conto.paymentDueDay
+        annualInterestRate = conto.annualInterestRate
+        savingsGoal = conto.savingsGoal
     }
-    
+
     private func updateConto() {
         conto.name = contoName
         conto.type = selectedType
         conto.contoDescription = description.isEmpty ? nil : description
         conto.color = selectedColor
+        conto.creditLimit = selectedType == .credit ? creditLimit : nil
+        conto.statementClosingDay = selectedType == .credit ? statementClosingDay : nil
+        conto.paymentDueDay = selectedType == .credit ? paymentDueDay : nil
+        conto.annualInterestRate = selectedType == .investment ? annualInterestRate : nil
+        conto.savingsGoal = selectedType == .savings ? savingsGoal : nil
         conto.updatedAt = Date()
-        
+
         do {
             try modelContext.save()
             dismiss()

@@ -159,15 +159,17 @@ struct ContoRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 2) {
-                Text(conto.balance.currencyFormatted)
+                Text(conto.displayBalance.currencyFormatted)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(conto.balance >= 0 ? Color(.label) : Color.red)
-                
+                    .foregroundStyle(conto.displayBalance >= 0 ? Color(.label) : Color.red)
+
                 if !conto.allTransactions.isEmpty {
                     Text("\(conto.allTransactions.count) transazioni")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+
+                ContoTypeSpecificInfoView(conto: conto, compact: true)
             }
         }
     }

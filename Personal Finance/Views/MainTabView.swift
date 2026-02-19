@@ -8,12 +8,15 @@
 import SwiftUI
 import SwiftData
 import FinanceCore
-import FabBar
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var themeColor: Color {
+        appState.themeManager.currentTheme.color
+    }
 
     var body: some View {
         Group {
@@ -23,11 +26,19 @@ struct MainTabView: View {
                 iPhoneLayout
             }
         }
+        .environment(\.cardTint, themeColor)
+        .environment(\.tintedBackgrounds, appState.tintedBackgrounds)
         .sheet(isPresented: Binding(
             get: { appState.showingQuickTransaction },
             set: { _ in appState.dismissQuickTransaction() }
         )) {
             QuickTransactionModal()
+        }
+        .sheet(isPresented: Binding(
+            get: { appState.showingTransferSheet },
+            set: { _ in appState.dismissTransferSheet() }
+        )) {
+            CreateTransactionView(conto: nil, transactionType: .transfer)
         }
         .sheet(isPresented: Binding(
             get: { appState.showingAccountSelection },
@@ -49,7 +60,7 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - iOS 26+ TabView with FabBar
+    // MARK: - iOS 26+ TabView
 
     @available(iOS 26, *)
     private var iOS26TabView: some View {
@@ -59,36 +70,22 @@ struct MainTabView: View {
         )) {
             Tab(value: AppTab.dashboard) {
                 DashboardView()
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .fabBarSafeAreaPadding()
+            } label: {
+                Label("Dashboard", systemImage: "house")
             }
 
             Tab(value: AppTab.transactions) {
                 TransactionListView()
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .fabBarSafeAreaPadding()
+            } label: {
+                Label("Transazioni", systemImage: "list.bullet.rectangle")
             }
 
             Tab(value: AppTab.settings) {
                 SettingsView()
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .fabBarSafeAreaPadding()
+            } label: {
+                Label("Impostazioni", systemImage: "gearshape")
             }
         }
-        .fabBar(
-            selection: Binding(
-                get: { appState.selectedTab },
-                set: { appState.selectTab($0) }
-            ),
-            tabs: [
-                FabBarTab(value: AppTab.dashboard, title: "Dashboard", systemImage: "house.fill"),
-                FabBarTab(value: AppTab.transactions, title: "Transazioni", systemImage: "list.bullet.rectangle.fill"),
-                FabBarTab(value: AppTab.settings, title: "Impostazioni", systemImage: "gearshape.fill"),
-            ],
-            action: FabBarAction(systemImage: "plus", accessibilityLabel: "Nuova transazione") {
-                appState.presentQuickTransaction()
-            }
-        )
     }
 
     // MARK: - Legacy TabView (iOS 18-25)
@@ -109,18 +106,6 @@ struct MainTabView: View {
                     Label("Transazioni", systemImage: "list.bullet.rectangle")
                 }
                 .tag(AppTab.transactions)
-
-            // Add button in center of tab bar for legacy
-            Color.clear
-                .tabItem {
-                    Label("Aggiungi", systemImage: "plus.circle.fill")
-                }
-                .tag(AppTab.addTransaction)
-                .onAppear {
-                    // When this tab is selected, show the modal and switch back
-                    appState.presentQuickTransaction()
-                    appState.selectTab(.dashboard)
-                }
 
             SettingsView()
                 .tabItem {
@@ -335,6 +320,7 @@ struct QuickTransactionModal: View {
 
         do {
             try modelContext.save()
+            appState.triggerDataRefresh()
             dismiss()
         } catch {
             print("Error saving transaction: \(error)")

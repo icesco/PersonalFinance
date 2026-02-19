@@ -84,6 +84,19 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
         )
     }
 
+    /// Gradiente scuro per la dashboard crypto-style
+    var dashboardGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.black,
+                color.opacity(0.4),
+                color.opacity(0.2)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
     /// Icona rappresentativa del tema
     var icon: String {
         switch self {

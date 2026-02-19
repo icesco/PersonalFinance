@@ -19,12 +19,13 @@ struct CSVImportView: View {
     @State private var showingFilePicker = false
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var navigationPath = NavigationPath()
+    @State private var showingAccountFilter = false
+    @State private var showingFieldMapping = false
 
     private let csvService = CSVService()
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        NavigationStack {
             fileSelectionView
                 .navigationTitle("Importa CSV")
                 .navigationBarTitleDisplayMode(.inline)
@@ -42,21 +43,19 @@ struct CSVImportView: View {
                 ) { result in
                     handleFileSelection(result)
                 }
-                .navigationDestination(for: ImportStep.self) { step in
-                    switch step {
-                    case .accountFilter:
-                        if let parseResult = parseResult {
-                            AccountFilterStepView(
-                                parseResult: parseResult,
-                                onContinue: { resultToUse in
-                                    filteredParseResult = resultToUse
-                                    navigationPath.append(ImportStep.fieldMapping)
-                                }
-                            )
-                        }
-                    case .fieldMapping:
-                        if let resultToUse = filteredParseResult ?? parseResult {
-                            FieldMappingView(parseResult: resultToUse)
+                .navigationDestination(isPresented: $showingAccountFilter) {
+                    if let parseResult = parseResult {
+                        AccountFilterStepView(
+                            parseResult: parseResult,
+                            onContinue: { resultToUse in
+                                filteredParseResult = resultToUse
+                                showingFieldMapping = true
+                            }
+                        )
+                        .navigationDestination(isPresented: $showingFieldMapping) {
+                            if let resultToUse = filteredParseResult {
+                                FieldMappingView(parseResult: resultToUse)
+                            }
                         }
                     }
                 }
@@ -158,7 +157,7 @@ struct CSVImportView: View {
             VStack(spacing: 12) {
                 if parseResult != nil {
                     Button {
-                        navigationPath.append(ImportStep.accountFilter)
+                        showingAccountFilter = true
                     } label: {
                         HStack {
                             Image(systemName: "arrow.right.circle.fill")
@@ -231,13 +230,6 @@ struct CSVImportView: View {
             }
         }
     }
-}
-
-// MARK: - Import Step Enum
-
-enum ImportStep: Hashable {
-    case accountFilter
-    case fieldMapping
 }
 
 #Preview {

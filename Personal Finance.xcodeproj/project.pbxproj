@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6D3F39182F2E50F70018B045 /* FabBar in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3F39172F2E50F70018B045 /* FabBar */; };
 		6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D6508F82E5B418F0033992E /* FinanceCore */; };
 /* End PBXBuildFile section */
 
@@ -70,7 +69,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6D3F39182F2E50F70018B045 /* FabBar in Frameworks */,
 				6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -133,7 +131,6 @@
 			name = "Personal Finance";
 			packageProductDependencies = (
 				6D6508F82E5B418F0033992E /* FinanceCore */,
-				6D3F39172F2E50F70018B045 /* FabBar */,
 			);
 			productName = "Personal Finance";
 			productReference = 6D6508C82E5B400F0033992E /* Personal Finance.app */;
@@ -219,7 +216,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				6D6508F72E5B418F0033992E /* XCLocalSwiftPackageReference "Packages/FinanceCore" */,
-				6D3F39162F2E50F70018B045 /* XCRemoteSwiftPackageReference "FabBar" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D6508C92E5B400F0033992E /* Products */;
@@ -304,6 +300,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Personal Finance/Info.plist";
@@ -323,8 +322,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				REGISTER_APP_GROUPS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -341,6 +342,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Personal Finance/Info.plist";
@@ -360,8 +364,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				REGISTER_APP_GROUPS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -610,23 +616,7 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		6D3F39162F2E50F70018B045 /* XCRemoteSwiftPackageReference "FabBar" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ryanashcraft/FabBar";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		6D3F39172F2E50F70018B045 /* FabBar */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 6D3F39162F2E50F70018B045 /* XCRemoteSwiftPackageReference "FabBar" */;
-			productName = FabBar;
-		};
 		6D6508F82E5B418F0033992E /* FinanceCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FinanceCore;

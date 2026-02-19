@@ -16,8 +16,15 @@ struct SettingsView: View {
 
     // MARK: - State
     @State private var showingAddConto = false
+    @State private var showingAddAccount = false
     @State private var showingCSVImport = false
     @State private var showingCSVExport = false
+    @State private var showingDemoAlert = false
+    @State private var isGeneratingDemo = false
+    @State private var showingDemoSuccess = false
+
+    // MARK: - Queries
+    @Query(sort: \Account.name) private var allAccounts: [Account]
 
     // MARK: - Computed Properties
     private var account: Account? { appState.selectedAccount }
@@ -33,6 +40,9 @@ struct SettingsView: View {
                 // Personalizzazione section
                 appearanceSection
 
+                // Libri contabili section
+                libriContabiliSection
+
                 // Conti section
                 contiSection
 
@@ -42,18 +52,91 @@ struct SettingsView: View {
                 // Data management section
                 dataManagementSection
 
+                // Development section
+                developmentSection
+
                 // Info section
                 infoSection
             }
+            .scrollContentBackground(.hidden)
+            .themedBackground()
             .navigationTitle("Impostazioni")
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
+            }
+            .sheet(isPresented: $showingAddAccount) {
+                CreateAccountView { newAccount in
+                    appState.selectAccount(newAccount)
+                }
             }
             .sheet(isPresented: $showingCSVImport) {
                 CSVImportView()
             }
             .sheet(isPresented: $showingCSVExport) {
                 CSVExportView()
+            }
+            .alert("Dati Demo", isPresented: $showingDemoAlert) {
+                Button("Annulla", role: .cancel) { }
+                Button("Genera Dati") {
+                    generateDemoData()
+                }
+            } message: {
+                Text("Verra' creato un libro contabile \"Demo\" con un conto corrente e transazioni di esempio per il mese corrente e quello precedente.")
+            }
+            .alert("Demo Creata", isPresented: $showingDemoSuccess) {
+                Button("OK") {
+                    appState.triggerDataRefresh()
+                }
+            } message: {
+                Text("Libro \"Demo\" creato con successo! Selezionalo dal menu in alto a destra nella dashboard.")
+            }
+        }
+    }
+
+    // MARK: - Development Section
+
+    private var developmentSection: some View {
+        Section {
+            Button {
+                showingDemoAlert = true
+            } label: {
+                HStack {
+                    Label("Genera Dati Demo", systemImage: "wand.and.stars")
+
+                    Spacer()
+
+                    if isGeneratingDemo {
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(isGeneratingDemo)
+        } header: {
+            Text("Sviluppo")
+        } footer: {
+            Text("Crea account di esempio con transazioni realistiche per testare l'app")
+        }
+    }
+
+    // MARK: - Demo Data Generation
+
+    private func generateDemoData() {
+        isGeneratingDemo = true
+
+        Task {
+            do {
+                let demoService = DemoDataService(modelContext: modelContext)
+                try await demoService.generateDemoData()
+
+                await MainActor.run {
+                    isGeneratingDemo = false
+                    showingDemoSuccess = true
+                }
+            } catch {
+                await MainActor.run {
+                    isGeneratingDemo = false
+                }
+                print("Error generating demo data: \(error)")
             }
         }
     }
@@ -73,10 +156,17 @@ struct SettingsView: View {
             } label: {
                 Label("Esporta in CSV", systemImage: "square.and.arrow.up")
             }
+
+            NavigationLink {
+                EraseDataView()
+            } label: {
+                Label("Cancella Dati", systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
         } header: {
             Text("Gestione Dati")
         } footer: {
-            Text("Importa ed esporta le tue transazioni in formato CSV")
+            Text("Importa, esporta o cancella i tuoi dati")
         }
     }
 
@@ -120,10 +210,85 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            // Dashboard Style
+            HStack {
+                Label("Stile Dashboard", systemImage: "square.grid.2x2")
+
+                Spacer()
+
+                Picker("", selection: Binding(
+                    get: { appState.dashboardStyle },
+                    set: { appState.dashboardStyle = $0 }
+                )) {
+                    ForEach(DashboardStyle.allCases, id: \.self) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            // Tinted backgrounds toggle
+            Toggle(isOn: Binding(
+                get: { appState.tintedBackgrounds },
+                set: { appState.tintedBackgrounds = $0 }
+            )) {
+                Label("Sfondi Colorati", systemImage: "paintpalette")
+            }
         } header: {
             Text("Personalizzazione")
         } footer: {
             Text("Personalizza l'aspetto e il livello di dettaglio dell'app")
+        }
+    }
+
+    // MARK: - Libri Contabili Section
+
+    private var libriContabiliSection: some View {
+        Section {
+            ForEach(allAccounts, id: \.id) { acc in
+                libroRow(acc)
+            }
+
+            Button {
+                showingAddAccount = true
+            } label: {
+                Label("Nuovo Libro Contabile", systemImage: "plus.circle.fill")
+            }
+        } header: {
+            Text("Libri Contabili")
+        } footer: {
+            Text("Ogni libro contabile raggruppa i conti correlati (es. Personale, Famiglia, Lavoro)")
+        }
+    }
+
+    private func libroRow(_ acc: Account) -> some View {
+        let isCurrent = acc.id == account?.id
+        return Button {
+            appState.selectAccount(acc)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "book.closed")
+                    .font(.title3)
+                    .frame(width: 32)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(acc.name ?? "Libro")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text(acc.currency ?? "EUR")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isCurrent {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .foregroundStyle(.primary)
         }
     }
 
@@ -356,10 +521,19 @@ struct AddContoSheet: View {
     @State private var name = ""
     @State private var type: ContoType = .checking
     @State private var initialBalance = ""
+    @State private var creditLimit: Decimal?
+    @State private var statementClosingDay: Int?
+    @State private var paymentDueDay: Int?
+    @State private var annualInterestRate: Decimal?
+    @State private var savingsGoal: Decimal?
 
     // MARK: - Computed Properties
     private var isValid: Bool {
         !name.isEmpty
+    }
+
+    private var currency: String {
+        appState.selectedAccount?.currency ?? "EUR"
     }
 
     // MARK: - Body
@@ -388,6 +562,16 @@ struct AddContoSheet: View {
                             .keyboardType(.decimalPad)
                     }
                 }
+
+                ContoTypeSpecificFieldsView(
+                    selectedType: type,
+                    currency: currency,
+                    creditLimit: $creditLimit,
+                    statementClosingDay: $statementClosingDay,
+                    paymentDueDay: $paymentDueDay,
+                    annualInterestRate: $annualInterestRate,
+                    savingsGoal: $savingsGoal
+                )
             }
             .navigationTitle("Nuovo Conto")
             .navigationBarTitleDisplayMode(.inline)
@@ -400,6 +584,13 @@ struct AddContoSheet: View {
                         .disabled(!isValid)
                 }
             }
+            .onChange(of: type) {
+                creditLimit = nil
+                statementClosingDay = nil
+                paymentDueDay = nil
+                annualInterestRate = nil
+                savingsGoal = nil
+            }
         }
     }
 
@@ -407,7 +598,16 @@ struct AddContoSheet: View {
         guard let account = appState.selectedAccount else { return }
 
         let balance = Decimal(string: initialBalance.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let conto = Conto(name: name, type: type, initialBalance: balance)
+        let conto = Conto(
+            name: name,
+            type: type,
+            initialBalance: balance,
+            creditLimit: type == .credit ? creditLimit : nil,
+            statementClosingDay: type == .credit ? statementClosingDay : nil,
+            paymentDueDay: type == .credit ? paymentDueDay : nil,
+            annualInterestRate: type == .investment ? annualInterestRate : nil,
+            savingsGoal: type == .savings ? savingsGoal : nil
+        )
         conto.account = account
 
         modelContext.insert(conto)
