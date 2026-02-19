@@ -34,10 +34,12 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        // Check dashboard style preference
-        if appState.dashboardStyle == .crypto {
+        switch appState.dashboardStyle {
+        case .crypto:
             CryptoDashboardView()
-        } else {
+        case .unified:
+            UnifiedDashboardView()
+        case .classic:
             classicDashboardContent
         }
     }

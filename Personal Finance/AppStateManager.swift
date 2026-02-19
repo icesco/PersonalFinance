@@ -14,11 +14,13 @@ import FinanceCore
 enum DashboardStyle: String, CaseIterable, Codable {
     case classic = "classic"
     case crypto = "crypto"
+    case unified = "unified"
 
     var displayName: String {
         switch self {
         case .classic: return "Classico"
         case .crypto: return "Moderno"
+        case .unified: return "Unificato"
         }
     }
 }
