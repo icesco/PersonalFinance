@@ -36,6 +36,9 @@ struct UnifiedDashboardView: View {
     @State private var incomeVsExpensesData: [MonthlyIncomeExpense] = []
     @State private var topPayeesData: [PayeeData] = []
     @State private var savingsGoalData: SavingsGoalData = .empty
+    @State private var cachedPastData: [BalanceDataPoint] = []
+    @State private var cachedFutureData: [BalanceDataPoint] = []
+    @State private var cachedYDomain: ClosedRange<Decimal> = 0...1
 
     @State private var transactionToDetail: FinanceTransaction?
     @State private var transactionToEdit: FinanceTransaction?
@@ -107,6 +110,14 @@ struct UnifiedDashboardView: View {
         return "Libro"
     }
 
+    /// Coalesced fingerprint for `.task(id:)` — a single value change triggers one reload
+    /// instead of multiple onChange handlers firing separately.
+    private var dataFingerprint: String {
+        let aid = appState.selectedAccount?.id.uuidString ?? "all"
+        let cid = appState.selectedConto?.id.uuidString ?? "all"
+        return "\(aid)-\(cid)-\(appState.showAllAccounts)-\(appState.showAllConti)-\(appState.dataRefreshTrigger)-\(viewModel.selectedPeriod.rawValue)-\(viewModel.selectedMonth.timeIntervalSince1970)"
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -157,12 +168,7 @@ struct UnifiedDashboardView: View {
                     accountSwitcher
                 }
             }
-            .onAppear { loadAllData() }
-            .onChange(of: appState.selectedAccount) { _, _ in loadAllData() }
-            .onChange(of: appState.showAllAccounts) { _, _ in loadAllData() }
-            .onChange(of: appState.selectedConto) { _, _ in loadAllData() }
-            .onChange(of: appState.showAllConti) { _, _ in loadAllData() }
-            .onChange(of: appState.dataRefreshTrigger) { _, _ in loadAllData() }
+            .task(id: dataFingerprint) { loadAllData() }
             .sheet(item: $transactionToDetail) { transaction in
                 NavigationStack {
                     TransactionDetailView(transaction: transaction)
@@ -272,9 +278,9 @@ struct UnifiedDashboardView: View {
             MonthComparisonSection(trend: viewModel.monthlyExpensesTrend)
         case .balanceTrend:
             BalanceTrendSection(
-                pastData: viewModel.pastBalanceHistory(for: displayedAccounts),
-                futureData: viewModel.futureBalanceHistory(for: displayedAccounts),
-                yDomain: viewModel.chartYDomain(for: displayedAccounts),
+                pastData: cachedPastData,
+                futureData: cachedFutureData,
+                yDomain: cachedYDomain,
                 useWeeklyAxis: viewModel.selectedPeriod.useWeeklyAxis,
                 axisStrideCount: viewModel.selectedPeriod.axisStrideCount,
                 themeColor: theme.color
@@ -341,7 +347,6 @@ struct UnifiedDashboardView: View {
                     Button {
                         viewModel.selectedPeriod = .oneMonth
                         viewModel.selectedMonth = month
-                        loadAllData()
                     } label: {
                         HStack {
                             Text(monthYearFormatter.string(from: month))
@@ -364,7 +369,6 @@ struct UnifiedDashboardView: View {
             ForEach(ChartPeriod.allCases.filter { $0 != .oneMonth }) { period in
                 Button {
                     viewModel.selectedPeriod = period
-                    loadAllData()
                 } label: {
                     HStack {
                         Text(period.displayName)
@@ -476,125 +480,108 @@ struct UnifiedDashboardView: View {
     // MARK: - Data Loading
 
     private func loadAllData() {
+        let conti = allDisplayedConti
+        let accounts = displayedAccounts
+        let contiIDs = Set(conti.map(\.id))
+
+        // 1. View model (balance history, monthly totals, trend)
         viewModel.loadDashboardData(
-            displayedAccounts: displayedAccounts,
-            allDisplayedConti: allDisplayedConti,
+            displayedAccounts: accounts,
+            allDisplayedConti: conti,
             showAllAccounts: appState.showAllAccounts,
             showAllConti: appState.showAllConti,
             modelContext: modelContext
         )
-        loadSpendingByCategory()
-        loadTopExpenses()
-        loadBudgets()
-        loadUpcomingRecurring()
-        loadDailyExpenses()
-        computeHealthScore()
-        detectSpendingAnomalies()
-        loadCategoryTrends()
-        loadCashFlowForecast()
-        loadWeekdaySpending()
-        loadIncomeVsExpenses()
-        loadTopPayees()
-        loadSavingsGoal()
-    }
 
-    private func loadSpendingByCategory() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else {
-            spendingByCategory = []
-            return
-        }
-
-        let calendar = Calendar.current
-        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
-        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= startOfMonth && transaction.date < endOfMonth
-        }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-
-            let expenses = transactions.filter { transaction in
-                guard transaction.type == .expense else { return false }
-                guard let fromId = transaction.fromContoId else { return false }
-                return contiIDs.contains(fromId)
-            }
-
-            var categoryTotals: [String: (amount: Decimal, color: String, icon: String)] = [:]
-
-            for expense in expenses {
-                let name = expense.category?.name ?? "Altro"
-                let color = expense.category?.color ?? "#9E9E9E"
-                let icon = expense.category?.icon ?? "questionmark.circle"
-                let amount = expense.amount ?? Decimal(0)
-
-                if let existing = categoryTotals[name] {
-                    categoryTotals[name] = (existing.amount + amount, color, icon)
-                } else {
-                    categoryTotals[name] = (amount, color, icon)
-                }
-            }
-
-            let total = categoryTotals.values.reduce(Decimal(0)) { $0 + $1.amount }
-
-            spendingByCategory = categoryTotals.map { name, data in
-                let percentage = total > 0 ? (data.amount / total) * 100 : Decimal(0)
-                return SpendingCategory(
-                    name: name,
-                    amount: data.amount,
-                    color: data.color,
-                    icon: data.icon,
-                    percentage: String(format: "%.0f%%", NSDecimalNumber(decimal: percentage).doubleValue)
-                )
-            }
-            .sorted { $0.amount > $1.amount }
-        } catch {
-            spendingByCategory = []
-        }
-    }
-
-    private func loadTopExpenses() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else {
-            topExpenses = []
-            return
-        }
-
-        let calendar = Calendar.current
-        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
-        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-
-        var descriptor = FetchDescriptor<FinanceTransaction>(
-            sortBy: [SortDescriptor(\.amount, order: .reverse)]
+        // 2. Pre-compute balance split once (Fix #3: was computed 4x per body eval)
+        let (past, future) = BalanceCalculator.splitBalanceHistory(
+            history: viewModel.balanceHistory,
+            today: Date(),
+            period: viewModel.selectedPeriod,
+            selectedMonth: viewModel.selectedMonth
         )
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= startOfMonth && transaction.date < endOfMonth
+        cachedPastData = past
+        cachedFutureData = future
+        cachedYDomain = BalanceCalculator.chartYDomain(dataPoints: past + future)
+
+        guard !contiIDs.isEmpty else {
+            resetWidgetData()
+            return
         }
 
+        // 3. Single transaction fetch for all widget processing (~10 fetches → 1)
+        let allTransactions: [FinanceTransaction]
         do {
-            let transactions = try modelContext.fetch(descriptor)
-
-            topExpenses = Array(
-                transactions
-                    .filter { transaction in
-                        guard transaction.type == .expense else { return false }
-                        guard let fromId = transaction.fromContoId else { return false }
-                        return contiIDs.contains(fromId)
-                    }
-                    .prefix(5)
-            )
+            allTransactions = try modelContext.fetch(FetchDescriptor<FinanceTransaction>())
         } catch {
-            topExpenses = []
+            resetWidgetData()
+            return
         }
+
+        // 4. Budgets (separate entity, needs own fetch)
+        loadBudgets(accountIDs: Set(accounts.map(\.id)))
+
+        // 5. Common date calculations
+        let calendar = Calendar.current
+        let now = Date()
+        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : now
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
+        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+        // 6. Pre-filter reusable subsets (computed once, shared across widgets)
+        let relevant = allTransactions.filter { tx in
+            if let id = tx.fromContoId, contiIDs.contains(id) { return true }
+            if let id = tx.toContoId, contiIDs.contains(id) { return true }
+            return false
+        }
+        let relevantExpenses = relevant.filter { $0.type == .expense }
+        let currentMonthExpenses = relevantExpenses.filter {
+            $0.date >= startOfMonth && $0.date < endOfMonth
+        }
+        let relevantRecurring = relevant.filter { $0.isRecurring == true }
+
+        // 7. Process all widgets from shared data
+        processSpendingByCategory(from: currentMonthExpenses)
+        processTopExpenses(from: currentMonthExpenses)
+        processDailyExpenses(from: currentMonthExpenses, calendar: calendar)
+        processTopPayees(from: currentMonthExpenses)
+        processSpendingAnomalies(
+            from: relevantExpenses, calendar: calendar, now: now,
+            startOfMonth: startOfMonth, endOfMonth: endOfMonth
+        )
+        processCategoryTrends(from: relevantExpenses, calendar: calendar, now: now)
+        processWeekdaySpending(from: relevantExpenses, calendar: calendar, now: now)
+        processCashFlowForecast(
+            relevant: relevant, relevantRecurring: relevantRecurring,
+            contiIDs: contiIDs, calendar: calendar, now: now
+        )
+        processUpcomingRecurring(from: relevantRecurring)
+
+        // 8. Derived from viewModel data (no fetch needed)
+        computeHealthScore()
+        processIncomeVsExpenses()
+        processSavingsGoal(calendar: calendar, now: now)
     }
 
-    private func loadBudgets() {
-        let accountIDs = Set(displayedAccounts.map(\.id))
+    private func resetWidgetData() {
+        spendingByCategory = []
+        topExpenses = []
+        budgetSnapshots = []
+        upcomingRecurring = []
+        dailyExpenses = [:]
+        healthScore = .empty
+        spendingAnomalies = []
+        categoryTrends = []
+        cashFlowForecast = []
+        weekdaySpending = []
+        incomeVsExpensesData = []
+        topPayeesData = []
+        savingsGoalData = .empty
+    }
+
+    // MARK: - Budget Loading (separate entity)
+
+    private func loadBudgets(accountIDs: Set<UUID>) {
         guard !accountIDs.isEmpty else {
             budgetSnapshots = []
             return
@@ -617,12 +604,8 @@ struct UnifiedDashboardView: View {
                 let spent = (try? budget.getCurrentSpent(in: modelContext)) ?? Decimal(0)
                 let percentage = NSDecimalNumber(decimal: spent / limit).doubleValue
                 return BudgetSnapshot(
-                    id: budget.id,
-                    name: name,
-                    spent: spent,
-                    limit: limit,
-                    percentage: percentage,
-                    daysRemaining: budget.daysRemaining
+                    id: budget.id, name: name, spent: spent, limit: limit,
+                    percentage: percentage, daysRemaining: budget.daysRemaining
                 )
             }
         } catch {
@@ -630,42 +613,242 @@ struct UnifiedDashboardView: View {
         }
     }
 
-    private func loadDailyExpenses() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else {
-            dailyExpenses = [:]
+    // MARK: - Widget Processing (from pre-fetched data)
+
+    private func processSpendingByCategory(from expenses: [FinanceTransaction]) {
+        var categoryTotals: [String: (amount: Decimal, color: String, icon: String)] = [:]
+
+        for expense in expenses {
+            let name = expense.category?.name ?? "Altro"
+            let color = expense.category?.color ?? "#9E9E9E"
+            let icon = expense.category?.icon ?? "questionmark.circle"
+            let amount = expense.amount ?? Decimal(0)
+
+            if let existing = categoryTotals[name] {
+                categoryTotals[name] = (existing.amount + amount, color, icon)
+            } else {
+                categoryTotals[name] = (amount, color, icon)
+            }
+        }
+
+        let total = categoryTotals.values.reduce(Decimal(0)) { $0 + $1.amount }
+
+        spendingByCategory = categoryTotals.map { name, data in
+            let percentage = total > 0 ? (data.amount / total) * 100 : Decimal(0)
+            return SpendingCategory(
+                name: name, amount: data.amount, color: data.color, icon: data.icon,
+                percentage: String(format: "%.0f%%", NSDecimalNumber(decimal: percentage).doubleValue)
+            )
+        }
+        .sorted { $0.amount > $1.amount }
+    }
+
+    private func processTopExpenses(from expenses: [FinanceTransaction]) {
+        topExpenses = Array(
+            expenses
+                .sorted { ($0.amount ?? Decimal(0)) > ($1.amount ?? Decimal(0)) }
+                .prefix(5)
+        )
+    }
+
+    private func processDailyExpenses(from expenses: [FinanceTransaction], calendar: Calendar) {
+        var grouped: [Date: Decimal] = [:]
+        for transaction in expenses {
+            let day = calendar.startOfDay(for: transaction.date)
+            grouped[day, default: Decimal(0)] += transaction.amount ?? Decimal(0)
+        }
+        dailyExpenses = grouped
+    }
+
+    private func processTopPayees(from expenses: [FinanceTransaction]) {
+        var payeeMap: [String: (total: Decimal, count: Int)] = [:]
+        for tx in expenses {
+            let name = tx.transactionDescription ?? tx.category?.name ?? "Altro"
+            let existing = payeeMap[name] ?? (total: Decimal(0), count: 0)
+            payeeMap[name] = (total: existing.total + (tx.amount ?? Decimal(0)), count: existing.count + 1)
+        }
+        topPayeesData = payeeMap.map { PayeeData(name: $0.key, totalAmount: $0.value.total, transactionCount: $0.value.count) }
+            .sorted { $0.totalAmount > $1.totalAmount }.prefix(7).map { $0 }
+    }
+
+    private func processSpendingAnomalies(
+        from relevantExpenses: [FinanceTransaction],
+        calendar: Calendar,
+        now: Date,
+        startOfMonth: Date,
+        endOfMonth: Date
+    ) {
+        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else {
+            spendingAnomalies = []
             return
         }
 
-        let calendar = Calendar.current
-        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
-        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
+        let expenses = relevantExpenses.filter { $0.date >= threeMonthsAgo && $0.date < endOfMonth }
 
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= startOfMonth && transaction.date < endOfMonth
+        var currentByCategory: [String: Decimal] = [:]
+        var categoryMeta: [String: (color: String, icon: String)] = [:]
+
+        for expense in expenses {
+            let catName = expense.category?.name ?? "Altro"
+            if categoryMeta[catName] == nil {
+                categoryMeta[catName] = (
+                    color: expense.category?.color ?? "#9E9E9E",
+                    icon: expense.category?.icon ?? "questionmark.circle"
+                )
+            }
+            if expense.date >= startOfMonth && expense.date < endOfMonth {
+                currentByCategory[catName, default: Decimal(0)] += expense.amount ?? Decimal(0)
+            }
         }
 
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-            var grouped: [Date: Decimal] = [:]
+        let historicalMonths = max(1, calendar.dateComponents([.month], from: threeMonthsAgo, to: startOfMonth).month ?? 1)
+        var historicalTotalByCategory: [String: Decimal] = [:]
+        for expense in expenses where expense.date < startOfMonth {
+            let catName = expense.category?.name ?? "Altro"
+            historicalTotalByCategory[catName, default: Decimal(0)] += expense.amount ?? Decimal(0)
+        }
 
-            for transaction in transactions {
-                guard transaction.type == .expense,
-                      let fromId = transaction.fromContoId,
-                      contiIDs.contains(fromId)
-                else { continue }
+        var anomalies: [SpendingAnomaly] = []
+        for (catName, currentAmount) in currentByCategory {
+            let avg = (historicalTotalByCategory[catName] ?? Decimal(0)) / Decimal(historicalMonths)
+            guard avg > 0 else { continue }
+            let ratio = NSDecimalNumber(decimal: currentAmount / avg).doubleValue
+            if ratio > 1.5 {
+                let meta = categoryMeta[catName] ?? (color: "#9E9E9E", icon: "questionmark.circle")
+                let severity: AnomalySeverity
+                if ratio > 3.0 { severity = .high }
+                else if ratio > 2.0 { severity = .medium }
+                else { severity = .low }
 
-                let day = calendar.startOfDay(for: transaction.date)
-                grouped[day, default: Decimal(0)] += transaction.amount ?? Decimal(0)
+                anomalies.append(SpendingAnomaly(
+                    categoryName: catName, categoryColor: meta.color, icon: meta.icon,
+                    amount: currentAmount, average: avg,
+                    deviationPercent: (ratio - 1.0) * 100, severity: severity
+                ))
             }
+        }
+        spendingAnomalies = anomalies.sorted { $0.deviationPercent > $1.deviationPercent }.prefix(5).map { $0 }
+    }
 
-            dailyExpenses = grouped
-        } catch {
-            dailyExpenses = [:]
+    private func processCategoryTrends(from relevantExpenses: [FinanceTransaction], calendar: Calendar, now: Date) {
+        let monthsBack = 6
+        guard let startDate = calendar.date(byAdding: .month, value: -monthsBack + 1, to: now) else { categoryTrends = []; return }
+        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: startDate))!
+        let endOfCurrentMonth = calendar.date(byAdding: .month, value: 1,
+            to: calendar.date(from: calendar.dateComponents([.year, .month], from: now))!)!
+
+        let expenses = relevantExpenses.filter { $0.date >= start && $0.date < endOfCurrentMonth }
+
+        var data: [String: (color: String, icon: String, months: [Int: Decimal])] = [:]
+        for expense in expenses {
+            let catName = expense.category?.name ?? "Altro"
+            let amount = expense.amount ?? Decimal(0)
+            let monthIndex = calendar.dateComponents([.month], from: start, to: expense.date).month ?? 0
+            if data[catName] == nil {
+                data[catName] = (color: expense.category?.color ?? "#9E9E9E", icon: expense.category?.icon ?? "questionmark.circle", months: [:])
+            }
+            data[catName]!.months[monthIndex, default: Decimal(0)] += amount
+        }
+
+        categoryTrends = data.map { catName, info in
+            let amounts = (0..<monthsBack).map { info.months[$0] ?? Decimal(0) }
+            let currentMonth = amounts.last ?? Decimal(0)
+            let previousMonth = amounts.count >= 2 ? amounts[amounts.count - 2] : Decimal(0)
+            return CategoryTrendData(name: catName, color: info.color, icon: info.icon,
+                monthlyAmounts: amounts, currentMonth: currentMonth, isIncreasing: currentMonth > previousMonth)
+        }
+        .filter { $0.monthlyAmounts.contains { $0 > 0 } }
+        .sorted { $0.currentMonth > $1.currentMonth }
+        .prefix(8).map { $0 }
+    }
+
+    private func processWeekdaySpending(from relevantExpenses: [FinanceTransaction], calendar: Calendar, now: Date) {
+        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else { weekdaySpending = []; return }
+
+        let expenses = relevantExpenses.filter { $0.date >= threeMonthsAgo }
+        var totals: [Int: Decimal] = [:]
+
+        for tx in expenses {
+            let weekday = calendar.component(.weekday, from: tx.date)
+            totals[weekday, default: Decimal(0)] += tx.amount ?? Decimal(0)
+        }
+
+        let totalDays = calendar.dateComponents([.day], from: threeMonthsAgo, to: now).day ?? 90
+        let weeksInPeriod = max(1, totalDays / 7)
+        let dayNames = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+        let fullNames = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+        let mondayOrder = [2, 3, 4, 5, 6, 7, 1]
+
+        weekdaySpending = mondayOrder.enumerated().map { index, weekday in
+            WeekdaySpending(weekday: weekday, label: dayNames[index], fullName: fullNames[index],
+                amount: (totals[weekday] ?? Decimal(0)) / Decimal(weeksInPeriod))
         }
     }
+
+    private func processCashFlowForecast(
+        relevant: [FinanceTransaction],
+        relevantRecurring: [FinanceTransaction],
+        contiIDs: Set<UUID>,
+        calendar: Calendar,
+        now: Date
+    ) {
+        let today = calendar.startOfDay(for: now)
+        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else { cashFlowForecast = []; return }
+
+        let historicalTx = relevant.filter { $0.date >= threeMonthsAgo }
+
+        let weeks = max(1.0, abs(threeMonthsAgo.timeIntervalSince(now)) / (7 * 86400))
+        var histWeeklyIncome = Decimal(0)
+        var histWeeklyExpenses = Decimal(0)
+
+        for tx in historicalTx {
+            let amount = tx.amount ?? Decimal(0)
+            if tx.type == .income, let toId = tx.toContoId, contiIDs.contains(toId) {
+                histWeeklyIncome += amount
+            } else if tx.type == .expense, let fromId = tx.fromContoId, contiIDs.contains(fromId) {
+                histWeeklyExpenses += amount
+            }
+        }
+        histWeeklyIncome /= Decimal(weeks)
+        histWeeklyExpenses /= Decimal(weeks)
+
+        let weekLabels = ["Sett. 1", "Sett. 2", "Sett. 3", "Sett. 4"]
+        var forecast: [CashFlowWeek] = []
+
+        for weekIndex in 0..<4 {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: weekIndex, to: today),
+                  let weekEnd = calendar.date(byAdding: .weekOfYear, value: weekIndex + 1, to: today) else { continue }
+
+            var weekIncome = histWeeklyIncome
+            var weekExpenses = histWeeklyExpenses
+
+            for tx in relevantRecurring {
+                guard tx.isRecurrenceActive(),
+                      let nextDate = tx.nextRecurrenceDate(),
+                      nextDate >= weekStart && nextDate < weekEnd else { continue }
+
+                let amount = tx.amount ?? Decimal(0)
+                if tx.type == .income { weekIncome += amount }
+                else if tx.type == .expense { weekExpenses += amount }
+            }
+
+            forecast.append(CashFlowWeek(label: weekLabels[weekIndex], projectedIncome: weekIncome, projectedExpenses: weekExpenses))
+        }
+        cashFlowForecast = forecast
+    }
+
+    private func processUpcomingRecurring(from recurring: [FinanceTransaction]) {
+        upcomingRecurring = recurring
+            .filter { $0.isRecurrenceActive() }
+            .compactMap { tx -> (transaction: FinanceTransaction, nextDate: Date)? in
+                guard let next = tx.nextRecurrenceDate() else { return nil }
+                return (transaction: tx, nextDate: next)
+            }
+            .sorted { $0.nextDate < $1.nextDate }
+            .prefix(5).map { $0 }
+    }
+
+    // MARK: - Derived Processing (no fetch needed)
 
     private func computeHealthScore() {
         var savingsPoints: Double = 0
@@ -710,234 +893,7 @@ struct UnifiedDashboardView: View {
         )
     }
 
-    private func detectSpendingAnomalies() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else {
-            spendingAnomalies = []
-            return
-        }
-
-        let calendar = Calendar.current
-        let now = Date()
-        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else {
-            spendingAnomalies = []
-            return
-        }
-
-        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : now
-        let startOfCurrentMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
-        let endOfCurrentMonth = calendar.date(byAdding: .month, value: 1, to: startOfCurrentMonth)!
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= threeMonthsAgo && transaction.date < endOfCurrentMonth
-        }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-            let expenses = transactions.filter { tx in
-                guard tx.type == .expense, let fromId = tx.fromContoId else { return false }
-                return contiIDs.contains(fromId)
-            }
-
-            var currentByCategory: [String: Decimal] = [:]
-            var categoryMeta: [String: (color: String, icon: String)] = [:]
-
-            for expense in expenses {
-                let catName = expense.category?.name ?? "Altro"
-                if categoryMeta[catName] == nil {
-                    categoryMeta[catName] = (
-                        color: expense.category?.color ?? "#9E9E9E",
-                        icon: expense.category?.icon ?? "questionmark.circle"
-                    )
-                }
-                if expense.date >= startOfCurrentMonth && expense.date < endOfCurrentMonth {
-                    currentByCategory[catName, default: Decimal(0)] += expense.amount ?? Decimal(0)
-                }
-            }
-
-            let historicalMonths = max(1, calendar.dateComponents([.month], from: threeMonthsAgo, to: startOfCurrentMonth).month ?? 1)
-            var historicalTotalByCategory: [String: Decimal] = [:]
-            for expense in expenses where expense.date < startOfCurrentMonth {
-                let catName = expense.category?.name ?? "Altro"
-                historicalTotalByCategory[catName, default: Decimal(0)] += expense.amount ?? Decimal(0)
-            }
-
-            var anomalies: [SpendingAnomaly] = []
-            for (catName, currentAmount) in currentByCategory {
-                let avg = (historicalTotalByCategory[catName] ?? Decimal(0)) / Decimal(historicalMonths)
-                guard avg > 0 else { continue }
-                let ratio = NSDecimalNumber(decimal: currentAmount / avg).doubleValue
-                if ratio > 1.5 {
-                    let meta = categoryMeta[catName] ?? (color: "#9E9E9E", icon: "questionmark.circle")
-                    let severity: AnomalySeverity
-                    if ratio > 3.0 { severity = .high }
-                    else if ratio > 2.0 { severity = .medium }
-                    else { severity = .low }
-
-                    anomalies.append(SpendingAnomaly(
-                        categoryName: catName, categoryColor: meta.color, icon: meta.icon,
-                        amount: currentAmount, average: avg,
-                        deviationPercent: (ratio - 1.0) * 100, severity: severity
-                    ))
-                }
-            }
-            spendingAnomalies = anomalies.sorted { $0.deviationPercent > $1.deviationPercent }.prefix(5).map { $0 }
-        } catch {
-            spendingAnomalies = []
-        }
-    }
-
-    private func loadCategoryTrends() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else { categoryTrends = []; return }
-
-        let calendar = Calendar.current
-        let now = Date()
-        let monthsBack = 6
-        guard let startDate = calendar.date(byAdding: .month, value: -monthsBack + 1, to: now) else { categoryTrends = []; return }
-        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: startDate))!
-        let endOfCurrentMonth = calendar.date(byAdding: .month, value: 1,
-            to: calendar.date(from: calendar.dateComponents([.year, .month], from: now))!)!
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= start && transaction.date < endOfCurrentMonth
-        }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-            let expenses = transactions.filter { tx in
-                guard tx.type == .expense, let fromId = tx.fromContoId else { return false }
-                return contiIDs.contains(fromId)
-            }
-
-            var data: [String: (color: String, icon: String, months: [Int: Decimal])] = [:]
-            for expense in expenses {
-                let catName = expense.category?.name ?? "Altro"
-                let amount = expense.amount ?? Decimal(0)
-                let monthIndex = calendar.dateComponents([.month], from: start, to: expense.date).month ?? 0
-                if data[catName] == nil {
-                    data[catName] = (color: expense.category?.color ?? "#9E9E9E", icon: expense.category?.icon ?? "questionmark.circle", months: [:])
-                }
-                data[catName]!.months[monthIndex, default: Decimal(0)] += amount
-            }
-
-            categoryTrends = data.map { catName, info in
-                let amounts = (0..<monthsBack).map { info.months[$0] ?? Decimal(0) }
-                let currentMonth = amounts.last ?? Decimal(0)
-                let previousMonth = amounts.count >= 2 ? amounts[amounts.count - 2] : Decimal(0)
-                return CategoryTrendData(name: catName, color: info.color, icon: info.icon,
-                    monthlyAmounts: amounts, currentMonth: currentMonth, isIncreasing: currentMonth > previousMonth)
-            }
-            .filter { $0.monthlyAmounts.contains { $0 > 0 } }
-            .sorted { $0.currentMonth > $1.currentMonth }
-            .prefix(8).map { $0 }
-        } catch {
-            categoryTrends = []
-        }
-    }
-
-    private func loadCashFlowForecast() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else { cashFlowForecast = []; return }
-
-        let calendar = Calendar.current
-        let now = Date()
-        let today = calendar.startOfDay(for: now)
-        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else { cashFlowForecast = []; return }
-
-        var recurringDescriptor = FetchDescriptor<FinanceTransaction>()
-        recurringDescriptor.predicate = #Predicate<FinanceTransaction> { $0.isRecurring == true }
-        var histDescriptor = FetchDescriptor<FinanceTransaction>()
-        histDescriptor.predicate = #Predicate<FinanceTransaction> { $0.date >= threeMonthsAgo }
-
-        do {
-            let recurringTx = try modelContext.fetch(recurringDescriptor)
-            let historicalTx = try modelContext.fetch(histDescriptor)
-
-            let weeks = max(1.0, abs(threeMonthsAgo.timeIntervalSince(now)) / (7 * 86400))
-            var histWeeklyIncome = Decimal(0)
-            var histWeeklyExpenses = Decimal(0)
-
-            for tx in historicalTx {
-                let amount = tx.amount ?? Decimal(0)
-                if tx.type == .income, let toId = tx.toContoId, contiIDs.contains(toId) {
-                    histWeeklyIncome += amount
-                } else if tx.type == .expense, let fromId = tx.fromContoId, contiIDs.contains(fromId) {
-                    histWeeklyExpenses += amount
-                }
-            }
-            histWeeklyIncome /= Decimal(weeks)
-            histWeeklyExpenses /= Decimal(weeks)
-
-            let weekLabels = ["Sett. 1", "Sett. 2", "Sett. 3", "Sett. 4"]
-            var forecast: [CashFlowWeek] = []
-
-            for weekIndex in 0..<4 {
-                guard let weekStart = calendar.date(byAdding: .weekOfYear, value: weekIndex, to: today),
-                      let weekEnd = calendar.date(byAdding: .weekOfYear, value: weekIndex + 1, to: today) else { continue }
-
-                var weekIncome = histWeeklyIncome
-                var weekExpenses = histWeeklyExpenses
-
-                for tx in recurringTx {
-                    guard tx.isRecurrenceActive() else { continue }
-                    let relevant = (tx.fromContoId.map { contiIDs.contains($0) } ?? false) ||
-                                   (tx.toContoId.map { contiIDs.contains($0) } ?? false)
-                    guard relevant, let nextDate = tx.nextRecurrenceDate(),
-                          nextDate >= weekStart && nextDate < weekEnd else { continue }
-
-                    let amount = tx.amount ?? Decimal(0)
-                    if tx.type == .income { weekIncome += amount }
-                    else if tx.type == .expense { weekExpenses += amount }
-                }
-
-                forecast.append(CashFlowWeek(label: weekLabels[weekIndex], projectedIncome: weekIncome, projectedExpenses: weekExpenses))
-            }
-            cashFlowForecast = forecast
-        } catch {
-            cashFlowForecast = []
-        }
-    }
-
-    private func loadWeekdaySpending() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else { weekdaySpending = []; return }
-
-        let calendar = Calendar.current
-        let now = Date()
-        guard let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) else { weekdaySpending = []; return }
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { $0.date >= threeMonthsAgo }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-            var totals: [Int: Decimal] = [:]
-
-            for tx in transactions {
-                guard tx.type == .expense, let fromId = tx.fromContoId, contiIDs.contains(fromId) else { continue }
-                let weekday = calendar.component(.weekday, from: tx.date)
-                totals[weekday, default: Decimal(0)] += tx.amount ?? Decimal(0)
-            }
-
-            let totalDays = calendar.dateComponents([.day], from: threeMonthsAgo, to: now).day ?? 90
-            let weeksInPeriod = max(1, totalDays / 7)
-            let dayNames = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
-            let fullNames = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
-            let mondayOrder = [2, 3, 4, 5, 6, 7, 1]
-
-            weekdaySpending = mondayOrder.enumerated().map { index, weekday in
-                WeekdaySpending(weekday: weekday, label: dayNames[index], fullName: fullNames[index],
-                    amount: (totals[weekday] ?? Decimal(0)) / Decimal(weeksInPeriod))
-            }
-        } catch {
-            weekdaySpending = []
-        }
-    }
-
-    private func loadIncomeVsExpenses() {
+    private func processIncomeVsExpenses() {
         let trend = viewModel.monthlyExpensesTrend
         guard trend.count >= 2 else { incomeVsExpensesData = []; return }
         incomeVsExpensesData = trend.suffix(6).map {
@@ -945,39 +901,7 @@ struct UnifiedDashboardView: View {
         }
     }
 
-    private func loadTopPayees() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else { topPayeesData = []; return }
-
-        let calendar = Calendar.current
-        let referenceDate = viewModel.selectedPeriod == .oneMonth ? viewModel.selectedMonth : Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
-        let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { $0.date >= startOfMonth && $0.date < endOfMonth }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-            var payeeMap: [String: (total: Decimal, count: Int)] = [:]
-
-            for tx in transactions {
-                guard tx.type == .expense, let fromId = tx.fromContoId, contiIDs.contains(fromId) else { continue }
-                let name = tx.transactionDescription ?? tx.category?.name ?? "Altro"
-                let existing = payeeMap[name] ?? (total: Decimal(0), count: 0)
-                payeeMap[name] = (total: existing.total + (tx.amount ?? Decimal(0)), count: existing.count + 1)
-            }
-
-            topPayeesData = payeeMap.map { PayeeData(name: $0.key, totalAmount: $0.value.total, transactionCount: $0.value.count) }
-                .sorted { $0.totalAmount > $1.totalAmount }.prefix(7).map { $0 }
-        } catch {
-            topPayeesData = []
-        }
-    }
-
-    private func loadSavingsGoal() {
-        let calendar = Calendar.current
-        let now = Date()
+    private func processSavingsGoal(calendar: Calendar, now: Date) {
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         let daysInMonth = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
         let dayOfMonth = calendar.component(.day, from: now)
@@ -1005,32 +929,6 @@ struct UnifiedDashboardView: View {
             daysRemaining: daysRemaining, projectedEndOfMonth: projectedEndOfMonth,
             onTrack: projectedEndOfMonth >= monthlyTarget
         )
-    }
-
-    private func loadUpcomingRecurring() {
-        let contiIDs = Set(allDisplayedConti.map(\.id))
-        guard !contiIDs.isEmpty else { upcomingRecurring = []; return }
-
-        var descriptor = FetchDescriptor<FinanceTransaction>()
-        descriptor.predicate = #Predicate<FinanceTransaction> { $0.isRecurring == true }
-
-        do {
-            let transactions = try modelContext.fetch(descriptor)
-            upcomingRecurring = transactions
-                .filter { tx in
-                    guard tx.isRecurrenceActive() else { return false }
-                    return (tx.fromContoId.map { contiIDs.contains($0) } ?? false) ||
-                           (tx.toContoId.map { contiIDs.contains($0) } ?? false)
-                }
-                .compactMap { tx -> (transaction: FinanceTransaction, nextDate: Date)? in
-                    guard let next = tx.nextRecurrenceDate() else { return nil }
-                    return (transaction: tx, nextDate: next)
-                }
-                .sorted { $0.nextDate < $1.nextDate }
-                .prefix(5).map { $0 }
-        } catch {
-            upcomingRecurring = []
-        }
     }
 }
 
