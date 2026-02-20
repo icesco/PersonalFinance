@@ -266,9 +266,17 @@ struct OnboardingView: View {
         let account = Account(name: libroName.trimmingCharacters(in: .whitespaces), currency: libroCurrency)
         modelContext.insert(account)
 
-        // Create default categories
-        for (name, color, icon) in Category.defaultCategories {
-            let category = Category(name: name, color: color, icon: icon)
+        // Create default categories with deterministic externalIDs
+        let prefix = "\(account.id)-"
+        let existingCategories = (try? modelContext.fetch(FetchDescriptor<FinanceCategory>())) ?? []
+        let existingExternalIDs = Set(existingCategories.compactMap { $0.externalID })
+
+        for def in FinanceCategory.defaultCategoryDefinitions {
+            let externalID = "\(prefix)\(def.stableKey)"
+            guard !existingExternalIDs.contains(externalID) else { continue }
+
+            let category = Category(name: def.name, color: def.color, icon: def.icon)
+            category.externalID = externalID
             category.account = account
             modelContext.insert(category)
         }

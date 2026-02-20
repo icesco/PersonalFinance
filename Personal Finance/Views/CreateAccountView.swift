@@ -80,9 +80,17 @@ struct CreateAccountView: View {
     }
     
     private func createDefaultCategories(for account: Account) {
-        // All categories
-        for (name, color, icon) in Category.defaultCategories {
-            let category = Category(name: name, color: color, icon: icon)
+        // Check if categories with deterministic externalIDs already exist for this account
+        let prefix = "\(account.id)-"
+        let existingCategories = (try? modelContext.fetch(FetchDescriptor<FinanceCategory>())) ?? []
+        let existingExternalIDs = Set(existingCategories.compactMap { $0.externalID })
+
+        for def in FinanceCategory.defaultCategoryDefinitions {
+            let externalID = "\(prefix)\(def.stableKey)"
+            guard !existingExternalIDs.contains(externalID) else { continue }
+
+            let category = Category(name: def.name, color: def.color, icon: def.icon)
+            category.externalID = externalID
             category.account = account
             modelContext.insert(category)
         }

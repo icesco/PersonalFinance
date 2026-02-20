@@ -145,19 +145,19 @@ public final class DataStorageManager {
     private let userDefaults: UserDefaults
     
     // MARK: - Cloud Sync Preferences
-    
+
     public var isCloudSyncEnabled: Bool {
         get {
             userDefaults.bool(forKey: "CloudSyncEnabled")
         }
         set {
             userDefaults.set(newValue, forKey: "CloudSyncEnabled")
-            Task { @MainActor in
-                await updateContainer()
-            }
         }
     }
-    
+
+    /// True while the container is being recreated after a sync toggle.
+    public var isMigrating: Bool = false
+
     public var currentContainer: ModelContainer? {
         return FinanceCoreModule.sharedContainer
     }
@@ -195,6 +195,18 @@ public final class DataStorageManager {
         } catch {
             print("Failed to update container: \(error)")
         }
+    }
+
+    /// Toggle iCloud sync with observable migration state.
+    /// Call this instead of setting `isCloudSyncEnabled` directly when you
+    /// want the UI to show a loading indicator during container recreation.
+    @MainActor
+    public func performSyncToggle(enableCloud: Bool) async {
+        isMigrating = true
+        isCloudSyncEnabled = enableCloud
+        await updateContainer()
+        NotificationCenter.default.post(name: Notification.Name("containerDidChange"), object: nil)
+        isMigrating = false
     }
     
     // MARK: - Migration Support

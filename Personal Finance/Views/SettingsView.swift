@@ -13,8 +13,10 @@ struct SettingsView: View {
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
+    @Environment(DataStorageManager.self) private var dataStorageManager
 
     // MARK: - State
+    @State private var cloudKitHelper = CloudKitHelper.shared
     @State private var showingAddConto = false
     @State private var showingAddAccount = false
     @State private var showingCSVImport = false
@@ -22,6 +24,8 @@ struct SettingsView: View {
     @State private var showingDemoAlert = false
     @State private var isGeneratingDemo = false
     @State private var showingDemoSuccess = false
+    @State private var showingSyncToggleAlert = false
+    @State private var pendingSyncToggleValue = false
 
     // MARK: - Queries
     @Query(sort: \Account.name) private var allAccounts: [Account]
@@ -51,6 +55,9 @@ struct SettingsView: View {
 
                 // Data management section
                 dataManagementSection
+
+                // iCloud section
+                iCloudSection
 
                 // Development section
                 developmentSection
@@ -90,6 +97,78 @@ struct SettingsView: View {
             } message: {
                 Text("Libro \"Demo\" creato con successo! Selezionalo dal menu in alto a destra nella dashboard.")
             }
+            .alert(
+                pendingSyncToggleValue ? "Attivare iCloud?" : "Disattivare iCloud?",
+                isPresented: $showingSyncToggleAlert
+            ) {
+                Button("Annulla", role: .cancel) { }
+                Button(pendingSyncToggleValue ? "Attiva" : "Disattiva") {
+                    Task {
+                        await dataStorageManager.performSyncToggle(enableCloud: pendingSyncToggleValue)
+                    }
+                }
+            } message: {
+                Text(pendingSyncToggleValue
+                     ? "I tuoi dati verranno sincronizzati su iCloud e disponibili su tutti i dispositivi."
+                     : "I dati resteranno solo su questo dispositivo. I dati gia' sincronizzati su iCloud non verranno cancellati.")
+            }
+            .task {
+                await cloudKitHelper.refreshSyncStatus()
+            }
+        }
+    }
+
+    // MARK: - iCloud Section
+
+    private var iCloudSection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { dataStorageManager.isCloudSyncEnabled },
+                set: { newValue in
+                    pendingSyncToggleValue = newValue
+                    showingSyncToggleAlert = true
+                }
+            )) {
+                Label("Sincronizzazione iCloud", systemImage: "icloud")
+            }
+            .disabled(dataStorageManager.isMigrating)
+
+            if dataStorageManager.isCloudSyncEnabled {
+                NavigationLink {
+                    CloudSyncDetailView()
+                } label: {
+                    HStack {
+                        if cloudKitHelper.isSyncing {
+                            Image(systemName: "arrow.triangle.2.circlepath.icloud")
+                                .symbolEffect(.rotate)
+                                .foregroundStyle(.blue)
+                        } else if cloudKitHelper.syncError != nil {
+                            Image(systemName: "exclamationmark.icloud")
+                                .foregroundStyle(.red)
+                        } else {
+                            Image(systemName: "checkmark.icloud")
+                                .foregroundStyle(.green)
+                        }
+
+                        Text(cloudKitHelper.syncStatusMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if dataStorageManager.isMigrating {
+                HStack {
+                    ProgressView()
+                    Text("Aggiornamento in corso...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("iCloud")
+        } footer: {
+            Text("Sincronizza i tuoi dati su tutti i dispositivi con iCloud")
         }
     }
 

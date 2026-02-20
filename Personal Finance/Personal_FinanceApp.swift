@@ -14,9 +14,11 @@ import CloudKit
 struct Personal_FinanceApp: App {
     @State private var navigationRouter = NavigationRouter()
     @State private var dataStorageManager = DataStorageManager.shared
+    @State private var cloudKitHelper = CloudKitHelper.shared
+    @State private var syncManager = SyncManager.shared
     @State private var isInitialized = false
     @State private var initializationError: Error?
-    
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -31,6 +33,9 @@ struct Personal_FinanceApp: App {
                         .environment(navigationRouter)
                         .environment(dataStorageManager)
                         .modelContainer(container)
+                        .overlay(alignment: .bottom) {
+                            BackgroundOperationBanner()
+                        }
                 } else {
                     LoadingView()
                 }
