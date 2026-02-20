@@ -139,13 +139,20 @@ struct TransactionDetailView: View {
                 }
             }
         }
+        #if os(iOS)
         .listStyle(.insetGrouped)
+        #else
+        .listStyle(.inset)
+        #endif
         .scrollContentBackground(.hidden)
         .themedBackground()
         .navigationTitle("Dettaglio")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Chiudi") { dismiss() }
+            }
+            ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 12) {
                     Button {
                         showingEditSheet = true

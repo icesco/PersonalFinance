@@ -382,13 +382,15 @@ struct CryptoDashboardView: View {
                 }
             }
             .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
+            #if os(iOS)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigation) {
                     periodSelector
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     accountSwitcher
                 }
             }
@@ -546,13 +548,17 @@ struct CryptoDashboardView: View {
             )
             .tag(1)
         }
+        #if os(iOS)
         .tabViewStyle(.page(indexDisplayMode: .always))
+        #endif
         .frame(height: height)
+        #if os(iOS)
         .onAppear {
             // White page dots on dark background
             UIPageControl.appearance().currentPageIndicatorTintColor = .white
             UIPageControl.appearance().pageIndicatorTintColor = UIColor.white.withAlphaComponent(0.3)
         }
+        #endif
     }
 
     // MARK: - Balance Chart Section

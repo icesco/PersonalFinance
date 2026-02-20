@@ -75,7 +75,7 @@ struct ColumnPickerView: View {
                 }
             }
             .navigationTitle(field.rawValue)
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

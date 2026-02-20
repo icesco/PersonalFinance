@@ -19,6 +19,7 @@ struct ContiListSection: View {
                 } description: {
                     Text("Aggiungi il tuo primo conto")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 ForEach(conti, id: \.id) { conto in
                     NavigationLink {

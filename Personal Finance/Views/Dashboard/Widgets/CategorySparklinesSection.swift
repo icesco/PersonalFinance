@@ -19,6 +19,7 @@ struct CategorySparklinesSection: View {
                 } description: {
                     Text("Servono almeno 2 mesi di dati")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 ForEach(trends) { trend in
                     HStack(spacing: 12) {

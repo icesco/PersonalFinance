@@ -73,17 +73,22 @@ struct DashboardCustomizationView: View {
                     Text("Il saldo e le azioni rapide sono sempre visibili in cima alla dashboard.")
                 }
             }
+            #if os(iOS)
             .environment(\.editMode, .constant(.active))
+            #endif
             .navigationTitle("Personalizza")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .frame(minWidth: 480, minHeight: 500)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigation) {
                     Button("Ripristina") {
                         selectedPreset = nil
                         layoutManager.reset()
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button("Fine") {
                         dismiss()
                     }

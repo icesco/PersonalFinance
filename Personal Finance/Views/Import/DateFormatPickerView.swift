@@ -47,7 +47,7 @@ struct DateFormatPickerView: View {
             }
             .searchable(text: $searchText, prompt: "Cerca formato")
             .navigationTitle("Formato Data")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

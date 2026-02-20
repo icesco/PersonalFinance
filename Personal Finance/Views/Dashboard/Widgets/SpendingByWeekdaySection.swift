@@ -21,6 +21,7 @@ struct SpendingByWeekdaySection: View {
                 } description: {
                     Text("Le spese per giorno appariranno qui")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 let maxAmount = data.map(\.amount).max() ?? Decimal(1)
 

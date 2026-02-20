@@ -19,6 +19,7 @@ struct ActiveBudgetsSection: View {
                 } description: {
                     Text("Crea un budget dalle Impostazioni")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 ForEach(budgets) { budget in
                     VStack(alignment: .leading, spacing: 8) {

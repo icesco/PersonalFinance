@@ -79,7 +79,7 @@ struct ImportPreviewView: View {
                 }
             }
             .navigationTitle("Anteprima Import")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

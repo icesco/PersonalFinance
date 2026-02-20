@@ -20,6 +20,7 @@ struct CashFlowForecastSection: View {
                 } description: {
                     Text("Servono transazioni ricorrenti per la previsione")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 Chart(forecast) { week in
                     BarMark(

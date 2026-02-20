@@ -37,7 +37,7 @@ struct CreateAccountView: View {
                 }
             }
             .navigationTitle("Nuovo Account")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

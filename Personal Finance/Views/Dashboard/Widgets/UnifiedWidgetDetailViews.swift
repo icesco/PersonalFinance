@@ -85,7 +85,7 @@ struct HeatmapDetailView: View {
         }
         .themedBackground()
         .navigationTitle("Heatmap Flussi")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }
@@ -388,7 +388,7 @@ struct SpendingDistributionDetailView: View {
         }
         .themedBackground()
         .navigationTitle("Distribuzione Spese")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }
@@ -471,7 +471,7 @@ struct BalanceTrendDetailView: View {
         }
         .themedBackground()
         .navigationTitle("Andamento Saldo")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }
@@ -659,7 +659,7 @@ struct FinancialHealthDetailView: View {
         }
         .themedBackground()
         .navigationTitle("Financial Health")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }
@@ -946,7 +946,7 @@ struct TopExpensesDetailView: View {
         }
         .themedBackground()
         .navigationTitle("Top Spese")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }

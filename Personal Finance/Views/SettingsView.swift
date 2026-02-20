@@ -499,7 +499,7 @@ struct CategoryManagementView: View {
             }
         }
         .navigationTitle("Categorie")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -638,7 +638,9 @@ struct AddContoSheet: View {
                         Text("€")
                             .foregroundStyle(.secondary)
                         TextField("0,00", text: $initialBalance)
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                     }
                 }
 
@@ -653,7 +655,7 @@ struct AddContoSheet: View {
                 )
             }
             .navigationTitle("Nuovo Conto")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") { dismiss() }
@@ -741,7 +743,7 @@ struct AddCategorySheet: View {
                 previewSection
             }
             .navigationTitle("Nuova Categoria")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") { dismiss() }
@@ -881,7 +883,7 @@ struct EditCategorySheet: View {
                 previewSection
             }
             .navigationTitle("Modifica Categoria")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") { dismiss() }

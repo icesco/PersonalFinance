@@ -16,7 +16,9 @@ import FinanceCore
 struct UnifiedDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     @Environment(AppStateManager.self) private var appState
 
     @Query private var allAccounts: [Account]
@@ -53,6 +55,9 @@ struct UnifiedDashboardView: View {
     @State private var currentMonthTransactions: [FinanceTransaction] = []
     @State private var helpSection: DashboardSection?
     @State private var showInlineBalance = false
+    #if os(macOS)
+    @State private var contentWidth: CGFloat = 0
+    #endif
 
     private var theme: AppTheme { appState.themeManager.currentTheme }
 
@@ -114,6 +119,16 @@ struct UnifiedDashboardView: View {
         .expenseHeatmap, .monthComparison, .spendingPace, .savingsGoal
     ]
 
+    private var gridColumns: Int {
+        #if os(macOS)
+        if contentWidth > 900 { return 3 }
+        if contentWidth > 500 { return 2 }
+        return 1
+        #else
+        return horizontalSizeClass == .regular ? 2 : 1
+        #endif
+    }
+
     private var activeSections: [DashboardSection] {
         let visible = layoutManager.visibleSections
         guard viewModel.selectedPeriod != .oneMonth else { return visible }
@@ -135,13 +150,7 @@ struct UnifiedDashboardView: View {
                     quickActionsSection
 
                     // Dynamic: user-customizable order and visibility
-                    if horizontalSizeClass == .regular {
-                        StaggeredGrid(columns: 2, horizontalSpacing: 16, verticalSpacing: 16) {
-                            ForEach(activeSections) { section in
-                                sectionWithHelp(for: section)
-                            }
-                        }
-                    } else {
+                    StaggeredGrid(columns: gridColumns, horizontalSpacing: 16, verticalSpacing: 16) {
                         ForEach(activeSections) { section in
                             sectionWithHelp(for: section)
                         }
@@ -150,6 +159,15 @@ struct UnifiedDashboardView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 100)
+                #if os(macOS)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.width
+                } action: { newWidth in
+                    withAnimation(.smooth(duration: 0.4)) {
+                        contentWidth = newWidth
+                    }
+                }
+                #endif
             }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y > 50
@@ -184,10 +202,10 @@ struct UnifiedDashboardView: View {
                     .frame(height: 34)
                     .clipped()
                 }
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigation) {
                     periodSelector
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     accountSwitcher
                 }
             }

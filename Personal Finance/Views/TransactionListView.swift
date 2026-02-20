@@ -107,7 +107,7 @@ struct TransactionListView: View {
             .toolbarTitleDisplayMode(.inlineLarge)
             .searchable(text: $searchText, isPresented: $isSearching, prompt: "Cerca...")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     toolbarMenu
                 }
             }
@@ -601,7 +601,11 @@ struct TransactionListView: View {
                 loadMoreRow
             }
         }
+        #if os(iOS)
         .listStyle(.insetGrouped)
+        #else
+        .listStyle(.inset)
+        #endif
         .scrollContentBackground(.hidden)
         .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
             Button("Elimina", role: .destructive) {
@@ -892,7 +896,7 @@ struct RecurringTransactionsSheet: View {
                 }
             }
             .navigationTitle("Transazioni Ricorrenti")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }
@@ -967,7 +971,7 @@ struct CategoryFilterSheet: View {
                 }
             }
             .navigationTitle("Filtra per Categoria")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }

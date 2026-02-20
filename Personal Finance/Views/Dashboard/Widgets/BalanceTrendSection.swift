@@ -36,6 +36,7 @@ struct BalanceTrendSection: View {
                 } description: {
                     Text("I dati appariranno qui")
                 }
+                .frame(maxWidth: .infinity)
                 .frame(height: 200)
             } else {
                 Chart {

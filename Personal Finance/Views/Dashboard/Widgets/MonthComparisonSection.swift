@@ -49,6 +49,7 @@ struct MonthComparisonSection: View {
                 } description: {
                     Text("Servono almeno 2 mesi di dati")
                 }
+                .frame(maxWidth: .infinity)
             }
         }
         .unifiedCard()

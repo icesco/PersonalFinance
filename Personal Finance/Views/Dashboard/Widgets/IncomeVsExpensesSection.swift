@@ -20,6 +20,7 @@ struct IncomeVsExpensesSection: View {
                 } description: {
                     Text("Servono almeno 2 mesi di dati")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 Chart(data) { month in
                     BarMark(

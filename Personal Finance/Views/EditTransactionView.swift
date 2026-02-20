@@ -53,7 +53,9 @@ struct EditTransactionView: View {
                              transaction.type == .income ? "Importo Entrata" : "Importo Spesa")
                         Spacer()
                         TextField("0,00", value: $amount, format: .currency(code: transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR"))
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.trailing)
                     }
 
@@ -131,7 +133,7 @@ struct EditTransactionView: View {
                 }
             }
             .navigationTitle("Modifica Transazione")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

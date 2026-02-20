@@ -8,6 +8,10 @@
 import SwiftUI
 import SwiftData
 import FinanceCore
+#if os(macOS)
+import AppKit
+import UniformTypeIdentifiers
+#endif
 
 struct CSVExportView: View {
     @Environment(\.dismiss) private var dismiss
@@ -49,7 +53,7 @@ struct CSVExportView: View {
                 previewSection
             }
             .navigationTitle("Esporta CSV")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -70,11 +74,13 @@ struct CSVExportView: View {
             .sheet(isPresented: $showingFieldSelection) {
                 FieldSelectionView(selectedFields: $options.includeFields)
             }
+            #if os(iOS)
             .sheet(isPresented: $showingShareSheet) {
                 if let url = exportedFileURL {
                     ShareSheet(items: [url])
                 }
             }
+            #endif
             .overlay {
                 if isExporting {
                     ProgressView("Esportazione in corso...")
@@ -356,7 +362,11 @@ struct CSVExportView: View {
                 await MainActor.run {
                     exportedFileURL = tempURL
                     isExporting = false
+                    #if os(iOS)
                     showingShareSheet = true
+                    #elseif os(macOS)
+                    showMacOSSavePanel(sourceURL: tempURL, fileName: fileName)
+                    #endif
                 }
             } catch {
                 await MainActor.run {
@@ -366,6 +376,19 @@ struct CSVExportView: View {
             }
         }
     }
+
+    #if os(macOS)
+    private func showMacOSSavePanel(sourceURL: URL, fileName: String) {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.commaSeparatedText]
+        savePanel.nameFieldStringValue = fileName
+        savePanel.canCreateDirectories = true
+
+        if savePanel.runModal() == .OK, let destinationURL = savePanel.url {
+            try? FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        }
+    }
+    #endif
 
     private func generateFileName() -> String {
         let formatter = DateFormatter()
@@ -424,7 +447,7 @@ struct FieldSelectionView: View {
                 }
             }
             .navigationTitle("Campi da esportare")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fatto") {
@@ -438,6 +461,7 @@ struct FieldSelectionView: View {
 
 // MARK: - Share Sheet
 
+#if os(iOS)
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
@@ -447,6 +471,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+#endif
 
 #Preview {
     CSVExportView()

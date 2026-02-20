@@ -20,6 +20,7 @@ struct TopPayeesSection: View {
                 } description: {
                     Text("I destinatari più frequenti appariranno qui")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 let maxAmount = payees.first?.totalAmount ?? Decimal(1)
 

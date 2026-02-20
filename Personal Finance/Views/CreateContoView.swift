@@ -44,7 +44,9 @@ struct CreateContoView: View {
                         Text("Saldo Iniziale")
                         Spacer()
                         TextField("0,00", value: $initialBalance, format: .currency(code: account.currency ?? "EUR"))
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.trailing)
                     }
                 }
@@ -93,7 +95,7 @@ struct CreateContoView: View {
                 }
             }
             .navigationTitle("Nuovo Conto")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -225,7 +227,7 @@ struct EditContoView: View {
                 }
             }
             .navigationTitle("Modifica Conto")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -323,7 +325,7 @@ struct ColorPickerView: View {
             }
             .padding()
             .navigationTitle("Seleziona Colore")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") {

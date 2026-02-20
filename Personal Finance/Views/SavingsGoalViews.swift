@@ -68,7 +68,7 @@ struct CreateSavingsGoalView: View {
                 }
             }
             .navigationTitle("Nuovo Obiettivo")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -197,7 +197,7 @@ struct EditSavingsGoalView: View {
                 }
             }
             .navigationTitle("Modifica Obiettivo")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -334,7 +334,7 @@ struct UpdateProgressView: View {
                 }
             }
             .navigationTitle("Aggiungi Progresso")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -442,7 +442,9 @@ struct DecimalField: View {
     
     var body: some View {
         TextField(placeholder, text: $textValue, prompt: Text(placeholder))
+#if os(iOS)
             .keyboardType(.decimalPad)
+#endif
             .onAppear {
                 textValue = value == 0 ? "" : "\(value)"
             }

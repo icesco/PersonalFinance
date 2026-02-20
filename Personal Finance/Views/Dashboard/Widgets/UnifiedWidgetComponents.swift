@@ -67,6 +67,7 @@ private struct TintedCardBackground: View {
 private struct UnifiedCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background { TintedCardBackground(cornerRadius: 16) }
             .clipShape(RoundedRectangle(cornerRadius: 16))

@@ -32,7 +32,7 @@ struct AccountSelectionModal: View {
                 }
             }
             .navigationTitle(isInitialSelection ? "Seleziona Account" : "Cambia Account")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 if !isInitialSelection {
                     ToolbarItem(placement: .cancellationAction) {

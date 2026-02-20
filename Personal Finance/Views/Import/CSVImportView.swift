@@ -28,7 +28,7 @@ struct CSVImportView: View {
         NavigationStack {
             fileSelectionView
                 .navigationTitle("Importa CSV")
-                .navigationBarTitleDisplayMode(.inline)
+                .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Annulla") {

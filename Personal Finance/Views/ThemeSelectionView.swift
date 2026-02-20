@@ -50,7 +50,7 @@ struct ThemeSelectionView: View {
             .padding(.bottom, 20)
         }
         .navigationTitle("Tema")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

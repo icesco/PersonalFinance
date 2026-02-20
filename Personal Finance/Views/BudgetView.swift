@@ -382,7 +382,9 @@ struct CreateBudgetView: View {
                         Text("Importo")
                         Spacer()
                         TextField("0,00", text: $budgetAmount)
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.trailing)
                     }
                     
@@ -429,7 +431,7 @@ struct CreateBudgetView: View {
                 }
             }
             .navigationTitle("Nuovo Budget")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
@@ -593,7 +595,7 @@ struct BudgetDetailView: View {
                 .padding()
             }
             .navigationTitle(budget.name ?? "Budget")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") {

@@ -143,7 +143,7 @@ struct OnboardingView: View {
                 }
             }
             .navigationTitle("Crea il tuo Libro")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Indietro") {
@@ -215,7 +215,7 @@ struct OnboardingView: View {
                 }
             }
             .navigationTitle("Aggiungi Account")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Indietro") {
@@ -351,7 +351,9 @@ private struct AddContoOnboardingSheet: View {
                         Text("Saldo Iniziale")
                         Spacer()
                         TextField("0,00", value: $initialBalance, format: .currency(code: currency))
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.trailing)
                     }
                 }
@@ -367,7 +369,7 @@ private struct AddContoOnboardingSheet: View {
                 )
             }
             .navigationTitle("Nuovo Account")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

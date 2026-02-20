@@ -32,6 +32,7 @@ struct TopExpensesSection: View {
                 } description: {
                     Text("Le spese maggiori appariranno qui")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 ForEach(Array(expenses.enumerated()), id: \.element.id) { index, transaction in
                     HStack(spacing: 12) {

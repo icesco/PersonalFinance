@@ -36,6 +36,7 @@ struct RecentTransactionsSection: View {
                 } description: {
                     Text("Le tue transazioni appariranno qui")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 ForEach(transactions, id: \.id) { transaction in
                     TransactionRowView(transaction: transaction)

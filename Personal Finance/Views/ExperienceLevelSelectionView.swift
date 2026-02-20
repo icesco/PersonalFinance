@@ -48,7 +48,7 @@ struct ExperienceLevelSelectionView: View {
             .padding(.bottom, 20)
         }
         .navigationTitle("Modalità")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

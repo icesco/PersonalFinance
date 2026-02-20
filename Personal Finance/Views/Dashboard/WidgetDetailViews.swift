@@ -47,7 +47,7 @@ struct DistributionDetailView: View {
             .padding()
         }
         .navigationTitle("Distribuzione")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }
@@ -295,7 +295,7 @@ struct SavingsRateDetailView: View {
             .padding()
         }
         .navigationTitle("Tasso di risparmio")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }
@@ -571,7 +571,7 @@ struct SpendingTrendDetailView: View {
             .padding()
         }
         .navigationTitle("Andamento spese")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Chiudi") { dismiss() }

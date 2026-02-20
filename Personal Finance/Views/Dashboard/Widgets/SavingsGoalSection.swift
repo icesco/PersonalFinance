@@ -73,7 +73,7 @@ struct SavingsGoalSection: View {
                     .frame(maxWidth: .infinity)
 
                     Rectangle()
-                        .fill(Color(.separator))
+                        .fill(.separator)
                         .frame(width: 1, height: 30)
 
                     VStack(spacing: 2) {
@@ -86,7 +86,7 @@ struct SavingsGoalSection: View {
                     .frame(maxWidth: .infinity)
 
                     Rectangle()
-                        .fill(Color(.separator))
+                        .fill(.separator)
                         .frame(width: 1, height: 30)
 
                     VStack(spacing: 2) {

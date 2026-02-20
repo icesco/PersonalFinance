@@ -86,7 +86,9 @@ struct CreateTransactionView: View {
                              transactionType == .income ? "Importo Entrata" : "Importo Spesa")
                         Spacer()
                         TextField("0,00", value: $amount, format: .currency(code: conto?.account?.currency ?? "EUR"))
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.trailing)
                     }
                     
@@ -252,7 +254,7 @@ struct CreateTransactionView: View {
                 }
             }
             .navigationTitle(transactionType.displayName)
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {

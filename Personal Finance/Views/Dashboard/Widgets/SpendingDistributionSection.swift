@@ -31,6 +31,7 @@ struct SpendingDistributionSection: View {
                 } description: {
                     Text("Le tue spese appariranno qui")
                 }
+                .frame(maxWidth: .infinity)
                 .frame(height: 180)
             } else {
                 Chart(categories) { item in

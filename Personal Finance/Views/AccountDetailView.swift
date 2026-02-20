@@ -13,7 +13,9 @@ struct AccountDetailView: View {
     var body: some View {
         contiList
             .navigationTitle(account.name ?? "Account")
-            .navigationBarTitleDisplayMode(.large)
+            #if os(iOS)
+            .toolbarTitleDisplayMode(.large)
+            #endif
     }
     
     private var contiList: some View {
@@ -47,7 +49,7 @@ struct AccountDetailView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .primaryAction) {
                 Button("Nuovo Conto", systemImage: "plus") {
                     navigationRouter.presentContoCreation(for: account)
                 }

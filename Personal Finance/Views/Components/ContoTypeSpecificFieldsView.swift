@@ -32,7 +32,9 @@ struct ContoTypeSpecificFieldsView: View {
                 Text("Plafond Mensile")
                 Spacer()
                 TextField("0,00", value: $creditLimit, format: .currency(code: currency))
+                    #if os(iOS)
                     .keyboardType(.decimalPad)
+                    #endif
                     .multilineTextAlignment(.trailing)
             }
 
@@ -60,7 +62,9 @@ struct ContoTypeSpecificFieldsView: View {
                 Text("Tasso Annuo (%)")
                 Spacer()
                 TextField("0,00", value: $annualInterestRate, format: .number)
+                    #if os(iOS)
                     .keyboardType(.decimalPad)
+                    #endif
                     .multilineTextAlignment(.trailing)
             }
         }
@@ -74,7 +78,9 @@ struct ContoTypeSpecificFieldsView: View {
                 Text("Obiettivo")
                 Spacer()
                 TextField("0,00", value: $savingsGoal, format: .currency(code: currency))
+                    #if os(iOS)
                     .keyboardType(.decimalPad)
+                    #endif
                     .multilineTextAlignment(.trailing)
             }
         }

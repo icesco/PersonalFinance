@@ -52,7 +52,7 @@ struct MainTabView: View {
 
     private var iPhoneLayout: some View {
         Group {
-            if #available(iOS 26, *) {
+            if #available(iOS 26, macOS 26, *) {
                 iOS26TabView
             } else {
                 legacyTabView
@@ -62,7 +62,7 @@ struct MainTabView: View {
 
     // MARK: - iOS 26+ TabView
 
-    @available(iOS 26, *)
+    @available(iOS 26, macOS 26, *)
     private var iOS26TabView: some View {
         TabView(selection: Binding(
             get: { appState.selectedTab },
@@ -216,7 +216,9 @@ struct QuickTransactionModal: View {
 
                         TextField("0,00", text: $amount)
                             .font(.system(size: 40, weight: .bold, design: .rounded))
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.leading)
                     }
                     .listRowBackground(Color.clear)
@@ -270,7 +272,7 @@ struct QuickTransactionModal: View {
                 }
             }
             .navigationTitle("Nuova Transazione")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") { dismiss() }

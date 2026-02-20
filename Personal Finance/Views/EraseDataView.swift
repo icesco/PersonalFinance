@@ -101,7 +101,7 @@ struct EraseDataView: View {
             }
         }
         .navigationTitle("Cancella Dati")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .alert("Eliminare l'Account?", isPresented: $showingAccountEraseAlert) {
             Button("Annulla", role: .cancel) {
                 accountToErase = nil
@@ -282,7 +282,7 @@ struct TimedConfirmationSheet: View {
                 Spacer()
             }
             .padding(.top, 40)
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla", action: onCancel)

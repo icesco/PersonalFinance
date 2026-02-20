@@ -69,7 +69,7 @@ struct FieldMappingView: View {
             previewSection
         }
         .navigationTitle("Assegna campi")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Importa") {

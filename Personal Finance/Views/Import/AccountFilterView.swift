@@ -49,7 +49,7 @@ struct AccountFilterStepView: View {
         }
         .padding()
         .navigationTitle("Filtro Conti")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     // MARK: - Step Indicator

@@ -707,7 +707,9 @@ struct SavingsGoalsManagementView: View {
                 .padding(.bottom, 100)
             }
             .navigationTitle("Obiettivi di Risparmio")
-            .navigationBarTitleDisplayMode(.large)
+            #if os(iOS)
+            .toolbarTitleDisplayMode(.large)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fine") {

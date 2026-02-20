@@ -19,6 +19,7 @@ struct UpcomingRecurringSection: View {
                 } description: {
                     Text("Le spese ricorrenti appariranno qui")
                 }
+            .frame(maxWidth: .infinity)
             } else {
                 ForEach(Array(items.enumerated()), id: \.element.transaction.id) { index, item in
                     HStack(spacing: 12) {

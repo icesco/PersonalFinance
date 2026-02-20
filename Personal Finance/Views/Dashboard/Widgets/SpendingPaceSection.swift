@@ -41,7 +41,7 @@ struct SpendingPaceSection: View {
                 .frame(maxWidth: .infinity)
 
                 Rectangle()
-                    .fill(Color(.separator))
+                    .fill(.separator)
                     .frame(width: 1, height: 60)
 
                 VStack(spacing: 4) {

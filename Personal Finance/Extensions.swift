@@ -6,7 +6,11 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 // MARK: - Color Extension
 
@@ -39,12 +43,17 @@ extension Color {
 
     /// Get the RGBA components of the color
     var colorComponents: (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) {
-        let uiColor = UIColor(self)
         var red: CGFloat = 0
         var green: CGFloat = 0
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
+        #if canImport(UIKit)
+        let uiColor = UIColor(self)
         uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        #elseif canImport(AppKit)
+        let nsColor = NSColor(self).usingColorSpace(.sRGB) ?? NSColor(self)
+        nsColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        #endif
         return (red, green, blue, alpha)
     }
 

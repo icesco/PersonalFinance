@@ -22,7 +22,7 @@ struct CloudSyncDetailView: View {
             #endif
         }
         .navigationTitle("iCloud")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .task {
             await cloudKitHelper.refreshSyncStatus()
         }
@@ -87,9 +87,7 @@ struct CloudSyncDetailView: View {
             }
 
             Button {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
+                PlatformActions.openSystemSettings()
             } label: {
                 Label("Apri Impostazioni", systemImage: "gear")
             }

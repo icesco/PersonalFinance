@@ -35,7 +35,9 @@ struct CreateTransferView: View {
                         Text("Importo")
                         Spacer()
                         TextField("0,00", value: $amount, format: .currency(code: fromConto.account?.currency ?? "EUR"))
+#if os(iOS)
                             .keyboardType(.decimalPad)
+#endif
                             .multilineTextAlignment(.trailing)
                     }
                     
@@ -141,7 +143,7 @@ struct CreateTransferView: View {
                 }
             }
             .navigationTitle("Trasferimento")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") {
