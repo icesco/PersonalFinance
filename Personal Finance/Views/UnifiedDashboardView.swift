@@ -169,6 +169,7 @@ struct UnifiedDashboardView: View {
                 }
                 #endif
             }
+            #if os(iOS)
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y > 50
             } action: { _, scrolledPastHero in
@@ -176,10 +177,12 @@ struct UnifiedDashboardView: View {
                     showInlineBalance = scrolledPastHero
                 }
             }
+            #endif
             .environment(\.cardTint, theme.color)
             .themedBackground()
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                #if os(iOS)
                 ToolbarItem(placement: .principal) {
                     ZStack {
                         if showInlineBalance {
@@ -202,6 +205,7 @@ struct UnifiedDashboardView: View {
                     .frame(height: 34)
                     .clipped()
                 }
+                #endif
                 ToolbarItem(placement: .navigation) {
                     periodSelector
                 }
