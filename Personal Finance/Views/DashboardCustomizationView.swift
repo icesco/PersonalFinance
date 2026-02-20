@@ -82,13 +82,13 @@ struct DashboardCustomizationView: View {
             .frame(minWidth: 480, minHeight: 500)
             #endif
             .toolbar {
-                ToolbarItem(placement: .navigation) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Ripristina") {
                         selectedPreset = nil
                         layoutManager.reset()
                     }
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") {
                         dismiss()
                     }
