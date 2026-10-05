@@ -4,9 +4,32 @@ import FinanceCore
 @testable import Personal_Finance
 #if os(iOS)
 import UIKit
+import PDFKit
 
 @MainActor
 struct ReceiptReaderTests {
+    @Test func readsScannedPageAlongsideSelectableText() async throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 1000, height: 400)).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1000, height: 400))
+            ("TOTALE EUR 73,25" as NSString).draw(at: CGPoint(x: 40, y: 100), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 60), .foregroundColor: UIColor.black
+            ])
+        }
+        let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 1000, height: 400)).pdfData { context in
+            context.beginPage()
+            ("Documento di prova" as NSString).draw(at: CGPoint(x: 40, y: 40), withAttributes: [.font: UIFont.systemFont(ofSize: 24)])
+            context.beginPage()
+            image.draw(in: CGRect(x: 0, y: 0, width: 1000, height: 400))
+        }
+        let document = try #require(PDFDocument(data: data))
+        let scannedText = (document.page(at: 1)?.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(scannedText.isEmpty)
+        let text = try await ReceiptReader.read(data: data, isPDF: true)
+        #expect(text.contains("Documento di prova"))
+        #expect(ReceiptAmounts.candidates(in: text).contains { $0.amount == Decimal(string: "73.25") && $0.isPossibleTotal })
+    }
+
     @Test func readsReceiptImageLocally() async throws {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1200, height: 500))
         let image = renderer.image { context in
