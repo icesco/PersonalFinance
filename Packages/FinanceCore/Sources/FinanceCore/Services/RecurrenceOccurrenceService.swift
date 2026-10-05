@@ -5,6 +5,17 @@ import SwiftData
 public enum RecurrenceOccurrenceService {
     public enum Failure: Error { case invalidOccurrence, missingAccount, alreadySkipped }
 
+    /// A browsable calendar window, including old unresolved occurrences of ended series.
+    /// The seed is already recorded and the interval's end is exclusive.
+    public static func pendingDates(source: Transaction, interval: DateInterval,
+                                    resolvedKeys: Set<String>) -> [Date] {
+        guard interval.duration > 0 else { return [] }
+        return source.recurrenceDates(after: max(interval.start.addingTimeInterval(-0.001), source.date),
+                                      through: interval.end)
+            .filter { $0 >= interval.start && $0 < interval.end &&
+                !resolvedKeys.contains(RecurrenceResolution.key(sourceID: source.id, date: $0)) }
+    }
+
     /// Records a scheduled occurrence once in the local store. The original entry is never modified.
     public static func record(source: Transaction, scheduledDate: Date, context: ModelContext) throws -> Transaction {
         try validate(source, date: scheduledDate)

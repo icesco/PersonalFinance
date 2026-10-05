@@ -320,6 +320,19 @@ final class Personal_FinanceUITests: XCTestCase {
         XCTAssertTrue(app.textFields["Nome Conto"].waitForExistence(timeout: 5))
         app.buttons["Annulla"].tap()
         XCTAssertTrue(budgets.waitForExistence(timeout: 5))
+        let scheduleMode = app.segmentedControls["planning-schedule-mode"]
+        for _ in 0..<6 where !scheduleMode.isHittable { app.swipeUp() }
+        XCTAssertTrue(scheduleMode.isHittable)
+        scheduleMode.buttons["Per mese"].tap()
+        let month = app.staticTexts["planning-schedule-month"]
+        XCTAssertTrue(month.waitForExistence(timeout: 5))
+        let currentMonth = month.label
+        app.buttons["Mese precedente delle scadenze"].tap()
+        XCTAssertNotEqual(month.label, currentMonth)
+        app.buttons["Mese successivo delle scadenze"].tap()
+        XCTAssertEqual(month.label, currentMonth)
+        scheduleMode.buttons["Vicino a oggi"].tap()
+        XCTAssertFalse(month.exists)
     }
 
     @MainActor

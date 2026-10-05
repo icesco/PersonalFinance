@@ -12,6 +12,8 @@ struct FinancePlanningView: View {
     @Query private var accounts: [Account]
     @Query(filter: #Predicate<FinanceTransaction> { $0.isRecurring == true })
     private var recurring: [FinanceTransaction]
+    @State private var browseByMonth = false
+    @State private var scheduleMonth = Date()
     @State private var selectedOccurrence: Occurrence?
     @State private var resolutionError: String?
     @State private var showingBudgets = false
@@ -34,10 +36,18 @@ struct FinancePlanningView: View {
         var id: ID { ID(transaction: transaction.id, date: date) }
     }
 
+    private var scheduleInterval: DateInterval {
+        let calendar = Calendar.current
+        if browseByMonth, let month = calendar.dateInterval(of: .month, for: scheduleMonth) {
+            return month
+        }
+        let today = calendar.startOfDay(for: Date())
+        let start = calendar.date(byAdding: .day, value: -30, to: today) ?? today
+        let end = calendar.date(byAdding: .day, value: 30, to: today) ?? today
+        return DateInterval(start: start, end: end)
+    }
+
     private var occurrences: [Occurrence] {
-        let start = Calendar.current.startOfDay(for: Date())
-        let end = Calendar.current.date(byAdding: .day, value: 30, to: start) ?? start
-        let overdueStart = Calendar.current.date(byAdding: .day, value: -30, to: start) ?? start
         let resolvedKeys = Set(resolutions.map(\.key))
         let conti = books.flatMap(\.activeConti)
         let currencies = Dictionary(uniqueKeysWithValues: conti.map {
@@ -47,8 +57,7 @@ struct FinancePlanningView: View {
             let contoID = transaction.type == .income ? transaction.toContoId : transaction.fromContoId
             guard let contoID, let currency = currencies[contoID] else { return [] }
             // The seed is already recorded; show only subsequent, unrecorded occurrences.
-            return transaction.recurrenceDates(after: max(overdueStart.addingTimeInterval(-1), transaction.date), through: end)
-                .filter { $0 < end && !resolvedKeys.contains(RecurrenceResolution.key(sourceID: transaction.id, date: $0)) }
+            return RecurrenceOccurrenceService.pendingDates(source: transaction, interval: scheduleInterval, resolvedKeys: resolvedKeys)
                 .map { Occurrence(transaction: transaction, date: $0, currency: currency) }
         }.sorted {
             if $0.date != $1.date { return $0.date < $1.date }
@@ -121,10 +130,29 @@ struct FinancePlanningView: View {
                     NavigationLink("Scadenze gestite") {
                         ResolvedRecurrencesView(contoIDs: Set(books.flatMap(\.activeConti).map(\.id)))
                     }
+                    Picker("Periodo delle scadenze", selection: $browseByMonth) {
+                        Text("Vicino a oggi").tag(false)
+                        Text("Per mese").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("planning-schedule-mode")
+                    if browseByMonth {
+                        HStack {
+                            Button { moveScheduleMonth(-1) } label: { Image(systemName: "chevron.left") }
+                                .accessibilityLabel("Mese precedente delle scadenze")
+                            Spacer()
+                            Text(scheduleInterval.start, format: .dateTime.month(.wide).year())
+                                .accessibilityIdentifier("planning-schedule-month")
+                            Spacer()
+                            Button { moveScheduleMonth(1) } label: { Image(systemName: "chevron.right") }
+                                .accessibilityLabel("Mese successivo delle scadenze")
+                        }.buttonStyle(.borderless)
+                        Button("Torna al mese corrente") { scheduleMonth = Date() }
+                    }
                     if _recurring.fetchError != nil || _resolutions.fetchError != nil {
                         Label("Impossibile caricare le ricorrenti", systemImage: "exclamationmark.triangle")
                     } else if occurrences.isEmpty {
-                        Text("Nessuna scadenza da gestire nei 30 giorni passati e nei prossimi 30.")
+                        Text("Nessuna scadenza da gestire nel periodo selezionato.")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(occurrences) { occurrence in
@@ -138,7 +166,9 @@ struct FinancePlanningView: View {
                 } header: {
                     Text("Scadenze da gestire")
                 } footer: {
-                    Text("Scadenze dei 30 giorni passati e dei prossimi 30. Tocca per registrare o saltare una singola scadenza. Quelle future restano previsioni finché non vengono registrate.")
+                    Text(browseByMonth
+                         ? "Esplora i mesi per gestire anche le scadenze più vecchie. Tocca una scadenza per registrarla o saltarla. Quelle future restano previsioni."
+                         : "Scadenze dei 30 giorni passati e dei prossimi 30. Scegli Per mese per consultare altri periodi. Quelle future restano previsioni finché non vengono registrate.")
                 }
             }
             .navigationTitle("Pianifica")
@@ -170,6 +200,10 @@ struct FinancePlanningView: View {
                 NavigationStack { TransactionDetailView(transaction: transaction) }
             }
         }
+    }
+
+    private func moveScheduleMonth(_ offset: Int) {
+        scheduleMonth = Calendar.current.date(byAdding: .month, value: offset, to: scheduleInterval.start) ?? scheduleMonth
     }
 
     private func resolve(_ occurrence: Occurrence, skip: Bool) {

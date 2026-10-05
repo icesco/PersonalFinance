@@ -5,6 +5,27 @@ import Testing
 
 @MainActor
 struct RecurrenceOccurrenceTests {
+    @Test func oldUnresolvedOccurrencesRemainBrowsableAfterSeriesEnds() throws {
+        let (container, source, due) = try fixture()
+        source.recurrenceEndDate = due
+        let interval = DateInterval(start: due, end: due.addingTimeInterval(86_400))
+        #expect(RecurrenceOccurrenceService.pendingDates(source: source, interval: interval, resolvedKeys: []) == [due])
+        let recorded = try RecurrenceOccurrenceService.record(source: source, scheduledDate: due, context: container.mainContext)
+        #expect(recorded.date == due)
+        let keys = Set(try container.mainContext.fetch(FetchDescriptor<RecurrenceResolution>()).map(\.key))
+        #expect(RecurrenceOccurrenceService.pendingDates(source: source, interval: interval, resolvedKeys: keys).isEmpty)
+    }
+
+    @Test func browsingExcludesSeedAndNextWindowBoundary() throws {
+        let (container, source, due) = try fixture()
+        defer { withExtendedLifetime(container) {} }
+        let next = try #require(source.nextRecurrenceDate(after: due))
+        let interval = DateInterval(start: source.date, end: next)
+        #expect(RecurrenceOccurrenceService.pendingDates(source: source, interval: interval, resolvedKeys: []) == [due])
+        let key = RecurrenceResolution.key(sourceID: source.id, date: due)
+        #expect(RecurrenceOccurrenceService.pendingDates(source: source, interval: interval, resolvedKeys: [key]).isEmpty)
+    }
+
     func fixture() throws -> (ModelContainer, Transaction, Date) {
         let container = try FinanceCoreModule.createModelContainer(inMemory: true)
         let context = container.mainContext
