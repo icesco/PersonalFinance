@@ -13,7 +13,7 @@ extension CSVField {
         switch self {
         case .transactionType: return .blue
         case .amount: return .green
-        case .sourceCurrency, .targetCurrency, .exchangeRate: return .orange
+        case .sourceCurrency, .targetCurrency, .exchangeRate, .originalAmount, .originalCurrency, .originalExchangeRate, .originalRateDate, .originalRateSource, .destinationAmount: return .orange
         case .sourceAccount, .targetAccount: return .purple
         case .category: return .pink
         case .payee: return .cyan

@@ -4,6 +4,7 @@ import FinanceCore
 struct ContoTypeSpecificInfoView: View {
     let conto: Conto
     var compact: Bool = true
+    private var currency: String { conto.account?.currency ?? "EUR" }
 
     var body: some View {
         switch conto.type {
@@ -28,7 +29,7 @@ struct ContoTypeSpecificInfoView: View {
                     ProgressView(value: min(ratio, 1.0))
                         .tint(creditColor(for: ratio))
                         .frame(width: 80)
-                    Text("Disp. " + remaining.currencyFormatted)
+                    Text("Disp. " + remaining.formatted(.currency(code: currency)))
                         .font(.caption2)
                         .foregroundStyle(creditColor(for: ratio))
                 }
@@ -46,11 +47,11 @@ struct ContoTypeSpecificInfoView: View {
                     ProgressView(value: min(ratio, 1.0))
                         .tint(creditColor(for: ratio))
                     HStack {
-                        Text("Speso: " + conto.currentMonthSpending.currencyFormatted)
+                        Text("Speso: " + conto.currentMonthSpending.formatted(.currency(code: currency)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("Disponibile: " + remaining.currencyFormatted)
+                        Text("Disponibile: " + remaining.formatted(.currency(code: currency)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -66,7 +67,7 @@ struct ContoTypeSpecificInfoView: View {
         if let annualReturn = conto.projectedAnnualReturn, let rate = conto.annualInterestRate {
             if compact {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("+" + annualReturn.currencyFormatted + "/anno")
+                    Text("+" + annualReturn.formatted(.currency(code: currency)) + "/anno")
                         .font(.caption2)
                         .foregroundStyle(Color(hex: "#4CAF50"))
                     Text(String(format: "%.2f%%", NSDecimalNumber(decimal: rate).doubleValue))
@@ -79,7 +80,7 @@ struct ContoTypeSpecificInfoView: View {
                         Text("Rendimento atteso")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("+" + annualReturn.currencyFormatted + "/anno")
+                        Text("+" + annualReturn.formatted(.currency(code: currency)) + "/anno")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(Color(hex: "#4CAF50"))
                     }
@@ -103,7 +104,7 @@ struct ContoTypeSpecificInfoView: View {
                         .tint(progress >= 1.0 ? .green : .blue)
                         .frame(width: 80)
                     if remaining > 0 {
-                        Text("Mancano " + remaining.currencyFormatted)
+                        Text("Mancano " + remaining.formatted(.currency(code: currency)))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
@@ -126,7 +127,7 @@ struct ContoTypeSpecificInfoView: View {
                     ProgressView(value: min(progress, 1.0))
                         .tint(progress >= 1.0 ? .green : .blue)
                     if remaining > 0 {
-                        Text("Mancano " + remaining.currencyFormatted + " all'obiettivo")
+                        Text("Mancano " + remaining.formatted(.currency(code: currency)) + " all'obiettivo")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {

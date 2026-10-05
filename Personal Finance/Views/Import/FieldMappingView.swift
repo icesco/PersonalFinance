@@ -15,6 +15,7 @@ struct FieldMappingView: View {
     @Environment(AppStateManager.self) private var appState
 
     let parseResult: CSVParseResult
+    let onImported: (() -> Void)?
 
     @State private var mappings: [FieldMapping]
     @State private var options: CSVImportOptions
@@ -28,6 +29,9 @@ struct FieldMappingView: View {
     @State private var importProgress: Double = 0
     @State private var importedRowCount: Int = 0
     @State private var importTotalRowCount: Int = 0
+    @State private var useNewBook: Bool
+    @State private var newBookName: String
+    @State private var contoTypes: [String: String] = [:]
 
     private let csvService = CSVService()
 
@@ -35,15 +39,43 @@ struct FieldMappingView: View {
         appState.selectedAccount?.activeConti ?? []
     }
 
-    private var isMappingValid: Bool {
-        let validationErrors = mappings.filter { $0.field.isRequired && !$0.isAssigned }
-        return validationErrors.isEmpty
+    private var isBudgetFlowExport: Bool { CSVParser.isBudgetFlowExport(parseResult) }
+    private var importedContoNames: [String] { CSVParser.budgetFlowAccountNames(parseResult) }
+    private var namesNeedingType: [String] {
+        useNewBook ? importedContoNames : importedContoNames.filter { name in
+            !availableConti.contains { $0.name?.localizedCaseInsensitiveCompare(name) == .orderedSame }
+        }
     }
 
-    init(parseResult: CSVParseResult, initialMappings: [FieldMapping]? = nil) {
+    private var isMappingValid: Bool {
+        let validationErrors = mappings.filter { $0.field.isRequired && !$0.isAssigned }
+        let hasAccountMapping = mappings.contains {
+            ($0.field == .sourceAccount || $0.field == .targetAccount) && $0.isAssigned
+        }
+        if isBudgetFlowExport {
+            return validationErrors.isEmpty && hasAccountMapping &&
+                (!useNewBook || !newBookName.trimmingCharacters(in: .whitespaces).isEmpty) &&
+                (useNewBook || appState.selectedAccount != nil) &&
+                namesNeedingType.allSatisfy { contoTypes[$0.lowercased()] != nil }
+        }
+        return validationErrors.isEmpty && !availableConti.isEmpty &&
+            (options.defaultContoId != nil || hasAccountMapping || availableConti.count == 1)
+    }
+
+    init(parseResult: CSVParseResult, initialMappings: [FieldMapping]? = nil,
+         onImported: (() -> Void)? = nil) {
         self.parseResult = parseResult
+        self.onImported = onImported
         self._mappings = State(initialValue: initialMappings ?? [])
-        self._options = State(initialValue: CSVImportOptions())
+        let budgetFlow = CSVParser.isBudgetFlowExport(parseResult)
+        self._options = State(initialValue: CSVImportOptions(
+            dateFormat: budgetFlow ? .iso8601Z : .euSlashDateOnly,
+            createMissingConti: budgetFlow
+        ))
+        self._useNewBook = State(initialValue: budgetFlow)
+        let bookIndex = parseResult.headers.firstIndex { $0.caseInsensitiveCompare("Budget Book") == .orderedSame }
+        let bookName = bookIndex.flatMap { index in parseResult.rows.first.flatMap { $0.indices.contains(index) ? $0[index] : nil } }
+        self._newBookName = State(initialValue: bookName ?? "Le mie finanze")
     }
 
     var body: some View {
@@ -63,6 +95,9 @@ struct FieldMappingView: View {
 
             dateFormatSection
 
+            if isBudgetFlowExport {
+                budgetFlowSection
+            }
             contoSelectionSection
             optionsSection
 
@@ -91,7 +126,11 @@ struct FieldMappingView: View {
         }
         .alert("Import completato", isPresented: $showingImportResult) {
             Button("OK") {
-                dismiss()
+                if (importResult?.importedCount ?? 0) > 0, let onImported {
+                    onImported()
+                } else {
+                    dismiss()
+                }
             }
         } message: {
             if let result = importResult {
@@ -100,6 +139,7 @@ struct FieldMappingView: View {
         }
         .onAppear {
             initializeMappings()
+            initializeContoTypes()
         }
         .overlay {
             if isImporting {
@@ -141,6 +181,29 @@ struct FieldMappingView: View {
     }
 
     // MARK: - Sections
+
+    private var budgetFlowSection: some View {
+        Section {
+            Toggle("Crea un libro separato", isOn: $useNewBook)
+            if useNewBook {
+                TextField("Nome del libro", text: $newBookName)
+            }
+            ForEach(namesNeedingType, id: \.self) { name in
+                Picker(name, selection: Binding(
+                    get: { contoTypes[name.lowercased()] ?? ContoType.other.rawValue },
+                    set: { contoTypes[name.lowercased()] = $0 }
+                )) {
+                    ForEach(ContoType.allCases, id: \.self) { type in
+                        Text(type.displayName).tag(type.rawValue)
+                    }
+                }
+            }
+        } header: {
+            Text("Importazione Budget Flow")
+        } footer: {
+            Text("Rivedi il tipo di ogni conto. Le due righe dello stesso trasferimento saranno unite. I saldi iniziali dei nuovi conti sono zero: verifica i saldi reali dopo l'importazione.")
+        }
+    }
 
     private var descriptionSection: some View {
         Section {
@@ -200,6 +263,12 @@ struct FieldMappingView: View {
 
     private var contoSelectionSection: some View {
         Section {
+            Picker("Segno degli importi", selection: $options.amountConvention) {
+                ForEach(CSVAmountConvention.allCases) { convention in
+                    Text(convention.displayName).tag(convention)
+                }
+            }
+            if !isBudgetFlowExport {
             Picker("Importa in", selection: $options.defaultContoId) {
                 Text("Automatico").tag(nil as UUID?)
                 ForEach(availableConti, id: \.id) { conto in
@@ -210,10 +279,15 @@ struct FieldMappingView: View {
                     .tag(conto.id as UUID?)
                 }
             }
+            }
         } header: {
             Text("Conto di destinazione")
         } footer: {
-            Text("Seleziona il conto in cui importare le transazioni")
+            if options.amountConvention == .positiveIsExpense {
+                Text("Negli estratti carta, pagamenti della carta e rimborsi possono avere segno opposto agli acquisti. Controllali come trasferimenti o rettifiche prima di importarli. Le righe senza conto certo saranno scartate.")
+            } else {
+                Text("Controlla il segno dell'estratto e scegli un conto se il file non contiene i nomi dei conti. Le righe senza conto certo saranno scartate.")
+            }
         }
     }
 
@@ -299,9 +373,9 @@ struct FieldMappingView: View {
                 Spacer()
 
                 if let amount = row.amount {
-                    Text(amount >= 0 ? "+\(amount)" : "\(amount)")
+                    Text(verbatim: (amount >= 0 ? "+" : "") + amount.formatted())
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(amount >= 0 ? .green : .red)
+                        .foregroundStyle(.primary)
                 }
             }
 
@@ -363,9 +437,39 @@ struct FieldMappingView: View {
         }
     }
 
+    private func initializeContoTypes() {
+        guard isBudgetFlowExport else { return }
+        for name in importedContoNames where contoTypes[name.lowercased()] == nil {
+            let normalized = name.lowercased()
+            let type: ContoType
+            if normalized.contains("amex") || normalized.contains("carta") {
+                type = .credit
+            } else if normalized == "pac" || normalized.contains("invest") {
+                type = .investment
+            } else if normalized.contains("risparm") {
+                type = .savings
+            } else {
+                type = .checking
+            }
+            contoTypes[normalized] = type.rawValue
+        }
+    }
+
 
     private func performImport() {
-        guard let account = appState.selectedAccount else { return }
+        let createsBook = isBudgetFlowExport && useNewBook
+        let destinationID: UUID
+        if createsBook {
+            destinationID = UUID()
+        } else {
+            guard let account = appState.selectedAccount else { return }
+            destinationID = account.id
+        }
+
+        var importOptions = options
+        importOptions.missingContoTypes = contoTypes
+        let importedBookID: UUID? = createsBook ? destinationID : nil
+        let importBookName: String? = createsBook ? newBookName : nil
 
         isImporting = true
         importProgress = 0
@@ -376,9 +480,10 @@ struct FieldMappingView: View {
                 let result = try await csvService.importTransactions(
                     from: parseResult,
                     mapping: mappings,
-                    options: options,
+                    options: importOptions,
                     container: modelContext.container,
-                    accountId: account.id,
+                    accountId: destinationID,
+                    newBookName: importBookName,
                     progressCallback: { current, total in
                         Task { @MainActor in
                             importedRowCount = current
@@ -389,6 +494,12 @@ struct FieldMappingView: View {
                 )
 
                 await MainActor.run {
+                    if let importedBookID, result.importedCount > 0 {
+                        let predicate = #Predicate<Account> { $0.id == importedBookID }
+                        if let book = try? modelContext.fetch(FetchDescriptor(predicate: predicate)).first {
+                            appState.selectAccount(book)
+                        }
+                    }
                     importResult = result
                     isImporting = false
                     showingImportResult = true

@@ -10,12 +10,16 @@ import SwiftData
 import FinanceCore
 
 struct TransactionListView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // Optional: pre-selected conto filter (for navigation from Dashboard)
     var initialConto: Conto? = nil
+    var initialCategoryID: UUID? = nil
+    var initialInterval: DateInterval? = nil
+    var expensesOnly = false
+    var scopeContoIDs: Set<UUID>? = nil
 
     // Filter states
     @State private var searchText = ""
@@ -32,6 +36,7 @@ struct TransactionListView: View {
     @State private var transactionToEdit: FinanceTransaction?
     @State private var transactionToDelete: FinanceTransaction?
     @State private var showingDeleteAlert = false
+    @State private var showingDeleteError = false
 
     // Selection mode
     @State private var isInSelectionMode = false
@@ -41,12 +46,15 @@ struct TransactionListView: View {
     // Fetched data
     @State private var transactions: [FinanceTransaction] = []
     @State private var totalCount: Int = 0
+    @State private var matchingIncome: Decimal = 0
+    @State private var matchingExpenses: Decimal = 0
     @State private var isLoading = false
 
     // Pagination
     @State private var currentLimit: Int = 30
     private let pageSize: Int = 30
 
+    private var currency: String { selectedConto?.account?.currency ?? account?.currency ?? "EUR" }
     private var account: Account? { appState.selectedAccount }
 
     private var availableConti: [Conto] {
@@ -66,17 +74,8 @@ struct TransactionListView: View {
     }
 
     // Monthly totals (calculated from fetched transactions)
-    private var periodIncome: Decimal {
-        transactions
-            .filter { $0.type == .income }
-            .reduce(0) { $0 + ($1.amount ?? 0) }
-    }
-
-    private var periodExpenses: Decimal {
-        transactions
-            .filter { $0.type == .expense }
-            .reduce(0) { $0 + ($1.amount ?? 0) }
-    }
+    private var periodIncome: Decimal { matchingIncome }
+    private var periodExpenses: Decimal { matchingExpenses }
 
     private var activeFiltersCount: Int {
         var count = 0
@@ -88,7 +87,20 @@ struct TransactionListView: View {
 
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 0) {
+                if let initialInterval {
+                    Text("\(initialInterval.start.formatted(date: .abbreviated, time: .omitted)) – \(initialInterval.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))")
+                        .font(.headline).padding()
+                } else {
+                    compactPeriodHeader
+                }
+                unifiedFiltersBar
+                if isSearching {
+                    TransactionSearchField(text: $searchText) {
+                        searchText = ""
+                        isSearching = false
+                    }
+                }
                 if isLoading && transactions.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,19 +116,19 @@ struct TransactionListView: View {
             }
             .themedBackground()
             .navigationTitle(navigationTitle)
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .searchable(text: $searchText, isPresented: $isSearching, prompt: "Cerca...")
+            #if os(iOS)
+            .toolbarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        withAnimation { isSearching.toggle() }
+                        if !isSearching { searchText = "" }
+                    } label: { Label("Cerca movimenti", systemImage: "magnifyingglass") }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     toolbarMenu
                 }
-            }
-            .safeAreaBar(edge: horizontalSizeClass == .compact ? .bottom : .top) {
-                VStack(spacing: 0) {
-                    compactPeriodHeader
-                    unifiedFiltersBar
-                }
-                .padding(.bottom, horizontalSizeClass == .compact ? 8 : 0)
             }
             .sheet(isPresented: $showingRecurring) {
                 RecurringTransactionsSheet(
@@ -140,6 +152,10 @@ struct TransactionListView: View {
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
                 }
+                if let initialCategoryID, selectedCategories.isEmpty {
+                    selectedCategories = [initialCategoryID]
+                }
+                if expensesOnly { selectedType = .expense }
                 fetchTransactions()
             }
             .onChange(of: selectedMonth) { _, _ in resetAndFetch() }
@@ -153,7 +169,7 @@ struct TransactionListView: View {
     }
 
     private var navigationTitle: String {
-        selectedConto?.name ?? "Transazioni"
+        selectedConto?.name ?? "Movimenti"
     }
 
     private var contoIDsForQuery: Set<UUID> {
@@ -167,6 +183,13 @@ struct TransactionListView: View {
 
     private var toolbarMenu: some View {
         Menu {
+            if let conto = selectedConto ?? initialConto {
+                NavigationLink {
+                    BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id)
+                } label: {
+                    Label("Saldo storico del conto", systemImage: "chart.xyaxis.line")
+                }
+            }
             Button {
                 withAnimation {
                     isInSelectionMode.toggle()
@@ -257,9 +280,8 @@ struct TransactionListView: View {
     }
 
     private var compactPeriodHeader: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                // Back chevron
+        VStack(spacing: 2) {
+            HStack(spacing: 8) {
                 Button {
                     let component: Calendar.Component = selectedTimeframe == .month ? .month : .year
                     withAnimation {
@@ -268,58 +290,22 @@ struct TransactionListView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.subheadline.weight(.semibold))
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
+                        .background(ForgiaPalette.surface, in: Circle())
                 }
-                .glassEffect(.regular.interactive(), in: .circle)
-
-                // Timeframe menu (M/A)
-                Menu {
-                    ForEach(TransactionTimeframe.allCases, id: \.self) { timeframe in
-                        Button {
-                            withAnimation { selectedTimeframe = timeframe }
-                        } label: {
-                            HStack {
-                                Text(timeframe.displayName)
-                                if selectedTimeframe == timeframe {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Text(selectedTimeframe == .month ? "M" : "A")
-                        .font(.subheadline.weight(.bold))
-                        .frame(width: 32, height: 32)
-                }
-                .glassEffect(.regular.interactive(), in: .circle)
 
                 Spacer()
 
-                // Period label
                 if selectedTimeframe == .month {
-                    Text(selectedMonth, format: .dateTime.month(.wide).year())
-                        .font(.subheadline.weight(.semibold))
+                    Text(selectedMonth.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "it_IT"))).localizedCapitalized)
+                        .font(.system(.title3, design: .serif, weight: .semibold))
                 } else {
                     Text(selectedMonth, format: .dateTime.year())
-                        .font(.subheadline.weight(.semibold))
+                        .font(.system(.title3, design: .serif, weight: .semibold))
                 }
 
                 Spacer()
 
-                // Balance capsule (tap to show detail)
-                Button {
-                    withAnimation { showSummaryDetail.toggle() }
-                } label: {
-                    Text((periodBalance >= 0 ? "+" : "") + periodBalance.currencyFormatted)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(periodBalance >= 0 ? Color.green : Color.red)
-                        .clipShape(Capsule())
-                }
-
-                // Forward chevron
                 Button {
                     let component: Calendar.Component = selectedTimeframe == .month ? .month : .year
                     withAnimation {
@@ -328,37 +314,74 @@ struct TransactionListView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.subheadline.weight(.semibold))
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
+                        .background(ForgiaPalette.surface, in: Circle())
                 }
-                .glassEffect(.regular.interactive(), in: .circle)
                 .disabled(isAtCurrentPeriod)
                 .opacity(isAtCurrentPeriod ? 0.4 : 1)
+
+                Menu {
+                    ForEach(TransactionTimeframe.allCases, id: \.self) { timeframe in
+                        Button {
+                            withAnimation { selectedTimeframe = timeframe }
+                        } label: {
+                            Label(timeframe.displayName, systemImage: selectedTimeframe == timeframe ? "checkmark" : "calendar")
+                        }
+                    }
+                } label: {
+                    Text(selectedTimeframe.displayName)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
+                        .background(ForgiaPalette.surface, in: Capsule())
+                }
             }
-            .padding(.horizontal)
+
+            let summaryLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout())
+            summaryLayout {
+                Text(balanceExplanation)
+                    .font(.caption)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+                Button {
+                    withAnimation { showSummaryDetail.toggle() }
+                } label: {
+                    Text((periodBalance >= 0 ? "+" : "") + periodBalance.formatted(.currency(code: currency)))
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(periodBalance >= 0 ? ForgiaPalette.accent : Color.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(periodBalance >= 0 ? ForgiaPalette.sageSurface : ForgiaPalette.apricotSurface, in: Capsule())
+                }
+            }
 
             // Expandable summary detail row
             if showSummaryDetail {
                 VStack(spacing: 6) {
                     HStack(spacing: 16) {
-                        Label("+\(periodIncome.currencyFormatted)", systemImage: "arrow.down.circle.fill")
+                        Label("+\(periodIncome.formatted(.currency(code: currency)))", systemImage: "arrow.down.circle")
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(.green)
-                        Label("-\(periodExpenses.currencyFormatted)", systemImage: "arrow.up.circle.fill")
+                            .foregroundStyle(ForgiaPalette.accent)
+                        Label("-\(periodExpenses.formatted(.currency(code: currency)))", systemImage: "arrow.up.circle")
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.primary)
                     }
                     Text(balanceExplanation)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ForgiaPalette.mutedText)
                 }
                 .padding(.vertical, 6)
                 .padding(.horizontal, 16)
-                .background(Color(.systemGray6))
+                .background(ForgiaPalette.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.top, 2)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Unified Filters Bar
@@ -366,36 +389,36 @@ struct TransactionListView: View {
     private var unifiedFiltersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                // Type filters
-                ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
-                    FilterChip(title: type.displayNameShort, isSelected: selectedType == type) {
-                        withAnimation { selectedType = type }
+                Menu {
+                    Picker("Tipo di movimento", selection: $selectedType) {
+                        ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
+                            Text(type.displayName).tag(type)
+                        }
                     }
+                } label: {
+                    Label(selectedType == .all ? "Tipo" : selectedType.displayName, systemImage: "line.3.horizontal.decrease")
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 44)
+                        .background(selectedType == .all ? ForgiaPalette.surface : ForgiaPalette.sageSurface, in: Capsule())
                 }
 
-                Divider().frame(height: 24).padding(.horizontal, 2)
-
-                // Conto filters
-                FilterChip(title: "Tutti", isSelected: selectedConto == nil) {
-                    withAnimation { selectedConto = nil }
-                }
-
-                ForEach(availableConti, id: \.id) { conto in
-                    FilterChip(
-                        title: conto.name ?? "Conto",
-                        icon: conto.type?.icon,
-                        isSelected: selectedConto?.id == conto.id
-                    ) {
-                        withAnimation { selectedConto = conto }
+                Menu {
+                    Button("Tutti i conti") { selectedConto = nil }
+                    ForEach(availableConti, id: \.id) { conto in
+                        Button(conto.name ?? "Conto") { selectedConto = conto }
                     }
+                } label: {
+                    Label(selectedConto?.name ?? "Conto", systemImage: "creditcard")
+                        .font(.subheadline.weight(selectedConto == nil ? .regular : .semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(selectedConto == nil ? ForgiaPalette.surface : ForgiaPalette.sageSurface, in: Capsule())
                 }
 
-                Divider().frame(height: 24).padding(.horizontal, 2)
-
-                // Category filter
                 categoryFilterButton
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 20)
         }
         .padding(.vertical, 6)
     }
@@ -404,15 +427,15 @@ struct TransactionListView: View {
         Button { showingCategoryFilter = true } label: {
             HStack(spacing: 4) {
                 Image(systemName: "tag").font(.caption)
-                Text(selectedCategories.isEmpty ? "Cat." : "\(selectedCategories.count)")
+                Text(selectedCategories.isEmpty ? "Categorie" : "\(selectedCategories.count)")
                 Image(systemName: "chevron.down").font(.caption2)
             }
             .font(.subheadline)
             .fontWeight(selectedCategories.isEmpty ? .regular : .semibold)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(selectedCategories.isEmpty ? Color(.systemGray5) : Color.accentColor)
-            .foregroundColor(selectedCategories.isEmpty ? .primary : .white)
+            .background(selectedCategories.isEmpty ? ForgiaPalette.surface : ForgiaPalette.sageSurface)
+            .foregroundStyle(selectedCategories.isEmpty ? Color.primary : ForgiaPalette.accent)
             .clipShape(Capsule())
         }
     }
@@ -547,6 +570,7 @@ struct TransactionListView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .listRowBackground(ForgiaPalette.surface)
                         } else {
                             NavigationLink {
                                 TransactionDetailView(transaction: transaction)
@@ -581,6 +605,7 @@ struct TransactionListView: View {
                                     Label("Elimina", systemImage: "trash")
                                 }
                             }
+                            .listRowBackground(ForgiaPalette.surface)
                         }
                     }
                 } header: {
@@ -593,7 +618,7 @@ struct TransactionListView: View {
                     }
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundStyle(section.isUpcoming ? .blue : .secondary)
+                    .foregroundStyle(section.isUpcoming ? ForgiaPalette.accent : ForgiaPalette.mutedText)
                 }
             }
 
@@ -619,6 +644,11 @@ struct TransactionListView: View {
             }
         } message: {
             Text("Sei sicuro di voler eliminare questa transazione? Questa azione non può essere annullata.")
+        }
+        .alert("Impossibile eliminare", isPresented: $showingDeleteError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Non è stato possibile completare la cancellazione. Aggiorna l’elenco e riprova.")
         }
         .alert("Elimina Transazioni", isPresented: $showingBatchDeleteAlert) {
             Button("Elimina \(selectedTransactions.count)", role: .destructive) {
@@ -646,7 +676,7 @@ struct TransactionListView: View {
             }
             .padding(.vertical, 12)
         }
-        .listRowBackground(Color(.systemGroupedBackground))
+        .listRowBackground(ForgiaPalette.surface)
         .disabled(isLoading)
     }
 
@@ -683,8 +713,10 @@ struct TransactionListView: View {
     // MARK: - Data Fetching
 
     private func fetchTransactions() {
-        guard let account = account else {
+        guard account != nil || scopeContoIDs != nil else {
             transactions = []
+            matchingIncome = 0
+            matchingExpenses = 0
             totalCount = 0
             return
         }
@@ -695,7 +727,10 @@ struct TransactionListView: View {
         let periodStart: Date
         let periodEnd: Date
 
-        if selectedTimeframe == .year {
+        if let initialInterval {
+            periodStart = initialInterval.start
+            periodEnd = initialInterval.end
+        } else if selectedTimeframe == .year {
             let yearStart = calendar.date(from: calendar.dateComponents([.year], from: selectedMonth))!
             periodStart = yearStart
             periodEnd = calendar.date(byAdding: .year, value: 1, to: yearStart)!
@@ -709,8 +744,10 @@ struct TransactionListView: View {
         let contoIDs: Set<UUID>
         if let conto = selectedConto {
             contoIDs = [conto.id]
+        } else if let scopeContoIDs {
+            contoIDs = scopeContoIDs
         } else {
-            contoIDs = Set(account.activeConti.map { $0.id })
+            contoIDs = Set(account?.activeConti.map { $0.id } ?? [])
         }
 
         // Build fetch descriptor with predicate
@@ -723,7 +760,7 @@ struct TransactionListView: View {
             transaction.date >= periodStart && transaction.date < periodEnd
         }
 
-        descriptor.fetchLimit = currentLimit
+        // Filter the bounded period before paginating so categories cannot lose matches.
 
         do {
             // Fetch from database
@@ -772,13 +809,10 @@ struct TransactionListView: View {
                 }
             }
 
-            // Count total (for pagination indicator)
-            // For accurate count, fetch without limit
-            var countDescriptor = FetchDescriptor<FinanceTransaction>()
-            countDescriptor.predicate = descriptor.predicate
-            totalCount = (try? modelContext.fetchCount(countDescriptor)) ?? results.count
-
-            transactions = results
+            totalCount = results.count
+            matchingIncome = results.filter { $0.type == .income }.reduce(0) { $0 + ($1.amount ?? 0) }
+            matchingExpenses = results.filter { $0.type == .expense }.reduce(0) { $0 + ($1.amount ?? 0) }
+            transactions = Array(results.prefix(currentLimit))
         } catch {
             print("Error fetching transactions: \(error)")
             transactions = []
@@ -788,6 +822,7 @@ struct TransactionListView: View {
     }
 
     private func resetAndFetch() {
+        selectedTransactions.removeAll()
         currentLimit = selectedTimeframe == .year ? pageSize * 4 : pageSize
         fetchTransactions()
     }
@@ -849,24 +884,25 @@ struct TransactionListView: View {
     }
 
     private func deleteSelectedTransactions() {
-        let toDelete = transactions.filter { selectedTransactions.contains($0.id) }
-        for transaction in toDelete {
-            modelContext.delete(transaction)
+        do {
+            try TransactionDeletion(context: modelContext).delete(ids: selectedTransactions)
+            selectedTransactions.removeAll()
+            isInSelectionMode = false
+            fetchTransactions()
+            appState.triggerDataRefresh()
+        } catch {
+            showingDeleteError = true
         }
-        try? modelContext.save()
-        selectedTransactions.removeAll()
-        isInSelectionMode = false
-        fetchTransactions()
-        appState.triggerDataRefresh()
     }
 
     private func deleteTransaction(_ transaction: FinanceTransaction) {
-        modelContext.delete(transaction)
-        try? modelContext.save()
-        fetchTransactions()
-
-        // Notify dashboard to refresh
-        appState.triggerDataRefresh()
+        do {
+            try TransactionDeletion(context: modelContext).delete(ids: [transaction.id])
+            fetchTransactions()
+            appState.triggerDataRefresh()
+        } catch {
+            showingDeleteError = true
+        }
     }
 }
 
@@ -1009,45 +1045,29 @@ struct CategoryFilterSheet: View {
     }
 }
 
-// MARK: - Filter Chip
-
-struct FilterChip: View {
-    let title: String
-    var icon: String? = nil
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if let icon = icon {
-                    Image(systemName: icon).font(.caption)
-                }
-                Text(title).font(.subheadline)
-            }
-            .fontWeight(isSelected ? .semibold : .regular)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(isSelected ? Color.accentColor : Color(.systemGray5))
-            .foregroundStyle(isSelected ? .white : .primary)
-            .clipShape(Capsule())
-        }
-    }
-}
-
 // MARK: - Transaction Cell
 
 struct TransactionCell: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let transaction: FinanceTransaction
     let showConto: Bool
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isIncome: Bool { transaction.type == .income }
+    private var isTransfer: Bool { transaction.type == .transfer }
     private var contoName: String? { transaction.fromConto?.name ?? transaction.toConto?.name }
+    private var amountText: String {
+        (isTransfer ? "" : isIncome ? "+" : "−") + (transaction.amount ?? 0).formatted(.currency(code: transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR"))
+    }
+    private var iconName: String {
+        transaction.category?.icon ?? (isTransfer ? "arrow.left.arrow.right" : isIncome ? "arrow.down.left" : "arrow.up.right")
+    }
 
     var body: some View {
-        if horizontalSizeClass == .regular {
+        if dynamicTypeSize.isAccessibilitySize {
+            AccessibleTransactionRow(transaction: transaction, showConto: showConto, amount: amountText)
+        } else if horizontalSizeClass == .regular {
             tableRow
         } else {
             compactRow
@@ -1056,49 +1076,50 @@ struct TransactionCell: View {
 
     private var compactRow: some View {
         HStack(spacing: 12) {
-            Image(systemName: transaction.category?.icon ?? (isIncome ? "arrow.down.circle" : "arrow.up.circle"))
-                .font(.title3)
-                .foregroundStyle(Color(hex: transaction.category?.color ?? (isIncome ? "#4CAF50" : "#F44336")))
-                .frame(width: 36, height: 36)
-                .background(Color(.systemGray6))
+            Image(systemName: iconName)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isIncome ? ForgiaPalette.accent : ForgiaPalette.mutedText)
+                .frame(width: 44, height: 44)
+                .background(isIncome ? ForgiaPalette.sageSurface : ForgiaPalette.canvas)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
-                    .font(.subheadline).fontWeight(.medium).lineLimit(1)
+                    .font(.body.weight(.medium)).lineLimit(1)
 
                 HStack(spacing: 4) {
-                    Text(transaction.date, format: .dateTime.day().month(.abbreviated))
+                    Text(transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))
                     if showConto, let conto = contoName {
                         Text("•")
                         Text(conto)
                     }
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
-                    .font(.subheadline).fontWeight(.semibold)
-                    .foregroundStyle(isIncome ? .green : .red)
+                Text(amountText)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(isIncome ? ForgiaPalette.accent : Color.primary)
 
                 if transaction.isRecurring == true {
                     HStack(spacing: 2) {
                         Image(systemName: "repeat")
                         Text(transaction.recurrenceFrequency?.displayName ?? "")
                     }
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(ForgiaPalette.mutedText)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 7)
     }
 
     private var tableRow: some View {
         HStack {
-            Text(transaction.date, format: .dateTime.day().month(.abbreviated))
+            Text(transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))
                 .font(.subheadline).frame(width: 80, alignment: .leading)
 
             Text(transaction.transactionDescription ?? "-")
@@ -1107,7 +1128,7 @@ struct TransactionCell: View {
             HStack(spacing: 4) {
                 if let icon = transaction.category?.icon {
                     Image(systemName: icon).font(.caption)
-                        .foregroundStyle(Color(hex: transaction.category?.color ?? "#007AFF"))
+                        .foregroundStyle(ForgiaPalette.mutedText)
                 }
                 Text(transaction.category?.name ?? "-").font(.subheadline).lineLimit(1)
             }
@@ -1117,13 +1138,13 @@ struct TransactionCell: View {
                 Text(contoName ?? "-").font(.subheadline).lineLimit(1).frame(width: 100, alignment: .leading)
             }
 
-            Text((isIncome ? "+" : "-") + (transaction.amount ?? 0).currencyFormatted)
+            Text(amountText)
                 .font(.subheadline).fontWeight(.medium)
-                .foregroundStyle(isIncome ? .green : .red)
+                .foregroundStyle(isIncome ? ForgiaPalette.accent : Color.primary)
                 .frame(width: 100, alignment: .trailing)
 
             if transaction.isRecurring == true {
-                Image(systemName: "repeat").font(.caption).foregroundStyle(.secondary).frame(width: 24)
+                Image(systemName: "repeat").font(.caption).foregroundStyle(ForgiaPalette.mutedText).frame(width: 24)
             } else {
                 Spacer().frame(width: 24)
             }
@@ -1146,14 +1167,7 @@ enum TransactionTypeFilter: CaseIterable {
         }
     }
 
-    var displayNameShort: String {
-        switch self {
-        case .all: return "Tutte"
-        case .income: return "Ent."
-        case .expense: return "Usc."
-        case .transfer: return "Trasf."
-        }
-    }
+
 }
 
 // MARK: - Transaction Timeframe
@@ -1184,4 +1198,59 @@ private struct TransactionSection: Identifiable {
     TransactionListView()
         .environment(AppStateManager())
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
+}
+
+private struct TransactionSearchField: View {
+    @Binding var text: String
+    let close: () -> Void
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Cerca movimenti", text: $text)
+                .textFieldStyle(.plain)
+                .focused($focused)
+                .submitLabel(.search)
+            Button(action: close) { Label("Chiudi ricerca", systemImage: "xmark.circle.fill") }
+                .labelStyle(.iconOnly)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .padding(.leading, 12)
+        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .onAppear { focused = true }
+    }
+}
+
+private struct AccessibleTransactionRow: View {
+    let transaction: FinanceTransaction
+    let showConto: Bool
+    let amount: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
+                .font(.body.weight(.medium))
+            Text(amount)
+                .font(.headline)
+                .monospacedDigit()
+                .foregroundStyle(transaction.type == .income ? ForgiaPalette.accent : Color.primary)
+            Text(transaction.date, format: .dateTime.day().month(.abbreviated))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if showConto, let name = transaction.fromConto?.name ?? transaction.toConto?.name {
+                Text(name).font(.caption).foregroundStyle(.secondary)
+            }
+            if transaction.isRecurring == true {
+                Label(transaction.recurrenceFrequency?.displayName ?? "Ricorrente", systemImage: "repeat")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+    }
 }

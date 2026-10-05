@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import FinanceCore
+import MapKit
 
 struct TransactionDetailView: View {
     let transaction: FinanceTransaction
@@ -10,6 +11,7 @@ struct TransactionDetailView: View {
 
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
+    @State private var showingDeleteError = false
 
     private var amountColor: Color {
         switch transaction.type {
@@ -54,7 +56,7 @@ struct TransactionDetailView: View {
             // Hero section
             Section {
                 VStack(spacing: 10) {
-                    Text(amountPrefix + (transaction.amount ?? Decimal(0)).currencyFormatted)
+                    Text(amountPrefix + (transaction.amount ?? Decimal(0)).formatted(.currency(code: transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR")))
                         .font(.title.bold())
                         .foregroundStyle(amountColor)
 
@@ -77,6 +79,19 @@ struct TransactionDetailView: View {
                 .padding(.vertical, 8)
             }
 
+            if transaction.type == .transfer, let received = transaction.destinationAmount {
+                Section("Importo ricevuto") {
+                    Text(received, format: .currency(code: transaction.toConto?.account?.currency ?? "EUR"))
+                }
+            }
+            if let original = transaction.originalAmount, let currency = transaction.originalCurrency, let rate = transaction.exchangeRate {
+                Section("Importo originale") {
+                    Text(original, format: .currency(code: currency))
+                    Text("Cambio applicato: \(rate.formatted())")
+                    Text(transaction.exchangeRateDate.map { "\(transaction.exchangeRateSource ?? "Cambio") · \($0)" } ?? "Cambio manuale")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
             // Informazioni
             Section("Informazioni") {
                 LabeledContent("Descrizione") {
@@ -116,6 +131,24 @@ struct TransactionDetailView: View {
                     }
                 }
             }
+
+            if transaction.placeName != nil || transaction.latitude != nil {
+                Section("Luogo") {
+                    if let name = transaction.placeName { Text(name) }
+                    if let latitude = transaction.latitude, let longitude = transaction.longitude {
+                        Text("\(latitude.formatted(.number.precision(.fractionLength(4)))), \(longitude.formatted(.number.precision(.fractionLength(4))))")
+                            .font(.caption).monospacedDigit().textSelection(.enabled)
+                        if CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude: latitude, longitude: longitude)) {
+                            Button("Apri in Mappe", systemImage: "map") {
+                                let item = MKMapItem(location: CLLocation(latitude: latitude, longitude: longitude), address: nil)
+                                item.name = transaction.placeName ?? "Luogo del movimento"
+                                item.openInMaps()
+                            }
+                        }
+                    }
+                }
+            }
+            TransactionAttachmentsSection(transaction: transaction)
 
             // Ricorrenza
             if transaction.isRecurring == true {
@@ -175,6 +208,11 @@ struct TransactionDetailView: View {
         .sheet(isPresented: $showingEditSheet) {
             EditTransactionView(transaction: transaction)
         }
+        .alert("Impossibile eliminare", isPresented: $showingDeleteError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("La transazione non è stata eliminata. Riprova.")
+        }
         .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
             Button("Elimina", role: .destructive) {
                 deleteTransaction()
@@ -186,9 +224,12 @@ struct TransactionDetailView: View {
     }
 
     private func deleteTransaction() {
-        modelContext.delete(transaction)
-        try? modelContext.save()
-        appState.triggerDataRefresh()
-        dismiss()
+        do {
+            try TransactionDeletion(context: modelContext).delete(ids: [transaction.id])
+            appState.triggerDataRefresh()
+            dismiss()
+        } catch {
+            showingDeleteError = true
+        }
     }
 }

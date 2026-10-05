@@ -43,6 +43,7 @@ struct OnboardingView: View {
     @State private var contiToCreate: [ContoSetupData] = []
     @State private var showingAddConto = false
     @State private var isCreatingDemo = false
+    @State private var showingSetupError = false
 
     private let currencies = ["EUR", "USD", "GBP", "CHF"]
 
@@ -58,45 +59,72 @@ struct OnboardingView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: step)
+        .alert("Impossibile completare la configurazione", isPresented: $showingSetupError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("I dati non sono stati salvati. Le informazioni inserite sono ancora disponibili: riprova.")
+        }
     }
 
     // MARK: - Welcome Page
 
     private var welcomePage: some View {
-        VStack(spacing: 30) {
-            Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image("logo-forgia")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 42, height: 42)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Text("Forgia")
+                    .font(.system(size: 28, weight: .semibold, design: .serif))
+            }
+            .padding(.top, 28)
 
-            Image("logo-forgia")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 120, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+            Spacer(minLength: 36)
 
-            Text("Benvenuto in Forgia")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .multilineTextAlignment(.center)
+            Text("I tuoi soldi,\npiù chiari.")
+                .font(.system(size: 48, weight: .semibold, design: .serif))
+                .tracking(-1.5)
+                .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
 
-            Text("Forgia il tuo futuro finanziario. Traccia entrate, spese e monitora i tuoi budget con consapevolezza.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            Text("Scopri dove spendi, tieni d'occhio i prossimi impegni e scegli con più consapevolezza.")
+                .font(.title3)
+                .foregroundStyle(ForgiaPalette.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 18)
 
-            Spacer()
+            HStack(spacing: 9) {
+                Image(systemName: "chart.pie.fill")
+                    .foregroundStyle(ForgiaPalette.accent)
+                Text("Un quadro semplice, costruito sui tuoi movimenti.")
+                    .font(.subheadline)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+            .padding(.top, 28)
 
-            VStack(spacing: 12) {
+            Spacer(minLength: 36)
+
+            VStack(spacing: 14) {
                 Button {
                     withAnimation {
                         step = .libroSetup
                     }
                 } label: {
-                    Label("Personalizza il tuo libro", systemImage: "slider.horizontal.3")
-                        .font(.headline)
+                    HStack {
+                        Text("Inizia con i tuoi conti")
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ForgiaPalette.onAccent)
+                        .padding(.horizontal, 20)
+                        .frame(height: 54)
                         .frame(maxWidth: .infinity)
+                        .background(ForgiaPalette.accent, in: RoundedRectangle(cornerRadius: 16))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.plain)
 
                 Button {
                     createDemoData()
@@ -105,31 +133,34 @@ struct OnboardingView: View {
                         ProgressView()
                             .frame(maxWidth: .infinity)
                     } else {
-                        Label("Usa dati demo", systemImage: "sparkles")
-                            .font(.headline)
+                        Text("Esplora con dati demo")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(ForgiaPalette.accent)
                             .frame(maxWidth: .infinity)
+                            .frame(height: 44)
                     }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+                .buttonStyle(.plain)
                 .disabled(isCreatingDemo)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 40)
+            .padding(.bottom, 24)
         }
+        .padding(.horizontal, 26)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .themedBackground()
     }
 
     // MARK: - Libro Setup Page
 
     private var libroSetupPage: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     TextField("Nome del libro", text: $libroName)
                 } header: {
                     Text("Nome")
                 } footer: {
-                    Text("Il libro contabile raggruppa i tuoi account finanziari.")
+                    Text("Un libro raggruppa i conti che vuoi seguire insieme.")
                 }
 
                 Section("Valuta") {
@@ -142,7 +173,9 @@ struct OnboardingView: View {
                     .labelsHidden()
                 }
             }
-            .navigationTitle("Crea il tuo Libro")
+            .scrollContentBackground(.hidden)
+            .themedBackground()
+            .navigationTitle("Crea il tuo libro")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -167,18 +200,18 @@ struct OnboardingView: View {
     // MARK: - Conti Setup Page
 
     private var contiSetupPage: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 if contiToCreate.isEmpty {
                     Section {
                         ContentUnavailableView(
-                            "Nessun account",
+                            "Nessun conto",
                             systemImage: "creditcard",
-                            description: Text("Aggiungi almeno un account per continuare.")
+                            description: Text("Aggiungi almeno un conto per continuare.")
                         )
                     }
                 } else {
-                    Section("Account da creare") {
+                    Section("Conti da aggiungere") {
                         ForEach(contiToCreate) { conto in
                             HStack {
                                 Image(systemName: conto.type.icon)
@@ -210,11 +243,13 @@ struct OnboardingView: View {
                     Button {
                         showingAddConto = true
                     } label: {
-                        Label("Aggiungi Account", systemImage: "plus.circle.fill")
+                        Label("Aggiungi conto", systemImage: "plus.circle.fill")
                     }
                 }
             }
-            .navigationTitle("Aggiungi Account")
+            .scrollContentBackground(.hidden)
+            .themedBackground()
+            .navigationTitle("Aggiungi i tuoi conti")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -263,46 +298,20 @@ struct OnboardingView: View {
     }
 
     private func completeCustomSetup() {
-        let account = Account(name: libroName.trimmingCharacters(in: .whitespaces), currency: libroCurrency)
-        modelContext.insert(account)
-
-        // Create default categories with deterministic externalIDs
-        let prefix = "\(account.id)-"
-        let existingCategories = (try? modelContext.fetch(FetchDescriptor<FinanceCategory>())) ?? []
-        let existingExternalIDs = Set(existingCategories.compactMap { $0.externalID })
-
-        for def in FinanceCategory.defaultCategoryDefinitions {
-            let externalID = "\(prefix)\(def.stableKey)"
-            guard !existingExternalIDs.contains(externalID) else { continue }
-
-            let category = Category(name: def.name, color: def.color, icon: def.icon)
-            category.externalID = externalID
-            category.account = account
-            modelContext.insert(category)
+        let conti = contiToCreate.map { data in
+            Conto(name: data.name, type: data.type, initialBalance: data.initialBalance,
+                  creditLimit: data.creditLimit, statementClosingDay: data.statementClosingDay,
+                  paymentDueDay: data.paymentDueDay, annualInterestRate: data.annualInterestRate,
+                  savingsGoal: data.savingsGoal)
         }
-
-        // Create conti
-        for contoData in contiToCreate {
-            let conto = Conto(
-                name: contoData.name,
-                type: contoData.type,
-                initialBalance: contoData.initialBalance,
-                creditLimit: contoData.creditLimit,
-                statementClosingDay: contoData.statementClosingDay,
-                paymentDueDay: contoData.paymentDueDay,
-                annualInterestRate: contoData.annualInterestRate,
-                savingsGoal: contoData.savingsGoal
-            )
-            conto.account = account
-            modelContext.insert(conto)
-        }
-
         do {
-            try modelContext.save()
+            let account = try AccountCreation(context: modelContext).create(
+                name: libroName, currency: libroCurrency, conti: conti
+            )
             appState.selectAccount(account)
             appState.completeOnboarding()
         } catch {
-            print("Error completing custom setup: \(error)")
+            showingSetupError = true
         }
     }
 

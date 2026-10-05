@@ -6,10 +6,11 @@ struct CreateContoView: View {
     let account: Account
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Environment(NavigationRouter.self) private var navigationRouter
     @State private var contoName = ""
     @State private var selectedType: ContoType = .checking
-    @State private var initialBalance: Decimal = 0
+    @State private var initialBalance = ""
+    @State private var saveError: String?
+    private var parsedBalance: Decimal? { BalanceInput.parse(initialBalance, currency: account.currency ?? "EUR") }
     @State private var description = ""
     @State private var selectedColor = "#007AFF"
     @State private var creditLimit: Decimal?
@@ -29,6 +30,7 @@ struct CreateContoView: View {
             Form {
                 Section("Dettagli Conto") {
                     TextField("Nome Conto", text: $contoName)
+                        .accessibilityIdentifier("conto-name")
                     
                     Picker("Tipo", selection: $selectedType) {
                         ForEach(ContoType.allCases, id: \.self) { type in
@@ -43,12 +45,29 @@ struct CreateContoView: View {
                     HStack {
                         Text("Saldo Iniziale")
                         Spacer()
-                        TextField("0,00", value: $initialBalance, format: .currency(code: account.currency ?? "EUR"))
+                        Text(account.currency ?? "EUR").foregroundStyle(.secondary)
+                        Button {
+                            let value = initialBalance.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if value.hasPrefix("-") { initialBalance = String(value.dropFirst()) }
+                            else { initialBalance = "-" + (value.hasPrefix("+") ? String(value.dropFirst()) : value) }
+                        } label: {
+                            Image(systemName: "plus.forwardslash.minus")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Cambia segno del saldo")
+                        .accessibilityIdentifier("conto-balance-sign")
+                        TextField("0,00", text: $initialBalance)
 #if os(iOS)
                             .keyboardType(.decimalPad)
 #endif
                             .multilineTextAlignment(.trailing)
+                            .accessibilityIdentifier("conto-initial-balance")
                     }
+                    if parsedBalance == nil {
+                        Text("Inserisci un saldo valido nella valuta del libro, senza separatori delle migliaia.")
+                            .foregroundStyle(.red)
+                    }
+                    if let saveError { Text(saveError).foregroundStyle(.red) }
                 }
                 
                 ContoTypeSpecificFieldsView(
@@ -62,13 +81,12 @@ struct CreateContoView: View {
                 )
 
                 Section("Personalizzazione") {
-                    HStack {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Colore")
-                        Spacer()
-                        HStack {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 32), spacing: 8)], spacing: 8) {
                             ForEach(colors, id: \.self) { color in
                                 Circle()
-                                    .fill(Color(hex: color) ?? .blue)
+                                    .fill(Color(hex: color))
                                     .frame(width: 30, height: 30)
                                     .overlay {
                                         if selectedColor == color {
@@ -107,7 +125,8 @@ struct CreateContoView: View {
                     Button("Salva") {
                         createConto()
                     }
-                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsedBalance == nil)
+                    .accessibilityIdentifier("conto-save")
                 }
             }
             .onChange(of: selectedType) {
@@ -121,24 +140,37 @@ struct CreateContoView: View {
     }
 
     private func createConto() {
-        let conto = Conto(
-            name: contoName.trimmingCharacters(in: .whitespacesAndNewlines),
-            type: selectedType,
-            initialBalance: initialBalance,
-            contoDescription: description.isEmpty ? nil : description,
-            color: selectedColor,
-            creditLimit: selectedType == .credit ? creditLimit : nil,
-            statementClosingDay: selectedType == .credit ? statementClosingDay : nil,
-            paymentDueDay: selectedType == .credit ? paymentDueDay : nil,
-            annualInterestRate: selectedType == .investment ? annualInterestRate : nil,
-            savingsGoal: selectedType == .savings ? savingsGoal : nil
-        )
+        guard let balance = parsedBalance, !contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        saveError = nil
+        let context = ModelContext(modelContext.container)
+        context.autosaveEnabled = false
+        do {
+            let accountID = account.id
+            guard let savedAccount = try context.fetch(FetchDescriptor<Account>(predicate: #Predicate { $0.id == accountID })).first else {
+                saveError = "Il libro non è più disponibile. Chiudi questa schermata e seleziona un altro libro."
+                return
+            }
+            let conto = Conto(
+                name: contoName.trimmingCharacters(in: .whitespacesAndNewlines),
+                type: selectedType,
+                initialBalance: balance,
+                contoDescription: description.isEmpty ? nil : description,
+                color: selectedColor,
+                creditLimit: selectedType == .credit ? creditLimit : nil,
+                statementClosingDay: selectedType == .credit ? statementClosingDay : nil,
+                paymentDueDay: selectedType == .credit ? paymentDueDay : nil,
+                annualInterestRate: selectedType == .investment ? annualInterestRate : nil,
+                savingsGoal: selectedType == .savings ? savingsGoal : nil
+            )
 
-        conto.account = account
-        modelContext.insert(conto)
-
-        try? modelContext.save()
-        dismiss()
+            conto.account = savedAccount
+            context.insert(conto)
+            try context.save()
+            dismiss()
+        } catch {
+            context.rollback()
+            saveError = "Non è stato possibile salvare il conto. I dati inseriti restano qui: riprova."
+        }
     }
 }
 
@@ -203,7 +235,7 @@ struct EditContoView: View {
                             showingColorPicker = true
                         } label: {
                             Circle()
-                                .fill(Color(hex: selectedColor) ?? .blue)
+                                .fill(Color(hex: selectedColor))
                                 .frame(width: 30, height: 30)
                                 .overlay(
                                     Circle()
@@ -218,7 +250,7 @@ struct EditContoView: View {
                         Text("Saldo attuale")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text(conto.balance.currencyFormatted)
+                        Text(conto.balance.formatted(.currency(code: conto.account?.currency ?? "EUR")))
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(conto.balance >= 0 ? .primary : .red)
@@ -307,7 +339,7 @@ struct ColorPickerView: View {
                         dismiss()
                     } label: {
                         Circle()
-                            .fill(Color(hex: color) ?? .blue)
+                            .fill(Color(hex: color))
                             .frame(width: 50, height: 50)
                             .overlay(
                                 Circle()

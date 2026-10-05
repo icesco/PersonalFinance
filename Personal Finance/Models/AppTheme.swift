@@ -8,7 +8,7 @@
 import SwiftUI
 
 enum AppTheme: String, CaseIterable, Codable, Identifiable {
-    case forgia = "forgia"  // Tema default - fuoco e forgiatura
+    case forgia = "forgia"  // Tema predefinito, calmo e leggibile
     case blue = "blue"
     case indigo = "indigo"
     case purple = "purple"
@@ -42,7 +42,7 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
 
     var color: Color {
         switch self {
-        case .forgia: return Color(red: 0.95, green: 0.45, blue: 0.15)  // Arancione fuoco
+        case .forgia: return ForgiaPalette.accent
         case .blue: return .blue
         case .indigo: return .indigo
         case .purple: return .purple
@@ -60,7 +60,7 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
     /// Colore secondario complementare per gradienti e accenti
     var secondaryColor: Color {
         switch self {
-        case .forgia: return Color(red: 1.0, green: 0.65, blue: 0.2)  // Arancione dorato/brace
+        case .forgia: return Color("ForgiaSageSurface")
         case .blue: return .cyan
         case .indigo: return .purple
         case .purple: return .pink
@@ -100,7 +100,7 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
     /// Icona rappresentativa del tema
     var icon: String {
         switch self {
-        case .forgia: return "flame.fill"
+        case .forgia: return "leaf.fill"
         case .blue: return "drop.fill"
         case .indigo: return "sparkles"
         case .purple: return "crown.fill"

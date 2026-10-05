@@ -52,11 +52,11 @@ struct CSVImportView: View {
                                 showingFieldMapping = true
                             }
                         )
-                        .navigationDestination(isPresented: $showingFieldMapping) {
-                            if let resultToUse = filteredParseResult {
-                                FieldMappingView(parseResult: resultToUse)
-                            }
-                        }
+                    }
+                }
+                .navigationDestination(isPresented: $showingFieldMapping) {
+                    if let resultToUse = filteredParseResult {
+                        FieldMappingView(parseResult: resultToUse, onImported: { dismiss() })
                     }
                 }
                 .overlay {
@@ -157,7 +157,12 @@ struct CSVImportView: View {
             VStack(spacing: 12) {
                 if parseResult != nil {
                     Button {
-                        showingAccountFilter = true
+                        if let parseResult, CSVParser.isBudgetFlowExport(parseResult) {
+                            filteredParseResult = parseResult
+                            showingFieldMapping = true
+                        } else {
+                            showingAccountFilter = true
+                        }
                     } label: {
                         HStack {
                             Image(systemName: "arrow.right.circle.fill")

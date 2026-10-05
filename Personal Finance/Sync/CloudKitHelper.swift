@@ -8,6 +8,7 @@
 
 import Foundation
 import CloudKit
+import CoreData
 import Observation
 import FinanceCore
 
@@ -18,9 +19,10 @@ final class CloudKitHelper {
 
     // MARK: - Published State
 
-    private(set) var isSyncing = false
-    private(set) var lastSyncDate: Date?
-    private(set) var syncError: Error?
+    private var progress = CloudSyncProgress()
+    var isSyncing: Bool { progress.isSyncing }
+    var lastSyncDate: Date? { progress.lastSyncDate }
+    var syncError: Error? { progress.error }
     private(set) var isCloudKitAvailable = false
     private(set) var isAccountConnected = false
 
@@ -53,10 +55,11 @@ final class CloudKitHelper {
     // MARK: - Init
 
     private init() {
-        // Listen for NSPersistentCloudKitContainer sync events.
-        // The notification name is not publicly exposed as a constant,
-        // so we use its string form.
-        let eventNotification = Notification.Name("NSPersistentCloudKitContainerEventChangedNotification")
+        NotificationCenter.default.addObserver(forName: .containerDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.resetStatus() }
+        }
+        // SwiftData forwards the public Core Data mirroring events.
+        let eventNotification = NSPersistentCloudKitContainer.eventChangedNotification
         NotificationCenter.default.addObserver(
             forName: eventNotification,
             object: nil,
@@ -71,41 +74,56 @@ final class CloudKitHelper {
     // MARK: - Event Handling
 
     private func handleCloudKitEvent(_ notification: Notification) {
-        // The userInfo contains a NSPersistentCloudKitContainer.Event.
-        // We use KVC to extract the event properties without importing CoreData directly.
-        guard let event = notification.userInfo?["event"] as? NSObject else { return }
+        guard DataStorageManager.shared.isCloudSyncEnabled else {
+            resetStatus()
+            return
+        }
+        guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+            as? NSPersistentCloudKitContainer.Event else { return }
 
-        let didStart = (event.value(forKey: "startDate") as? Date) != nil
-        let didEnd = (event.value(forKey: "endDate") as? Date) != nil
-        let eventError = event.value(forKey: "error") as? Error
-
-        if didStart && !didEnd {
-            // Sync started
-            isSyncing = true
-            syncError = nil
-            NotificationCenter.default.post(name: .cloudSyncDidBegin, object: nil)
-        } else if didEnd {
-            // Sync ended
-            isSyncing = false
-            if let error = eventError {
-                syncError = error
+        if let endDate = event.endDate {
+            let failure: Error? = event.error ?? (event.succeeded ? nil : CloudEventFailure())
+            let completedCycle = progress.finish(
+                event.identifier, at: endDate,
+                isDataSync: event.type != .setup, error: failure
+            )
+            guard completedCycle else { return }
+            if let error = progress.error {
                 NotificationCenter.default.post(
-                    name: .cloudSyncDidFail,
-                    object: nil,
-                    userInfo: ["error": error]
+                    name: .cloudSyncDidFail, object: nil, userInfo: ["error": error]
                 )
             } else {
-                lastSyncDate = Date()
-                syncError = nil
                 NotificationCenter.default.post(name: .cloudSyncDidComplete, object: nil)
             }
+        } else if progress.begin(event.identifier) {
+            NotificationCenter.default.post(name: .cloudSyncDidBegin, object: nil)
         }
+    }
+
+    private struct CloudEventFailure: LocalizedError {
+        var errorDescription: String? { "Sincronizzazione iCloud non riuscita. Riprova più tardi." }
+    }
+
+    private func resetStatus() {
+        progress = CloudSyncProgress()
+        isCloudKitAvailable = false
+        isAccountConnected = false
     }
 
     // MARK: - Account Status
 
     func refreshSyncStatus() async {
+        guard DataStorageManager.shared.isCloudSyncEnabled else {
+            resetStatus()
+            return
+        }
+        let generation = DataStorageManager.shared.containerGeneration
         let status = await DataStorageManager.shared.cloudKitAccountStatus()
+        guard DataStorageManager.shared.isCloudSyncEnabled else {
+            resetStatus()
+            return
+        }
+        guard generation == DataStorageManager.shared.containerGeneration else { return }
         isCloudKitAvailable = status != .noAccount && status != .couldNotDetermine
         isAccountConnected = status == .available
     }

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Observation
+import FinanceCore
 
 // MARK: - Manager
 
@@ -85,7 +86,7 @@ struct BackgroundOperationBanner: View {
     @State private var manager = BackgroundOperationManager.shared
 
     var body: some View {
-        if manager.isVisible {
+        if manager.isVisible && DataStorageManager.shared.isCloudSyncEnabled {
             HStack(spacing: 10) {
                 Group {
                     if manager.isSuccess == nil {

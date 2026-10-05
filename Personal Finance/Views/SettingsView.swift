@@ -10,6 +10,7 @@ import SwiftData
 import FinanceCore
 
 struct SettingsView: View {
+    @State private var showingSaveError = false
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
@@ -41,9 +42,6 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Personalizzazione section
-                appearanceSection
-
                 // Libri contabili section
                 libriContabiliSection
 
@@ -59,8 +57,26 @@ struct SettingsView: View {
                 // iCloud section
                 iCloudSection
 
-                // Development section
+                AppLockSettingsSection()
+                WidgetSettingsSection()
+                #if os(iOS)
+                WatchSettingsSection()
+                #endif
+
+                Section {
+                    NavigationLink {
+                        FinanceShortcutsView()
+                    } label: {
+                        Label("Comandi Rapidi e Siri", systemImage: "square.stack.3d.up")
+                    }
+                }
+                RecurrenceReminderSettings()
+
+                appearanceSection
+
+#if DEBUG
                 developmentSection
+#endif
 
                 // Info section
                 infoSection
@@ -68,6 +84,11 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .themedBackground()
             .navigationTitle("Impostazioni")
+            .alert("Impossibile salvare", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Le modifiche non sono state salvate. Riprova.")
+            }
             .sheet(isPresented: $showingAddConto) {
                 AddContoSheet()
             }
@@ -111,6 +132,14 @@ struct SettingsView: View {
                 Text(pendingSyncToggleValue
                      ? "I tuoi dati verranno sincronizzati su iCloud e disponibili su tutti i dispositivi."
                      : "I dati resteranno solo su questo dispositivo. I dati gia' sincronizzati su iCloud non verranno cancellati.")
+            }
+            .alert("Impossibile cambiare sincronizzazione", isPresented: Binding(
+                get: { dataStorageManager.syncToggleError != nil },
+                set: { _ in }
+            )) {
+                Button("OK") { dataStorageManager.clearSyncToggleError() }
+            } message: {
+                Text(dataStorageManager.syncToggleError ?? "")
             }
             .task {
                 await cloudKitHelper.refreshSyncStatus()
@@ -290,34 +319,17 @@ struct SettingsView: View {
                 }
             }
 
-            // Dashboard Style
-            HStack {
-                Label("Stile Dashboard", systemImage: "square.grid.2x2")
-
-                Spacer()
-
-                Picker("", selection: Binding(
-                    get: { appState.dashboardStyle },
-                    set: { appState.dashboardStyle = $0 }
-                )) {
-                    ForEach(DashboardStyle.allCases, id: \.self) { style in
-                        Text(style.displayName).tag(style)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
             // Tinted backgrounds toggle
             Toggle(isOn: Binding(
                 get: { appState.tintedBackgrounds },
                 set: { appState.tintedBackgrounds = $0 }
             )) {
-                Label("Sfondi Colorati", systemImage: "paintpalette")
+                Label("Superfici colorate", systemImage: "paintpalette")
             }
         } header: {
-            Text("Personalizzazione")
+            Text("Aspetto")
         } footer: {
-            Text("Personalizza l'aspetto e il livello di dettaglio dell'app")
+            Text("Scegli l'aspetto dell'app")
         }
     }
 
@@ -332,12 +344,12 @@ struct SettingsView: View {
             Button {
                 showingAddAccount = true
             } label: {
-                Label("Nuovo Libro Contabile", systemImage: "plus.circle.fill")
+                Label("Nuovo libro", systemImage: "plus.circle.fill")
             }
         } header: {
-            Text("Libri Contabili")
+            Text("Libri")
         } footer: {
-            Text("Ogni libro contabile raggruppa i conti correlati (es. Personale, Famiglia, Lavoro)")
+            Text("Separa le tue finanze personali, familiari o di lavoro")
         }
     }
 
@@ -391,12 +403,12 @@ struct SettingsView: View {
             Button {
                 showingAddConto = true
             } label: {
-                Label("Aggiungi Conto", systemImage: "plus.circle.fill")
+                Label("Aggiungi conto", systemImage: "plus.circle.fill")
             }
         } header: {
-            Text("I tuoi Conti")
+            Text("Conti")
         } footer: {
-            Text("I conti rappresentano dove tieni i tuoi soldi (conto corrente, carta, contanti...)")
+            Text("Conti correnti, carte e contanti del libro selezionato")
         }
     }
 
@@ -456,17 +468,18 @@ struct SettingsView: View {
 
     private func deleteConti(at offsets: IndexSet) {
         guard let conti = account?.conti?.filter({ $0.isActive == true }) else { return }
-        for index in offsets {
-            let conto = conti[index]
-            conto.isActive = false
+        do {
+            try SettingsEdits(context: modelContext).archiveConti(conti, at: offsets)
+        } catch {
+            showingSaveError = true
         }
-        try? modelContext.save()
     }
 }
 
 // MARK: - Category Management View
 
 struct CategoryManagementView: View {
+    @State private var showingSaveError = false
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
 
@@ -499,6 +512,11 @@ struct CategoryManagementView: View {
             }
         }
         .navigationTitle("Categorie")
+            .alert("Impossibile salvare", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Le modifiche non sono state salvate. Riprova.")
+            }
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -518,12 +536,11 @@ struct CategoryManagementView: View {
     }
 
     private func deleteCategories(at offsets: IndexSet) {
-        for index in offsets {
-            let category = categories[index]
-            // Soft delete
-            category.isActive = false
+        do {
+            try SettingsEdits(context: modelContext).archiveCategories(categories, at: offsets)
+        } catch {
+            showingSaveError = true
         }
-        try? modelContext.save()
     }
 }
 
@@ -550,7 +567,7 @@ struct ContoSettingsRow: View {
 
             Spacer()
 
-            Text(conto.balance.currencyFormatted)
+            Text(conto.balance.formatted(.currency(code: conto.account?.currency ?? "EUR")))
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(conto.balance >= 0 ? Color.primary : Color.red)
@@ -591,115 +608,24 @@ struct CategorySettingsRow: View {
 // MARK: - Add Conto Sheet
 
 struct AddContoSheet: View {
-    // MARK: - Environment
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-
-    // MARK: - State
-    @State private var name = ""
-    @State private var type: ContoType = .checking
-    @State private var initialBalance = ""
-    @State private var creditLimit: Decimal?
-    @State private var statementClosingDay: Int?
-    @State private var paymentDueDay: Int?
-    @State private var annualInterestRate: Decimal?
-    @State private var savingsGoal: Decimal?
-
-    // MARK: - Computed Properties
-    private var isValid: Bool {
-        !name.isEmpty
-    }
-
-    private var currency: String {
-        appState.selectedAccount?.currency ?? "EUR"
-    }
-
-    // MARK: - Body
+    @Environment(\.dismiss) private var dismiss
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Dettagli") {
-                    TextField("Nome del conto", text: $name)
-
-                    Picker("Tipo", selection: $type) {
-                        ForEach(ContoType.allCases, id: \.self) { contoType in
-                            HStack {
-                                Image(systemName: contoType.icon)
-                                Text(contoType.displayName)
-                            }
-                            .tag(contoType)
-                        }
-                    }
-                }
-
-                Section("Saldo iniziale") {
-                    HStack {
-                        Text("€")
-                            .foregroundStyle(.secondary)
-                        TextField("0,00", text: $initialBalance)
-#if os(iOS)
-                            .keyboardType(.decimalPad)
-#endif
-                    }
-                }
-
-                ContoTypeSpecificFieldsView(
-                    selectedType: type,
-                    currency: currency,
-                    creditLimit: $creditLimit,
-                    statementClosingDay: $statementClosingDay,
-                    paymentDueDay: $paymentDueDay,
-                    annualInterestRate: $annualInterestRate,
-                    savingsGoal: $savingsGoal
-                )
-            }
-            .navigationTitle("Nuovo Conto")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Salva") { saveConto() }
-                        .disabled(!isValid)
-                }
-            }
-            .onChange(of: type) {
-                creditLimit = nil
-                statementClosingDay = nil
-                paymentDueDay = nil
-                annualInterestRate = nil
-                savingsGoal = nil
+        if let account = appState.selectedAccount {
+            CreateContoView(account: account)
+        } else {
+            NavigationStack {
+                ContentUnavailableView("Seleziona un libro", systemImage: "books.vertical", description: Text("Per aggiungere un conto, scegli prima il libro a cui appartiene."))
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } } }
             }
         }
-    }
-
-    private func saveConto() {
-        guard let account = appState.selectedAccount else { return }
-
-        let balance = Decimal(string: initialBalance.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let conto = Conto(
-            name: name,
-            type: type,
-            initialBalance: balance,
-            creditLimit: type == .credit ? creditLimit : nil,
-            statementClosingDay: type == .credit ? statementClosingDay : nil,
-            paymentDueDay: type == .credit ? paymentDueDay : nil,
-            annualInterestRate: type == .investment ? annualInterestRate : nil,
-            savingsGoal: type == .savings ? savingsGoal : nil
-        )
-        conto.account = account
-
-        modelContext.insert(conto)
-        try? modelContext.save()
-        dismiss()
     }
 }
 
 // MARK: - Add Category Sheet
 
 struct AddCategorySheet: View {
+    @State private var showingSaveError = false
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -730,7 +656,7 @@ struct AddCategorySheet: View {
     }
 
     private var isValid: Bool {
-        !name.isEmpty
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     // MARK: - Body
@@ -743,6 +669,11 @@ struct AddCategorySheet: View {
                 previewSection
             }
             .navigationTitle("Nuova Categoria")
+            .alert("Impossibile salvare", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Le modifiche non sono state salvate. Riprova.")
+            }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -829,25 +760,24 @@ struct AddCategorySheet: View {
     }
 
     private func saveCategory() {
-        guard let account = appState.selectedAccount else { return }
+        guard isValid, let account = appState.selectedAccount else { return }
 
-        let category = FinanceCategory(
-            name: name,
-            color: selectedColor,
-            icon: selectedIcon,
-            parentCategoryId: parentCategory?.id
-        )
-        category.account = account
-
-        modelContext.insert(category)
-        try? modelContext.save()
-        dismiss()
+        do {
+            try SettingsEdits(context: modelContext).createCategory(
+                name: name, color: selectedColor, icon: selectedIcon,
+                parentID: parentCategory?.id, account: account
+            )
+            dismiss()
+        } catch {
+            showingSaveError = true
+        }
     }
 }
 
 // MARK: - Edit Category Sheet
 
 struct EditCategorySheet: View {
+    @State private var showingSaveError = false
     // MARK: - Properties
     let category: FinanceCategory
 
@@ -883,6 +813,11 @@ struct EditCategorySheet: View {
                 previewSection
             }
             .navigationTitle("Modifica Categoria")
+            .alert("Impossibile salvare", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Le modifiche non sono state salvate. Riprova.")
+            }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -890,7 +825,7 @@ struct EditCategorySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") { saveChanges() }
-                        .disabled(name.isEmpty)
+                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .onAppear {
@@ -967,13 +902,14 @@ struct EditCategorySheet: View {
     }
 
     private func saveChanges() {
-        category.name = name
-        category.icon = selectedIcon
-        category.color = selectedColor
-        category.updatedAt = Date()
-
-        try? modelContext.save()
-        dismiss()
+        do {
+            try SettingsEdits(context: modelContext).updateCategory(
+                category, name: name, color: selectedColor, icon: selectedIcon
+            )
+            dismiss()
+        } catch {
+            showingSaveError = true
+        }
     }
 }
 
@@ -982,5 +918,9 @@ struct EditCategorySheet: View {
 #Preview {
     SettingsView()
         .environment(AppStateManager())
+        .environment(RecurrenceReminders())
+        .environment(AppLock())
+        .environment(DataStorageManager.shared)
+        .environment(NavigationRouter())
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
 }

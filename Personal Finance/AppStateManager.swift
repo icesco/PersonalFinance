@@ -9,35 +9,12 @@ import SwiftUI
 import SwiftData
 import FinanceCore
 
-// MARK: - Dashboard Style
-
-enum DashboardStyle: String, CaseIterable, Codable {
-    case classic = "classic"
-    case crypto = "crypto"
-    case unified = "unified"
-
-    var displayName: String {
-        switch self {
-        case .classic: return "Classico"
-        case .crypto: return "Moderno"
-        case .unified: return "Unificato"
-        }
-    }
-}
-
 /// Main application state manager using @Observable
 /// Handles tab selection, account management, and modal presentation
 @Observable
 final class AppStateManager {
     // MARK: - Tab Navigation
     var selectedTab: AppTab = .dashboard
-
-    // MARK: - Dashboard Style
-    var dashboardStyle: DashboardStyle = .unified {
-        didSet {
-            saveDashboardStyle()
-        }
-    }
 
     // MARK: - Tinted Backgrounds
     var tintedBackgrounds: Bool = true {
@@ -98,6 +75,7 @@ final class AppStateManager {
     
     // MARK: - Modal States
     var showingAccountSelection = false
+    var watchDraftID: UUID?
     var showingQuickTransaction = false
     var showingTransferSheet = false
     var showingAccountCreation = false
@@ -105,6 +83,8 @@ final class AppStateManager {
 
     // MARK: - Quick Transaction Context
     var quickTransactionType: TransactionType = .expense
+    var quickTransactionIsPlanned = false
+    var quickTransactionPrefill: (amount: String, description: String)?
 
     // MARK: - Navigation Context
     var navigationRouter = NavigationRouter()
@@ -126,23 +106,11 @@ final class AppStateManager {
     }
 
     init() {
-        loadDashboardStyle()
         loadTintedBackgrounds()
         loadShowAllAccounts()
         loadShowAllConti()
         loadSelectedAccount()
         checkOnboardingStatus()
-    }
-
-    private func loadDashboardStyle() {
-        if let savedStyle = UserDefaults.standard.string(forKey: "dashboardStyle"),
-           let style = DashboardStyle(rawValue: savedStyle) {
-            dashboardStyle = style
-        }
-    }
-
-    private func saveDashboardStyle() {
-        UserDefaults.standard.set(dashboardStyle.rawValue, forKey: "dashboardStyle")
     }
 
     private func loadTintedBackgrounds() {
@@ -245,17 +213,23 @@ final class AppStateManager {
         showingAccountSelection = false
     }
     
-    func presentQuickTransaction(type: TransactionType = .expense) {
+    func presentQuickTransaction(type: TransactionType = .expense, planned: Bool = false) {
         if type == .transfer {
             showingTransferSheet = true
         } else {
+            quickTransactionPrefill = nil
             quickTransactionType = type
+            quickTransactionIsPlanned = planned
             showingQuickTransaction = true
         }
     }
 
+    @MainActor
     func dismissQuickTransaction() {
+        if let id = watchDraftID { WatchDraftMailbox.shared.delivered(id) }
+        watchDraftID = nil
         showingQuickTransaction = false
+        quickTransactionPrefill = nil
     }
 
     func dismissTransferSheet() {
@@ -312,10 +286,14 @@ enum AppTab: Int, CaseIterable {
     case transactions = 1
     case settings = 2
     case addTransaction = 3 // Used for legacy tab bar button
+    case analysis = 4
+    case planning = 5
 
     var title: String {
         switch self {
         case .dashboard: return "Dashboard"
+        case .analysis: return "Analisi"
+        case .planning: return "Pianifica"
         case .transactions: return "Transazioni"
         case .settings: return "Impostazioni"
         case .addTransaction: return "Aggiungi"
@@ -325,6 +303,8 @@ enum AppTab: Int, CaseIterable {
     var icon: String {
         switch self {
         case .dashboard: return "house"
+        case .analysis: return "chart.pie"
+        case .planning: return "calendar"
         case .transactions: return "list.bullet.rectangle"
         case .settings: return "gearshape"
         case .addTransaction: return "plus.circle.fill"
@@ -334,6 +314,8 @@ enum AppTab: Int, CaseIterable {
     var selectedIcon: String {
         switch self {
         case .dashboard: return "house.fill"
+        case .analysis: return "chart.pie.fill"
+        case .planning: return "calendar"
         case .transactions: return "list.bullet.rectangle.fill"
         case .settings: return "gearshape.fill"
         case .addTransaction: return "plus.circle.fill"

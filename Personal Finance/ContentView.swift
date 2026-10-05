@@ -46,7 +46,13 @@ struct ContentView: View {
                     }
             }
         }
+        .background { RecurrenceReminderObserver() }
+        .background { WidgetSnapshotObserver() }
+        #if os(iOS)
+        .background { WatchSnapshotObserver() }
+        #endif
         .tint(appState.themeManager.currentTheme.color)
+        .environment(\.locale, Locale(identifier: "it_IT"))
         .onAppear {
             initializeAppState()
         }
@@ -63,5 +69,9 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environment(RecurrenceReminders())
+        .environment(AppLock())
+        .environment(DataStorageManager.shared)
+        .environment(NavigationRouter())
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
 }

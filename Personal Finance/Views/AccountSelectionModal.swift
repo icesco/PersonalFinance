@@ -234,7 +234,7 @@ struct AccountSelectionCard: View {
                         .font(.caption)
                         .foregroundColor(secondaryTextColor)
 
-                    Text(account.totalBalance.currencyFormatted)
+                    Text(account.totalBalance.formatted(.currency(code: account.currency ?? "EUR")))
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(balanceColor)
@@ -290,8 +290,10 @@ struct AllAccountsSelectionCard: View {
         appState.showAllAccounts
     }
 
-    private var totalBalance: Decimal {
-        accounts.reduce(Decimal(0)) { $0 + $1.totalBalance }
+    private var balances: [(currency: String, amount: Decimal)] {
+        Dictionary(grouping: accounts, by: { $0.currency ?? "EUR" })
+            .map { (currency: $0.key, amount: $0.value.reduce(Decimal.zero) { $0 + $1.totalBalance }) }
+            .sorted { $0.currency < $1.currency }
     }
 
     private var totalConti: Int {
@@ -302,10 +304,6 @@ struct AllAccountsSelectionCard: View {
     private var primaryTextColor: Color { isSelected ? .white : .primary }
     private var secondaryTextColor: Color { isSelected ? .white.opacity(0.8) : .secondary }
     private var iconColor: Color { isSelected ? .white : .accentColor }
-    private var balanceColor: Color {
-        if isSelected { return .white }
-        return totalBalance >= 0 ? .primary : .red
-    }
     private var cardBackground: Color { isSelected ? .accentColor : Color(.systemBackground) }
 
     var body: some View {
@@ -340,14 +338,15 @@ struct AllAccountsSelectionCard: View {
                 // Stats
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Saldo Totale")
+                        Text(balances.count > 1 ? "Saldi per valuta" : "Saldo Totale")
                             .font(.caption)
                             .foregroundColor(secondaryTextColor)
 
-                        Text(totalBalance.currencyFormatted)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(balanceColor)
+                        ForEach(balances, id: \.currency) { balance in
+                            Text(balance.amount, format: .currency(code: balance.currency))
+                                .font(.title2.bold())
+                                .foregroundColor(isSelected ? .white : (balance.amount >= 0 ? .primary : .red))
+                        }
                     }
 
                     Spacer()
@@ -429,3 +428,29 @@ extension DateFormatter {
         .environment(AppStateManager())
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
 }
+#if DEBUG
+/// Currency selection controls with synthetic balances; no persistent writes.
+struct CurrencySelectionFixture: View {
+    @State private var appState = AppStateManager()
+    private let accounts: [Account] = [
+        ("Libro euro", "EUR", Decimal(200)),
+        ("Libro dollari", "USD", Decimal(100)),
+        ("Altro libro dollari", "USD", Decimal(50))
+    ].map { name, currency, amount in
+        let book = Account(name: name, currency: currency)
+        let conto = Conto(name: "Conto demo", type: .checking, initialBalance: amount)
+        conto.account = book
+        book.conti = [conto]
+        return book
+    }
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                AllAccountsSelectionCard(accounts: accounts) { }
+                AccountSelectionCard(account: accounts[1]) { }
+            }.padding()
+        }
+        .environment(appState)
+    }
+}
+#endif

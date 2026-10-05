@@ -14,7 +14,15 @@ struct CloudSyncDetailView: View {
 
     var body: some View {
         List {
-            statusSection
+            if dataStorageManager.isCloudSyncEnabled {
+                statusSection
+            } else {
+                Section {
+                    Label("Sincronizzazione disattivata", systemImage: "icloud.slash")
+                    Text("I dati sono salvati su questo dispositivo. Nessuna richiesta iCloud viene avviata.")
+                        .foregroundStyle(.secondary)
+                }
+            }
             storageSection
             actionsSection
             #if DEBUG
@@ -67,10 +75,12 @@ struct CloudSyncDetailView: View {
                 icon: dataStorageManager.isCloudSyncEnabled ? "icloud.fill" : "internaldrive",
                 color: dataStorageManager.isCloudSyncEnabled ? .blue : .secondary)
 
+            #if DEBUG
             row(title: "Container",
                 value: FinanceCoreModule.cloudKitContainerIdentifier,
                 icon: "shippingbox",
                 color: .secondary)
+            #endif
         }
     }
 
@@ -85,6 +95,7 @@ struct CloudSyncDetailView: View {
             } label: {
                 Label("Aggiorna stato", systemImage: "arrow.clockwise")
             }
+            .disabled(!dataStorageManager.isCloudSyncEnabled)
 
             Button {
                 PlatformActions.openSystemSettings()

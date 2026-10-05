@@ -6,8 +6,21 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXCopyFilesBuildPhase section */
+		F0471A00000000000000000D = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (F0471A00000000000000000E, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+F047CA00000000000000000D = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = "$(CONTENTS_FOLDER_PATH)/Watch"; dstSubfolderSpec = 16; files = (F047CA00000000000000000E, ); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
+F047CB00000000000000000D = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (F047CB00000000000000000E, ); name = "Embed Watch Widgets"; runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXBuildFile section */
 		6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D6508F82E5B418F0033992E /* FinanceCore */; };
+		F0471A00000000000000000E = {isa = PBXBuildFile; fileRef = F0471A000000000000000002; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F0471A000000000000000010 = {isa = PBXBuildFile; productRef = F0471A00000000000000000F; };
+F047CA00000000000000000E = {isa = PBXBuildFile; fileRef = F047CA000000000000000002; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+F047CA000000000000000015 = {isa = PBXBuildFile; fileRef = F047CA000000000000000014; };
+F047CA00000000000000001F = {isa = PBXBuildFile; fileRef = F047CA00000000000000001E; };
+F047CA000000000000000029 = {isa = PBXBuildFile; fileRef = F047CA000000000000000028; };
+F047CB00000000000000000E = {isa = PBXBuildFile; fileRef = F047CB000000000000000002; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,22 +38,35 @@
 			remoteGlobalIDString = 6D6508C72E5B400F0033992E;
 			remoteInfo = "Personal Finance";
 		};
+		F0471A00000000000000000C = {isa = PBXContainerItemProxy; containerPortal = 6D6508C02E5B400F0033992E; proxyType = 1; remoteGlobalIDString = F0471A000000000000000001; remoteInfo = ForgiaWidgets; };
+F047CA00000000000000000C = {isa = PBXContainerItemProxy; containerPortal = 6D6508C02E5B400F0033992E; proxyType = 1; remoteGlobalIDString = F047CA000000000000000001; remoteInfo = ForgiaWatch; };
+F047CB00000000000000000C = {isa = PBXContainerItemProxy; containerPortal = 6D6508C02E5B400F0033992E; proxyType = 1; remoteGlobalIDString = F047CB000000000000000001; remoteInfo = ForgiaWatchWidgets; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		6D6508C82E5B400F0033992E /* Personal Finance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Personal Finance.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D6508D92E5B40100033992E /* Personal FinanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Personal FinanceTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D6508E32E5B40100033992E /* Personal FinanceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Personal FinanceUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0471A000000000000000002 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForgiaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+F047CA000000000000000002 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ForgiaWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+F047CA000000000000000014 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgiaWatch/WatchProtocol.swift; sourceTree = "<group>"; };
+F047CA00000000000000001E = {isa = PBXFileReference; lastKnownFileType = folder.icon; path = "Personal Finance/ForgiaIcon.icon"; sourceTree = "<group>"; };
+F047CA000000000000000028 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Packages/FinanceCore/Sources/FinanceCore/Services/RemoteExpenseMessages.swift; sourceTree = "<group>"; };
+F047CB000000000000000002 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForgiaWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		6D6508EB2E5B40100033992E /* Exceptions for "Personal Finance" folder in "Personal Finance" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Conto-Principale-2026-02-05T17-48-48.csv",
 				Info.plist,
 			);
 			target = 6D6508C72E5B400F0033992E /* Personal Finance */;
 		};
+		F0471A000000000000000004 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = (Info.plist, ); target = F0471A000000000000000001; };
+F047CA000000000000000004 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = (Info.plist, ); target = F047CA000000000000000001; };
+F047CB000000000000000004 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = (Info.plist, ); target = F047CB000000000000000001; };
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -62,6 +88,9 @@
 			path = "Personal FinanceUITests";
 			sourceTree = "<group>";
 		};
+		F0471A000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F0471A000000000000000004, ); path = ForgiaWidgets; sourceTree = "<group>"; };
+F047CA000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F047CA000000000000000004, ); path = ForgiaWatch; sourceTree = "<group>"; };
+F047CB000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F047CB000000000000000004, ); path = ForgiaWatchWidgets; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +116,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0471A000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (F0471A000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };
+F047CA000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+F047CB000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -94,6 +126,12 @@
 			isa = PBXGroup;
 			children = (
 				6D6508CA2E5B400F0033992E /* Personal Finance */,
+				F0471A000000000000000003,
+				F047CA000000000000000003,
+				F047CB000000000000000003,
+				F047CA000000000000000014,
+F047CA00000000000000001E,
+F047CA000000000000000028,
 				6D6508DC2E5B40100033992E /* Personal FinanceTests */,
 				6D6508E62E5B40100033992E /* Personal FinanceUITests */,
 				6D6508C92E5B400F0033992E /* Products */,
@@ -104,6 +142,9 @@
 			isa = PBXGroup;
 			children = (
 				6D6508C82E5B400F0033992E /* Personal Finance.app */,
+				F0471A000000000000000002,
+				F047CA000000000000000002,
+				F047CB000000000000000002,
 				6D6508D92E5B40100033992E /* Personal FinanceTests.xctest */,
 				6D6508E32E5B40100033992E /* Personal FinanceUITests.xctest */,
 			);
@@ -120,10 +161,14 @@
 				6D6508C42E5B400F0033992E /* Sources */,
 				6D6508C52E5B400F0033992E /* Frameworks */,
 				6D6508C62E5B400F0033992E /* Resources */,
+				F0471A00000000000000000D,
+				F047CA00000000000000000D,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F0471A00000000000000000B,
+				F047CA00000000000000000B,
 			);
 			fileSystemSynchronizedGroups = (
 				6D6508CA2E5B400F0033992E /* Personal Finance */,
@@ -182,6 +227,13 @@
 			productReference = 6D6508E32E5B40100033992E /* Personal FinanceUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		F0471A000000000000000001 = {isa = PBXNativeTarget;
+ buildConfigurationList = F0471A000000000000000008; buildPhases = (F0471A000000000000000005, F0471A000000000000000006, F0471A000000000000000007, );
+ buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (F0471A000000000000000003, ); name = ForgiaWidgets;
+ packageProductDependencies = (F0471A00000000000000000F, ); productName = ForgiaWidgets; productReference = F0471A000000000000000002; productType = "com.apple.product-type.app-extension";
+ };
+F047CA000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = F047CA000000000000000008; buildPhases = (F047CA000000000000000005, F047CA000000000000000006, F047CA000000000000000007, F047CB00000000000000000D, ); buildRules = (); dependencies = (F047CB00000000000000000B, ); fileSystemSynchronizedGroups = (F047CA000000000000000003, ); name = ForgiaWatch; packageProductDependencies = (); productName = ForgiaWatch; productReference = F047CA000000000000000002; productType = "com.apple.product-type.application"; };
+F047CB000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = F047CB000000000000000008; buildPhases = (F047CB000000000000000005, F047CB000000000000000006, F047CB000000000000000007, ); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (F047CB000000000000000003, ); name = ForgiaWatchWidgets; packageProductDependencies = (); productName = ForgiaWatchWidgets; productReference = F047CB000000000000000002; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -222,6 +274,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				F047CA000000000000000001,
+				F047CB000000000000000001,
+				F0471A000000000000000001,
 				6D6508C72E5B400F0033992E /* Personal Finance */,
 				6D6508D82E5B40100033992E /* Personal FinanceTests */,
 				6D6508E22E5B40100033992E /* Personal FinanceUITests */,
@@ -251,6 +306,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0471A000000000000000007 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+F047CA000000000000000007 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (F047CA00000000000000001F, ); runOnlyForDeploymentPostprocessing = 0; };
+F047CB000000000000000007 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -258,6 +316,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F047CA000000000000000015,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,6 +334,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0471A000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+F047CA000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F047CA000000000000000029, ); runOnlyForDeploymentPostprocessing = 0; };
+F047CB000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -288,6 +350,9 @@
 			target = 6D6508C72E5B400F0033992E /* Personal Finance */;
 			targetProxy = 6D6508E42E5B40100033992E /* PBXContainerItemProxy */;
 		};
+		F0471A00000000000000000B = {isa = PBXTargetDependency; target = F0471A000000000000000001; targetProxy = F0471A00000000000000000C; };
+F047CA00000000000000000B = {isa = PBXTargetDependency; platformFilter = ios; target = F047CA000000000000000001; targetProxy = F047CA00000000000000000C; };
+F047CB00000000000000000B = {isa = PBXTargetDependency; target = F047CB000000000000000001; targetProxy = F047CB00000000000000000C; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -298,7 +363,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Personal Finance/Personal_Finance.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+			CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -341,7 +406,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Personal Finance/Personal_Finance.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+			CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -570,6 +635,56 @@
 			};
 			name = Release;
 		};
+		F0471A000000000000000009 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {
+ APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = ForgiaWidgets/ForgiaWidgets.entitlements; CODE_SIGN_STYLE = Automatic;
+ CURRENT_PROJECT_VERSION = 8; DEVELOPMENT_TEAM = 3SB8N9QD3Z; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = ForgiaWidgets/Info.plist;
+ INFOPLIST_KEY_CFBundleDisplayName = "Forgia Widgets"; IPHONEOS_DEPLOYMENT_TARGET = 26.0; MACOSX_DEPLOYMENT_TARGET = 26.0;
+ MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.widgets"; PRODUCT_NAME = "$(TARGET_NAME)";
+ SDKROOT = auto; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx"; SUPPORTS_MACCATALYST = NO;
+ SWIFT_VERSION = 5.0; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = "1,2"; ENABLE_APP_SANDBOX = YES;
+ LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+ }; };
+		F0471A00000000000000000A = {isa = XCBuildConfiguration; name = Release; buildSettings = {
+ APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = ForgiaWidgets/ForgiaWidgets.entitlements; CODE_SIGN_STYLE = Automatic;
+ CURRENT_PROJECT_VERSION = 8; DEVELOPMENT_TEAM = 3SB8N9QD3Z; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = ForgiaWidgets/Info.plist;
+ INFOPLIST_KEY_CFBundleDisplayName = "Forgia Widgets"; IPHONEOS_DEPLOYMENT_TARGET = 26.0; MACOSX_DEPLOYMENT_TARGET = 26.0;
+ MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.widgets"; PRODUCT_NAME = "$(TARGET_NAME)";
+ SDKROOT = auto; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx"; SUPPORTS_MACCATALYST = NO;
+ SWIFT_VERSION = 5.0; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = "1,2"; ENABLE_APP_SANDBOX = YES;
+ LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+ }; };
+F047CA000000000000000009 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {
+ ASSETCATALOG_COMPILER_APPICON_NAME = ForgiaIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 8; DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+ GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = ForgiaWatch/Info.plist; INFOPLIST_KEY_CFBundleDisplayName = Forgia;
+ MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.watchkitapp";
+ PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = watchos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "watchos watchsimulator";
+ SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = complete; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 26.0;
+ LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+ }; };
+F047CA00000000000000000A = {isa = XCBuildConfiguration; name = Release; buildSettings = {
+ ASSETCATALOG_COMPILER_APPICON_NAME = ForgiaIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 8; DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+ GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = ForgiaWatch/Info.plist; INFOPLIST_KEY_CFBundleDisplayName = Forgia;
+ MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.watchkitapp";
+ PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = watchos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "watchos watchsimulator";
+ SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = complete; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 26.0;
+ LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+ }; };
+F047CB000000000000000009 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {
+APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 8; DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = ForgiaWatchWidgets/Info.plist; INFOPLIST_KEY_CFBundleDisplayName = "Forgia Watch Widgets";
+MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.watchkitapp.widgets";
+PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = watchos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "watchos watchsimulator";
+SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = complete; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 26.0;
+LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+}; };
+F047CB00000000000000000A = {isa = XCBuildConfiguration; name = Release; buildSettings = {
+APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 8; DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = ForgiaWatchWidgets/Info.plist; INFOPLIST_KEY_CFBundleDisplayName = "Forgia Watch Widgets";
+MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.watchkitapp.widgets";
+PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = watchos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "watchos watchsimulator";
+SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = complete; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 26.0;
+LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+}; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -609,6 +724,9 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		F0471A000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (F0471A000000000000000009, F0471A00000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+F047CA000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (F047CA000000000000000009, F047CA00000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+F047CB000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (F047CB000000000000000009, F047CB00000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -623,6 +741,7 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = FinanceCore;
 		};
+		F0471A00000000000000000F = {isa = XCSwiftPackageProductDependency; productName = FinanceCore; };
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6D6508C02E5B400F0033992E /* Project object */;

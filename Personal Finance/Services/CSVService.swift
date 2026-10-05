@@ -7,9 +7,20 @@
 
 import Foundation
 import SwiftData
+import CryptoKit
 import FinanceCore
 
 actor CSVService {
+    enum ImportFailure: Error {
+        case invalidNewBook
+    }
+
+    private let save: @Sendable (ModelContext) throws -> Void
+
+    init(save: @escaping @Sendable (ModelContext) throws -> Void = { try $0.save() }) {
+        self.save = save
+    }
+
 
     // MARK: - File I/O Parsing
 
@@ -33,14 +44,28 @@ actor CSVService {
         options: CSVImportOptions,
         container: ModelContainer,
         accountId: UUID,
+        newBookName: String? = nil,
         progressCallback: ((Int, Int) -> Void)? = nil
     ) async throws -> CSVImportResult {
         let context = ModelContext(container)
+        context.autosaveEnabled = false
 
         let accountPredicate = #Predicate<Account> { $0.id == accountId }
         var accountDescriptor = FetchDescriptor(predicate: accountPredicate)
         accountDescriptor.fetchLimit = 1
-        guard let account = try context.fetch(accountDescriptor).first else {
+        let existingAccount = try context.fetch(accountDescriptor).first
+        let destination: Account?
+        if let newBookName {
+            let name = newBookName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty, existingAccount == nil else { throw ImportFailure.invalidNewBook }
+            let book = Account(name: name)
+            book.id = accountId
+            context.insert(book)
+            destination = book
+        } else {
+            destination = existingAccount
+        }
+        guard let account = destination else {
             return CSVImportResult(
                 totalRows: result.rowCount,
                 importedCount: 0,
@@ -53,7 +78,9 @@ actor CSVService {
         }
 
         let existingCategories = try context.fetch(FetchDescriptor<FinanceCore.Category>())
-        let existingConti = try context.fetch(FetchDescriptor<Conto>())
+            .filter { $0.account?.id == accountId }
+        var existingConti = try context.fetch(FetchDescriptor<Conto>())
+            .filter { $0.account?.id == accountId }
 
         var importedCount = 0
         var skippedCount = 0
@@ -67,8 +94,13 @@ actor CSVService {
         let mappingDict = Dictionary(uniqueKeysWithValues: mapping.map { ($0.field, $0) })
 
         let existingTransactions = try fetchExistingTransactions(context: context)
+        var existingExternalIDs = Set(existingTransactions.map(\.externalID))
+        var importedKeys = Set<String>()
+        var identicalRowOccurrences: [String: Int] = [:]
 
         let totalRows = result.rows.count
+        let isBudgetFlowExport = CSVParser.isBudgetFlowExport(result)
+        let pendingIndex = result.headers.firstIndex { $0.caseInsensitiveCompare("Pending") == .orderedSame }
 
         for (rowIndex, row) in result.rows.enumerated() {
             let rowNumber = rowIndex + (options.hasHeader ? 2 : 1)
@@ -76,6 +108,11 @@ actor CSVService {
             progressCallback?(rowIndex + 1, totalRows)
 
             do {
+                if let pendingIndex, pendingIndex < row.count,
+                   ["true", "1", "yes"].contains(row[pendingIndex].trimmingCharacters(in: .whitespaces).lowercased()) {
+                    skippedCount += 1
+                    continue
+                }
                 // Parse amount
                 guard let amountMapping = mappingDict[.amount],
                       let amountIndex = amountMapping.csvColumnIndex,
@@ -95,6 +132,33 @@ actor CSVService {
                     continue
                 }
 
+                func value(_ field: CSVField) -> String? {
+                    guard let index = mappingDict[field]?.csvColumnIndex, index < row.count else { return nil }
+                    let value = row[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                    return value.isEmpty ? nil : value
+                }
+                let currency = account.currency ?? "EUR"
+                for field in [CSVField.sourceCurrency, .targetCurrency] {
+                    if let declared = value(field), declared.uppercased() != currency {
+                        throw ImportRowError.invalidCurrency(declared)
+                    }
+                }
+                let originalAmount = value(.originalAmount).flatMap(CSVParser.parseAmount)
+                let originalCurrency = value(.originalCurrency)?.uppercased()
+                let originalRate = value(.originalExchangeRate).flatMap(CSVParser.parseAmount)
+                let hasOriginal = [.originalAmount, .originalCurrency, .originalExchangeRate].contains { value($0) != nil }
+                if hasOriginal {
+                    guard let originalAmount, let originalCurrency, let originalRate,
+                          Locale.commonISOCurrencyCodes.contains(originalCurrency),
+                          (try? CurrencyConversion.convert(originalAmount, rate: originalRate, currency: currency)) == abs(amount) else {
+                        throw ImportRowError.invalidCurrency("Dati della conversione originale incompleti o incoerenti")
+                    }
+                }
+                let destinationAmount = value(.destinationAmount).flatMap(CSVParser.parseAmount)
+                if value(.destinationAmount) != nil && (destinationAmount == nil || destinationAmount! <= 0) {
+                    throw ImportRowError.invalidAmount(value(.destinationAmount)!)
+                }
+
                 // Parse date
                 guard let dateMapping = mappingDict[.date],
                       let dateIndex = dateMapping.csvColumnIndex,
@@ -111,8 +175,14 @@ actor CSVService {
                 let description: String?
                 if let descMapping = mappingDict[.description],
                    let descIndex = descMapping.csvColumnIndex,
-                   descIndex < row.count {
-                    description = row[descIndex].isEmpty ? nil : row[descIndex]
+                   descIndex < row.count, !row[descIndex].isEmpty {
+                    description = row[descIndex]
+                } else if let payeeIndex = mappingDict[.payee]?.csvColumnIndex,
+                          payeeIndex < row.count, !row[payeeIndex].isEmpty {
+                    description = row[payeeIndex]
+                } else if let notesIndex = mappingDict[.notes]?.csvColumnIndex,
+                          notesIndex < row.count, !row[notesIndex].isEmpty {
+                    description = row[notesIndex]
                 } else {
                     description = nil
                 }
@@ -127,21 +197,84 @@ actor CSVService {
                     notes = nil
                 }
 
-                // Check for duplicates
-                if options.ignoreDuplicates {
-                    if isDuplicate(date: date, amount: amount, description: description, existing: existingTransactions) {
-                        duplicatesSkipped += 1
-                        skippedCount += 1
-                        continue
-                    }
-                }
-
                 // Determine transaction type
                 let transactionType = CSVParser.determineTransactionType(
                     row: row,
                     amount: amount,
-                    mapping: mappingDict
+                    mapping: mappingDict,
+                    amountConvention: options.amountConvention
                 )
+
+                // Resolve both sides before inserting anything. Unknown accounts must not
+                // silently become the first account in another book.
+                let sourceConto = try resolveConto(
+                    field: .sourceAccount, row: row, mapping: mappingDict,
+                    existingConti: &existingConti, options: options, account: account, context: context
+                )
+                let targetConto = try resolveConto(
+                    field: .targetAccount, row: row, mapping: mappingDict,
+                    existingConti: &existingConti, options: options, account: account, context: context
+                )
+                let conto = findConto(
+                    row: row, mapping: mappingDict, existingConti: existingConti,
+                    options: options, transactionType: transactionType
+                )
+                var fromConto: Conto?
+                var toConto: Conto?
+                switch transactionType {
+                case .expense: fromConto = conto
+                case .income: toConto = conto
+                case .transfer:
+                    if let sourceConto, let targetConto {
+                        let explicitDirection = !isBudgetFlowExport &&
+                            ["transfer", "trasferimento"].contains(value(.transactionType)?.lowercased() ?? "")
+                        if amount < 0 || explicitDirection {
+                            fromConto = sourceConto
+                            toConto = targetConto
+                        } else {
+                            fromConto = targetConto
+                            toConto = sourceConto
+                        }
+                    } else if sourceConto == nil && targetConto == nil, let conto {
+                        if amount < 0 { fromConto = conto }
+                        else { toConto = conto }
+                    } else {
+                        throw ImportRowError.contoNotFound("Conto del trasferimento")
+                    }
+                }
+                guard fromConto != nil || toConto != nil else {
+                    throw ImportRowError.contoNotFound("Seleziona un conto per il file o correggi il nome nella riga")
+                }
+
+                let duplicateKey = importKey(
+                    date: date, amount: amount, type: transactionType,
+                    description: description, fromContoId: fromConto?.id, toContoId: toConto?.id
+                )
+                var budgetFlowExternalID: String?
+                if isBudgetFlowExport && transactionType != .transfer {
+                    // Budget Flow has no row ID. Preserve identical legitimate rows by
+                    // numbering each identical occurrence, then recognize it on reimport.
+                    let rawRow = row.joined(separator: "\u{1F}")
+                    let occurrence = identicalRowOccurrences[rawRow, default: 0]
+                    identicalRowOccurrences[rawRow] = occurrence + 1
+                    let fingerprint = SHA256.hash(data: Data(rawRow.utf8))
+                        .map { String(format: "%02x", $0) }.joined()
+                    budgetFlowExternalID = "budgetflow:\(accountId.uuidString):\(fingerprint):\(occurrence)"
+                }
+                let alreadyImported = if let budgetFlowExternalID {
+                    existingExternalIDs.contains(budgetFlowExternalID)
+                } else {
+                    importedKeys.contains(duplicateKey) || isDuplicate(
+                        date: date, amount: amount, type: transactionType,
+                        description: description, fromContoId: fromConto?.id,
+                        toContoId: toConto?.id, existing: existingTransactions
+                    )
+                }
+                if options.ignoreDuplicates && alreadyImported {
+                    duplicatesSkipped += 1
+                    skippedCount += 1
+                    continue
+                }
 
                 // Find or create category
                 let category = findOrCreateCategory(
@@ -154,15 +287,6 @@ actor CSVService {
                     account: account
                 )
 
-                // Find conto
-                let conto = findConto(
-                    row: row,
-                    mapping: mappingDict,
-                    existingConti: existingConti,
-                    options: options,
-                    transactionType: transactionType
-                )
-
                 // Create transaction
                 let transaction = Transaction(
                     amount: abs(amount),
@@ -171,44 +295,27 @@ actor CSVService {
                     transactionDescription: description,
                     notes: notes
                 )
+                transaction.originalAmount = originalAmount
+                transaction.originalCurrency = originalCurrency
+                transaction.exchangeRate = originalRate
+                transaction.exchangeRateDate = value(.originalRateDate)
+                transaction.exchangeRateSource = value(.originalRateSource)
+                if transactionType == .transfer { transaction.destinationAmount = destinationAmount }
+                if let budgetFlowExternalID {
+                    transaction.externalID = budgetFlowExternalID
+                    existingExternalIDs.insert(budgetFlowExternalID)
+                }
 
                 // Set relationships
                 if let category = category {
                     transaction.setCategory(category)
                 }
 
-                switch transactionType {
-                case .expense:
-                    if let conto = conto {
-                        transaction.setFromConto(conto)
-                    }
-                case .income:
-                    if let conto = conto {
-                        transaction.setToConto(conto)
-                    }
-                case .transfer:
-                    let sourceConto = findSourceConto(row: row, mapping: mappingDict, existingConti: existingConti)
-                    let targetConto = findTargetConto(row: row, mapping: mappingDict, existingConti: existingConti)
-
-                    if let sourceConto {
-                        transaction.setFromConto(sourceConto)
-                    }
-                    if let targetConto {
-                        transaction.setToConto(targetConto)
-                    }
-
-                    // When neither source nor target account is explicitly mapped,
-                    // use the original amount sign to determine direction
-                    if sourceConto == nil && targetConto == nil, let conto = conto {
-                        if amount < 0 {
-                            transaction.setFromConto(conto) // Money leaving → outgoing
-                        } else {
-                            transaction.setToConto(conto)   // Money arriving → incoming
-                        }
-                    }
-                }
+                transaction.setFromConto(fromConto)
+                transaction.setToConto(toConto)
 
                 context.insert(transaction)
+                importedKeys.insert(duplicateKey)
                 importedCount += 1
 
             } catch let error as ImportRowError {
@@ -230,7 +337,15 @@ actor CSVService {
             }
         }
 
-        try context.save()
+        if importedCount == 0 {
+            context.rollback()
+        } else {
+            do { try save(context) }
+            catch {
+                context.rollback()
+                throw error
+            }
+        }
 
         return CSVImportResult(
             totalRows: result.rowCount,
@@ -291,58 +406,57 @@ actor CSVService {
         options: CSVImportOptions,
         transactionType: TransactionType
     ) -> Conto? {
+        let preferred: CSVField = transactionType == .income ? .targetAccount : .sourceAccount
+        let secondary: CSVField = transactionType == .income ? .sourceAccount : .targetAccount
+        var hasNamedAccount = false
+        for field in [preferred, secondary] {
+            guard let index = mapping[field]?.csvColumnIndex, index < row.count else { continue }
+            let name = row[index].trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty else { continue }
+            hasNamedAccount = true
+            if let match = existingConti.first(where: { $0.name?.localizedCaseInsensitiveCompare(name) == .orderedSame }) {
+                return match
+            }
+        }
+        if hasNamedAccount { return nil }
         if let defaultContoId = options.defaultContoId {
             return existingConti.first { $0.id == defaultContoId }
         }
-
-        let contoField: CSVField = transactionType == .income ? .targetAccount : .sourceAccount
-
-        if let contoMapping = mapping[contoField],
-           let contoIndex = contoMapping.csvColumnIndex,
-           contoIndex < row.count {
-            let contoName = row[contoIndex].trimmingCharacters(in: .whitespaces)
-            if let conto = existingConti.first(where: { $0.name?.lowercased() == contoName.lowercased() }) {
-                return conto
-            }
-        }
-
-        return existingConti.first
+        return existingConti.count == 1 ? existingConti.first : nil
     }
 
-    private func findSourceConto(
-        row: [String],
-        mapping: [CSVField: FieldMapping],
-        existingConti: [Conto]
-    ) -> Conto? {
-        guard let sourceMapping = mapping[.sourceAccount],
-              let sourceIndex = sourceMapping.csvColumnIndex,
-              sourceIndex < row.count else {
-            return nil
+    private func resolveConto(
+        field: CSVField, row: [String], mapping: [CSVField: FieldMapping],
+        existingConti: inout [Conto], options: CSVImportOptions,
+        account: Account, context: ModelContext
+    ) throws -> Conto? {
+        guard let index = mapping[field]?.csvColumnIndex, index < row.count else { return nil }
+        let name = row[index].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        if let existing = existingConti.first(where: { $0.name?.localizedCaseInsensitiveCompare(name) == .orderedSame }) {
+            return existing
         }
-
-        let contoName = row[sourceIndex].trimmingCharacters(in: .whitespaces)
-        return existingConti.first { $0.name?.lowercased() == contoName.lowercased() }
-    }
-
-    private func findTargetConto(
-        row: [String],
-        mapping: [CSVField: FieldMapping],
-        existingConti: [Conto]
-    ) -> Conto? {
-        guard let targetMapping = mapping[.targetAccount],
-              let targetIndex = targetMapping.csvColumnIndex,
-              targetIndex < row.count else {
-            return nil
+        guard options.createMissingConti,
+              let rawType = options.missingContoTypes[name.lowercased()],
+              let type = ContoType(rawValue: rawType) else {
+            throw ImportRowError.contoNotFound(name)
         }
-
-        let contoName = row[targetIndex].trimmingCharacters(in: .whitespaces)
-        return existingConti.first { $0.name?.lowercased() == contoName.lowercased() }
+        let conto = Conto(name: name, type: type)
+        // An imported ledger does not prove the account's opening balance.
+        conto.initialBalance = nil
+        conto.account = account
+        context.insert(conto)
+        existingConti.append(conto)
+        return conto
     }
 
     private func isDuplicate(
         date: Date,
         amount: Decimal,
+        type: TransactionType,
         description: String?,
+        fromContoId: UUID?,
+        toContoId: UUID?,
         existing: [Transaction]
     ) -> Bool {
         let tolerance: TimeInterval = 5 * 60
@@ -352,10 +466,21 @@ actor CSVService {
 
             let dateMatches = abs(transaction.date.timeIntervalSince(date)) <= tolerance
             let amountMatches = abs(transactionAmount - abs(amount)) < 0.01
-            let descriptionMatches = transaction.transactionDescription == description
+            let descriptionMatches = type == .transfer ||
+                transaction.transactionDescription == description
 
-            return dateMatches && amountMatches && descriptionMatches
+            return dateMatches && amountMatches && descriptionMatches &&
+                transaction.type == type && transaction.fromContoId == fromContoId &&
+                transaction.toContoId == toContoId
         }
+    }
+
+    private func importKey(
+        date: Date, amount: Decimal, type: TransactionType,
+        description: String?, fromContoId: UUID?, toContoId: UUID?
+    ) -> String {
+        let note = type == .transfer ? "" : (description ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        return "\(date.timeIntervalSince1970)|\(abs(amount))|\(type.rawValue)|\(fromContoId?.uuidString ?? "")|\(toContoId?.uuidString ?? "")|\(note)"
     }
 
     private func fetchExistingTransactions(context: ModelContext) throws -> [Transaction] {
@@ -408,7 +533,8 @@ actor CSVService {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .decimal
         numberFormatter.minimumFractionDigits = 2
-        numberFormatter.maximumFractionDigits = 2
+        numberFormatter.maximumFractionDigits = 38
+        numberFormatter.usesGroupingSeparator = false
         numberFormatter.locale = Locale(identifier: "it_IT")
 
         for transaction in filteredTransactions {
@@ -438,13 +564,32 @@ actor CSVService {
             return transaction.type.displayName
         case .amount:
             if let amount = transaction.amount {
-                return numberFormatter.string(from: amount as NSDecimalNumber) ?? ""
+                let signed = transaction.type == .income ? abs(amount) : -abs(amount)
+                return numberFormatter.string(from: signed as NSDecimalNumber) ?? ""
             }
             return ""
-        case .sourceCurrency, .targetCurrency:
-            return "EUR"
+        case .sourceCurrency:
+            return transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? ""
+        case .targetCurrency:
+            return transaction.toConto?.account?.currency ?? transaction.fromConto?.account?.currency ?? ""
         case .exchangeRate:
+            if transaction.type == .transfer, let amount = transaction.amount, amount > 0,
+               let destination = transaction.destinationAmount {
+                return NSDecimalNumber(decimal: destination / amount).stringValue
+            }
             return "1"
+        case .originalAmount:
+            return transaction.originalAmount.map { NSDecimalNumber(decimal: $0).stringValue } ?? ""
+        case .originalCurrency:
+            return transaction.originalCurrency ?? ""
+        case .originalExchangeRate:
+            return transaction.exchangeRate.map { NSDecimalNumber(decimal: $0).stringValue } ?? ""
+        case .originalRateDate:
+            return transaction.exchangeRateDate ?? ""
+        case .originalRateSource:
+            return transaction.exchangeRateSource ?? ""
+        case .destinationAmount:
+            return transaction.destinationAmount.map { NSDecimalNumber(decimal: $0).stringValue } ?? ""
         case .sourceAccount:
             return transaction.fromConto?.name ?? ""
         case .targetAccount:

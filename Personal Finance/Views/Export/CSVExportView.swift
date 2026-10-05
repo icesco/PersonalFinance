@@ -132,7 +132,7 @@ struct CSVExportView: View {
                             VStack(alignment: .leading) {
                                 Text(conto.name ?? "Conto")
 
-                                Text(conto.balance.currencyFormatted)
+                                Text(conto.balance.formatted(.currency(code: conto.account?.currency ?? "EUR")))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

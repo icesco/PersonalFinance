@@ -12,27 +12,56 @@ import CloudKit
 
 @main
 struct Personal_FinanceApp: App {
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(SharedInvitationAppDelegate.self) private var invitationDelegate
+    #elseif os(macOS)
+    @NSApplicationDelegateAdaptor(SharedInvitationAppDelegate.self) private var invitationDelegate
+    #endif
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var recurrenceReminders = RecurrenceReminders()
+    @State private var appLock = AppLock(onPrivacyChanged: { enabled in
+        if enabled {
+            WidgetSnapshotPublisher.redact()
+            #if os(iOS)
+            WatchPhoneBridge.shared.redact()
+            #endif
+        }
+    })
     @State private var navigationRouter = NavigationRouter()
     @State private var dataStorageManager = DataStorageManager.shared
     @State private var cloudKitHelper = CloudKitHelper.shared
-    @State private var syncManager = SyncManager.shared
     @State private var isInitialized = false
     @State private var initializationError: Error?
 
+    init() {
+        FinanceShortcuts.updateAppShortcutParameters()
+        #if os(iOS)
+        WatchPhoneBridge.shared.start()
+        #endif
+        if UserDefaults.standard.bool(forKey: AppLock.preferenceKey) || !UserDefaults.standard.bool(forKey: WidgetSnapshotPublisher.preferenceKey) {
+            WidgetSnapshotPublisher.redact()
+        }
+    }
+
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "finance") {
             Group {
-                if let error = initializationError {
+                if !appLock.hasUnlockedInSession {
+                    AppLockScreen()
+                } else if let error = initializationError {
                     ErrorView(error: error) {
                         Task {
                             await initializeApp()
                         }
                     }
                 } else if isInitialized, let container = dataStorageManager.currentContainer {
-                    ContentView()
+                    appContent
+                        .id(dataStorageManager.containerGeneration)
+                        .safeAreaInset(edge: .top) { SharedInvitationNotice() }
                         .environment(navigationRouter)
                         .environment(dataStorageManager)
                         .modelContainer(container)
+                        .background { SharedBookRefreshObserver().environment(dataStorageManager) }
                         .overlay(alignment: .bottom) {
                             BackgroundOperationBanner()
                         }
@@ -40,16 +69,54 @@ struct Personal_FinanceApp: App {
                     LoadingView()
                 }
             }
+            .background { AppPrivacyGuard(lock: appLock, concealed: appLock.shouldConceal) }
+            .environment(recurrenceReminders)
+            .environment(appLock)
+            .onOpenURL { url in
+                guard let route = FinanceWidgetRoute(url: url) else { return }
+                do { try FinanceShortcutInbox.shared.submit(.widget(route)) }
+                catch { FinanceShortcutInbox.shared.reportError("Completa la richiesta già aperta in Forgia.") }
+            }
+            .onChange(of: scenePhase) { _, phase in appLock.sceneChanged(phase) }
             .task {
                 await initializeApp()
             }
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 700)
+        .commands { FinanceMacCommands() }
         #endif
     }
     
     // MARK: - App Initialization
+
+    @ViewBuilder private var appContent: some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_STATUS") {
+            SharedBookStatusFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_RECURRENCE_END") {
+            EditExpenseBudgetFixture(entry: .recurrence)
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_CREATE_EXPENSE_BUDGET") {
+            EditExpenseBudgetFixture(entry: .create)
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_QUICK_EXPENSE_BUDGET") {
+            EditExpenseBudgetFixture(entry: .quick)
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_EDIT_EXPENSE_BUDGET") {
+            EditExpenseBudgetFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_RECONCILIATION") {
+            BalanceReconciliationFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_CURRENCY_SELECTION") {
+            CurrencySelectionFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_LEAVE") {
+            SharedBookLeaveFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_CONFLICT") {
+            SharedBookConflictFixture()
+        } else {
+            ContentView()
+        }
+        #else
+        ContentView()
+        #endif
+    }
     
     @MainActor
     private func initializeApp() async {
