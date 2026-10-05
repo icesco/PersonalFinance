@@ -143,6 +143,13 @@ final class Personal_FinanceUITests: XCTestCase {
         XCTAssertTrue(amount.waitForExistence(timeout: 5))
         XCTAssertEqual(amount.value as? String, "90")
         capture(app, name: "Importo estero convertito")
+        app.buttons["Importo in valuta estera"].tap()
+        XCTAssertTrue(original.waitForExistence(timeout: 5))
+        XCTAssertEqual(original.value as? String, "100")
+        XCTAssertEqual(rate.value as? String, "0.9")
+        app.navigationBars["Valuta estera"].buttons["Annulla"].tap()
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        XCTAssertEqual(amount.value as? String, "90")
         app.navigationBars["Nuova spesa"].buttons["Annulla"].tap()
     }
 
@@ -281,11 +288,15 @@ final class Personal_FinanceUITests: XCTestCase {
         analysis.tap()
         XCTAssertTrue(app.staticTexts["Dove spendi"].waitForExistence(timeout: 5))
         app.buttons["Periodo precedente"].tap()
-        app.segmentedControls.buttons["Anno"].tap()
-        XCTAssertTrue(app.segmentedControls.buttons["Anno"].isSelected)
+        let periodPicker = app.descendants(matching: .any)["analysis-period-picker"].firstMatch
+        XCTAssertTrue(periodPicker.waitForExistence(timeout: 5))
+        periodPicker.tap()
+        app.buttons["Anno"].tap()
+        XCTAssertEqual(periodPicker.label, "Anno")
         capture(app, name: "Analisi annuale")
-        app.segmentedControls.buttons["Mese"].tap()
-        XCTAssertTrue(app.segmentedControls.buttons["Mese"].isSelected)
+        periodPicker.tap()
+        app.buttons["Mese"].tap()
+        XCTAssertEqual(periodPicker.label, "Mese")
     }
 
     @MainActor

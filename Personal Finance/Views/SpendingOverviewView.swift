@@ -141,6 +141,7 @@ struct SpendingOverviewView: View {
             } label: {
                 Label(period?.displayName ?? "Personalizzato", systemImage: "calendar")
             }
+            .accessibilityIdentifier("analysis-period-picker")
             HStack {
                 if period != nil {
                     Button { movePeriod(-1) } label: { Image(systemName: "chevron.left") }
