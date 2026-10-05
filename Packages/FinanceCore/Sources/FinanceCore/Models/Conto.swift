@@ -99,7 +99,7 @@ public final class Conto {
         let incoming = (incomingTransactions ?? []).reduce(Decimal(0)) { sum, transaction in
             // Only income and incoming transfers should add to balance
             guard transaction.type == .income || transaction.type == .transfer else { return sum }
-            return sum + (transaction.amount ?? Decimal(0))
+            return sum + (transaction.type == .transfer ? (transaction.destinationAmount ?? transaction.amount ?? 0) : (transaction.amount ?? 0))
         }
 
         let outgoing = (outgoingTransactions ?? []).reduce(Decimal(0)) { sum, transaction in

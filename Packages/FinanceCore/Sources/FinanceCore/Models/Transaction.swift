@@ -77,14 +77,27 @@ public final class Transaction {
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var amount: Decimal?
+    /// Amount credited by a cross-currency transfer; nil retains legacy same-currency behavior.
+    public var destinationAmount: Decimal?
     public var date: Date = Date()
     public var createdAt: Date?
     public var updatedAt: Date?
     public var transactionDescription: String?
     public var notes: String?
+    public var originalAmount: Decimal?
+    public var originalCurrency: String?
+    public var exchangeRate: Decimal?
+    public var exchangeRateDate: String?
+    public var exchangeRateSource: String?
+    public var placeName: String?
+    public var latitude: Double?
+    public var longitude: Double?
+    public var locationAccuracy: Double?
     public var isRecurring: Bool?
     public var recurrenceFrequency: RecurrenceFrequency?
     public var recurrenceEndDate: Date?
+    /// Set on a realized occurrence; it must not generate another recurring series.
+    public var recurrenceSourceID: UUID?
 
     // MARK: - Denormalized fields for indexing (keep in sync with relationships)
 
@@ -118,6 +131,9 @@ public final class Transaction {
 
     /// Transaction category
     public var category: Category?
+
+    @Relationship(deleteRule: .cascade, inverse: \TransactionAttachment.transaction)
+    public var attachments: [TransactionAttachment]?
 
     // MARK: - Relationship Setters (use these to keep denormalized IDs in sync)
 
@@ -193,7 +209,7 @@ public final class Transaction {
             if fromContoId == contoId {
                 return -transactionAmount  // Money leaving this conto
             } else if toContoId == contoId {
-                return transactionAmount   // Money entering this conto
+                return destinationAmount ?? transactionAmount   // Money entering this conto
             }
             return transactionAmount
         }
@@ -204,17 +220,20 @@ public final class Transaction {
     }
     
     // Calcola la prossima data di ricorrenza
-    public func nextRecurrenceDate() -> Date? {
+    public func nextRecurrenceDate(after referenceDate: Date = Date()) -> Date? {
         guard isRecurring == true,
               let frequency = recurrenceFrequency else { return nil }
 
-        let calendar = Calendar.current
-        let component = frequency.calendarComponent
-        let value = frequency.componentValue
-
-        return calendar.date(byAdding: component, value: value, to: date)
+        return RecurrenceSchedule.next(anchor: date, frequency: frequency, after: referenceDate, ending: recurrenceEndDate)
     }
-    
+
+    /// Scheduled occurrences after the reference date, without changing recorded transactions.
+    public func recurrenceDates(after referenceDate: Date, through endDate: Date) -> [Date] {
+        guard isRecurring == true, let frequency = recurrenceFrequency else { return [] }
+        return RecurrenceSchedule.dates(anchor: date, frequency: frequency, after: referenceDate,
+                                        through: endDate, ending: recurrenceEndDate)
+    }
+
     // Verifica se la ricorrenza è ancora attiva
     public func isRecurrenceActive() -> Bool {
         guard isRecurring == true else { return false }
@@ -228,32 +247,7 @@ public final class Transaction {
     
     // Genera tutte le date di ricorrenza fino a una data specifica
     public func generateRecurrenceDates(until endDate: Date) -> [Date] {
-        guard isRecurring == true,
-              let frequency = recurrenceFrequency else { return [] }
-
-        var dates: [Date] = []
-        let calendar = Calendar.current
-        var currentDate = date
-        
-        let actualEndDate = recurrenceEndDate?.compare(endDate) == .orderedAscending ? 
-                           recurrenceEndDate! : endDate
-        
-        while currentDate <= actualEndDate {
-            if let nextDate = calendar.date(
-                byAdding: frequency.calendarComponent,
-                value: frequency.componentValue,
-                to: currentDate
-            ) {
-                if nextDate <= actualEndDate {
-                    dates.append(nextDate)
-                }
-                currentDate = nextDate
-            } else {
-                break
-            }
-        }
-        
-        return dates
+        recurrenceDates(after: date, through: endDate)
     }
     
     /// Create a transfer transaction between two conti

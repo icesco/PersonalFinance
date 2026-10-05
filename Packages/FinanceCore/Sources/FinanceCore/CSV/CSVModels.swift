@@ -16,6 +16,12 @@ public enum CSVField: String, CaseIterable, Identifiable, Sendable {
     case sourceCurrency = "Valuta di origine"
     case targetCurrency = "Valuta di destinazione"
     case exchangeRate = "Tasso di cambio"
+    case originalAmount = "Importo originale"
+    case originalCurrency = "Valuta originale"
+    case originalExchangeRate = "Cambio originale"
+    case originalRateDate = "Data cambio originale"
+    case originalRateSource = "Fonte cambio originale"
+    case destinationAmount = "Importo destinazione"
 
     // Assignment
     case sourceAccount = "Conto (Da)"
@@ -39,9 +45,11 @@ public enum CSVField: String, CaseIterable, Identifiable, Sendable {
     public var icon: String {
         switch self {
         case .transactionType: return "arrow.left.arrow.right"
-        case .amount: return "eurosign"
-        case .sourceCurrency, .targetCurrency: return "coloncurrencysign.circle"
-        case .exchangeRate: return "percent"
+        case .amount, .originalAmount, .destinationAmount: return "eurosign"
+        case .sourceCurrency, .targetCurrency, .originalCurrency: return "coloncurrencysign.circle"
+        case .exchangeRate, .originalExchangeRate: return "percent"
+        case .originalRateDate: return "calendar"
+        case .originalRateSource: return "info.circle"
         case .sourceAccount: return "building.columns"
         case .targetAccount: return "building.columns.fill"
         case .category: return "tag"
@@ -54,7 +62,8 @@ public enum CSVField: String, CaseIterable, Identifiable, Sendable {
 
     public var section: CSVFieldSection {
         switch self {
-        case .transactionType, .amount, .sourceCurrency, .targetCurrency, .exchangeRate:
+        case .transactionType, .amount, .sourceCurrency, .targetCurrency, .exchangeRate,
+             .originalAmount, .originalCurrency, .originalExchangeRate, .originalRateDate, .originalRateSource, .destinationAmount:
             return .general
         case .sourceAccount, .targetAccount, .category, .payee:
             return .assignment
@@ -219,13 +228,30 @@ public struct CSVAccountValue: Identifiable, Hashable, Sendable {
 
 // MARK: - Import Options
 
+public enum CSVAmountConvention: String, CaseIterable, Identifiable, Sendable {
+    case negativeIsExpense
+    case positiveIsExpense
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .negativeIsExpense: "Uscite con segno meno (conto bancario)"
+        case .positiveIsExpense: "Uscite con segno più (estratto carta)"
+        }
+    }
+}
+
 public struct CSVImportOptions: Sendable {
     public var dateFormat: CSVDateFormat
     public var ignoreZeroAmounts: Bool
     public var ignoreDuplicates: Bool
     public var createMissingCategories: Bool
     public var createMissingConti: Bool
+    /// Account types reviewed by the user, keyed by the account name in the CSV.
+    public var missingContoTypes: [String: String]
     public var defaultContoId: UUID?
+    public var amountConvention: CSVAmountConvention
 
     // CSV parsing options
     public var delimiter: Character
@@ -241,7 +267,9 @@ public struct CSVImportOptions: Sendable {
         ignoreDuplicates: Bool = true,
         createMissingCategories: Bool = true,
         createMissingConti: Bool = false,
+        missingContoTypes: [String: String] = [:],
         defaultContoId: UUID? = nil,
+        amountConvention: CSVAmountConvention = .negativeIsExpense,
         delimiter: Character = ",",
         hasHeader: Bool = true,
         encoding: String.Encoding = .utf8,
@@ -252,7 +280,9 @@ public struct CSVImportOptions: Sendable {
         self.ignoreDuplicates = ignoreDuplicates
         self.createMissingCategories = createMissingCategories
         self.createMissingConti = createMissingConti
+        self.missingContoTypes = missingContoTypes
         self.defaultContoId = defaultContoId
+        self.amountConvention = amountConvention
         self.delimiter = delimiter
         self.hasHeader = hasHeader
         self.encoding = encoding
@@ -428,6 +458,7 @@ public struct CSVExportOptions: Sendable {
 public enum ImportRowError: LocalizedError, Sendable {
     case missingRequiredField(CSVField)
     case invalidAmount(String)
+    case invalidCurrency(String)
     case invalidDate(String)
     case contoNotFound(String)
     case categoryNotFound(String)
@@ -436,6 +467,7 @@ public enum ImportRowError: LocalizedError, Sendable {
         switch self {
         case .missingRequiredField(let field): return field
         case .invalidAmount: return .amount
+        case .invalidCurrency: return .sourceCurrency
         case .invalidDate: return .date
         case .contoNotFound: return .sourceAccount
         case .categoryNotFound: return .category
@@ -446,6 +478,7 @@ public enum ImportRowError: LocalizedError, Sendable {
         switch self {
         case .missingRequiredField: return nil
         case .invalidAmount(let value): return value
+        case .invalidCurrency(let value): return value
         case .invalidDate(let value): return value
         case .contoNotFound(let value): return value
         case .categoryNotFound(let value): return value
@@ -458,6 +491,8 @@ public enum ImportRowError: LocalizedError, Sendable {
             return "Campo obbligatorio mancante: \(field.rawValue)"
         case .invalidAmount(let value):
             return "Importo non valido: \(value)"
+        case .invalidCurrency(let value):
+            return "Valuta o conversione non compatibile con il libro: \(value)"
         case .invalidDate(let value):
             return "Data non valida: \(value)"
         case .contoNotFound(let name):

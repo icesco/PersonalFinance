@@ -7,6 +7,12 @@ public struct FinanceCoreModule {
         Account.self,
         Conto.self,
         Transaction.self,
+        TransactionAttachment.self,
+        RecurrenceResolution.self,
+        RemoteExpenseReceipt.self,
+        SharedBookMembership.self,
+        SharedBookDeparture.self,
+        SharedBookRecordLink.self,
         Category.self,
         Budget.self,
         SavingsGoal.self
@@ -16,11 +22,6 @@ public struct FinanceCoreModule {
     
     public static let cloudKitContainerIdentifier = "iCloud.cc.francescobianco.personalfinance"
     public static let defaultAppGroupIdentifier = "group.personalfinance.shared"
-    
-    // MARK: - Shared Container Management
-
-    @MainActor
-    private static var _sharedContainer: ModelContainer?
     
     public static func createSchema() -> Schema {
         return Schema(allModels)
@@ -51,7 +52,7 @@ public struct FinanceCoreModule {
         let schema = createSchema()
         
         if inMemory {
-            return ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            return ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         }
         
         // Determine storage URL based on App Group
@@ -66,7 +67,8 @@ public struct FinanceCoreModule {
         } else {
             return ModelConfiguration(
                 schema: schema,
-                url: url
+                url: url,
+                cloudKitDatabase: .none
             )
         }
     }
@@ -81,36 +83,6 @@ public struct FinanceCoreModule {
             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             return documentsPath.appendingPathComponent("PersonalFinance.sqlite")
         }
-    }
-    
-    // MARK: - Shared Container Management
-
-    @MainActor
-    public static func setSharedContainer(
-        appGroupIdentifier: String = defaultAppGroupIdentifier,
-        enableCloudKit: Bool = false
-    ) throws {
-        _sharedContainer = try createModelContainer(
-            appGroupIdentifier: appGroupIdentifier,
-            enableCloudKit: enableCloudKit
-        )
-    }
-
-    @MainActor
-    public static var sharedContainer: ModelContainer? {
-        return _sharedContainer
-    }
-    
-    // MARK: - Widget Support
-    
-    public static func widgetModelContainer(
-        appGroupIdentifier: String = defaultAppGroupIdentifier
-    ) throws -> ModelContainer {
-        // Always use local storage for widgets, no CloudKit
-        return try createModelContainer(
-            appGroupIdentifier: appGroupIdentifier,
-            enableCloudKit: false
-        )
     }
     
     // MARK: - Legacy Support
@@ -143,72 +115,123 @@ public final class DataStorageManager {
     
     private let appGroupIdentifier: String
     private let userDefaults: UserDefaults
+    private let makeContainer: @MainActor (Bool) throws -> ModelContainer
+    private let requestAccountStatus: @MainActor () async -> CKAccountStatus
     
     // MARK: - Cloud Sync Preferences
 
-    public var isCloudSyncEnabled: Bool {
-        get {
-            userDefaults.bool(forKey: "CloudSyncEnabled")
-        }
-        set {
-            userDefaults.set(newValue, forKey: "CloudSyncEnabled")
-        }
-    }
+    public private(set) var isCloudSyncEnabled: Bool
+    public private(set) var syncToggleError: String?
 
     /// True while the container is being recreated after a sync toggle.
     public var isMigrating: Bool = false
 
-    public var currentContainer: ModelContainer? {
-        return FinanceCoreModule.sharedContainer
+    public private(set) var currentContainer: ModelContainer?
+    public private(set) var containerGeneration = 0
+
+    @ObservationIgnored private var automaticRefresh: SharedBookAutomaticRefresh?
+    public var sharedBookAutomaticRefresh: SharedBookAutomaticRefresh {
+        if let automaticRefresh { return automaticRefresh }
+        let service = SharedBookAutomaticRefresh(configuration: { [weak self] in
+            guard let self else { return (nil, -1, false) }
+            return (self.currentContainer, self.containerGeneration, self.isCloudSyncEnabled && !self.isMigrating)
+        }, synchronize: { [weak self] scope, role in
+            guard let self else { throw SharedBookSyncCoordinator.Failure.unavailable }
+            return try await self.sharedBookCoordinator.synchronize(scope: scope, role: role)
+        })
+        automaticRefresh = service
+        return service
+    }
+
+    @ObservationIgnored private var sharedTransport: SharedBookCloudTransport?
+    @ObservationIgnored private var sharedCoordinator: SharedBookSyncCoordinator?
+    public var sharedBookCoordinator: SharedBookSyncCoordinator {
+        if let sharedCoordinator { return sharedCoordinator }
+        let directory = URL.applicationSupportDirectory.appendingPathComponent("Forgia/SharedBookShadows", isDirectory: true)
+        let coordinator = SharedBookSyncCoordinator(transport: sharedBookTransport, shadows: SharedBookShadowStore(directory: directory)) { [weak self] in
+            guard let self else { return (nil, -1, false) }
+            return (self.currentContainer, self.containerGeneration, self.isCloudSyncEnabled && !self.isMigrating)
+        }
+        sharedCoordinator = coordinator
+        return coordinator
+    }
+    public var sharedBookTransport: SharedBookCloudTransport {
+        if let sharedTransport { return sharedTransport }
+        let transport = SharedBookCloudTransport { [weak self] in
+            guard let self else { return (false, -1) }
+            return (self.isCloudSyncEnabled && !self.isMigrating, self.containerGeneration)
+        }
+        sharedTransport = transport
+        return transport
     }
     
     // MARK: - Initialization
     
-    public init(appGroupIdentifier: String = FinanceCoreModule.defaultAppGroupIdentifier) {
-        self.appGroupIdentifier = appGroupIdentifier
-        
-        // Use App Group UserDefaults for shared preferences
-        if let groupDefaults = UserDefaults(suiteName: appGroupIdentifier) {
-            self.userDefaults = groupDefaults
-        } else {
-            self.userDefaults = UserDefaults.standard
-        }
+    public convenience init(appGroupIdentifier: String = FinanceCoreModule.defaultAppGroupIdentifier) {
+        self.init(
+            appGroupIdentifier: appGroupIdentifier,
+            userDefaults: UserDefaults(suiteName: appGroupIdentifier) ?? .standard,
+            makeContainer: { enabled in
+                try FinanceCoreModule.createModelContainer(
+                    appGroupIdentifier: appGroupIdentifier, enableCloudKit: enabled
+                )
+            },
+            requestAccountStatus: {
+                let container = CKContainer(identifier: FinanceCoreModule.cloudKitContainerIdentifier)
+                return await withCheckedContinuation { continuation in
+                    container.accountStatus { status, _ in continuation.resume(returning: status) }
+                }
+            }
+        )
     }
-    
+
+    // Inject services in tests without opening a real cloud store or contacting iCloud.
+    init(
+        appGroupIdentifier: String,
+        userDefaults: UserDefaults,
+        makeContainer: @escaping @MainActor (Bool) throws -> ModelContainer,
+        requestAccountStatus: @escaping @MainActor () async -> CKAccountStatus
+    ) {
+        self.appGroupIdentifier = appGroupIdentifier
+        self.userDefaults = userDefaults
+        self.makeContainer = makeContainer
+        self.requestAccountStatus = requestAccountStatus
+        self.isCloudSyncEnabled = userDefaults.bool(forKey: "CloudSyncEnabled")
+    }
+
     // MARK: - Container Management
     
     @MainActor
     public func initializeContainer() async throws {
-        try FinanceCoreModule.setSharedContainer(
-            appGroupIdentifier: appGroupIdentifier,
-            enableCloudKit: isCloudSyncEnabled
-        )
+        guard currentContainer == nil else { return }
+        try replaceContainer(enableCloud: isCloudSyncEnabled)
     }
-    
-    @MainActor
-    private func updateContainer() async {
+
+    private func replaceContainer(enableCloud: Bool) throws {
+        try currentContainer?.mainContext.save()
+        currentContainer = try makeContainer(enableCloud)
+        containerGeneration += 1
+    }
+
+    /// Commit the preference only after successfully opening the new configuration.
+    public func performSyncToggle(enableCloud: Bool) async {
+        guard !isMigrating, enableCloud != isCloudSyncEnabled else { return }
+        isMigrating = true
+        sharedTransport?.cancelPendingRequests()
+        syncToggleError = nil
+        defer { isMigrating = false }
         do {
-            try FinanceCoreModule.setSharedContainer(
-                appGroupIdentifier: appGroupIdentifier,
-                enableCloudKit: isCloudSyncEnabled
-            )
+            try replaceContainer(enableCloud: enableCloud)
+            isCloudSyncEnabled = enableCloud
+            userDefaults.set(enableCloud, forKey: "CloudSyncEnabled")
+            NotificationCenter.default.post(name: Notification.Name("containerDidChange"), object: nil)
         } catch {
-            print("Failed to update container: \(error)")
+            syncToggleError = error.localizedDescription
         }
     }
 
-    /// Toggle iCloud sync with observable migration state.
-    /// Call this instead of setting `isCloudSyncEnabled` directly when you
-    /// want the UI to show a loading indicator during container recreation.
-    @MainActor
-    public func performSyncToggle(enableCloud: Bool) async {
-        isMigrating = true
-        isCloudSyncEnabled = enableCloud
-        await updateContainer()
-        NotificationCenter.default.post(name: Notification.Name("containerDidChange"), object: nil)
-        isMigrating = false
-    }
-    
+    public func clearSyncToggleError() { syncToggleError = nil }
+
     // MARK: - Migration Support
     
     public func needsMigration() -> Bool {
@@ -216,11 +239,16 @@ public final class DataStorageManager {
         let oldURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             .appendingPathComponent("PersonalFinance.sqlite")
         
-        let newURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
-            .appendingPathComponent("PersonalFinance.sqlite")
-        
-        return FileManager.default.fileExists(atPath: oldURL.path) && 
-               (newURL == nil || !FileManager.default.fileExists(atPath: newURL!.path))
+        guard let newURL = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
+            .appendingPathComponent("PersonalFinance.sqlite") else {
+            // Unsigned simulator builds use the local Documents fallback; there is
+            // no migration destination until the App Group becomes available.
+            return false
+        }
+
+        return FileManager.default.fileExists(atPath: oldURL.path) &&
+               !FileManager.default.fileExists(atPath: newURL.path)
     }
     
     public func performMigration() throws {
@@ -235,39 +263,19 @@ public final class DataStorageManager {
         
         let newURL = containerURL.appendingPathComponent("PersonalFinance.sqlite")
         
-        // Ensure destination directory exists
-        try FileManager.default.createDirectory(
-            at: containerURL,
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
-        
-        // Copy database files
-        let fileManager = FileManager.default
-        let extensions = ["", "-wal", "-shm"]
-        
-        for ext in extensions {
-            let sourceURL = oldURL.appendingPathExtension(ext)
-            let destURL = newURL.appendingPathExtension(ext)
-            
-            if fileManager.fileExists(atPath: sourceURL.path) {
-                if fileManager.fileExists(atPath: destURL.path) {
-                    try fileManager.removeItem(at: destURL)
-                }
-                try fileManager.copyItem(at: sourceURL, to: destURL)
-            }
-        }
+        try LocalStoreMigration.copy(from: oldURL, to: newURL)
     }
     
     // MARK: - CloudKit Status
     
     public func cloudKitAccountStatus() async -> CKAccountStatus {
-        let container = CKContainer(identifier: FinanceCoreModule.cloudKitContainerIdentifier)
-        return await withCheckedContinuation { continuation in
-            container.accountStatus { status, _ in
-                continuation.resume(returning: status)
-            }
-        }
+        guard isCloudSyncEnabled else { return .couldNotDetermine }
+        let generation = containerGeneration
+        let status = await requestAccountStatus()
+        // A response belongs to the configuration that initiated it, even when
+        // the user has switched off and back on while the request was in flight.
+        guard isCloudSyncEnabled, containerGeneration == generation else { return .couldNotDetermine }
+        return status
     }
     
     public func isCloudKitAvailable() async -> Bool {
@@ -279,17 +287,6 @@ public final class DataStorageManager {
 // MARK: - Utility Extensions
 
 extension Decimal {
-    private static let currencyFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "EUR"
-        return formatter
-    }()
-
-    public var currencyFormatted: String {
-        Self.currencyFormatter.string(from: self as NSDecimalNumber) ?? "€0,00"
-    }
-
     public var doubleValue: Double {
         NSDecimalNumber(decimal: self).doubleValue
     }

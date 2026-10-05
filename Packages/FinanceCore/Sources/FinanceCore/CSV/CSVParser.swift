@@ -141,8 +141,30 @@ public struct CSVParser: Sendable {
         return mappings
     }
 
+    /// Budget Flow exports contain one ledger book and multiple source/target accounts.
+    public static func isBudgetFlowExport(_ result: CSVParseResult) -> Bool {
+        let headers = Set(result.headers.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        return ["date", "amount", "budget book", "source account", "target account", "payee", "pending"]
+            .allSatisfy(headers.contains)
+    }
+
+    public static func budgetFlowAccountNames(_ result: CSVParseResult) -> [String] {
+        guard isBudgetFlowExport(result) else { return [] }
+        let indices = ["Source Account", "Target Account"].compactMap { name in
+            result.headers.firstIndex { $0.caseInsensitiveCompare(name) == .orderedSame }
+        }
+        return Array(Set(result.rows.flatMap { row in
+            indices.compactMap { index -> String? in
+                guard index < row.count else { return nil }
+                let name = row[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                return name.isEmpty ? nil : name
+            }
+        })).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     private static func findMatchingColumn(for field: CSVField, in headers: [String]) -> Int? {
-        let lowercasedHeaders = headers.map { $0.lowercased() }
+        let lowercasedHeaders = headers.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        if let exact = lowercasedHeaders.firstIndex(of: field.rawValue.lowercased()) { return exact }
 
         let keywords: [String]
         switch field {
@@ -154,6 +176,12 @@ public struct CSVParser: Sendable {
             keywords = ["valuta origine", "source currency", "currency from"]
         case .targetCurrency:
             keywords = ["valuta destinazione", "target currency", "currency to"]
+        case .originalAmount: keywords = ["original amount"]
+        case .originalCurrency: keywords = ["original currency"]
+        case .originalExchangeRate: keywords = ["original exchange rate"]
+        case .originalRateDate: keywords = ["original rate date"]
+        case .originalRateSource: keywords = ["original rate source"]
+        case .destinationAmount: keywords = ["destination amount"]
         case .exchangeRate:
             keywords = ["tasso", "exchange", "rate", "cambio"]
         case .sourceAccount:
@@ -173,6 +201,7 @@ public struct CSVParser: Sendable {
         }
 
         for (index, header) in lowercasedHeaders.enumerated() {
+            if CSVField.allCases.contains(where: { $0 != field && $0.rawValue.lowercased() == header }) { continue }
             for keyword in keywords {
                 if header.contains(keyword) {
                     return index
@@ -213,14 +242,22 @@ public struct CSVParser: Sendable {
         let hasDot = cleanedString.contains(".")
 
         if hasComma && hasDot {
+            // With both separators present, the last one is decimal. Validate
+            // grouping before removing it so malformed amounts cannot change value.
+            let commaIsDecimal = cleanedString.lastIndex(of: ",")! > cleanedString.lastIndex(of: ".")!
+            let pattern = commaIsDecimal
+                ? #"^[+-]?[0-9]{1,3}(?:\.[0-9]{3})+,[0-9]+$"#
+                : #"^[+-]?[0-9]{1,3}(?:,[0-9]{3})+\.[0-9]+$"#
+            guard cleanedString.range(of: pattern, options: .regularExpression) != nil else { return nil }
             cleanedString = cleanedString
-                .replacingOccurrences(of: ".", with: "")
-                .replacingOccurrences(of: ",", with: ".")
+                .replacingOccurrences(of: commaIsDecimal ? "." : ",", with: "")
+                .replacingOccurrences(of: commaIsDecimal ? "," : ".", with: ".")
         } else if hasComma && !hasDot {
             cleanedString = cleanedString.replacingOccurrences(of: ",", with: ".")
         }
 
-        return Decimal(string: cleanedString)
+        guard cleanedString.range(of: #"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$"#, options: .regularExpression) != nil else { return nil }
+        return Decimal(string: cleanedString, locale: Locale(identifier: "en_US_POSIX"))
     }
 
     public static func parseDate(_ string: String, format: CSVDateFormat) -> Date? {
@@ -249,7 +286,8 @@ public struct CSVParser: Sendable {
     public static func determineTransactionType(
         row: [String],
         amount: Decimal,
-        mapping: [CSVField: FieldMapping]
+        mapping: [CSVField: FieldMapping],
+        amountConvention: CSVAmountConvention = .negativeIsExpense
     ) -> TransactionType {
         // Check if type is explicitly specified in a dedicated column
         if let typeMapping = mapping[.transactionType],
@@ -287,7 +325,10 @@ public struct CSVParser: Sendable {
         }
 
         // Fallback: infer type from amount sign
-        return amount >= 0 ? .income : .expense
+        switch amountConvention {
+        case .negativeIsExpense: return amount >= 0 ? .income : .expense
+        case .positiveIsExpense: return amount >= 0 ? .expense : .income
+        }
     }
 
     // MARK: - Preview Generation
@@ -346,11 +387,12 @@ public struct CSVParser: Sendable {
                 errorMessage = "Importo mancante"
             }
 
-            // Get type
-            if let typeMapping = mappingDict[.transactionType],
-               let typeIndex = typeMapping.csvColumnIndex,
-               typeIndex < row.count {
-                type = row[typeIndex]
+            // Show the same classification that import will persist.
+            if let amount {
+                type = determineTransactionType(
+                    row: row, amount: amount, mapping: mappingDict,
+                    amountConvention: options.amountConvention
+                ).displayName
             }
 
             // Get category

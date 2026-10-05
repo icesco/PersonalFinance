@@ -62,77 +62,22 @@ public final class Budget {
         self.categories = []
     }
     
-    // Calcola dinamicamente il periodo corrente basato su Date()
+    /// Current calendar period, with an exclusive end.
     public var currentPeriodRange: (start: Date, end: Date) {
-        let calendar = Calendar.current
         let now = Date()
-        
-        guard let budgetPeriod = period else {
-            return (now, now) // Return current date if no period is set
-        }
-        
-        switch budgetPeriod {
-        case .weekly:
-            let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-            let endOfWeek = calendar.date(byAdding: .day, value: 6, to: startOfWeek) ?? now
-            return (startOfWeek, endOfWeek)
-            
-        case .monthly:
-            let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            let endOfMonth = calendar.dateInterval(of: .month, for: now)?.end.addingTimeInterval(-1) ?? now
-            return (startOfMonth, endOfMonth)
-            
-        case .quarterly:
-            let quarter = calendar.component(.quarter, from: now)
-            let year = calendar.component(.year, from: now)
-            let startMonth = (quarter - 1) * 3 + 1
-            var components = DateComponents()
-            components.year = year
-            components.month = startMonth
-            components.day = 1
-            let startOfQuarter = calendar.date(from: components) ?? now
-            let endOfQuarter = calendar.date(byAdding: .month, value: 3, to: startOfQuarter)?.addingTimeInterval(-1) ?? now
-            return (startOfQuarter, endOfQuarter)
-            
-        case .yearly:
-            let startOfYear = calendar.dateInterval(of: .year, for: now)?.start ?? now
-            let endOfYear = calendar.dateInterval(of: .year, for: now)?.end.addingTimeInterval(-1) ?? now
-            return (startOfYear, endOfYear)
-        }
+        guard let interval = period?.interval(containing: now) else { return (now, now) }
+        return (interval.start, interval.end)
     }
-    
-    // Calcola il periodo precedente per confronti
+
+    /// Previous complete calendar period, including its entire final day.
     public var previousPeriodRange: (start: Date, end: Date) {
-        let calendar = Calendar.current
-        let (currentStart, _) = currentPeriodRange
-        
-        guard let budgetPeriod = period else {
-            return (currentStart, currentStart) // Return current start if no period is set
+        let start = currentPeriodRange.start
+        guard let interval = period?.interval(containing: start.addingTimeInterval(-1)) else {
+            return (start, start)
         }
-        
-        switch budgetPeriod {
-        case .weekly:
-            let previousStart = calendar.date(byAdding: .weekOfYear, value: -1, to: currentStart) ?? currentStart
-            let previousEnd = calendar.date(byAdding: .day, value: 6, to: previousStart) ?? currentStart
-            return (previousStart, previousEnd)
-            
-        case .monthly:
-            let previousStart = calendar.date(byAdding: .month, value: -1, to: currentStart) ?? currentStart
-            let previousEnd = calendar.date(byAdding: .day, value: -1, to: currentStart) ?? currentStart
-            return (previousStart, previousEnd)
-            
-        case .quarterly:
-            let previousStart = calendar.date(byAdding: .month, value: -3, to: currentStart) ?? currentStart
-            let previousEnd = calendar.date(byAdding: .day, value: -1, to: currentStart) ?? currentStart
-            return (previousStart, previousEnd)
-            
-        case .yearly:
-            let previousStart = calendar.date(byAdding: .year, value: -1, to: currentStart) ?? currentStart
-            let previousEnd = calendar.date(byAdding: .day, value: -1, to: currentStart) ?? currentStart
-            return (previousStart, previousEnd)
-        }
+        return (interval.start, interval.end)
     }
-    
+
     // MARK: - Computed Properties (use optimized methods with ModelContext when possible)
 
     /// Current spent amount - loads all transactions in memory
@@ -151,38 +96,10 @@ public final class Budget {
 
     /// Calculate spent in memory (inefficient, prefer BudgetService methods)
     private func calculateSpentInMemory(for period: (start: Date, end: Date)) -> Decimal {
-        let categoriesList = categories ?? []
-        guard !categoriesList.isEmpty else { return 0 }
-
-        var totalSpent: Decimal = 0
-
-        // WARNING: This loads ALL transactions via relationships (inefficient)
-        let actualTransactions = categoriesList.flatMap { category in
-            (category.transactions ?? []).filter { transaction in
-                transaction.date >= period.start &&
-                transaction.date <= period.end &&
-                transaction.type == .expense
-            }
-        }
-        totalSpent += actualTransactions.reduce(0) { $0 + ($1.amount ?? 0) }
-
-        if includeRecurringTransactions == true {
-            let recurringTransactions = categoriesList.flatMap { category in
-                (category.transactions ?? []).filter { transaction in
-                    transaction.isRecurring == true &&
-                    transaction.type == .expense &&
-                    transaction.isRecurrenceActive()
-                }
-            }
-
-            for transaction in recurringTransactions {
-                let occurrences = transaction.generateRecurrenceDates(until: period.end)
-                    .filter { $0 >= period.start && $0 <= period.end }
-                totalSpent += Decimal(occurrences.count) * (transaction.amount ?? 0)
-            }
-        }
-
-        return totalSpent
+        RecordedBudgetSpending.total(
+            for: self, transactions: (categories ?? []).flatMap { $0.transactions ?? [] },
+            start: period.start, end: period.end
+        )
     }
 
     /// Add a category to this budget
@@ -235,15 +152,7 @@ public final class Budget {
     
     // Giorni rimanenti nel periodo corrente
     public var daysRemaining: Int {
-        let calendar = Calendar.current
-        let now = Date()
-        let (_, endDate) = currentPeriodRange
-        
-        if now > endDate {
-            return 0
-        }
-        
-        return calendar.dateComponents([.day], from: now, to: endDate).day ?? 0
+        spendingOutlook().daysRemaining
     }
     
     // Percentuale del periodo trascorso
@@ -260,24 +169,13 @@ public final class Budget {
     /// Daily suggested spending - uses in-memory calculation
     @available(*, deprecated, message: "Use BudgetService for optimized calculations")
     public var dailySuggestedSpending: Decimal {
-        guard daysRemaining > 0 else { return 0 }
-        let remaining = (amount ?? 0) - calculateSpentInMemory(for: currentPeriodRange)
-        return remaining / Decimal(daysRemaining)
+        spendingOutlook().dailyAllowance
     }
 
-    /// Get spent for custom period - uses in-memory calculation
+    /// Get spent for a custom period with an exclusive end - uses in-memory calculation
     @available(*, deprecated, message: "Use BudgetService.calculateSpent(for:period:in:) instead")
     public func getSpent(for customPeriod: (start: Date, end: Date)) -> Decimal {
         calculateSpentInMemory(for: customPeriod)
-    }
-
-    /// Projected spending - uses in-memory calculation
-    @available(*, deprecated, message: "Use BudgetService for optimized calculations")
-    public var projectedSpending: Decimal {
-        let progressPercentage = periodProgressPercentage
-        guard progressPercentage > 0 else { return 0 }
-        let spent = calculateSpentInMemory(for: currentPeriodRange)
-        return spent / Decimal(progressPercentage)
     }
 
     /// Change from previous period - uses in-memory calculation

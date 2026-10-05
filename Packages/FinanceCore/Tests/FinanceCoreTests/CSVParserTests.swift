@@ -26,6 +26,20 @@ private enum CSVTestError: Error {
 
 struct CSVParserBasicTests {
 
+    @Test func nativeExportColumnsMatchExactlyAndDoNotStealMetadata() throws {
+        let headers = CSVField.allCases.map(\.rawValue).sorted()
+        let mapping = CSVParser.detectColumnMapping(headers: headers)
+        for field in CSVField.allCases {
+            let index = try #require(mapping.first { $0.field == field }?.csvColumnIndex)
+            #expect(headers[index] == field.rawValue)
+        }
+        let metadata = CSVParser.detectColumnMapping(headers: ["Importo originale", "Data cambio originale"])
+        #expect(metadata.first { $0.field == .amount }?.csvColumnIndex == nil)
+        #expect(metadata.first { $0.field == .date }?.csvColumnIndex == nil)
+        #expect(CSVParser.parseAmount("12abc") == nil)
+        #expect(CSVParser.parseAmount("0.9oops") == nil)
+    }
+
     @Test func parseCSVContent_shouldExtractHeadersFromRealCSV() throws {
         let content = try loadRealCSV()
         let result = CSVParser.parseCSVContent(content)
@@ -45,6 +59,27 @@ struct CSVParserBasicTests {
         let result = CSVParser.parseCSVContent(content)
 
         #expect(result.rowCount == 811)
+    }
+
+    @Test func budgetFlowExportKeepsAllAccountsAndTransferPairs() {
+        let csv = """
+        Date,Amount,Budget Book,Source Account,Target Account,Category,Payee,Pending
+        2026-09-03T00:00:00+0200,-300.0,Libro,Conto A,PAC,Risparmi,,False
+        2026-09-03T00:00:00+0200,300.0,Libro,PAC,Conto A,Risparmi,,False
+        2026-09-03T12:00:00+0200,-19.99,Libro,Conto A,,Subscriptions,Servizio,False
+        """
+        let result = CSVParser.parseCSVContent(csv)
+        #expect(CSVParser.isBudgetFlowExport(result))
+        #expect(CSVParser.budgetFlowAccountNames(result) == ["Conto A", "PAC"])
+        let mappings = Dictionary(uniqueKeysWithValues: CSVParser.detectColumnMapping(headers: result.headers).map { ($0.field, $0) })
+        #expect(mappings[.sourceAccount]?.csvColumnIndex == 3)
+        #expect(mappings[.targetAccount]?.csvColumnIndex == 4)
+        #expect(mappings[.payee]?.csvColumnIndex == 6)
+        #expect(CSVParser.parseDate(result.rows[0][0], format: .iso8601Z) != nil)
+        #expect(CSVParser.determineTransactionType(row: result.rows[0], amount: -300,
+                                                    mapping: mappings) == .transfer)
+        #expect(CSVParser.determineTransactionType(row: result.rows[1], amount: 300,
+                                                    mapping: mappings) == .transfer)
     }
 
     @Test func parseAmount_shouldParseNegativeAmount() {
@@ -72,6 +107,39 @@ struct CSVParserBasicTests {
         // European: dot as thousands, comma as decimal
         let amount = CSVParser.parseAmount("1.234,56")
         #expect(amount == Decimal(string: "1234.56"))
+    }
+
+    @Test func groupedAmountsPreserveValueAcrossDecimalConventions() {
+        for input in ["1,234,567.89", "1.234.567,89", "$1,234,567.89", "€1.234.567,89"] {
+            #expect(CSVParser.parseAmount(input) == Decimal(string: "1234567.89"))
+        }
+        #expect(CSVParser.parseAmount("-1,234.567") == Decimal(string: "-1234.567"))
+        #expect(CSVParser.parseAmount("-1.234,567") == Decimal(string: "-1234.567"))
+    }
+
+    @Test func malformedMixedSeparatorsAreRejected() {
+        for input in ["12,34.56", "12.34,56", "1,234.5.6", "1.234,5,6", "1,23,456.78", "1.23.456,78"] {
+            #expect(CSVParser.parseAmount(input) == nil)
+        }
+    }
+
+    @Test func singleSeparatorRetainsDecimalPrecision() {
+        // A lone separator is decimal, including three-decimal currencies and FX quotes.
+        #expect(CSVParser.parseAmount("1.234") == Decimal(string: "1.234"))
+        #expect(CSVParser.parseAmount("1,234") == Decimal(string: "1.234"))
+        #expect(CSVParser.parseAmount("0.91234567") == Decimal(string: "0.91234567"))
+    }
+
+    @Test func creditCardConventionTreatsPositiveChargesAsExpenses() {
+        let mapping = Dictionary(uniqueKeysWithValues: CSVParser.detectColumnMapping(
+            headers: ["Data", "Descrizione", "Importo"]
+        ).map { ($0.field, $0) })
+        let type = CSVParser.determineTransactionType(
+            row: ["12/24/2025", "Acquisto", "19,99"],
+            amount: Decimal(string: "19.99")!, mapping: mapping,
+            amountConvention: .positiveIsExpense
+        )
+        #expect(type == .expense)
     }
 
     @Test func parseCSVContent_shouldHandleQuotedFieldsWithCommas() {
