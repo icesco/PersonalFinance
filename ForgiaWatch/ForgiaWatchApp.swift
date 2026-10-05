@@ -29,6 +29,16 @@ struct WatchHomeView: View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             NavigationStack {
                 List {
+                    if let draft = connection.pendingDraft {
+                        NavigationLink {
+                            WatchExpenseView(connection: connection,
+                                             book: connection.overview.usable(at: context.date)
+                                                ? connection.overview.books.first { $0.id == draft.bookID } : nil,
+                                             restoredDraft: draft)
+                        } label: {
+                            Label("Bozza da inviare", systemImage: "tray.and.arrow.up")
+                        }
+                    }
                     NavigationLink {
                         WatchExpenseView(connection: connection, book: nil)
                     } label: { Label("Prepara spesa", systemImage: "plus.circle.fill") }
@@ -84,15 +94,18 @@ struct WatchBookView: View {
 struct WatchExpenseView: View {
     let connection: WatchConnection
     let book: WatchBook?
+    var restoredDraft: WatchExpenseDraft? = nil
     @State private var amount = ""
     @State private var note = ""
+    private var targetBookID: UUID? { restoredDraft != nil ? restoredDraft?.bookID : book?.id }
     var body: some View {
         Form {
-            Text(book.map { "\($0.name) · \($0.currency)" } ?? "Valuta del libro selezionato su iPhone")
+            Text(book.map { "\($0.name) · \($0.currency)" }
+                 ?? (targetBookID == nil ? "Valuta del libro selezionato su iPhone" : "Libro originale della bozza su iPhone"))
                 .font(.caption)
             TextField("Importo", text: $amount)
             TextField("Descrizione", text: $note)
-            Button("Invia bozza a iPhone") { connection.prepare(amount: amount, note: note, bookID: book?.id) }
+            Button("Invia bozza a iPhone") { connection.prepare(amount: amount, note: note, bookID: targetBookID) }
                 .disabled(connection.isSending)
             if connection.isSending { ProgressView() }
             if let message = connection.message { Text(message).font(.caption) }
@@ -100,7 +113,7 @@ struct WatchExpenseView: View {
         }
         .navigationTitle("Nuova spesa")
         .task {
-            if let draft = connection.pendingDraft, draft.bookID == book?.id {
+            if let draft = restoredDraft ?? connection.pendingDraft, draft.bookID == targetBookID {
                 amount = draft.amount; note = draft.note
             }
         }
