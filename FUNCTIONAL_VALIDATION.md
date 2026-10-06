@@ -12,7 +12,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Analisi con periodi coerenti | `SpendingOverviewView`, `SpendingAnalysisWindowTests`, `RecordedSpendingReportTests`, `testAnalysisPeriods` | Periodi, confronti a durata coerente, DST e separazione dei trasferimenti coperti; mesi/date italiani osservati su Mac. |
 | Ricorrenti e promemoria | `RecurrenceScheduleTests`, `RecurrenceOccurrenceTests`, planner e `RecurrenceReminderTests`; UI per fine serie e apertura da notifica | Notifica locale verificata in simulatore. Consegna e apertura su dispositivo fisico da verificare. |
 | Calcolatrice | `AmountCalculatorTests`, `testCalculatorAppliesAmountWithoutSaving` | Calcolo e applicazione alla bozza verificati; la prova UI non salva movimenti reali. |
-| Allegati e scontrini | `AttachmentDraftTests`, `AttachmentPersistenceTests`, `ReceiptReaderTests`, `MacReceiptReaderTests` | Immagini e PDF sintetici, inclusa pagina con testo e scansione, verificati su Mac/iOS. Fotocamera e selezione documenti da provare sul dispositivo. |
+| Allegati e scontrini | `AttachmentDraftTests`, `AttachmentPersistenceTests`, `ReceiptReaderTests`, `MacReceiptReaderTests` | Immagini e PDF sintetici, inclusa pagina con testo e scansione, verificati su Mac/iOS. Selettore file Mac, lettura e applicazione del totale verificati con PDF sintetico. Fotocamera e selettore iPhone ancora da provare sul dispositivo. |
 | Posizione | `PlaceDraftTests`, `testManualPlaceDraftCanBeCancelled`, `SingleLocationRequest` | Nome manuale e persistenza verificati. Richiesta reale, rifiuto del permesso e precisione della posizione non ancora provati. |
 | Multivaluta | `CurrencyConversionTests`, `ForeignAmountDraftTests`, `testForeignAmountIsConvertedBeforeSaving`; download BCE manuale su Mac | Conversione, arrotondamento, tasso fissato e provenienza coperti. Download/applicazione/riapertura verificati su Mac con bozza sintetica; nessun movimento salvato. |
 | iCloud privato | `CloudConfigurationTests`, `CloudLifecycleTests`, `CloudSyncProgressTests`, migrazione locale | Prove locali e servizi simulati. Sincronizzazione SwiftData tra due dispositivi dello stesso account non ancora dimostrata. |
@@ -55,6 +55,18 @@ la bozza mostrava `89,25`; riaprendo la conversione, importo originale, tasso e
 provenienza erano conservati. Conversione e bozza annullate, sessione chiusa
 con codice 0. È evidenza del percorso osservato, non una quotazione garantita
 per altre date.
+
+### Importazione PDF nel flusso Mac
+
+Il 6 ottobre, sessione firmata in memoria: Nuova spesa → Da file → selettore
+macOS → `forgia-scontrino-sintetico.pdf` (solo testo sintetico) → Leggi scontrino.
+Il foglio iniziale risultava troppo basso e il comando incorporato nella lista
+non era attivabile tramite il controllo assistito. Con `Form` raggruppato e
+misure minime Mac, il comando è esposto come pulsante: Usa 25,90 ha chiuso il
+lettore e impostato `25,9` nel campo importo, mantenendo il PDF nella bozza.
+Bozza annullata e sessione chiusa con codice 0; nessun movimento persistente
+creato. La build Mac è riuscita; l’acquisizione da fotocamera resta fuori da
+questa prova.
 
 ## Passi necessari prima di dichiarare completato l’obiettivo
 

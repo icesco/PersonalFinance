@@ -101,7 +101,7 @@ struct ReceiptReviewView: View {
     @State private var error: String?
     var body: some View {
         NavigationStack {
-            List {
+            Form {
                 Section {
                     Text("Lettura eseguita sul dispositivo. Controlla lo scontrino: gli importi riconosciuti possono includere subtotali, IVA e resto.")
                         .font(.subheadline).foregroundStyle(.secondary)
@@ -133,6 +133,7 @@ struct ReceiptReviewView: View {
                     ProgressView("Lettura scontrino…")
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle("Leggi scontrino")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } }
@@ -143,5 +144,8 @@ struct ReceiptReviewView: View {
                 catch { self.error = error.localizedDescription }
             }
         }
+        #if os(macOS)
+        .frame(minWidth: 480, idealWidth: 560, minHeight: 400, idealHeight: 520)
+        #endif
     }
 }
