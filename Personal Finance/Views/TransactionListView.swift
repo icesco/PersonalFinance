@@ -132,7 +132,6 @@ struct TransactionListView: View {
                         }
                     }
                 }
-                .background(.ultraThinMaterial)
             }
             .modifier(TransactionAddButtonModifier(isVisible: !isInSelectionMode))
             .navigationTitle(initialConto?.name ?? "")

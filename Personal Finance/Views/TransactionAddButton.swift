@@ -32,12 +32,13 @@ private struct TransactionAddButton: View {
                 }
             }
         } label: {
-            Label("Aggiungi movimento", systemImage: "plus")
-                .labelStyle(.iconOnly)
-                .font(.system(size: 22, weight: .semibold))
+            Label("Nuovo movimento", systemImage: "square.and.pencil")
+                .labelStyle(.titleAndIcon)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 52, height: 52)
-                .glassEffect(.regular.tint(ForgiaPalette.accent).interactive(), in: .circle)
+                .padding(.horizontal, 18)
+                .frame(minHeight: 52)
+                .glassEffect(.regular.tint(ForgiaPalette.accent).interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("transactions-add")
