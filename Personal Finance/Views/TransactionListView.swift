@@ -115,7 +115,7 @@ struct TransactionListView: View {
                         compactPeriodHeader
                     }
                     TransactionSearchField(text: $searchText)
-                    unifiedFiltersBar.padding(.horizontal, 16)
+                    unifiedFiltersBar
                     if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text("\(totalCount) risultati nel periodo selezionato")
                             .font(.caption)
@@ -345,6 +345,8 @@ struct TransactionListView: View {
                 .foregroundStyle(ForgiaPalette.accent)
             }
         }
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .scrollClipDisabled()
         .padding(.vertical, 6)
     }
 
