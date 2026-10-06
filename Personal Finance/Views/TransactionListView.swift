@@ -92,7 +92,9 @@ struct TransactionListView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if transactions.isEmpty {
-                    emptyState
+                    ScrollView {
+                        VStack(spacing: 16) { periodSummary.unifiedCard(); emptyState }.padding(16)
+                    }
                 } else {
                     transactionList
 
@@ -284,6 +286,7 @@ struct TransactionListView: View {
 
     private var balanceExplanation: String {
         let hasFuture = transactions.contains { $0.date > Date() }
+        if initialInterval != nil { return "Bilancio del periodo selezionato" }
         if selectedTimeframe == .month {
             return hasFuture
                 ? "Bilancio previsto a fine mese, incluse transazioni future"
@@ -312,13 +315,20 @@ struct TransactionListView: View {
 
                 Spacer()
 
-                if selectedTimeframe == .month {
-                    Text(selectedMonth.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "it_IT"))).localizedCapitalized)
-                        .font(.system(.title3, design: .serif, weight: .semibold))
-                } else {
-                    Text(selectedMonth, format: .dateTime.year())
-                        .font(.system(.title3, design: .serif, weight: .semibold))
+                Menu {
+                    Picker("Granularità", selection: $selectedTimeframe) {
+                        ForEach(TransactionTimeframe.allCases, id: \.self) { timeframe in
+                            Text(timeframe.displayName).tag(timeframe)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(selectedMonth, format: selectedTimeframe == .month ? .dateTime.month(.wide).year() : .dateTime.year())
+                            .font(.system(.title3, design: .serif, weight: .semibold))
+                        Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                    }.frame(minHeight: 44)
                 }
+                .accessibilityIdentifier("transactions-period-menu")
 
                 Spacer()
 
@@ -336,23 +346,14 @@ struct TransactionListView: View {
                 .disabled(isAtCurrentPeriod)
                 .opacity(isAtCurrentPeriod ? 0.4 : 1)
 
-                Menu {
-                    ForEach(TransactionTimeframe.allCases, id: \.self) { timeframe in
-                        Button {
-                            withAnimation { selectedTimeframe = timeframe }
-                        } label: {
-                            Label(timeframe.displayName, systemImage: selectedTimeframe == timeframe ? "checkmark" : "calendar")
-                        }
-                    }
-                } label: {
-                    Text(selectedTimeframe.displayName)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .frame(height: 34)
-                        .background(ForgiaPalette.surface, in: Capsule())
-                }
             }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+    }
 
+    private var periodSummary: some View {
+        VStack(alignment: .leading, spacing: 12) {
             let summaryLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout())
             summaryLayout {
                 Text(balanceExplanation)
@@ -571,6 +572,11 @@ struct TransactionListView: View {
 
     private var transactionList: some View {
         List {
+            Section {
+                periodSummary
+                    .listRowBackground(ForgiaPalette.surface)
+                    .accessibilityIdentifier("transactions-period-summary")
+            }
             ForEach(sectionedTransactions) { section in
                 Section {
                     ForEach(section.transactions, id: \.id) { transaction in
