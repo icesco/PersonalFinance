@@ -6,6 +6,42 @@ import FinanceCore
 
 @MainActor
 struct RecurrenceReminderTests {
+    @Test func reminderTapWaitsForUnlockAndEditorThenShowsAllBooks() throws {
+        let keys = ["selectedAccountID", "selectedContoID", "showAllAccounts", "showAllConti"]
+        let saved = keys.map { (key: $0, value: UserDefaults.standard.object(forKey: $0)) }
+        defer { for item in saved { UserDefaults.standard.set(item.value, forKey: item.key) } }
+        let inbox = FinanceShortcutInbox()
+        let state = AppStateManager()
+        state.showAllAccounts = false
+        state.selectTab(.dashboard)
+        let router = ReminderNotificationRouter()
+        router.receive(identifier: "forgia.recurrence.123", action: UNNotificationDefaultActionIdentifier, inbox: inbox)
+        inbox.deliver(to: state, canAccessContent: false)
+        #expect(inbox.pending == .reminderPlanning)
+        #expect(state.selectedTab == .dashboard)
+        state.presentQuickTransaction()
+        inbox.deliver(to: state)
+        #expect(inbox.pending == .reminderPlanning)
+        state.dismissQuickTransaction()
+        inbox.deliver(to: state)
+        #expect(inbox.pending == nil)
+        #expect(state.selectedTab == .planning)
+        #expect(state.showAllAccounts)
+    }
+
+    @Test func reminderDismissalAndForeignNotificationsDoNotNavigateOrReplaceDraft() throws {
+        let inbox = FinanceShortcutInbox()
+        let router = ReminderNotificationRouter()
+        router.receive(identifier: "forgia.recurrence.123", action: UNNotificationDismissActionIdentifier, inbox: inbox)
+        router.receive(identifier: "another.notification", action: UNNotificationDefaultActionIdentifier, inbox: inbox)
+        #expect(inbox.pending == nil)
+        let draft = FinanceShortcutRequest.expense(amount: "10", description: "Bozza")
+        try inbox.submit(draft)
+        router.receive(identifier: "forgia.recurrence.123", action: UNNotificationDefaultActionIdentifier, inbox: inbox)
+        #expect(inbox.pending == draft)
+        #expect(inbox.errorMessage != nil)
+    }
+
     @MainActor final class Center: RecurrenceNotificationCenter {
         var authorized = true
         var requests: [UNNotificationRequest] = []

@@ -34,6 +34,7 @@ struct Personal_FinanceApp: App {
     @State private var initializationError: Error?
 
     init() {
+        ReminderNotificationRouter.shared.install()
         FinanceShortcuts.updateAppShortcutParameters()
         #if os(iOS)
         WatchPhoneBridge.shared.start()

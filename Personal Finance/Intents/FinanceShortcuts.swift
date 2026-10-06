@@ -9,6 +9,7 @@ enum FinanceShortcutRequest: Equatable, Sendable {
     case widget(FinanceWidgetRoute)
     case today
     case planning
+    case reminderPlanning
     case expense(amount: String, description: String)
 }
 
@@ -63,6 +64,9 @@ final class FinanceShortcutInbox {
             }
         case .today: state.selectTab(.dashboard)
         case .planning: state.selectTab(.planning)
+        case .reminderPlanning:
+            state.selectAllAccounts()
+            state.selectTab(.planning)
         case let .expense(amount, description):
             state.presentQuickTransaction()
             state.quickTransactionPrefill = (amount, description)
