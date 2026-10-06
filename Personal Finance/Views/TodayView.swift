@@ -114,6 +114,7 @@ struct TodayView: View {
                     #endif
                 }
             }
+            .modifier(TransactionAddButtonModifier(isVisible: screen == .analysis))
             .sheet(isPresented: $showingImport) { CSVImportView() }
             .sheet(isPresented: $showingBudgets) { BudgetView() }
             .sheet(isPresented: $showingBalances) {

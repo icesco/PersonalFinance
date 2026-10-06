@@ -162,11 +162,7 @@ struct FinancePlanningView: View {
             .themedBackground()
             .navigationTitle("Pianifica")
             .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { appState.presentQuickTransaction() } label: { Label("Nuova spesa", systemImage: "plus") }
-                }
-            }
+            .modifier(TransactionAddButtonModifier())
             .confirmationDialog("Gestisci scadenza", isPresented: Binding(
                 get: { selectedOccurrence != nil }, set: { if !$0 { selectedOccurrence = nil } }
             ), titleVisibility: .visible) {

@@ -29,7 +29,6 @@ struct TransactionListView: View {
     @State private var selectedCategories: Set<UUID> = []
     @State private var showingRecurring = false
     @State private var showingCategoryFilter = false
-    @State private var showingTransferSheet = false
     @State private var selectedTimeframe: TransactionTimeframe = .month
     @State private var showSummaryDetail = false
     @State private var isSearching = false
@@ -135,26 +134,7 @@ struct TransactionListView: View {
                 }
                 .background(.ultraThinMaterial)
             }
-            .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 12) {
-                if !isInSelectionMode {
-                    Menu {
-                        Button("Nuova spesa", systemImage: "arrow.up.right") { appState.presentQuickTransaction(type: .expense) }
-                        Button("Nuova entrata", systemImage: "arrow.down.left") { appState.presentQuickTransaction(type: .income) }
-                        if availableConti.count >= 2 {
-                            Button("Nuovo trasferimento", systemImage: "arrow.left.arrow.right") { showingTransferSheet = true }
-                        }
-                    } label: {
-                        Label("Aggiungi movimento", systemImage: "plus")
-                            .labelStyle(.iconOnly)
-                            .font(.title2.weight(.semibold))
-                            .frame(width: 56, height: 56)
-                    }
-                    .buttonStyle(.glassProminent)
-                    .tint(ForgiaPalette.accent)
-                    .accessibilityIdentifier("transactions-add")
-                    .padding(.trailing, 20)
-                }
-            }
+            .modifier(TransactionAddButtonModifier(isVisible: !isInSelectionMode))
             .navigationTitle(initialConto?.name ?? "")
             #if os(iOS)
             .toolbarTitleDisplayMode(.inline)
@@ -171,9 +151,6 @@ struct TransactionListView: View {
                     categories: availableCategories,
                     selectedCategories: $selectedCategories
                 )
-            }
-            .sheet(isPresented: $showingTransferSheet) {
-                CreateTransactionView(conto: availableConti.first, transactionType: .transfer)
             }
             .sheet(item: $transactionToEdit) { transaction in
                 EditTransactionView(transaction: transaction)
