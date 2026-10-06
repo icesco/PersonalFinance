@@ -149,7 +149,10 @@ final class RecurrenceReminders {
 
     func update(_ plans: [DailyRecurrenceReminder]) {
         #if DEBUG
-        guard !ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL") else { return }
+        // Keep the demo session from changing system reminders, while allowing
+        // injected notification centers to exercise reconciliation in tests.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL"),
+           center is SystemRecurrenceNotificationCenter { return }
         #endif
         desired = plans
         revision += 1
