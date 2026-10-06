@@ -30,63 +30,24 @@ struct TodayView: View {
         let now = Date()
         let horizon = Calendar.current.date(byAdding: .day, value: 45, to: now) ?? now
 
-        let relevant = transactions.filter { transaction in
-            (transaction.fromContoId.map { contoIDs.contains($0) } ?? false) ||
-            (transaction.toContoId.map { contoIDs.contains($0) } ?? false)
-        }
-        let entries = relevant.map { transaction in
-            DirectionTransaction(
-                date: transaction.date,
-                amount: transaction.amount ?? 0,
-                type: transaction.type,
-                categoryID: transaction.categoryId,
-                categoryName: transaction.category?.name ?? "Da classificare",
-                isRecurring: transaction.isRecurring == true || transaction.recurrenceSourceID != nil
-            )
-        }
-        let resolvedKeys = Set(resolutions.map(\.key))
-        let planned = relevant.flatMap { transaction -> [PlannedCashMovement] in
-            guard transaction.isRecurring == true,
-                  transaction.type != .transfer else { return [] }
-            if transaction.type == .expense,
-               !(transaction.fromContoId.map { contoIDs.contains($0) } ?? false) { return [] }
-            if transaction.type == .income,
-               !(transaction.toContoId.map { contoIDs.contains($0) } ?? false) { return [] }
-            return transaction.recurrenceDates(after: now, through: horizon)
-                .filter { !resolvedKeys.contains(RecurrenceResolution.key(sourceID: transaction.id, date: $0)) }
-                .map { date in
-                PlannedCashMovement(
-                    date: date,
-                    amount: transaction.amount ?? 0,
-                    type: transaction.type,
-                    title: transaction.transactionDescription ?? transaction.category?.name ?? "Movimento previsto"
-                )
-            }
-        }
-
-        let liquid = conti
-            .filter { [.checking, .savings, .cash].contains($0.type) }
-            .reduce(Decimal(0)) { $0 + $1.balance }
-        let cardDebt = conti
-            .filter { $0.type == .credit }
-            .reduce(Decimal(0)) { $0 + max(0, -$1.balance) }
+        let inputs = SpendingDirectionInputs.build(conti: conti, transactions: transactions,
+                                                   resolutions: resolutions, now: now, horizon: horizon)
         let direction = SpendingDirectionCalculator.calculate(
-            transactions: entries,
-            planned: planned,
-            liquidBalance: liquid,
-            creditDebt: cardDebt,
-            balancesVerified: conti.filter { [.checking, .savings, .cash, .credit].contains($0.type) }
-                .allSatisfy { $0.initialBalance != nil },
+            transactions: inputs.transactions,
+            planned: inputs.planned,
+            liquidBalance: inputs.liquidBalance,
+            creditDebt: inputs.creditDebt,
+            balancesVerified: inputs.balancesVerified,
             now: now
         )
         return TodaySnapshot(
-            entries: entries,
+            entries: inputs.transactions,
             contoIDs: contoIDs,
             accountName: appState.showAllAccounts ? "Tutti i libri" : selectedAccounts.first?.name ?? "Il tuo libro",
             currency: currency,
             hasMixedCurrencies: Set(selectedAccounts.compactMap(\.currency)).count > 1,
             direction: direction,
-            planned: planned.filter { $0.type == .expense && $0.date > now }.sorted { $0.date < $1.date }
+            planned: inputs.planned.filter { $0.type == .expense && $0.date > now }.sorted { $0.date < $1.date }
         )
     }
 
@@ -280,11 +241,11 @@ private struct TodayMarginCard: View {
                     .tint(ForgiaPalette.accent)
                 DisclosureGroup("Come è calcolato", isExpanded: $showsCalculation) {
                     VStack(spacing: 9) {
-                        TodayAmountRow(label: "Disponibilità registrata", amount: snapshot.direction.liquidBalance, currency: snapshot.currency)
+                        TodayAmountRow(label: "Saldo maturato", amount: snapshot.direction.liquidBalance, currency: snapshot.currency)
                         TodayAmountRow(label: "Debito sulle carte", amount: -snapshot.direction.creditDebt, currency: snapshot.currency)
                         TodayAmountRow(label: "Uscite previste", amount: -snapshot.direction.committedOutgoings, currency: snapshot.currency)
                         TodayAmountRow(label: "Spesa abituale stimata", amount: -snapshot.direction.typicalVariableOutgoings, currency: snapshot.currency)
-                        Text("Conferma i saldi dei conti prima di decidere una spesa.")
+                        Text("Il saldo esclude i movimenti futuri. Le uscite previste includono le spese programmate e le ricorrenze fino alla prossima entrata. Conferma i saldi dei conti prima di decidere una spesa.")
                             .font(.caption)
                             .foregroundStyle(ForgiaPalette.mutedText)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -434,7 +395,7 @@ private struct TodayCommitmentsCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Impegni in arrivo").font(.headline)
             if snapshot.planned.isEmpty {
-                Text("Nessuna uscita ricorrente registrata. Aggiungi le scadenze importanti per completare la stima.")
+                Text("Nessuna uscita prevista nei prossimi 45 giorni. Aggiungi le scadenze importanti per completare la stima.")
                     .foregroundStyle(ForgiaPalette.mutedText)
             } else {
                 ForEach(Array(snapshot.planned.prefix(3).enumerated()), id: \.offset) { _, item in

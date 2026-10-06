@@ -27,12 +27,14 @@ public struct PlannedCashMovement: Sendable {
     public let amount: Decimal
     public let type: TransactionType
     public let title: String
+    public let isRecurring: Bool
 
-    public init(date: Date, amount: Decimal, type: TransactionType, title: String) {
+    public init(date: Date, amount: Decimal, type: TransactionType, title: String, isRecurring: Bool = true) {
         self.date = date
         self.amount = amount
         self.type = type
         self.title = title
+        self.isRecurring = isRecurring
     }
 }
 
@@ -163,7 +165,7 @@ public enum SpendingDirectionCalculator {
         }.first
         let next30Days = calendar.date(byAdding: .day, value: 30, to: now) ?? now
         let upcomingRecurring = planned.filter {
-            $0.type == .expense && $0.date > now && $0.date <= next30Days
+            $0.type == .expense && $0.isRecurring && $0.date > now && $0.date <= next30Days
         }.reduce(Decimal(0)) { $0 + $1.amount }
         let latest = recorded.map(\.date).max()
         let earliest = recorded.map(\.date).min()
