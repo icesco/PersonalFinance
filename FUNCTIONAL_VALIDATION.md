@@ -13,7 +13,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Ricorrenti e promemoria | `RecurrenceScheduleTests`, `RecurrenceOccurrenceTests`, planner e `RecurrenceReminderTests`; UI per fine serie e apertura da notifica | Notifica locale verificata in simulatore. Consegna e apertura su dispositivo fisico da verificare. |
 | Calcolatrice | `AmountCalculatorTests`, `testCalculatorAppliesAmountWithoutSaving` | Calcolo e applicazione alla bozza verificati; la prova UI non salva movimenti reali. |
 | Allegati e scontrini | `AttachmentDraftTests`, `AttachmentPersistenceTests`, `ReceiptReaderTests`, `MacReceiptReaderTests` | Immagini e PDF sintetici, inclusa pagina con testo e scansione, verificati su Mac/iOS. Selettore file Mac, lettura e applicazione del totale verificati con PDF sintetico. Scansione da fotocamera, scelta OCR e applicazione dell’importo confermate dall’utente su iPhone. Selettore file iPhone ancora da verificare. |
-| Posizione | `PlaceDraftTests`, `testManualPlaceDraftCanBeCancelled`, `SingleLocationRequest` | Nome manuale e persistenza verificati. Richiesta reale, rifiuto del permesso e precisione della posizione non ancora provati. |
+| Posizione | `PlaceDraftTests`, `testManualPlaceDraftCanBeCancelled`, `SingleLocationRequest` | Nome manuale e persistenza verificati. Rilevamento reale su richiesta e rimozione delle coordinate confermati dall’utente su iPhone. Rifiuto del permesso e accuratezza geografica non ancora verificati. |
 | Multivaluta | `CurrencyConversionTests`, `ForeignAmountDraftTests`, `testForeignAmountIsConvertedBeforeSaving`; download BCE manuale su Mac | Conversione, arrotondamento, tasso fissato e provenienza coperti. Download/applicazione/riapertura verificati su Mac con bozza sintetica; nessun movimento salvato. |
 | iCloud privato | `CloudConfigurationTests`, `CloudLifecycleTests`, `CloudSyncProgressTests`, migrazione locale | Prove locali e servizi simulati. Sincronizzazione SwiftData tra due dispositivi dello stesso account non ancora dimostrata. |
 | Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | Round trip CloudKit reale del proprietario superato con dati sintetici e pulizia finale. Invito e sincronizzazione tra due account ancora da verificare; procedura in `CLOUD_VERIFICATION.md`. Il test live resta disattivato per impostazione predefinita. |
@@ -77,6 +77,16 @@ dall’utente sul dispositivo fisico. Nella prova successiva l’utente ha
 confermato che annullando l’autenticazione l’app resta bloccata. Lo sblocco
 subito dopo questo annullamento non è ancora stato confermato. Restano da
 verificare fallback alle credenziali del dispositivo e Touch ID su Mac.
+
+### Posizione su iPhone
+
+Il 6 ottobre l’utente ha confermato il funzionamento della prova guidata:
+nuova spesa → Luogo → Usa posizione attuale → visualizzazione di coordinate
+e precisione stimata → Rimuovi coordinate. La prova richiedeva infine di
+annullare la bozza senza salvare. Nessuna coordinata è stata richiesta o
+riportata in chat o in questo documento. Il riscontro conferma rilevamento e
+rimozione nell’interfaccia; non misura l’accuratezza geografica e non copre
+il rifiuto del permesso.
 
 ### Download BCE nel flusso Mac
 
