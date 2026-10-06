@@ -22,7 +22,6 @@ struct TransactionListView: View {
     var scopeContoIDs: Set<UUID>? = nil
 
     // Filter states
-    @State private var searchText = ""
     @State private var selectedMonth: Date = Date()
     @State private var selectedType: TransactionTypeFilter = .all
     @State private var selectedConto: Conto? = nil
@@ -93,6 +92,7 @@ struct TransactionListView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             periodSummary.unifiedCard()
+                            TransactionSearchLink(scopeContoIDs: scopeContoIDs)
                             Button("Ricorrenti", systemImage: "repeat") { showingRecurring = true }
                             emptyState
                         }.padding(16)
@@ -114,16 +114,7 @@ struct TransactionListView: View {
                     } else {
                         compactPeriodHeader
                     }
-                    TransactionSearchField(text: $searchText)
                     unifiedFiltersBar
-                    if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text("\(totalCount) risultati nel periodo selezionato")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 8)
-                    }
                 }
             }
             .modifier(TransactionAddButtonModifier(isVisible: !isInSelectionMode))
@@ -162,7 +153,6 @@ struct TransactionListView: View {
             .onChange(of: selectedType) { _, _ in resetAndFetch() }
             .onChange(of: selectedConto) { _, _ in resetAndFetch() }
             .onChange(of: selectedCategories) { _, _ in resetAndFetch() }
-            .onChange(of: searchText) { _, _ in resetAndFetch() }
             .onChange(of: appState.dataRefreshTrigger) { _, _ in fetchTransactions() }
         }
     }
@@ -485,7 +475,7 @@ struct TransactionListView: View {
                     .listRowBackground(ForgiaPalette.surface)
                     .accessibilityIdentifier("transactions-period-summary")
             } footer: {
-                TransactionListActions(isSelecting: $isInSelectionMode) {
+                TransactionListActions(isSelecting: $isInSelectionMode, searchContoIDs: scopeContoIDs) {
                     selectedTransactions.removeAll()
                 } showRecurring: {
                     showingRecurring = true
@@ -622,9 +612,7 @@ struct TransactionListView: View {
         ContentUnavailableView {
             Label("Nessuna transazione", systemImage: "list.bullet.rectangle")
         } description: {
-            if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("Nessun risultato per questa ricerca nel periodo e nei filtri selezionati.")
-            } else if !selectedCategories.isEmpty {
+            if !selectedCategories.isEmpty {
                 Text("Nessuna transazione per le categorie selezionate")
             } else if selectedConto != nil {
                 Text("Nessuna transazione per questo conto")
@@ -638,9 +626,6 @@ struct TransactionListView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
-                if !searchText.isEmpty {
-                    Button("Cancella ricerca") { searchText = "" }
-                }
                 if activeFiltersCount > 0 {
                     Button("Rimuovi filtri") { clearAllFilters() }
                         .buttonStyle(.bordered)
@@ -723,16 +708,6 @@ struct TransactionListView: View {
                 }
             }
 
-            // Search the full filtered period before pagination and totals.
-            results = results.filter { transaction in
-                TransactionSearch.matches(
-                    query: searchText,
-                    fields: [transaction.transactionDescription, transaction.notes,
-                             transaction.category?.name, transaction.fromConto?.name, transaction.toConto?.name],
-                    amount: transaction.amount ?? 0
-                )
-            }
-
             totalCount = results.count
             matchingIncome = results.filter { $0.type == .income }.reduce(0) { $0 + ($1.amount ?? 0) }
             matchingExpenses = results.filter { $0.type == .expense }.reduce(0) { $0 + ($1.amount ?? 0) }
@@ -761,7 +736,6 @@ struct TransactionListView: View {
             selectedType = .all
             selectedConto = nil
             selectedCategories = []
-            searchText = ""
         }
     }
 
@@ -1175,39 +1149,6 @@ private struct TransactionSection: Identifiable {
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
 }
 
-private struct TransactionSearchField: View {
-    @Binding var text: String
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Cerca nel periodo", text: $text)
-                .textFieldStyle(.plain)
-                .focused($focused)
-                .submitLabel(.search)
-                .onSubmit { focused = false }
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("transactions-search")
-            if !text.isEmpty {
-                Button { text = "" } label: {
-                    Label("Cancella ricerca", systemImage: "xmark.circle.fill")
-                        .labelStyle(.iconOnly)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, text.isEmpty ? 14 : 0)
-        .frame(minHeight: 44)
-        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 14))
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
-    }
-}
-
 private struct AccessibleTransactionRow: View {
     let transaction: FinanceTransaction
     let showConto: Bool
@@ -1241,11 +1182,15 @@ private struct AccessibleTransactionRow: View {
 
 private struct TransactionListActions: View {
     @Binding var isSelecting: Bool
+    let searchContoIDs: Set<UUID>?
     let clearSelection: () -> Void
     let showRecurring: () -> Void
 
     var body: some View {
         HStack {
+            TransactionSearchLink(scopeContoIDs: searchContoIDs)
+                .accessibilityIdentifier("transactions-open-search")
+            Spacer()
             Button("Ricorrenti", systemImage: "repeat", action: showRecurring)
             Spacer()
             Button(isSelecting ? "Fine selezione" : "Seleziona", systemImage: isSelecting ? "xmark.circle" : "checkmark.circle") {

@@ -90,14 +90,19 @@ struct MainTabView: View {
         }
     }
 
+    /// iPhone has no search tab: a search selected on iPad falls back to Movimenti when the width shrinks.
+    private var compactTabSelection: Binding<AppTab> {
+        Binding(
+            get: { appState.selectedTab == .search ? .transactions : appState.selectedTab },
+            set: { appState.selectTab($0) }
+        )
+    }
+
     // MARK: - iOS 26+ TabView
 
     @available(iOS 26, macOS 26, *)
     private var iOS26TabView: some View {
-        TabView(selection: Binding(
-            get: { appState.selectedTab },
-            set: { appState.selectTab($0) }
-        )) {
+        TabView(selection: compactTabSelection) {
             Tab(value: AppTab.dashboard) {
                 TodayView()
             } label: {
@@ -133,10 +138,7 @@ struct MainTabView: View {
     // MARK: - Legacy TabView (iOS 18-25)
 
     private var legacyTabView: some View {
-        TabView(selection: Binding(
-            get: { appState.selectedTab },
-            set: { appState.selectTab($0) }
-        )) {
+        TabView(selection: compactTabSelection) {
             TodayView()
                 .tabItem {
                     Label("Oggi", systemImage: "house")
@@ -185,6 +187,9 @@ struct MainTabView: View {
                     Label("Movimenti", systemImage: "list.bullet.rectangle")
                         .tag(AppTab.transactions)
 
+                    Label("Cerca", systemImage: "magnifyingglass")
+                        .tag(AppTab.search)
+
                     Label("Pianifica", systemImage: "calendar")
                         .tag(AppTab.planning)
 
@@ -215,6 +220,10 @@ struct MainTabView: View {
                 TodayView(screen: .analysis)
             case .transactions:
                 TransactionListView()
+            case .search:
+                NavigationStack {
+                    TransactionSearchView()
+                }
             case .planning:
                 FinancePlanningView()
             case .settings:

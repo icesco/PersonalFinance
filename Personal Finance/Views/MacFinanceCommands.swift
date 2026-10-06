@@ -57,6 +57,7 @@ struct FinanceMacCommands: Commands {
                 Button("Movimenti") { context?.select(.transactions) }.keyboardShortcut("3", modifiers: .command)
                 Button("Pianifica") { context?.select(.planning) }.keyboardShortcut("4", modifiers: .command)
                 Button("Impostazioni") { context?.select(.settings) }.keyboardShortcut("5", modifiers: .command)
+                Button("Cerca movimenti") { context?.select(.search) }.keyboardShortcut("f", modifiers: .command)
             }
             .disabled(context?.enabled != true)
         }

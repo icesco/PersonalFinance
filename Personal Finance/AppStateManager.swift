@@ -285,6 +285,7 @@ enum AppTab: Int, CaseIterable {
     case addTransaction = 3 // Used for legacy tab bar button
     case analysis = 4
     case planning = 5
+    case search = 6 // Dedicated tab on iPad and Mac; lives inside Movimenti on iPhone
 
     var title: String {
         switch self {
@@ -292,6 +293,7 @@ enum AppTab: Int, CaseIterable {
         case .analysis: return "Analisi"
         case .planning: return "Pianifica"
         case .transactions: return "Transazioni"
+        case .search: return "Cerca"
         case .settings: return "Impostazioni"
         case .addTransaction: return "Aggiungi"
         }
@@ -303,6 +305,7 @@ enum AppTab: Int, CaseIterable {
         case .analysis: return "chart.pie"
         case .planning: return "calendar"
         case .transactions: return "list.bullet.rectangle"
+        case .search: return "magnifyingglass"
         case .settings: return "gearshape"
         case .addTransaction: return "plus.circle.fill"
         }
@@ -314,6 +317,7 @@ enum AppTab: Int, CaseIterable {
         case .analysis: return "chart.pie.fill"
         case .planning: return "calendar"
         case .transactions: return "list.bullet.rectangle.fill"
+        case .search: return "magnifyingglass"
         case .settings: return "gearshape.fill"
         case .addTransaction: return "plus.circle.fill"
         }
