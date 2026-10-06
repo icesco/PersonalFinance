@@ -8,6 +8,38 @@
 import XCTest
 
 final class Personal_FinanceUITests: XCTestCase {
+    @MainActor
+    func testLocalReminderNotificationOpensPlanning() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_REMINDER_NOTIFICATION", "-CloudSyncEnabled", "NO"]
+        app.launch()
+        if app.buttons["Esplora con dati demo"].waitForExistence(timeout: 3) {
+            app.buttons["Esplora con dati demo"].tap()
+        }
+        XCTAssertTrue(app.tabBars.buttons["Oggi"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Oggi"].tap()
+        app.buttons["Autorizza notifica di prova"].tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 3) {
+            let allow = springboard.alerts.buttons.matching(NSPredicate(format: "label == 'Allow' OR label == 'Consenti'")).firstMatch
+            XCTAssertTrue(allow.exists)
+            allow.tap()
+        }
+        let schedule = app.buttons["Programma promemoria di prova"]
+        expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: schedule)
+        waitForExpectations(timeout: 5)
+        schedule.tap()
+        XCTAssertTrue(app.staticTexts["Promemoria programmato"].waitForExistence(timeout: 5))
+        XCUIDevice.shared.press(.home)
+        let notification = springboard.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Promemoria Forgia di prova")).firstMatch
+        XCTAssertTrue(notification.waitForExistence(timeout: 20))
+        notification.tap()
+        XCTAssertTrue(app.tabBars.buttons["Pianifica"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Pianifica"].isSelected)
+        XCTAssertTrue(app.buttons["Tutti i libri"].exists)
+        capture(app, name: "Promemoria apre Pianifica")
+    }
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

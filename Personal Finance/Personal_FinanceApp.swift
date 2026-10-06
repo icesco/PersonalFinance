@@ -93,7 +93,9 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_STATUS") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_REMINDER_NOTIFICATION") {
+            ContentView().safeAreaInset(edge: .bottom) { ReminderNotificationFixture() }
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_STATUS") {
             SharedBookStatusFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_RECURRENCE_END") {
             EditExpenseBudgetFixture(entry: .recurrence)

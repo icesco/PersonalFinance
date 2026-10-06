@@ -19,12 +19,59 @@ final class ReminderNotificationRouter: NSObject, UNUserNotificationCenterDelega
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                           didReceive response: UNNotificationResponse) async {
+                                           didReceive response: UNNotificationResponse,
+                                           withCompletionHandler completionHandler: @escaping @Sendable () -> Void) {
         let identifier = response.notification.request.identifier
         let action = response.actionIdentifier
-        await receive(identifier: identifier, action: action)
+        // UIKit updates its background snapshot when this callback completes.
+        // The async delegate bridge can complete on a cooperative worker thread.
+        Task { @MainActor in
+            receive(identifier: identifier, action: action)
+            completionHandler()
+        }
     }
 }
+
+#if DEBUG
+/// Synthetic local notification for an end-to-end system UI test; never built into Release.
+struct ReminderNotificationFixture: View {
+    @State private var status = ""
+    @State private var authorized = false
+    @Environment(RecurrenceReminders.self) private var reminders
+
+    var body: some View {
+        VStack {
+            Button("Autorizza notifica di prova") {
+                Task {
+                    authorized = (try? await UNUserNotificationCenter.current()
+                        .requestAuthorization(options: [.alert, .sound])) == true
+                    if !authorized { status = "Autorizzazione negata" }
+                }
+            }
+            Button("Programma promemoria di prova") {
+                Task {
+                    let center = UNUserNotificationCenter.current()
+                    do {
+                        // Let reconciliation after the permission dialog finish before
+                        // adding this synthetic request outside the real reminder plan.
+                        await reminders.waitForPendingUpdates()
+                        let content = UNMutableNotificationContent()
+                        content.title = "Promemoria Forgia di prova"
+                        content.body = "Apri le scadenze. Dati sintetici."
+                        content.sound = .default
+                        let request = UNNotificationRequest(identifier: "forgia.recurrence.uitest", content: content,
+                                                            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false))
+                        try await center.add(request)
+                        status = "Promemoria programmato"
+                    } catch { status = "Programmazione non riuscita" }
+                }
+            }
+            .disabled(!authorized)
+            Text(status)
+        }.padding().background(.regularMaterial)
+    }
+}
+#endif
 
 @MainActor
 protocol RecurrenceNotificationCenter: AnyObject {
