@@ -93,7 +93,11 @@ struct TransactionListView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if transactions.isEmpty {
                     ScrollView {
-                        VStack(spacing: 16) { periodSummary.unifiedCard(); emptyState }.padding(16)
+                        VStack(spacing: 16) {
+                            periodSummary.unifiedCard()
+                            Button("Ricorrenti", systemImage: "repeat") { showingRecurring = true }
+                            emptyState
+                        }.padding(16)
                     }
                 } else {
                     transactionList
@@ -112,15 +116,16 @@ struct TransactionListView: View {
                     } else {
                         compactPeriodHeader
                     }
-                    HStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         unifiedFiltersBar
                         Button {
                             withAnimation { isSearching.toggle() }
                             if !isSearching { searchText = "" }
-                        } label: { Image(systemName: "magnifyingglass").frame(width: 40, height: 44) }
+                        } label: { Image(systemName: "magnifyingglass")
+                            .frame(width: 44, height: 44)
+                            .background(isSearching ? ForgiaPalette.sageSurface : ForgiaPalette.surface, in: Circle()) }
                         .accessibilityLabel("Cerca movimenti")
-                        toolbarMenu.frame(width: 40, height: 44).accessibilityLabel("Opzioni movimenti")
-                    }.padding(.trailing, 12)
+                    }.padding(.horizontal, 16)
                     if isSearching {
                         TransactionSearchField(text: $searchText) {
                             searchText = ""
@@ -135,6 +140,9 @@ struct TransactionListView: View {
                     Menu {
                         Button("Nuova spesa", systemImage: "arrow.up.right") { appState.presentQuickTransaction(type: .expense) }
                         Button("Nuova entrata", systemImage: "arrow.down.left") { appState.presentQuickTransaction(type: .income) }
+                        if availableConti.count >= 2 {
+                            Button("Nuovo trasferimento", systemImage: "arrow.left.arrow.right") { showingTransferSheet = true }
+                        }
                     } label: {
                         Label("Aggiungi movimento", systemImage: "plus")
                             .labelStyle(.iconOnly)
@@ -195,82 +203,6 @@ struct TransactionListView: View {
             return [conto.id]
         }
         return Set(availableConti.map { $0.id })
-    }
-
-    // MARK: - Toolbar Menu
-
-    private var toolbarMenu: some View {
-        Menu {
-            if let conto = selectedConto ?? initialConto {
-                NavigationLink {
-                    BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id)
-                } label: {
-                    Label("Saldo storico del conto", systemImage: "chart.xyaxis.line")
-                }
-            }
-            Button {
-                withAnimation {
-                    isInSelectionMode.toggle()
-                    if !isInSelectionMode {
-                        selectedTransactions.removeAll()
-                    }
-                }
-            } label: {
-                Label(
-                    isInSelectionMode ? "Fine selezione" : "Seleziona",
-                    systemImage: isInSelectionMode ? "xmark.circle" : "checkmark.circle"
-                )
-            }
-
-            Button {
-                withAnimation { showSummaryDetail.toggle() }
-            } label: {
-                Label(
-                    showSummaryDetail ? "Nascondi dettagli" : "Mostra dettagli",
-                    systemImage: showSummaryDetail ? "eye.slash" : "eye"
-                )
-            }
-
-            Button {
-                showingRecurring = true
-            } label: {
-                Label("Ricorrenti", systemImage: "repeat")
-            }
-
-            if activeFiltersCount > 0 {
-                Divider()
-                Button(role: .destructive) {
-                    clearAllFilters()
-                } label: {
-                    Label("Rimuovi filtri", systemImage: "xmark.circle")
-                }
-            }
-
-            Divider()
-
-            Button {
-                appState.presentQuickTransaction(type: .expense)
-            } label: {
-                Label("Nuova Spesa", systemImage: "minus.circle")
-            }
-
-            Button {
-                appState.presentQuickTransaction(type: .income)
-            } label: {
-                Label("Nuova Entrata", systemImage: "plus.circle")
-            }
-
-            // Transfer button - only show if there are at least 2 conti
-            if availableConti.count >= 2 {
-                Button {
-                    showingTransferSheet = true
-                } label: {
-                    Label("Nuovo Trasferimento", systemImage: "arrow.left.arrow.right.circle")
-                }
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-        }
     }
 
     // MARK: - Compact Period Header
@@ -410,17 +342,34 @@ struct TransactionListView: View {
                     ForEach(availableConti, id: \.id) { conto in
                         Button(conto.name ?? "Conto") { selectedConto = conto }
                     }
+                    if let conto = selectedConto ?? initialConto {
+                        Divider()
+                        NavigationLink {
+                            BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id)
+                        } label: {
+                            Label("Saldo storico del conto", systemImage: "chart.xyaxis.line")
+                        }
+                    }
                 } label: {
                     Label(selectedConto?.name ?? "Conto", systemImage: "creditcard")
                         .font(.subheadline.weight(selectedConto == nil ? .regular : .semibold))
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
+                        .frame(minHeight: 44)
                         .background(selectedConto == nil ? ForgiaPalette.surface : ForgiaPalette.sageSurface, in: Capsule())
                 }
 
                 categoryFilterButton
+                if activeFiltersCount > 0 {
+                    Button { clearAllFilters() } label: {
+                        Label("Azzera", systemImage: "xmark.circle")
+                            .font(.subheadline)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 44)
+                            .background(ForgiaPalette.surface, in: Capsule())
+                    }
+                }
             }
-            .padding(.horizontal, 20)
+            .foregroundStyle(ForgiaPalette.accent)
         }
         .padding(.vertical, 6)
     }
@@ -435,7 +384,7 @@ struct TransactionListView: View {
             .font(.subheadline)
             .fontWeight(selectedCategories.isEmpty ? .regular : .semibold)
             .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .frame(minHeight: 44)
             .background(selectedCategories.isEmpty ? ForgiaPalette.surface : ForgiaPalette.sageSurface)
             .foregroundStyle(selectedCategories.isEmpty ? Color.primary : ForgiaPalette.accent)
             .clipShape(Capsule())
@@ -561,6 +510,12 @@ struct TransactionListView: View {
                 periodSummary
                     .listRowBackground(ForgiaPalette.surface)
                     .accessibilityIdentifier("transactions-period-summary")
+            } footer: {
+                TransactionListActions(isSelecting: $isInSelectionMode) {
+                    selectedTransactions.removeAll()
+                } showRecurring: {
+                    showingRecurring = true
+                }
             }
             ForEach(sectionedTransactions) { section in
                 Section {
@@ -1295,5 +1250,29 @@ private struct AccessibleTransactionRow: View {
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
+    }
+}
+
+private struct TransactionListActions: View {
+    @Binding var isSelecting: Bool
+    let clearSelection: () -> Void
+    let showRecurring: () -> Void
+
+    var body: some View {
+        HStack {
+            Button("Ricorrenti", systemImage: "repeat", action: showRecurring)
+            Spacer()
+            Button(isSelecting ? "Fine selezione" : "Seleziona", systemImage: isSelecting ? "xmark.circle" : "checkmark.circle") {
+                withAnimation {
+                    isSelecting.toggle()
+                    clearSelection()
+                }
+            }
+        }
+        .font(.subheadline)
+        .buttonStyle(.borderless)
+        .tint(ForgiaPalette.accent)
+        .frame(minHeight: 44)
+        .textCase(nil)
     }
 }
