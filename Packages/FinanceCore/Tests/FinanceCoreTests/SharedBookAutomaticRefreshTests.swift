@@ -1,10 +1,88 @@
 import Foundation
+import CloudKit
 import SwiftData
 import Testing
 @testable import FinanceCore
 
 @MainActor
 struct SharedBookAutomaticRefreshTests {
+    @Test(arguments: [false, true])
+    func serverRetryIntervalStartsAtFailureAndDoesNotBlockOtherBooks(partial: Bool) async throws {
+        let container = try container()
+        let throttled = try member(container)
+        let healthy = try member(container)
+        var instant = Date(timeIntervalSince1970: 1_000)
+        var calls: [String: Int] = [:]
+        let service = SharedBookAutomaticRefresh(configuration: { (container, 1, true) }, now: { instant }) { scope, _ in
+            calls[scope.key, default: 0] += 1
+            if scope.key == throttled.scopeKey, calls[scope.key] == 1 {
+                instant.addTimeInterval(30)
+                let failure = CKError(.serviceUnavailable, userInfo: [CKErrorRetryAfterKey: 180.0])
+                if partial {
+                    throw CKError(.partialFailure, userInfo: [
+                        CKErrorRetryAfterKey: 90.0,
+                        CKPartialErrorsByItemIDKey: ["record": failure]
+                    ])
+                }
+                throw failure
+            }
+            return .synchronized(localBookID: scope.key == throttled.scopeKey ? throttled.localBookID : healthy.localBookID)
+        }
+        await service.refresh()
+        #expect(service.statuses[throttled.localBookID] == .failed)
+        instant = Date(timeIntervalSince1970: 1_091)
+        await service.refresh()
+        #expect(calls[throttled.scopeKey] == 1)
+        #expect(calls[healthy.scopeKey] == 2)
+        instant = Date(timeIntervalSince1970: 1_209)
+        await service.refresh()
+        #expect(calls[throttled.scopeKey] == 1)
+        instant = Date(timeIntervalSince1970: 1_210)
+        await service.refresh()
+        #expect(calls[throttled.scopeKey] == 2)
+        #expect(service.statuses[throttled.localBookID] == .updated(instant))
+    }
+
+    @Test(arguments: [false, true])
+    func successfulManualRecoveryOrContainerChangeClearsServerDelay(changeContainer: Bool) async throws {
+        let container = try container()
+        let membership = try member(container)
+        var instant = Date(timeIntervalSince1970: 1_000)
+        var generation = 1
+        var calls = 0
+        let service = SharedBookAutomaticRefresh(configuration: { (container, generation, true) }, now: { instant }) { _, _ in
+            calls += 1
+            if calls == 1 { throw CKError(.requestRateLimited, userInfo: [CKErrorRetryAfterKey: 600.0]) }
+            return .synchronized(localBookID: membership.localBookID)
+        }
+        await service.refresh()
+        instant.addTimeInterval(61)
+        await service.refresh()
+        #expect(calls == 1)
+        if changeContainer { generation += 1 }
+        else { service.clearStatus(for: membership.localBookID) }
+        await service.refresh()
+        #expect(calls == 2)
+        #expect(service.statuses[membership.localBookID] == .updated(instant))
+    }
+
+    @Test(arguments: [-1.0, 0.0, Double.infinity, Double.nan])
+    func invalidRetryIntervalsDoNotPreventRecovery(delay: Double) async throws {
+        let container = try container()
+        let membership = try member(container)
+        var instant = Date(timeIntervalSince1970: 1_000)
+        var calls = 0
+        let service = SharedBookAutomaticRefresh(configuration: { (container, 1, true) }, now: { instant }) { _, _ in
+            calls += 1
+            if calls == 1 { throw CKError(.serviceUnavailable, userInfo: [CKErrorRetryAfterKey: delay]) }
+            return .synchronized(localBookID: membership.localBookID)
+        }
+        await service.refresh()
+        instant.addTimeInterval(60)
+        await service.refresh()
+        #expect(calls == 2)
+    }
+
     private func container() throws -> ModelContainer {
         try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
     }

@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 import Observation
 import SwiftData
 
@@ -12,6 +13,7 @@ public final class SharedBookAutomaticRefresh {
     public private(set) var isRefreshing = false
     @ObservationIgnored private var generation: Int?
     @ObservationIgnored private var attempted: [String: Date] = [:]
+    @ObservationIgnored private var retryNotBefore: [UUID: Date] = [:]
     @ObservationIgnored private let configuration: @MainActor () -> (ModelContainer?, Int, Bool)
     @ObservationIgnored private let synchronize: @MainActor (SharedBookScope, SharedBookCloudTransport.Role) async throws -> SharedBookSyncCoordinator.Outcome
     @ObservationIgnored private let now: @MainActor () -> Date
@@ -25,6 +27,7 @@ public final class SharedBookAutomaticRefresh {
     /// A successful manual action supersedes any earlier automatic warning.
     public func clearStatus(for bookID: UUID) {
         statuses.removeValue(forKey: bookID)
+        retryNotBefore.removeValue(forKey: bookID)
     }
 
     public func refresh() async {
@@ -32,7 +35,7 @@ public final class SharedBookAutomaticRefresh {
         let (container, version, enabled) = configuration()
         guard enabled, let container else { return }
         if generation != version {
-            generation = version; attempted = [:]; statuses = [:]
+            generation = version; attempted = [:]; statuses = [:]; retryNotBefore = [:]
         }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -47,6 +50,7 @@ public final class SharedBookAutomaticRefresh {
             let groups = Dictionary(grouping: memberships, by: \.scopeKey)
             let liveIDs = Set(memberships.map(\.localBookID))
             statuses = statuses.filter { liveIDs.contains($0.key) }
+            retryNotBefore = retryNotBefore.filter { liveIDs.contains($0.key) }
             attempted = attempted.filter { groups[$0.key] != nil }
             for key in groups.keys.sorted() {
                 guard isCurrent() else { return }
@@ -63,12 +67,14 @@ public final class SharedBookAutomaticRefresh {
                 guard scope.key == key else { statuses[member.localBookID] = .failed; continue }
                 // Multiple windows and saves must not produce bursts of identical requests.
                 let instant = now()
+                if let deadline = retryNotBefore[member.localBookID], instant < deadline { continue }
                 if let last = attempted[key], instant.timeIntervalSince(last) >= 0, instant.timeIntervalSince(last) < 60 { continue }
                 attempted[key] = instant
                 let localID = member.localBookID
                 do {
                     let outcome = try await synchronize(scope, member.isOwner ? .owner : .participant)
                     guard isCurrent() else { return }
+                    retryNotBefore.removeValue(forKey: localID)
                     switch outcome {
                     case .synchronized: statuses[localID] = .updated(now())
                     case .needsReview: statuses[localID] = .needsReview
@@ -82,11 +88,26 @@ public final class SharedBookAutomaticRefresh {
                 } catch {
                     guard isCurrent() else { return }
                     statuses[localID] = .failed
+                    if let delay = Self.retryDelay(for: error) {
+                        // The interval starts when CloudKit returns the error, not
+                        // when the request began. Other books can still refresh.
+                        retryNotBefore[localID] = now().addingTimeInterval(delay)
+                    }
                 }
             }
         } catch {
             // Memberships could not be read: no network operation is started.
             return
         }
+    }
+
+    private static func retryDelay(for error: any Error, depth: Int = 0) -> TimeInterval? {
+        guard depth < 8, let cloud = error as? CKError else { return nil }
+        var delays: [TimeInterval] = []
+        if let delay = cloud.retryAfterSeconds, delay.isFinite, delay > 0 { delays.append(delay) }
+        if let failures = cloud.partialErrorsByItemID {
+            delays += failures.values.compactMap { retryDelay(for: $0, depth: depth + 1) }
+        }
+        return delays.max()
     }
 }
