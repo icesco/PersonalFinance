@@ -46,3 +46,20 @@ la verifica usare soltanto libri sintetici su installazioni concordate:
 
 Registrare per ogni prova piattaforma/build, azioni, risultato osservato e limiti.
 Il superamento dei test con trasporti simulati non sostituisce queste prove.
+
+## Risultato del 6 ottobre 2026
+
+Dopo autorizzazione esplicita dell’utente è stato eseguito sul Mac firmato
+`LiveCloudVerificationTests.syntheticOwnerBookRoundTrip`: **1 superato,
+0 falliti, 0 saltati**. Verificati creazione della condivisione privata senza
+invitati, rilettura dei record e dei dati dell’allegato, aggiornamento di importo
+e nome dell’allegato, e cancellazione finale della zona sintetica.
+
+Risultato locale: `/private/tmp/forgia-live-cloud-authorized.xcresult`.
+Log: `/private/tmp/forgia-live-cloud-authorized.log`. Lo schema temporaneo con
+l’opzione di attivazione è stato rimosso al termine; lo schema condiviso resta
+senza questa opzione. L’archivio personale non è stato utilizzato.
+
+Questa prova dimostra il round trip CloudKit del proprietario, non la
+sincronizzazione privata SwiftData tra dispositivi o la partecipazione da
+un secondo account.

@@ -16,7 +16,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Posizione | `PlaceDraftTests`, `testManualPlaceDraftCanBeCancelled`, `SingleLocationRequest` | Nome manuale e persistenza verificati. Richiesta reale, rifiuto del permesso e precisione della posizione non ancora provati. |
 | Multivaluta | `CurrencyConversionTests`, `ForeignAmountDraftTests`, `testForeignAmountIsConvertedBeforeSaving`; download BCE manuale su Mac | Conversione, arrotondamento, tasso fissato e provenienza coperti. Download/applicazione/riapertura verificati su Mac con bozza sintetica; nessun movimento salvato. |
 | iCloud privato | `CloudConfigurationTests`, `CloudLifecycleTests`, `CloudSyncProgressTests`, migrazione locale | Prove locali e servizi simulati. Sincronizzazione SwiftData tra due dispositivi dello stesso account non ancora dimostrata. |
-| Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | CloudKit reale e invito tra due account ancora da eseguire. Procedura in `CLOUD_VERIFICATION.md`. Il test live è disattivato. |
+| Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | Round trip CloudKit reale del proprietario superato con dati sintetici e pulizia finale. Invito e sincronizzazione tra due account ancora da verificare; procedura in `CLOUD_VERIFICATION.md`. Il test live resta disattivato per impostazione predefinita. |
 | Mac nativo | Build firmata e firma verificata; archivio locale aperto; navigazione, finestre e comandi provati; `MacPrivacyWindowTests` | La suite Mac usa dati in memoria. Il suo successo non prova sincronizzazione cloud o Touch ID reale. |
 | Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti. Widget installato e aggiornamento della timeline sulla superficie di sistema ancora da verificare. |
 | Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Esecuzione da Comandi Rapidi/Siri ancora non dimostrata. |
@@ -88,12 +88,14 @@ non contiene azioni e non è stato eseguito.
 
 ## Passi necessari prima di dichiarare completato l’obiettivo
 
-1. Eseguire la prova CloudKit sintetica autorizzata e completare le prove tra
-   dispositivi/account descritte in `CLOUD_VERIFICATION.md`.
+1. Completare le prove tra dispositivi/account descritte in
+   `CLOUD_VERIFICATION.md`; il round trip sintetico del proprietario è superato.
 2. Provare le superfici reali: widget, Comandi Rapidi/Siri, Watch abbinato,
    autenticazione biometrica e promemoria.
 3. Verificare acquisizione scontrino/documento e posizione su richiesta nel
    flusso utente, usando dati di prova concordati.
 4. Correggere eventuali errori emersi e conservare evidenza per ciascun percorso.
 
-Nessuna release o condivisione di dati personali è autorizzata da questo audit.
+La prova cloud con soli dati sintetici è stata autorizzata esplicitamente il
+6 ottobre. Nessuna release o trasmissione di dati personali è autorizzata da
+questo audit.
