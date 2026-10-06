@@ -14,7 +14,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Calcolatrice | `AmountCalculatorTests`, `testCalculatorAppliesAmountWithoutSaving` | Calcolo e applicazione alla bozza verificati; la prova UI non salva movimenti reali. |
 | Allegati e scontrini | `AttachmentDraftTests`, `AttachmentPersistenceTests`, `ReceiptReaderTests`, `MacReceiptReaderTests` | Immagini e PDF sintetici, inclusa pagina con testo e scansione, verificati su Mac/iOS. Fotocamera e selezione documenti da provare sul dispositivo. |
 | Posizione | `PlaceDraftTests`, `testManualPlaceDraftCanBeCancelled`, `SingleLocationRequest` | Nome manuale e persistenza verificati. Richiesta reale, rifiuto del permesso e precisione della posizione non ancora provati. |
-| Multivaluta | `CurrencyConversionTests`, `ForeignAmountDraftTests`, `testForeignAmountIsConvertedBeforeSaving` | Conversione, arrotondamento, tasso fissato e provenienza coperti. Download BCE nel flusso utente ancora da verificare. |
+| Multivaluta | `CurrencyConversionTests`, `ForeignAmountDraftTests`, `testForeignAmountIsConvertedBeforeSaving`; download BCE manuale su Mac | Conversione, arrotondamento, tasso fissato e provenienza coperti. Download/applicazione/riapertura verificati su Mac con bozza sintetica; nessun movimento salvato. |
 | iCloud privato | `CloudConfigurationTests`, `CloudLifecycleTests`, `CloudSyncProgressTests`, migrazione locale | Prove locali e servizi simulati. Sincronizzazione SwiftData tra due dispositivi dello stesso account non ancora dimostrata. |
 | Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | CloudKit reale e invito tra due account ancora da eseguire. Procedura in `CLOUD_VERIFICATION.md`. Il test live è disattivato. |
 | Mac nativo | Build firmata e firma verificata; archivio locale aperto; navigazione, finestre e comandi provati; `MacPrivacyWindowTests` | La suite Mac usa dati in memoria. Il suo successo non prova sincronizzazione cloud o Touch ID reale. |
@@ -45,14 +45,25 @@ I log e gli `.xcresult` sono artefatti locali temporanei, non allegati permanent
 al repository. Questi conteggi descrivono le esecuzioni osservate, non una
 promessa sulle modifiche successive.
 
+### Download BCE nel flusso Mac
+
+Il 6 ottobre, nella build firmata avviata con `UITEST_MAC_LOCAL` e
+`-CloudSyncEnabled NO`: Nuova spesa → Importo in valuta estera → 100 USD →
+Scarica tasso BCE. L’interfaccia ha mostrato `89,25 EUR`, tasso
+`0.8925383791503034630489111031774366`, data `2026-10-05`. Dopo Usa importo,
+la bozza mostrava `89,25`; riaprendo la conversione, importo originale, tasso e
+provenienza erano conservati. Conversione e bozza annullate, sessione chiusa
+con codice 0. È evidenza del percorso osservato, non una quotazione garantita
+per altre date.
+
 ## Passi necessari prima di dichiarare completato l’obiettivo
 
 1. Eseguire la prova CloudKit sintetica autorizzata e completare le prove tra
    dispositivi/account descritte in `CLOUD_VERIFICATION.md`.
 2. Provare le superfici reali: widget, Comandi Rapidi/Siri, Watch abbinato,
    autenticazione biometrica e promemoria.
-3. Verificare acquisizione scontrino/documento, posizione su richiesta e download
-   del tasso nel flusso utente, usando dati di prova concordati.
+3. Verificare acquisizione scontrino/documento e posizione su richiesta nel
+   flusso utente, usando dati di prova concordati.
 4. Correggere eventuali errori emersi e conservare evidenza per ciascun percorso.
 
 Nessuna release o condivisione di dati personali è autorizzata da questo audit.
