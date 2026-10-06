@@ -33,7 +33,7 @@ struct SpendingOverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Dove spendi")
                         .font(.system(size: 36, weight: .semibold, design: .serif))
@@ -42,71 +42,93 @@ struct SpendingOverviewView: View {
                         .font(.subheadline)
                         .foregroundStyle(ForgiaPalette.mutedText)
                 }
-                .padding(.top, 12)
+                .padding(.top, 26)
+                .padding(.horizontal, 22)
 
-                periodPicker
+                Section {
+                    VStack(alignment: .leading, spacing: 24) {
+                        InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
 
-                InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
-
-                if report.expenses > 0 {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Ricorrenti e variabili").font(.headline)
-                        periodAmount("Ricorrenti", amount: report.recurring)
-                        periodAmount("Variabili", amount: report.variable)
-                        Text("Solo spese registrate nel periodo selezionato; le ricorrenze sono quelle contrassegnate da te.")
-                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                    }.unifiedCard()
-                    categoryDistributionCard
-                    VStack(alignment: .leading, spacing: 20) {
-                        HStack {
-                            Text("Categorie")
-                                .font(.system(.title3, design: .serif, weight: .semibold))
-                            Spacer()
-                            Text("Spesa registrata")
-                                .font(.caption)
+                        if report.expenses > 0 {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Ricorrenti e variabili").font(.headline)
+                                periodAmount("Ricorrenti", amount: report.recurring)
+                                periodAmount("Variabili", amount: report.variable)
+                                Text("Solo spese registrate nel periodo selezionato; le ricorrenze sono quelle contrassegnate da te.")
+                                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                            }.unifiedCard()
+                            categoryDistributionCard
+                            VStack(alignment: .leading, spacing: 20) {
+                                HStack {
+                                    Text("Categorie")
+                                        .font(.system(.title3, design: .serif, weight: .semibold))
+                                    Spacer()
+                                    Text("Spesa registrata")
+                                        .font(.caption)
+                                        .foregroundStyle(ForgiaPalette.mutedText)
+                                }
+                                ForEach(Array(report.categories.enumerated()), id: \.offset) { index, category in
+                                    if let categoryID = category.categoryID {
+                                        NavigationLink {
+                                            TransactionListView(initialCategoryID: categoryID,
+                                                                initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())), expensesOnly: true, scopeContoIDs: scopeContoIDs)
+                                                #if os(iOS)
+                                                .toolbar(.visible, for: .navigationBar)
+                                                #endif
+                                        } label: {
+                                            categoryRow(category, index: index)
+                                        }.buttonStyle(.plain)
+                                    } else {
+                                        categoryRow(category, index: index)
+                                    }
+                                }
+                            }
+                        } else {
+                            Text("Non ci sono uscite registrate nel periodo. Importa i movimenti per vedere la ripartizione per categoria.")
+                                .font(.subheadline)
                                 .foregroundStyle(ForgiaPalette.mutedText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .unifiedCard()
                         }
-                        ForEach(Array(report.categories.enumerated()), id: \.offset) { index, category in
-                            if let categoryID = category.categoryID {
-                                NavigationLink {
-                                    TransactionListView(initialCategoryID: categoryID,
-                                                        initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())), expensesOnly: true, scopeContoIDs: scopeContoIDs)
-                                        #if os(iOS)
-                                        .toolbar(.visible, for: .navigationBar)
-                                        #endif
-                                } label: {
-                                    categoryRow(category, index: index)
-                                }.buttonStyle(.plain)
-                            } else {
-                                categoryRow(category, index: index)
+
+                        if report.previousExpenses > 0 {
+                            comparisonCard
+                            if !report.increases.isEmpty {
+                                increaseCard
                             }
                         }
-                    }
-                } else {
-                    Text("Non ci sono uscite registrate nel periodo. Importa i movimenti per vedere la ripartizione per categoria.")
-                        .font(.subheadline)
-                        .foregroundStyle(ForgiaPalette.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .unifiedCard()
-                }
 
-                if report.previousExpenses > 0 {
-                    comparisonCard
-                    if !report.increases.isEmpty {
-                        increaseCard
+                        Text("I trasferimenti tra i tuoi conti sono esclusi. I valori dipendono dai movimenti importati o registrati.")
+                            .font(.caption)
+                            .foregroundStyle(ForgiaPalette.mutedText)
+                            .padding(.horizontal, 4)
                     }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 8)
+                    .padding(.bottom, 28)
+                } header: {
+                    SpendingPeriodBar(
+                        period: $period,
+                        title: periodTitle,
+                        coverage: "\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))",
+                        canMoveForward: interval.end <= Date(),
+                        move: movePeriod,
+                        chooseCustom: { showingCustomPeriod = true }
+                    )
                 }
-
-                Text("I trasferimenti tra i tuoi conti sono esclusi. I valori dipendono dai movimenti importati o registrati.")
-                    .font(.caption)
-                    .foregroundStyle(ForgiaPalette.mutedText)
-                    .padding(.horizontal, 4)
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 14)
-            .padding(.bottom, 28)
         }
         .themedBackground()
+        .overlay(alignment: .top) {
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .frame(height: geometry.safeAreaInsets.top)
+                    .offset(y: -geometry.safeAreaInsets.top)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
         .sheet(isPresented: $showingCustomPeriod) {
             SpendingDateRangeEditor(start: customStart, end: customEnd) { start, end in
                 customStart = start
@@ -124,46 +146,12 @@ struct SpendingOverviewView: View {
                        color: SpendingChartPalette.color(at: index), total: report.expenses)
     }
 
-    private var periodPicker: some View {
-        VStack(spacing: 12) {
-            Menu {
-                ForEach(SpendingAnalysisPeriod.allCases, id: \.self) { value in
-                    Button { period = value } label: {
-                        if period == value { Label(value.displayName, systemImage: "checkmark") }
-                        else { Text(value.displayName) }
-                    }
-                }
-                Divider()
-                Button("Personalizzato…") { showingCustomPeriod = true }
-            } label: {
-                Label(period?.displayName ?? "Personalizzato", systemImage: "calendar")
-            }
-            .accessibilityIdentifier("analysis-period-picker")
-            HStack {
-                if period != nil {
-                    Button { movePeriod(-1) } label: { Image(systemName: "chevron.left") }
-                        .accessibilityLabel("Periodo precedente")
-                }
-                Spacer()
-                Text(periodTitle).font(.headline)
-                    .multilineTextAlignment(.center)
-                Spacer()
-                if period != nil {
-                    Button { movePeriod(1) } label: { Image(systemName: "chevron.right") }
-                        .accessibilityLabel("Periodo successivo")
-                        .disabled(interval.end > Date())
-                }
-            }
-            Text("\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))")
-                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-        }.unifiedCard()
-    }
-
     private var periodTitle: String {
         switch period {
         case .month: anchor.formatted(.dateTime.month(.wide).year().locale(locale))
         case .year: anchor.formatted(.dateTime.year().locale(locale))
-        case .week, .quarter, nil:
+        case .quarter: "\((Calendar.current.component(.month, from: anchor) - 1) / 3 + 1)° trimestre · \(anchor.formatted(.dateTime.year().locale(locale)))"
+        case .week, nil:
             "\(formattedDay(interval.start)) – \(formattedDay(interval.end.addingTimeInterval(-1)))"
         }
     }
@@ -364,5 +352,71 @@ private struct SpendingDateRangeEditor: View {
         #if os(macOS)
         .frame(minWidth: 380, minHeight: 300)
         #endif
+    }
+}
+
+private struct SpendingPeriodBar: View {
+    @Binding var period: SpendingAnalysisPeriod?
+    let title: String
+    let coverage: String
+    let canMoveForward: Bool
+    let move: (Int) -> Void
+    let chooseCustom: () -> Void
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 8) {
+                if period != nil {
+                    Button { move(-1) } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .background(ForgiaPalette.surface, in: Circle())
+                    }
+                    .accessibilityLabel("Periodo precedente")
+                }
+                Spacer(minLength: 0)
+                Menu {
+                    ForEach(SpendingAnalysisPeriod.allCases, id: \.self) { value in
+                        Button { period = value } label: {
+                            if period == value { Label(value.displayName, systemImage: "checkmark") }
+                            else { Text(value.displayName) }
+                        }
+                    }
+                    Divider()
+                    Button("Personalizzato…", action: chooseCustom)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(.title3, design: .serif, weight: .semibold))
+                            .multilineTextAlignment(.center)
+                        Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                    }
+                    .frame(minHeight: 44)
+                }
+                .accessibilityIdentifier("analysis-period-picker")
+                Spacer(minLength: 0)
+                if period != nil {
+                    Button { move(1) } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .background(ForgiaPalette.surface, in: Circle())
+                    }
+                    .accessibilityLabel("Periodo successivo")
+                    .disabled(!canMoveForward)
+                    .opacity(canMoveForward ? 1 : 0.4)
+                }
+            }
+            Text(coverage)
+                .font(.caption)
+                .foregroundStyle(ForgiaPalette.mutedText)
+                .multilineTextAlignment(.center)
+        }
+        .tint(ForgiaPalette.accent)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
     }
 }
