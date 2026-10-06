@@ -302,54 +302,55 @@ struct TransactionListView: View {
 
     private var unifiedFiltersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                Menu {
-                    Picker("Tipo di movimento", selection: $selectedType) {
-                        ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
-                            Text(type.displayName).tag(type)
+            GlassEffectContainer(spacing: 0) {
+                HStack(spacing: 6) {
+                    Menu {
+                        Picker("Tipo di movimento", selection: $selectedType) {
+                            ForEach(TransactionTypeFilter.allCases, id: \.self) { type in
+                                Text(type.displayName).tag(type)
+                            }
                         }
-                    }
-                } label: {
-                    Label(selectedType == .all ? "Tipo" : selectedType.displayName, systemImage: "line.3.horizontal.decrease")
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 44)
-                        .background(selectedType == .all ? ForgiaPalette.surface : ForgiaPalette.sageSurface, in: Capsule())
-                }
-
-                Menu {
-                    Button("Tutti i conti") { selectedConto = nil }
-                    ForEach(availableConti, id: \.id) { conto in
-                        Button(conto.name ?? "Conto") { selectedConto = conto }
-                    }
-                    if let conto = selectedConto ?? initialConto {
-                        Divider()
-                        NavigationLink {
-                            BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id)
-                        } label: {
-                            Label("Saldo storico del conto", systemImage: "chart.xyaxis.line")
-                        }
-                    }
-                } label: {
-                    Label(selectedConto?.name ?? "Conto", systemImage: "creditcard")
-                        .font(.subheadline.weight(selectedConto == nil ? .regular : .semibold))
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 44)
-                        .background(selectedConto == nil ? ForgiaPalette.surface : ForgiaPalette.sageSurface, in: Capsule())
-                }
-
-                categoryFilterButton
-                if activeFiltersCount > 0 {
-                    Button { clearAllFilters() } label: {
-                        Label("Azzera", systemImage: "xmark.circle")
+                    } label: {
+                        Label(selectedType == .all ? "Tipo" : selectedType.displayName, systemImage: "line.3.horizontal.decrease")
                             .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .frame(minHeight: 44)
-                            .background(ForgiaPalette.surface, in: Capsule())
+                            .frame(minHeight: 30)
+                    }
+                    .tint(selectedType == .all ? nil : ForgiaPalette.accent)
+
+                    Menu {
+                        Button("Tutti i conti") { selectedConto = nil }
+                        ForEach(availableConti, id: \.id) { conto in
+                            Button(conto.name ?? "Conto") { selectedConto = conto }
+                        }
+                        if let conto = selectedConto ?? initialConto {
+                            Divider()
+                            NavigationLink {
+                                BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id)
+                            } label: {
+                                Label("Saldo storico del conto", systemImage: "chart.xyaxis.line")
+                            }
+                        }
+                    } label: {
+                        Label(selectedConto?.name ?? "Conto", systemImage: "creditcard")
+                            .font(.subheadline.weight(selectedConto == nil ? .regular : .semibold))
+                            .frame(minHeight: 30)
+                    }
+                    .tint(selectedConto == nil ? nil : ForgiaPalette.accent)
+
+                    categoryFilterButton
+                    if activeFiltersCount > 0 {
+                        Button { clearAllFilters() } label: {
+                            Label("Azzera", systemImage: "xmark.circle")
+                                .font(.subheadline)
+                                .frame(minHeight: 30)
+                        }
                     }
                 }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.capsule)
+                .controlSize(.regular)
+                .foregroundStyle(ForgiaPalette.accent)
             }
-            .foregroundStyle(ForgiaPalette.accent)
         }
         .padding(.vertical, 6)
     }
@@ -362,13 +363,11 @@ struct TransactionListView: View {
                 Image(systemName: "chevron.down").font(.caption2)
             }
             .font(.subheadline)
+            .frame(minHeight: 30)
             .fontWeight(selectedCategories.isEmpty ? .regular : .semibold)
-            .padding(.horizontal, 12)
-            .frame(minHeight: 44)
-            .background(selectedCategories.isEmpty ? ForgiaPalette.surface : ForgiaPalette.sageSurface)
             .foregroundStyle(selectedCategories.isEmpty ? Color.primary : ForgiaPalette.accent)
-            .clipShape(Capsule())
         }
+        .tint(selectedCategories.isEmpty ? nil : ForgiaPalette.accent)
     }
 
     // MARK: - Sectioning Logic
