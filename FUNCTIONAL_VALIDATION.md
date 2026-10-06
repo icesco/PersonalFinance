@@ -21,7 +21,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti. Widget installato e aggiornamento della timeline sulla superficie di sistema ancora da verificare. |
 | Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Esecuzione da Comandi Rapidi/Siri ancora non dimostrata. |
 | Apple Watch | `WatchDraftTests`, `RemoteExpenseTests`; protocollo, mailbox e flusso offline | Una prova su simulatore non dimostra consegna WatchConnectivity su coppia fisica, conferma di salvataggio e complicazioni installate. |
-| Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Blocco e sblocco Face ID al ritorno dalla Home confermati dall’utente su iPhone. Touch ID, annullamento e fallback reali ancora da provare. |
+| Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Blocco, sblocco Face ID al ritorno dalla Home e conservazione della bozza confermati dall’utente su iPhone. Touch ID, annullamento e fallback reali ancora da provare. |
 | Assistenza proattiva verificabile | `SpendingDirectionTests`, `SpendingDirectionInputsTests`, `RecordedSpendingReportTests` | Dati vecchi/incompleti, fondi maturati, impegni futuri, debito e trasferimenti coperti. Le stime rimangono condizionate ai dati registrati. |
 
 ## Risultati e ambito
@@ -70,9 +70,11 @@ non è ancora stato confermato.
 Nella successiva prova guidata l’utente ha confermato il funzionamento di Face ID:
 attivazione di Blocca Forgia in Impostazioni → Privacy, passaggio alla Home e
 ritorno nell’app con blocco e successivo sblocco tramite riconoscimento.
-Anche questa è evidenza riportata dall’utente sul dispositivo fisico. Non copre
-annullamento, fallback alle credenziali del dispositivo, Touch ID su Mac o
-conservazione di una bozza durante una prova biometrica reale.
+L’utente ha inoltre confermato il superamento della prova con una bozza da
+12,50: passaggio alla Home, ritorno e sblocco Face ID, importo ancora presente,
+quindi annullamento senza salvataggio. Anche queste sono evidenze riportate
+dall’utente sul dispositivo fisico. Restano da verificare annullamento
+dell’autenticazione, fallback alle credenziali del dispositivo e Touch ID su Mac.
 
 ### Download BCE nel flusso Mac
 
