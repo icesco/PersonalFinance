@@ -334,6 +334,7 @@ final class Personal_FinanceUITests: XCTestCase {
     @MainActor
     func testPlanningNavigation() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["-showAllAccounts", "YES", "-CloudSyncEnabled", "NO"]
         app.launch()
         if app.buttons["Esplora con dati demo"].waitForExistence(timeout: 3) {
             app.buttons["Esplora con dati demo"].tap()
@@ -341,6 +342,13 @@ final class Personal_FinanceUITests: XCTestCase {
         let planning = app.tabBars.buttons["Pianifica"]
         XCTAssertTrue(planning.waitForExistence(timeout: 15))
         planning.tap()
+        let chooseBook = app.buttons["Scegli un libro per gestire i budget"]
+        if chooseBook.exists {
+            chooseBook.tap()
+            let demoBook = app.buttons.containing(.staticText, identifier: "Demo").firstMatch
+            XCTAssertTrue(demoBook.waitForExistence(timeout: 5))
+            demoBook.tap()
+        }
         let budgets = app.buttons["planning-budgets"]
         XCTAssertTrue(budgets.waitForExistence(timeout: 5))
         capture(app, name: "Pianifica conti e scadenze")
