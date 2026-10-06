@@ -276,8 +276,7 @@ struct TransactionListView: View {
     // MARK: - Compact Period Header
 
     private var isAtCurrentPeriod: Bool {
-        let granularity: Calendar.Component = selectedTimeframe == .month ? .month : .year
-        return Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: granularity)
+        selectedTimeframe.interval(containing: selectedMonth).end > Date()
     }
 
     private var periodBalance: Decimal {
@@ -287,25 +286,14 @@ struct TransactionListView: View {
     private var balanceExplanation: String {
         let hasFuture = transactions.contains { $0.date > Date() }
         if initialInterval != nil { return "Bilancio del periodo selezionato" }
-        if selectedTimeframe == .month {
-            return hasFuture
-                ? "Bilancio previsto a fine mese, incluse transazioni future"
-                : "Bilancio del mese"
-        } else {
-            return hasFuture
-                ? "Bilancio previsto per l'anno, incluse transazioni future"
-                : "Bilancio dell'anno"
-        }
+        return hasFuture ? "\(selectedTimeframe.balanceTitle) · inclusi movimenti futuri" : selectedTimeframe.balanceTitle
     }
 
     private var compactPeriodHeader: some View {
         VStack(spacing: 2) {
             HStack(spacing: 8) {
                 Button {
-                    let component: Calendar.Component = selectedTimeframe == .month ? .month : .year
-                    withAnimation {
-                        selectedMonth = Calendar.current.date(byAdding: component, value: -1, to: selectedMonth) ?? selectedMonth
-                    }
+                    withAnimation { selectedMonth = selectedTimeframe.moving(selectedMonth, by: -1) }
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.subheadline.weight(.semibold))
@@ -323,7 +311,7 @@ struct TransactionListView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text(selectedMonth, format: selectedTimeframe == .month ? .dateTime.month(.wide).year() : .dateTime.year())
+                        Text(selectedTimeframe.title(containing: selectedMonth))
                             .font(.system(.title3, design: .serif, weight: .semibold))
                         Image(systemName: "chevron.down").font(.caption.weight(.semibold))
                     }.frame(minHeight: 44)
@@ -333,10 +321,7 @@ struct TransactionListView: View {
                 Spacer()
 
                 Button {
-                    let component: Calendar.Component = selectedTimeframe == .month ? .month : .year
-                    withAnimation {
-                        selectedMonth = Calendar.current.date(byAdding: component, value: 1, to: selectedMonth) ?? selectedMonth
-                    }
+                    withAnimation { selectedMonth = selectedTimeframe.moving(selectedMonth, by: 1) }
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.subheadline.weight(.semibold))
@@ -460,8 +445,8 @@ struct TransactionListView: View {
     // MARK: - Sectioning Logic
 
     private var sectionedTransactions: [TransactionSection] {
-        if selectedTimeframe == .year {
-            return buildYearSections()
+        if selectedTimeframe != .month {
+            return buildMultiMonthSections()
         } else {
             return buildMonthSections()
         }
@@ -494,7 +479,7 @@ struct TransactionListView: View {
         }
     }
 
-    private func buildYearSections() -> [TransactionSection] {
+    private func buildMultiMonthSections() -> [TransactionSection] {
         let calendar = Calendar.current
         let now = Date()
         let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now)!)
@@ -713,9 +698,7 @@ struct TransactionListView: View {
             } else if selectedConto != nil {
                 Text("Nessuna transazione per questo conto")
             } else {
-                Text(selectedTimeframe == .year
-                     ? "Nessuna transazione per questo anno"
-                     : "Nessuna transazione per questo mese")
+                Text("Nessuna transazione nel periodo selezionato")
             }
         } actions: {
             VStack(spacing: 12) {
@@ -745,22 +728,9 @@ struct TransactionListView: View {
 
         isLoading = true
 
-        let calendar = Calendar.current
-        let periodStart: Date
-        let periodEnd: Date
-
-        if let initialInterval {
-            periodStart = initialInterval.start
-            periodEnd = initialInterval.end
-        } else if selectedTimeframe == .year {
-            let yearStart = calendar.date(from: calendar.dateComponents([.year], from: selectedMonth))!
-            periodStart = yearStart
-            periodEnd = calendar.date(byAdding: .year, value: 1, to: yearStart)!
-        } else {
-            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-            periodStart = startOfMonth
-            periodEnd = calendar.date(byAdding: .month, value: 1, to: startOfMonth)!
-        }
+        let period = initialInterval ?? selectedTimeframe.interval(containing: selectedMonth)
+        let periodStart = period.start
+        let periodEnd = period.end
 
         // Get conto IDs to filter
         let contoIDs: Set<UUID>
@@ -845,7 +815,7 @@ struct TransactionListView: View {
 
     private func resetAndFetch() {
         selectedTransactions.removeAll()
-        currentLimit = selectedTimeframe == .year ? pageSize * 4 : pageSize
+        currentLimit = selectedTimeframe == .month || selectedTimeframe == .week ? pageSize : pageSize * 4
         fetchTransactions()
     }
 
@@ -1195,12 +1165,63 @@ enum TransactionTypeFilter: CaseIterable {
 // MARK: - Transaction Timeframe
 
 enum TransactionTimeframe: String, CaseIterable {
-    case month, year
+    case week, month, quarter, halfYear, year
 
     var displayName: String {
         switch self {
-        case .month: return "Mese"
-        case .year: return "Anno"
+        case .week: "Settimana"
+        case .month: "Mese"
+        case .quarter: "Trimestre"
+        case .halfYear: "Semestre"
+        case .year: "Anno"
+        }
+    }
+
+    var balanceTitle: String {
+        switch self {
+        case .week: "Bilancio della settimana"
+        case .month: "Bilancio del mese"
+        case .quarter: "Bilancio del trimestre"
+        case .halfYear: "Bilancio del semestre"
+        case .year: "Bilancio dell’anno"
+        }
+    }
+
+    private var monthCount: Int {
+        switch self {
+        case .week, .month: 1
+        case .quarter: 3
+        case .halfYear: 6
+        case .year: 12
+        }
+    }
+
+    /// Calendar-aligned, half-open ranges; never fixed multiples of seconds.
+    func interval(containing date: Date, calendar: Calendar = .current) -> DateInterval {
+        if self == .week { return calendar.dateInterval(of: .weekOfYear, for: date)! }
+        let yearStart = calendar.dateInterval(of: .year, for: date)!.start
+        let month = calendar.component(.month, from: date)
+        let offset = ((month - 1) / monthCount) * monthCount
+        let start = calendar.date(byAdding: .month, value: offset, to: yearStart)!
+        return DateInterval(start: start, end: calendar.date(byAdding: .month, value: monthCount, to: start)!)
+    }
+
+    func moving(_ date: Date, by offset: Int, calendar: Calendar = .current) -> Date {
+        let start = interval(containing: date, calendar: calendar).start
+        return calendar.date(byAdding: self == .week ? .weekOfYear : .month,
+                             value: self == .week ? offset : offset * monthCount, to: start)!
+    }
+
+    func title(containing date: Date, calendar: Calendar = .current, locale: Locale = Locale(identifier: "it_IT")) -> String {
+        let range = interval(containing: date, calendar: calendar)
+        let year = date.formatted(.dateTime.year().locale(locale))
+        switch self {
+        case .week:
+            return "\(range.start.formatted(.dateTime.day().month(.abbreviated).locale(locale))) – \(range.end.addingTimeInterval(-1).formatted(.dateTime.day().month(.abbreviated).year().locale(locale)))"
+        case .month: return date.formatted(.dateTime.month(.wide).year().locale(locale))
+        case .quarter: return "\((calendar.component(.month, from: date) - 1) / 3 + 1)° trimestre · \(year)"
+        case .halfYear: return "\((calendar.component(.month, from: date) - 1) / 6 + 1)° semestre · \(year)"
+        case .year: return year
         }
     }
 }
