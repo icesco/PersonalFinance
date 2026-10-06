@@ -24,10 +24,12 @@ enum ReceiptReader {
                     try Task.checkCancellation()
                     guard let page = document.page(at: index) else { continue }
                     let selectable = page.string ?? ""
-                    if !selectable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let hasSelectableText = !selectable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    if hasSelectableText {
                         pages.append(selectable)
-                        continue
                     }
+                    // A selectable header can share a page with a scanned receipt.
+                    // Recognize the rendered page too, retaining the exact PDF text.
                     // Bound memory even for unusually large scans. PDFKit handles page rotation.
                     let bounds = page.bounds(for: .mediaBox)
                     guard bounds.width > 0, bounds.height > 0,
@@ -40,7 +42,18 @@ enum ReceiptReader {
                     let image = thumbnail.cgImage(forProposedRect: nil, context: nil, hints: nil)
                     #endif
                     guard let image else { continue }
-                    pages.append(try recognize(VNImageRequestHandler(cgImage: image)))
+                    do {
+                        let recognized = try recognize(VNImageRequestHandler(cgImage: image))
+                        let existing = Set(selectable.components(separatedBy: .newlines).map(normalizedLine))
+                        let additional = recognized.components(separatedBy: .newlines)
+                            .filter { !existing.contains(normalizedLine($0)) }
+                        pages.append(additional.joined(separator: "\n"))
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        // OCR failure must not discard usable selectable text.
+                        if !hasSelectableText { throw error }
+                    }
                 }
                 try Task.checkCancellation()
                 let text = pages.joined(separator: "\n")
@@ -62,6 +75,10 @@ enum ReceiptReader {
             try Task.checkCancellation()
             return result
         } onCancel: { work.cancel() }
+    }
+
+    private static func normalizedLine(_ line: String) -> String {
+        line.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
     }
 
     private static func recognize(_ handler: VNImageRequestHandler) throws -> String {
