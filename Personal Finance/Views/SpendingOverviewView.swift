@@ -42,6 +42,7 @@ struct SpendingOverviewView: View {
                         .font(.subheadline)
                         .foregroundStyle(ForgiaPalette.mutedText)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 26)
                 .padding(.horizontal, 22)
 
@@ -124,6 +125,9 @@ struct SpendingOverviewView: View {
                 customEnd = end
                 period = nil
             }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationContentInteraction(.scrolls)
         }
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
@@ -376,6 +380,9 @@ private struct SpendingPeriodBar: View {
                     Button("Personalizzato…", action: chooseCustom)
                 } label: {
                     HStack(spacing: 6) {
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .hidden()
                         Text(title)
                             .font(.system(.title3, design: .serif, weight: .semibold))
                             .multilineTextAlignment(.center)
