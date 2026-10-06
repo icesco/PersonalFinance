@@ -9,7 +9,7 @@ struct TransactionAddButtonModifier: ViewModifier {
             if isVisible {
                 TransactionAddButton()
                     .padding(.trailing, 20)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 16)
             }
         }
     }
@@ -34,9 +34,9 @@ private struct TransactionAddButton: View {
         } label: {
             Label("Aggiungi movimento", systemImage: "plus")
                 .labelStyle(.iconOnly)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
+                .frame(width: 52, height: 52)
                 .glassEffect(.regular.tint(ForgiaPalette.accent).interactive(), in: .circle)
         }
         .buttonStyle(.plain)

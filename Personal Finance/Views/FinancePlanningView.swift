@@ -160,8 +160,6 @@ struct FinancePlanningView: View {
                 .frame(maxWidth: .infinity)
             }
             .themedBackground()
-            .navigationTitle("Pianifica")
-            .toolbarTitleDisplayMode(.inline)
             .modifier(TransactionAddButtonModifier())
             .confirmationDialog("Gestisci scadenza", isPresented: Binding(
                 get: { selectedOccurrence != nil }, set: { if !$0 { selectedOccurrence = nil } }
