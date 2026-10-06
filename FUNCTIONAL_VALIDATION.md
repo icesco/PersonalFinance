@@ -45,6 +45,20 @@ I log e gli `.xcresult` sono artefatti locali temporanei, non allegati permanent
 al repository. Questi conteggi descrivono le esecuzioni osservate, non una
 promessa sulle modifiche successive.
 
+### Prova su iPhone fisico
+
+Il 6 ottobre su iPhone 16 Pro Max con iOS 27.0.1 sono passati i test mirati
+`ReceiptReaderTests` e `AppLockTests`: **7 funzioni, 8 esecuzioni, 0 errori,
+0 saltati**. L’OCR include una prova parametrizzata su PDF misti. Il blocco
+usa un autenticatore simulato: non è una prova Face ID. La sessione usa
+`UITEST_MAC_LOCAL` e cloud disattivato, con archivio sintetico in memoria.
+
+Risultato locale:
+`/private/tmp/forgia-physical-verification-dd/Logs/Test/Test-Forgia Mac Tests-2026.10.06_11-15-58-+0200.xcresult`.
+Il profilo widget inizialmente privo di App Group è stato risolto tramite
+aggiornamento automatico dei profili Xcode. Nessun entitlement è stato rimosso.
+Fotocamera, Face ID e interazioni visive sul dispositivo restano da verificare.
+
 ### Download BCE nel flusso Mac
 
 Il 6 ottobre, nella build firmata avviata con `UITEST_MAC_LOCAL` e
