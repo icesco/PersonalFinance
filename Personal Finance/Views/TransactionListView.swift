@@ -31,7 +31,6 @@ struct TransactionListView: View {
     @State private var showingCategoryFilter = false
     @State private var selectedTimeframe: TransactionTimeframe = .month
     @State private var showSummaryDetail = false
-    @State private var isSearching = false
     @State private var transactionToEdit: FinanceTransaction?
     @State private var transactionToDelete: FinanceTransaction?
     @State private var showingDeleteAlert = false
@@ -115,21 +114,15 @@ struct TransactionListView: View {
                     } else {
                         compactPeriodHeader
                     }
-                    HStack(spacing: 8) {
-                        unifiedFiltersBar
-                        Button {
-                            withAnimation { isSearching.toggle() }
-                            if !isSearching { searchText = "" }
-                        } label: { Image(systemName: "magnifyingglass")
-                            .frame(width: 44, height: 44)
-                            .background(isSearching ? ForgiaPalette.sageSurface : ForgiaPalette.surface, in: Circle()) }
-                        .accessibilityLabel("Cerca movimenti")
-                    }.padding(.horizontal, 16)
-                    if isSearching {
-                        TransactionSearchField(text: $searchText) {
-                            searchText = ""
-                            isSearching = false
-                        }
+                    TransactionSearchField(text: $searchText)
+                    unifiedFiltersBar.padding(.horizontal, 16)
+                    if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text("\(totalCount) risultati nel periodo selezionato")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
                     }
                 }
             }
@@ -627,7 +620,9 @@ struct TransactionListView: View {
         ContentUnavailableView {
             Label("Nessuna transazione", systemImage: "list.bullet.rectangle")
         } description: {
-            if !selectedCategories.isEmpty {
+            if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Nessun risultato per questa ricerca nel periodo e nei filtri selezionati.")
+            } else if !selectedCategories.isEmpty {
                 Text("Nessuna transazione per le categorie selezionate")
             } else if selectedConto != nil {
                 Text("Nessuna transazione per questo conto")
@@ -641,6 +636,9 @@ struct TransactionListView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
+                if !searchText.isEmpty {
+                    Button("Cancella ricerca") { searchText = "" }
+                }
                 if activeFiltersCount > 0 {
                     Button("Rimuovi filtri") { clearAllFilters() }
                         .buttonStyle(.bordered)
@@ -723,16 +721,14 @@ struct TransactionListView: View {
                 }
             }
 
-            // Filter by search text
-            if !searchText.isEmpty {
-                let searchLower = searchText.lowercased()
-                results = results.filter { transaction in
-                    let descMatch = transaction.transactionDescription?.lowercased().contains(searchLower) ?? false
-                    let catMatch = transaction.category?.name?.lowercased().contains(searchLower) ?? false
-                    let contoMatch = (transaction.fromConto?.name?.lowercased().contains(searchLower) ?? false) ||
-                                     (transaction.toConto?.name?.lowercased().contains(searchLower) ?? false)
-                    return descMatch || catMatch || contoMatch
-                }
+            // Search the full filtered period before pagination and totals.
+            results = results.filter { transaction in
+                TransactionSearch.matches(
+                    query: searchText,
+                    fields: [transaction.transactionDescription, transaction.notes,
+                             transaction.category?.name, transaction.fromConto?.name, transaction.toConto?.name],
+                    amount: transaction.amount ?? 0
+                )
             }
 
             totalCount = results.count
@@ -1179,25 +1175,34 @@ private struct TransactionSection: Identifiable {
 
 private struct TransactionSearchField: View {
     @Binding var text: String
-    let close: () -> Void
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Cerca movimenti", text: $text)
+            TextField("Cerca nel periodo", text: $text)
                 .textFieldStyle(.plain)
                 .focused($focused)
                 .submitLabel(.search)
-            Button(action: close) { Label("Chiudi ricerca", systemImage: "xmark.circle.fill") }
-                .labelStyle(.iconOnly)
-                .frame(minWidth: 44, minHeight: 44)
+                .onSubmit { focused = false }
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("transactions-search")
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Label("Cancella ricerca", systemImage: "xmark.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(.leading, 12)
-        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.leading, 14)
+        .padding(.trailing, text.isEmpty ? 14 : 0)
+        .frame(minHeight: 44)
+        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 14))
         .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .onAppear { focused = true }
+        .padding(.top, 4)
     }
 }
 
