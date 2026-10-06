@@ -98,3 +98,66 @@ struct BalanceHistoryView: View {
         return NSDecimalNumber(decimal: domain.lowerBound).doubleValue...NSDecimalNumber(decimal: domain.upperBound).doubleValue
     }
 }
+
+
+/// Uses the same account scope and date window as the surrounding analysis.
+struct InlineBalanceHistoryCard: View {
+    let scopeContoIDs: Set<UUID>
+    let interval: DateInterval
+    let currency: String
+    @Query private var conti: [Conto]
+    @Query private var transactions: [FinanceCore.Transaction]
+    @State private var selectedDate: Date?
+
+    private var history: [BalanceDataPoint] {
+        let selected = conti.filter { scopeContoIDs.contains($0.id) }
+        guard !selected.isEmpty else { return [] }
+        let snapshots = transactions.map {
+            TransactionSnapshot(id: $0.id, amount: $0.amount ?? 0, type: $0.type, date: $0.date,
+                                fromContoId: $0.fromContoId ?? $0.fromConto?.id,
+                                toContoId: $0.toContoId ?? $0.toConto?.id, destinationAmount: $0.destinationAmount)
+        }
+        return RecordedBalanceHistory.points(transactions: snapshots, contiIDs: scopeContoIDs,
+            initialBalance: selected.reduce(0) { $0 + ($1.initialBalance ?? 0) }, interval: interval, now: Date())
+    }
+
+    var body: some View {
+        let points = history
+        let selected = selectedDate.flatMap { date in points.last { $0.date <= date } } ?? points.last
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Saldo nel periodo", systemImage: "chart.xyaxis.line")
+                .font(.system(.title3, design: .serif, weight: .semibold))
+            if let selected {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(selected.balance, format: .currency(code: currency))
+                        .font(.title.bold()).monospacedDigit()
+                    Text(selected.date, format: .dateTime.day().month().year())
+                        .font(.caption).foregroundStyle(.secondary)
+                }.accessibilityElement(children: .combine)
+                let domain = BalanceCalculator.chartYDomain(dataPoints: points)
+                Chart {
+                    ForEach(points, id: \.date) { point in
+                        LineMark(x: .value("Data", point.date), y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue))
+                            .interpolationMethod(.stepEnd).foregroundStyle(ForgiaPalette.accent)
+                    }
+                    if let selectedDate {
+                        RuleMark(x: .value("Data selezionata", selectedDate)).foregroundStyle(.secondary)
+                    }
+                }
+                .chartYScale(domain: NSDecimalNumber(decimal: domain.lowerBound).doubleValue...NSDecimalNumber(decimal: domain.upperBound).doubleValue)
+                .chartXSelection(value: $selectedDate)
+                .frame(height: 210)
+                .accessibilityLabel("Andamento del saldo nel periodo selezionato")
+                Text("Tocca il grafico per leggere il saldo. Ricostruito dai saldi iniziali e dai movimenti registrati fino a oggi, senza proiezioni future.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("Nessun saldo disponibile per i conti selezionati.").foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .unifiedCard()
+        .accessibilityIdentifier("analysis-balance-history")
+        .onChange(of: interval) { selectedDate = nil }
+        .onChange(of: scopeContoIDs) { selectedDate = nil }
+    }
+}

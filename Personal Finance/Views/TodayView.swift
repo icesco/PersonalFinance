@@ -201,19 +201,27 @@ private struct TodayMarginCard: View {
     let onImport: () -> Void
     let onAddIncome: () -> Void
     @State private var showsCalculation = false
+    @State private var showsMarginInfo = false
     @State private var showsPurchaseCheck = false
     @ScaledMetric(relativeTo: .largeTitle) private var marginFontSize: CGFloat = 43
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
-            HStack(spacing: 7) {
-                Text("QUANTO PUOI ANCORA SPENDERE")
-                    .font(.caption2.weight(.semibold))
-                    .tracking(1.1)
-                Image(systemName: "info.circle").font(.caption)
-                Spacer()
+            Button { showsMarginInfo = true } label: {
+                HStack(spacing: 7) {
+                    Text("QUANTO PUOI ANCORA SPENDERE")
+                        .font(.caption2.weight(.semibold))
+                        .tracking(1.1)
+                    Image(systemName: "info.circle").font(.caption)
+                    Spacer()
+                }
+                .foregroundStyle(ForgiaPalette.mutedText)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
-            .foregroundStyle(ForgiaPalette.mutedText)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Come è calcolato quanto puoi ancora spendere")
+            .accessibilityIdentifier("today-margin-info")
 
             if snapshot.hasMixedCurrencies {
                 Label("Seleziona un solo libro o una sola valuta per stimare il margine.", systemImage: "exclamationmark.triangle")
@@ -280,6 +288,28 @@ private struct TodayMarginCard: View {
         .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 28))
         .overlay { RoundedRectangle(cornerRadius: 28).strokeBorder(ForgiaPalette.border, lineWidth: 0.7) }
         .accessibilityElement(children: .contain)
+        .sheet(isPresented: $showsMarginInfo) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Un margine, non una promessa")
+                            .font(.system(.title2, design: .serif, weight: .semibold))
+                        Text("Partiamo dal saldo maturato, sottraiamo il debito sulle carte, le uscite previste e le spese abituali stimate fino alla prossima entrata.")
+                        if !snapshot.hasMixedCurrencies {
+                            TodayAmountRow(label: "Saldo maturato", amount: snapshot.direction.liquidBalance, currency: snapshot.currency)
+                            TodayAmountRow(label: "Debito sulle carte", amount: -snapshot.direction.creditDebt, currency: snapshot.currency)
+                            TodayAmountRow(label: "Uscite previste", amount: -snapshot.direction.committedOutgoings, currency: snapshot.currency)
+                            TodayAmountRow(label: "Spesa abituale stimata", amount: -snapshot.direction.typicalVariableOutgoings, currency: snapshot.currency)
+                        }
+                        Text(snapshot.hasMixedCurrencies ? "Seleziona un libro con una sola valuta per ottenere una stima." : snapshot.direction.estimatedMargin == nil ? statusMessage : "La stima dipende dai movimenti registrati e dai saldi verificati. Le entrate future non sono denaro già disponibile.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }.padding(24)
+                }
+                .navigationTitle("Il tuo margine")
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fine") { showsMarginInfo = false } } }
+            }
+            .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $showsPurchaseCheck) {
             PurchaseCheckView(margin: snapshot.direction.estimatedMargin, currency: snapshot.currency)
         }

@@ -46,11 +46,7 @@ struct SpendingOverviewView: View {
 
                 periodPicker
 
-                NavigationLink {
-                    BalanceHistoryView(bookID: initialBookID)
-                } label: {
-                    Label("Saldo storico", systemImage: "chart.xyaxis.line")
-                }
+                InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
 
                 if report.expenses > 0 {
                     VStack(alignment: .leading, spacing: 12) {
