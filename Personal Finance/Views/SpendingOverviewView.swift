@@ -4,6 +4,7 @@ import FinanceCore
 
 /// A factual drill-down of recorded expenses, excluding transfers.
 struct SpendingOverviewView: View {
+    @Environment(\.locale) private var locale
     let transactions: [DirectionTransaction]
     let currency: String
     let scopeContoIDs: Set<UUID>
@@ -157,18 +158,22 @@ struct SpendingOverviewView: View {
                         .disabled(interval.end > Date())
                 }
             }
-            Text("\(interval.start.formatted(date: .abbreviated, time: .omitted)) – \(min(Date(), interval.end.addingTimeInterval(-1)).formatted(date: .abbreviated, time: .omitted))")
+            Text("\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))")
                 .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
         }.unifiedCard()
     }
 
     private var periodTitle: String {
         switch period {
-        case .month: anchor.formatted(.dateTime.month(.wide).year())
-        case .year: anchor.formatted(.dateTime.year())
+        case .month: anchor.formatted(.dateTime.month(.wide).year().locale(locale))
+        case .year: anchor.formatted(.dateTime.year().locale(locale))
         case .week, .quarter, nil:
-            "\(interval.start.formatted(date: .abbreviated, time: .omitted)) – \(interval.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))"
+            "\(formattedDay(interval.start)) – \(formattedDay(interval.end.addingTimeInterval(-1)))"
         }
+    }
+
+    private func formattedDay(_ date: Date) -> String {
+        date.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))
     }
 
     private func movePeriod(_ offset: Int) {
@@ -186,9 +191,9 @@ struct SpendingOverviewView: View {
                 periodAmount("Periodo selezionato", amount: report.expenses)
             }
             Text(change > 0
-                 ? "Hai speso \(change.formatted(.currency(code: currency))) in più rispetto al periodo precedente."
+                 ? "Hai speso \(change.formatted(.currency(code: currency).locale(locale))) in più rispetto al periodo precedente."
                  : change < 0
-                 ? "Hai speso \(abs(change).formatted(.currency(code: currency))) in meno rispetto al periodo precedente."
+                 ? "Hai speso \(abs(change).formatted(.currency(code: currency).locale(locale))) in meno rispetto al periodo precedente."
                  : "La spesa è uguale al periodo precedente.")
                 .font(.subheadline)
                 .foregroundStyle(ForgiaPalette.mutedText)
@@ -203,12 +208,12 @@ struct SpendingOverviewView: View {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(category.name).font(.subheadline.weight(.semibold))
-                        Text("\(category.previous.formatted(.currency(code: currency))) → \(category.current.formatted(.currency(code: currency)))")
+                        Text("\(category.previous.formatted(.currency(code: currency).locale(locale))) → \(category.current.formatted(.currency(code: currency).locale(locale)))")
                             .font(.caption)
                             .foregroundStyle(ForgiaPalette.mutedText)
                     }
                     Spacer(minLength: 8)
-                    Text("+\(category.increase.formatted(.currency(code: currency)))")
+                    Text("+\(category.increase.formatted(.currency(code: currency).locale(locale)))")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ForgiaPalette.accent)
                         .monospacedDigit()
@@ -248,7 +253,7 @@ struct SpendingOverviewView: View {
                     )
                     .foregroundStyle(SpendingChartPalette.color(at: index))
                     .accessibilityLabel(category.name)
-                    .accessibilityValue(category.amount.formatted(.currency(code: currency)))
+                    .accessibilityValue(category.amount.formatted(.currency(code: currency).locale(locale)))
                 }
             }
             .chartLegend(.hidden)
