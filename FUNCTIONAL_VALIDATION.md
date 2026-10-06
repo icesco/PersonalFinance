@@ -21,7 +21,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti. Widget installato e aggiornamento della timeline sulla superficie di sistema ancora da verificare. |
 | Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Esecuzione da Comandi Rapidi/Siri ancora non dimostrata. |
 | Apple Watch | `WatchDraftTests`, `RemoteExpenseTests`; protocollo, mailbox e flusso offline | Una prova su simulatore non dimostra consegna WatchConnectivity su coppia fisica, conferma di salvataggio e complicazioni installate. |
-| Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Blocco, sblocco Face ID al ritorno dalla Home e conservazione della bozza confermati dall’utente su iPhone. Touch ID, annullamento e fallback reali ancora da provare. |
+| Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Blocco, sblocco Face ID al ritorno dalla Home e conservazione della bozza confermati dall’utente su iPhone. Annullamento dell’autenticazione con app ancora bloccata confermato dall’utente. Touch ID e fallback alle credenziali ancora da provare. |
 | Assistenza proattiva verificabile | `SpendingDirectionTests`, `SpendingDirectionInputsTests`, `RecordedSpendingReportTests` | Dati vecchi/incompleti, fondi maturati, impegni futuri, debito e trasferimenti coperti. Le stime rimangono condizionate ai dati registrati. |
 
 ## Risultati e ambito
@@ -73,8 +73,10 @@ ritorno nell’app con blocco e successivo sblocco tramite riconoscimento.
 L’utente ha inoltre confermato il superamento della prova con una bozza da
 12,50: passaggio alla Home, ritorno e sblocco Face ID, importo ancora presente,
 quindi annullamento senza salvataggio. Anche queste sono evidenze riportate
-dall’utente sul dispositivo fisico. Restano da verificare annullamento
-dell’autenticazione, fallback alle credenziali del dispositivo e Touch ID su Mac.
+dall’utente sul dispositivo fisico. Nella prova successiva l’utente ha
+confermato che annullando l’autenticazione l’app resta bloccata. Lo sblocco
+subito dopo questo annullamento non è ancora stato confermato. Restano da
+verificare fallback alle credenziali del dispositivo e Touch ID su Mac.
 
 ### Download BCE nel flusso Mac
 
