@@ -33,7 +33,7 @@ struct SpendingOverviewView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
+            LazyVStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Dove spendi")
                         .font(.system(size: 36, weight: .semibold, design: .serif))
@@ -45,89 +45,78 @@ struct SpendingOverviewView: View {
                 .padding(.top, 26)
                 .padding(.horizontal, 22)
 
-                Section {
-                    VStack(alignment: .leading, spacing: 24) {
-                        InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
+                VStack(alignment: .leading, spacing: 24) {
+                    InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
 
-                        if report.expenses > 0 {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Ricorrenti e variabili").font(.headline)
-                                periodAmount("Ricorrenti", amount: report.recurring)
-                                periodAmount("Variabili", amount: report.variable)
-                                Text("Solo spese registrate nel periodo selezionato; le ricorrenze sono quelle contrassegnate da te.")
-                                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                            }.unifiedCard()
-                            categoryDistributionCard
-                            VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("Categorie")
-                                        .font(.system(.title3, design: .serif, weight: .semibold))
-                                    Spacer()
-                                    Text("Spesa registrata")
-                                        .font(.caption)
-                                        .foregroundStyle(ForgiaPalette.mutedText)
-                                }
-                                ForEach(Array(report.categories.enumerated()), id: \.offset) { index, category in
-                                    if let categoryID = category.categoryID {
-                                        NavigationLink {
-                                            TransactionListView(initialCategoryID: categoryID,
-                                                                initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())), expensesOnly: true, scopeContoIDs: scopeContoIDs)
-                                                #if os(iOS)
-                                                .toolbar(.visible, for: .navigationBar)
-                                                #endif
-                                        } label: {
-                                            categoryRow(category, index: index)
-                                        }.buttonStyle(.plain)
-                                    } else {
+                    if report.expenses > 0 {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Ricorrenti e variabili").font(.headline)
+                            periodAmount("Ricorrenti", amount: report.recurring)
+                            periodAmount("Variabili", amount: report.variable)
+                            Text("Solo spese registrate nel periodo selezionato; le ricorrenze sono quelle contrassegnate da te.")
+                                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                        }.unifiedCard()
+                        categoryDistributionCard
+                        VStack(alignment: .leading, spacing: 20) {
+                            HStack {
+                                Text("Categorie")
+                                    .font(.system(.title3, design: .serif, weight: .semibold))
+                                Spacer()
+                                Text("Spesa registrata")
+                                    .font(.caption)
+                                    .foregroundStyle(ForgiaPalette.mutedText)
+                            }
+                            ForEach(Array(report.categories.enumerated()), id: \.offset) { index, category in
+                                if let categoryID = category.categoryID {
+                                    NavigationLink {
+                                        TransactionListView(initialCategoryID: categoryID,
+                                                            initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())), expensesOnly: true, scopeContoIDs: scopeContoIDs)
+                                            #if os(iOS)
+                                            .toolbar(.visible, for: .navigationBar)
+                                            #endif
+                                    } label: {
                                         categoryRow(category, index: index)
-                                    }
+                                    }.buttonStyle(.plain)
+                                } else {
+                                    categoryRow(category, index: index)
                                 }
                             }
-                        } else {
-                            Text("Non ci sono uscite registrate nel periodo. Importa i movimenti per vedere la ripartizione per categoria.")
-                                .font(.subheadline)
-                                .foregroundStyle(ForgiaPalette.mutedText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .unifiedCard()
                         }
-
-                        if report.previousExpenses > 0 {
-                            comparisonCard
-                            if !report.increases.isEmpty {
-                                increaseCard
-                            }
-                        }
-
-                        Text("I trasferimenti tra i tuoi conti sono esclusi. I valori dipendono dai movimenti importati o registrati.")
-                            .font(.caption)
+                    } else {
+                        Text("Non ci sono uscite registrate nel periodo. Importa i movimenti per vedere la ripartizione per categoria.")
+                            .font(.subheadline)
                             .foregroundStyle(ForgiaPalette.mutedText)
-                            .padding(.horizontal, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .unifiedCard()
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 8)
-                    .padding(.bottom, 28)
-                } header: {
-                    SpendingPeriodBar(
-                        period: $period,
-                        title: periodTitle,
-                        coverage: "\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))",
-                        canMoveForward: interval.end <= Date(),
-                        move: movePeriod,
-                        chooseCustom: { showingCustomPeriod = true }
-                    )
+
+                    if report.previousExpenses > 0 {
+                        comparisonCard
+                        if !report.increases.isEmpty {
+                            increaseCard
+                        }
+                    }
+
+                    Text("I trasferimenti tra i tuoi conti sono esclusi. I valori dipendono dai movimenti importati o registrati.")
+                        .font(.caption)
+                        .foregroundStyle(ForgiaPalette.mutedText)
+                        .padding(.horizontal, 4)
                 }
+                .padding(.horizontal, 22)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
             }
         }
         .themedBackground()
-        .overlay(alignment: .top) {
-            GeometryReader { geometry in
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .frame(height: geometry.safeAreaInsets.top)
-                    .offset(y: -geometry.safeAreaInsets.top)
-            }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        .safeAreaBar(edge: .top, spacing: 0) {
+            SpendingPeriodBar(
+                period: $period,
+                title: periodTitle,
+                coverage: "\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))",
+                canMoveForward: interval.end <= Date(),
+                move: movePeriod,
+                chooseCustom: { showingCustomPeriod = true }
+            )
         }
         .sheet(isPresented: $showingCustomPeriod) {
             SpendingDateRangeEditor(start: customStart, end: customEnd) { start, end in
@@ -417,6 +406,5 @@ private struct SpendingPeriodBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial)
     }
 }
