@@ -18,7 +18,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | iCloud privato | `CloudConfigurationTests`, `CloudLifecycleTests`, `CloudSyncProgressTests`, migrazione locale | Prove locali e servizi simulati. Sincronizzazione SwiftData tra due dispositivi dello stesso account non ancora dimostrata. |
 | Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | Round trip CloudKit reale del proprietario superato con dati sintetici e pulizia finale. Invito e sincronizzazione tra due account ancora da verificare; procedura in `CLOUD_VERIFICATION.md`. Il test live resta disattivato per impostazione predefinita. |
 | Mac nativo | Build firmata e firma verificata; archivio locale aperto; navigazione, finestre e comandi provati; `MacPrivacyWindowTests` | La suite Mac usa dati in memoria. Il suo successo non prova sincronizzazione cloud o Touch ID reale. |
-| Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti. Widget installato e aggiornamento della timeline sulla superficie di sistema ancora da verificare. |
+| Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti dai test. Presenza del widget sulla Home e apertura dell’inserimento spesa tramite + nel formato medio confermate dall’utente su iPhone. Dati popolati e aggiornamento della timeline reale ancora da verificare. |
 | Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Su iPhone l’utente ha confermato presenza delle azioni, apertura di Pianifica e preparazione della bozza da 12,50 senza salvataggio automatico. Il comando vocale Siri «Apri il riepilogo in Forgia» apre il tab Oggi, come confermato dall’utente. |
 | Apple Watch | `WatchDraftTests`, `RemoteExpenseTests`; protocollo, mailbox e flusso offline | Una prova su simulatore non dimostra consegna WatchConnectivity su coppia fisica, conferma di salvataggio e complicazioni installate. |
 | Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Blocco, sblocco Face ID al ritorno dalla Home e conservazione della bozza confermati dall’utente su iPhone. Annullamento dell’autenticazione con app ancora bloccata confermato dall’utente. Touch ID e fallback alle credenziali ancora da provare. |
@@ -110,6 +110,19 @@ lettore e impostato `25,9` nel campo importo, mantenendo il PDF nella bozza.
 Bozza annullata e sessione chiusa con codice 0; nessun movimento persistente
 creato. La build Mac è riuscita; l’acquisizione da fotocamera resta fuori da
 questa prova.
+
+### Widget sulla Home di iPhone
+
+Il 6 ottobre l’utente ha confermato la presenza di Riepilogo Forgia sulla Home,
+con le scritte «Apri Forgia» e «Aggiorna nell’app». Nel formato medio compare
+anche il pulsante + in alto: premendolo, Forgia si apre e presenta
+l’inserimento di una spesa, come confermato dall’utente.
+
+La sessione di prova `UITEST_MAC_LOCAL` non pubblica snapshot del widget.
+Questa prova verifica presenza, visualizzazione riportata e collegamento alla
+spesa; non dimostra dati popolati, aggiornamento della timeline, oscuramento
+sulla superficie reale o passaggio Face ID durante questa specifica apertura.
+Non è stato richiesto di salvare la spesa.
 
 ### Comandi Rapidi su iPhone
 
