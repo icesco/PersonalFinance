@@ -12,7 +12,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Analisi con periodi coerenti | `SpendingOverviewView`, `SpendingAnalysisWindowTests`, `RecordedSpendingReportTests`, `testAnalysisPeriods` | Periodi, confronti a durata coerente, DST e separazione dei trasferimenti coperti; mesi/date italiani osservati su Mac. |
 | Ricorrenti e promemoria | `RecurrenceScheduleTests`, `RecurrenceOccurrenceTests`, planner e `RecurrenceReminderTests`; UI per fine serie e apertura da notifica | Notifica locale verificata in simulatore. Consegna e apertura su dispositivo fisico da verificare. |
 | Calcolatrice | `AmountCalculatorTests`, `testCalculatorAppliesAmountWithoutSaving` | Calcolo e applicazione alla bozza verificati; la prova UI non salva movimenti reali. |
-| Allegati e scontrini | `AttachmentDraftTests`, `AttachmentPersistenceTests`, `ReceiptReaderTests`, `MacReceiptReaderTests` | Immagini e PDF sintetici, inclusa pagina con testo e scansione, verificati su Mac/iOS. Selettore file Mac, lettura e applicazione del totale verificati con PDF sintetico. Fotocamera e selettore iPhone ancora da provare sul dispositivo. |
+| Allegati e scontrini | `AttachmentDraftTests`, `AttachmentPersistenceTests`, `ReceiptReaderTests`, `MacReceiptReaderTests` | Immagini e PDF sintetici, inclusa pagina con testo e scansione, verificati su Mac/iOS. Selettore file Mac, lettura e applicazione del totale verificati con PDF sintetico. Scansione da fotocamera, scelta OCR e applicazione dell’importo confermate dall’utente su iPhone. Selettore file iPhone ancora da verificare. |
 | Posizione | `PlaceDraftTests`, `testManualPlaceDraftCanBeCancelled`, `SingleLocationRequest` | Nome manuale e persistenza verificati. Richiesta reale, rifiuto del permesso e precisione della posizione non ancora provati. |
 | Multivaluta | `CurrencyConversionTests`, `ForeignAmountDraftTests`, `testForeignAmountIsConvertedBeforeSaving`; download BCE manuale su Mac | Conversione, arrotondamento, tasso fissato e provenienza coperti. Download/applicazione/riapertura verificati su Mac con bozza sintetica; nessun movimento salvato. |
 | iCloud privato | `CloudConfigurationTests`, `CloudLifecycleTests`, `CloudSyncProgressTests`, migrazione locale | Prove locali e servizi simulati. Sincronizzazione SwiftData tra due dispositivi dello stesso account non ancora dimostrata. |
@@ -57,7 +57,15 @@ Risultato locale:
 `/private/tmp/forgia-physical-verification-dd/Logs/Test/Test-Forgia Mac Tests-2026.10.06_11-15-58-+0200.xcresult`.
 Il profilo widget inizialmente privo di App Group è stato risolto tramite
 aggiornamento automatico dei profili Xcode. Nessun entitlement è stato rimosso.
-Fotocamera, Face ID e interazioni visive sul dispositivo restano da verificare.
+Successivamente l’utente ha confermato la prova manuale sullo stesso iPhone:
+scansione di un foglio con importi scritti a mano, comparsa dell’allegato,
+riconoscimento di due importi su tre (incluso il totale), proposta di scelta e
+applicazione dell’importo selezionato alla bozza. L’utente ha precisato che
+l’importo non riconosciuto era scritto male. Questo conferma il percorso
+osservato, non l’accuratezza generale dell’OCR sulla scrittura a mano.
+L’evidenza è il riscontro dell’utente, non un’osservazione remota dello schermo.
+Non è stato richiesto il salvataggio del movimento; l’annullamento della bozza
+non è ancora stato confermato. Face ID reale resta da verificare.
 
 ### Download BCE nel flusso Mac
 
