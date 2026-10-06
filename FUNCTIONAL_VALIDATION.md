@@ -19,7 +19,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | Round trip CloudKit reale del proprietario superato con dati sintetici e pulizia finale. Invito e sincronizzazione tra due account ancora da verificare; procedura in `CLOUD_VERIFICATION.md`. Il test live resta disattivato per impostazione predefinita. |
 | Mac nativo | Build firmata e firma verificata; archivio locale aperto; navigazione, finestre e comandi provati; `MacPrivacyWindowTests` | La suite Mac usa dati in memoria. Il suo successo non prova sincronizzazione cloud o Touch ID reale. |
 | Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti. Widget installato e aggiornamento della timeline sulla superficie di sistema ancora da verificare. |
-| Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Esecuzione da Comandi Rapidi/Siri ancora non dimostrata. |
+| Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Su iPhone l’utente ha confermato presenza delle azioni, apertura di Pianifica e preparazione della bozza da 12,50 senza salvataggio automatico. Azione riepilogo e Siri vocale ancora da verificare. |
 | Apple Watch | `WatchDraftTests`, `RemoteExpenseTests`; protocollo, mailbox e flusso offline | Una prova su simulatore non dimostra consegna WatchConnectivity su coppia fisica, conferma di salvataggio e complicazioni installate. |
 | Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Blocco, sblocco Face ID al ritorno dalla Home e conservazione della bozza confermati dall’utente su iPhone. Annullamento dell’autenticazione con app ancora bloccata confermato dall’utente. Touch ID e fallback alle credenziali ancora da provare. |
 | Assistenza proattiva verificabile | `SpendingDirectionTests`, `SpendingDirectionInputsTests`, `RecordedSpendingReportTests` | Dati vecchi/incompleti, fondi maturati, impegni futuri, debito e trasferimenti coperti. Le stime rimangono condizionate ai dati registrati. |
@@ -100,6 +100,16 @@ lettore e impostato `25,9` nel campo importo, mantenendo il PDF nella bozza.
 Bozza annullata e sessione chiusa con codice 0; nessun movimento persistente
 creato. La build Mac è riuscita; l’acquisizione da fotocamera resta fuori da
 questa prova.
+
+### Comandi Rapidi su iPhone
+
+Il 6 ottobre l’utente ha confermato che le azioni di Forgia compaiono nel
+catalogo di Comandi Rapidi sull’iPhone. Ha poi eseguito Apri budget e scadenze,
+confermando l’apertura della schermata Pianifica, e Prepara una spesa con
+importo 12,50, confermando la preparazione della bozza senza salvataggio
+automatico nella prova guidata. Questi risultati sono riscontri dell’utente
+sul dispositivo fisico; non provano l’esecuzione tramite Siri vocale, l’azione
+Apri il riepilogo di oggi o la risoluzione del blocco di indicizzazione su Mac.
 
 ### Catalogo Comandi Rapidi Mac
 
