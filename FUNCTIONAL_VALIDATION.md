@@ -19,7 +19,7 @@ non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 | Libri condivisi | Suite `SharedBook*`, gestione conflitti, inviti, uscita e aggiornamento automatico | CloudKit reale e invito tra due account ancora da eseguire. Procedura in `CLOUD_VERIFICATION.md`. Il test live è disattivato. |
 | Mac nativo | Build firmata e firma verificata; archivio locale aperto; navigazione, finestre e comandi provati; `MacPrivacyWindowTests` | La suite Mac usa dati in memoria. Il suo successo non prova sincronizzazione cloud o Touch ID reale. |
 | Widget | `WidgetSnapshotTests`, `WidgetRefreshTests`, `WidgetRoutingTests`, `testWidgetLinksOpenPlanningAndExpense` | Dati, oscuramento e destinazioni coperti. Widget installato e aggiornamento della timeline sulla superficie di sistema ancora da verificare. |
-| Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving` | Invocazione dell’intent dall’app e consegna protetta della bozza coperte. Scoperta/esecuzione da Comandi Rapidi e Siri reale ancora da verificare. |
+| Shortcuts / Siri | `FinanceShortcutTests`, `testExpenseShortcutOpensReviewWithoutSaving`; metadati Mac presenti | Invocazione interna coperta. Nel catalogo Mac le azioni non compaiono: `linkd` rifiuta la build locale come `not trusted for binding`. Esecuzione da Comandi Rapidi/Siri ancora non dimostrata. |
 | Apple Watch | `WatchDraftTests`, `RemoteExpenseTests`; protocollo, mailbox e flusso offline | Una prova su simulatore non dimostra consegna WatchConnectivity su coppia fisica, conferma di salvataggio e complicazioni installate. |
 | Blocco biometrico | `AppLockTests`, `PrivacyWindowTests`, `MacPrivacyWindowTests`, `testLockedLaunchDoesNotExposeFinancialNavigation` | Stato, finestre protette e bozze coperti con autenticatore simulato. Face ID/Touch ID, annullamento e fallback reali ancora da provare. |
 | Assistenza proattiva verificabile | `SpendingDirectionTests`, `SpendingDirectionInputsTests`, `RecordedSpendingReportTests` | Dati vecchi/incompleti, fondi maturati, impegni futuri, debito e trasferimenti coperti. Le stime rimangono condizionate ai dati registrati. |
@@ -67,6 +67,24 @@ lettore e impostato `25,9` nel campo importo, mantenendo il PDF nella bozza.
 Bozza annullata e sessione chiusa con codice 0; nessun movimento persistente
 creato. La build Mac è riuscita; l’acquisizione da fotocamera resta fuori da
 questa prova.
+
+### Catalogo Comandi Rapidi Mac
+
+Il 6 ottobre sono state cercate Forgia e l’azione Prepara una spesa nell’editor
+reale di Comandi Rapidi. Le ricerche non restituiscono le azioni dell’app, mentre
+la ricerca di azioni generiche restituisce risultati. La build contiene i tre
+intent discoverable in `Metadata.appintents/extract.actionsdata`.
+
+È stata registrata la build in Launch Services e provata una copia separata
+in `~/Applications/Forgia Verification.app`, poi rimossa. `linkd` riporta prima
+`Could not create application record` (`-10814`) per la build temporanea, poi
+`Bundle cc.fbianco.finance.Personal-Finance is not trusted for binding, skipping`
+per la copia installata. Log locale: `/private/tmp/forgia-intents-indexing.log`.
+Questo identifica un blocco di indicizzazione della build provata, non prova che
+una distribuzione approvata risolva automaticamente il problema. Non sono state
+modificate protezioni di macOS. Resta un comando vuoto denominato
+`Forgia — verifica sintetica` nella libreria Comandi Rapidi, creato per la prova;
+non contiene azioni e non è stato eseguito.
 
 ## Passi necessari prima di dichiarare completato l’obiettivo
 
