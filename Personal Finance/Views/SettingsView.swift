@@ -283,24 +283,6 @@ struct SettingsView: View {
     private var appearanceSection: some View {
         Section {
             NavigationLink {
-                ExperienceLevelSelectionView()
-            } label: {
-                HStack {
-                    Label("Modalità", systemImage: "slider.horizontal.3")
-
-                    Spacer()
-
-                    HStack(spacing: 6) {
-                        Image(systemName: appState.experienceLevelManager.currentLevel.icon)
-                            .foregroundStyle(appState.experienceLevelManager.currentLevel.iconColor)
-
-                        Text(appState.experienceLevelManager.currentLevel.displayName)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            NavigationLink {
                 ThemeSelectionView()
             } label: {
                 HStack {
@@ -355,8 +337,8 @@ struct SettingsView: View {
 
     private func libroRow(_ acc: Account) -> some View {
         let isCurrent = acc.id == account?.id
-        return Button {
-            appState.selectAccount(acc)
+        return NavigationLink {
+            FinanceBookDetailsView(book: acc)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "book.closed")
@@ -389,7 +371,11 @@ struct SettingsView: View {
         Section {
             if let conti = account?.conti, !conti.isEmpty {
                 ForEach(conti.filter { $0.isActive == true }, id: \.id) { conto in
-                    ContoSettingsRow(conto: conto)
+                    NavigationLink {
+                        FinanceContoDetailsView(conto: conto)
+                    } label: {
+                        ContoSettingsRow(conto: conto)
+                    }
                 }
                 .onDelete(perform: deleteConti)
             } else {
@@ -485,31 +471,62 @@ struct CategoryManagementView: View {
 
     @State private var showingAddCategory = false
     @State private var editingCategory: FinanceCategory?
+    @State private var searchText = ""
 
     private var account: Account? { appState.selectedAccount }
 
+    private var activeCategories: [FinanceCategory] {
+        (account?.categories ?? []).filter { $0.isActive == true }
+            .sorted { ($0.name ?? "") < ($1.name ?? "") }
+    }
     private var categories: [FinanceCategory] {
-        account?.categories?
-            .filter { $0.isActive == true && $0.parentCategoryId == nil }
-            .sorted { ($0.name ?? "") < ($1.name ?? "") } ?? []
+        activeCategories.filter { category in
+            category.parentCategoryId == nil && (searchText.isEmpty ||
+                (category.name ?? "").localizedStandardContains(searchText) ||
+                activeCategories.contains { $0.parentCategoryId == category.id && ($0.name ?? "").localizedStandardContains(searchText) })
+        }
     }
 
     var body: some View {
         List {
             if categories.isEmpty {
                 ContentUnavailableView {
-                    Label("Nessuna categoria", systemImage: "tag")
+                    Label(searchText.isEmpty ? "Nessuna categoria" : "Nessun risultato", systemImage: "tag")
                 } description: {
-                    Text("Aggiungi la tua prima categoria")
+                    Text(searchText.isEmpty ? "Crea categorie per riconoscere le tue abitudini di spesa." : "Prova con un altro nome.")
                 }
             } else {
                 ForEach(categories, id: \.id) { category in
-                    CategorySettingsRow(category: category) {
-                        editingCategory = category
+                    VStack(alignment: .leading, spacing: 12) {
+                        CategorySettingsRow(category: category) { editingCategory = category }
+                        let children = activeCategories.filter { $0.parentCategoryId == category.id }
+                        if !children.isEmpty {
+                            ForEach(children) { child in
+                                CategorySettingsRow(category: child) { editingCategory = child }
+                                    .padding(.leading, 32)
+                            }
+                        }
                     }
+                    .padding(.vertical, 8)
                 }
                 .onDelete(perform: deleteCategories)
             }
+        }
+        .scrollContentBackground(.hidden)
+        .themedBackground()
+        .searchable(text: $searchText, prompt: "Cerca una categoria")
+        .safeAreaInset(edge: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Dai un nome alle tue abitudini")
+                    .font(.system(.title2, design: .serif, weight: .semibold))
+                Text("\(activeCategories.count) categorie · \(account?.name ?? "Scegli un libro")")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                if account == nil {
+                    Button("Scegli un libro") { appState.presentAccountSelection() }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20).background(.ultraThinMaterial)
         }
         .navigationTitle("Categorie")
             .alert("Impossibile salvare", isPresented: $showingSaveError) {
@@ -523,8 +540,9 @@ struct CategoryManagementView: View {
                 Button {
                     showingAddCategory = true
                 } label: {
-                    Image(systemName: "plus")
+                    Label("Nuova categoria", systemImage: "plus")
                 }
+                .disabled(account == nil)
             }
         }
         .sheet(isPresented: $showingAddCategory) {
@@ -588,7 +606,8 @@ struct CategorySettingsRow: View {
                 Image(systemName: category.icon ?? "tag")
                     .font(.title3)
                     .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
-                    .frame(width: 32)
+                    .frame(width: 44, height: 44)
+                    .background(Color(hex: category.color ?? "#007AFF").opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
 
                 Text(category.name ?? "Categoria")
                     .font(.subheadline)
@@ -923,4 +942,85 @@ struct EditCategorySheet: View {
         .environment(DataStorageManager.shared)
         .environment(NavigationRouter())
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
+}
+
+
+struct FinanceContoDetailsView: View {
+    let conto: Conto
+    @State private var editing = false
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label(conto.type?.displayName ?? "Conto", systemImage: conto.type?.icon ?? "creditcard")
+                        .foregroundStyle(ForgiaPalette.accent)
+                    Text(conto.displayBalance, format: .currency(code: conto.account?.currency ?? "EUR"))
+                        .font(.system(.largeTitle, design: .rounded, weight: .semibold)).monospacedDigit()
+                    Text(conto.account?.name ?? "Libro").foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).unifiedCard()
+                Button("Modifica conto", systemImage: "pencil") { editing = true }
+                    .buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
+                NavigationLink { TransactionListView(initialConto: conto) } label: {
+                    Label("Vedi movimenti", systemImage: "list.bullet.rectangle")
+                }.buttonStyle(.bordered)
+                NavigationLink { BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id) } label: {
+                    Label("Storico del saldo", systemImage: "chart.xyaxis.line")
+                }.buttonStyle(.bordered)
+            }.padding(22)
+        }
+        .themedBackground()
+        .navigationTitle(conto.name ?? "Conto")
+        .sheet(isPresented: $editing) { EditContoView(conto: conto) }
+    }
+}
+
+struct FinanceBookDetailsView: View {
+    let book: Account
+    @Environment(\.modelContext) private var context
+    @Environment(AppStateManager.self) private var appState
+    @State private var editing = false
+    @State private var name = ""
+    @State private var saveError = false
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Libro contabile", systemImage: "books.vertical").foregroundStyle(ForgiaPalette.accent)
+                    Text(book.name ?? "Libro").font(.system(.largeTitle, design: .serif, weight: .semibold))
+                    Text("\(book.activeConti.count) conti · \(book.currency ?? "EUR")").foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).unifiedCard()
+                HStack {
+                    Button("Usa questo libro", systemImage: "checkmark.circle") { appState.selectAccount(book) }
+                        .buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
+                    Button("Modifica nome", systemImage: "pencil") { name = book.name ?? ""; editing = true }
+                        .buttonStyle(.bordered)
+                }
+                ForEach(book.activeConti) { conto in
+                    NavigationLink { FinanceContoDetailsView(conto: conto) } label: {
+                        ContoSettingsRow(conto: conto).unifiedCard()
+                    }.buttonStyle(.plain)
+                }
+                NavigationLink { SharedBookView(book: book) } label: {
+                    Label("Condivisione del libro", systemImage: "person.2")
+                }.buttonStyle(.bordered)
+            }.padding(22)
+        }
+        .themedBackground()
+        .navigationTitle("Dettagli libro")
+        .alert("Modifica libro", isPresented: $editing) {
+            TextField("Nome del libro", text: $name)
+            Button("Annulla", role: .cancel) { }
+            Button("Salva") {
+                let value = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !value.isEmpty else { saveError = true; return }
+                let previous = (book.name, book.updatedAt)
+                book.name = value; book.updatedAt = Date()
+                do { try context.save(); appState.triggerDataRefresh() }
+                catch { (book.name, book.updatedAt) = previous; saveError = true }
+            }
+        } message: { Text("La valuta resta quella dei movimenti già registrati.") }
+        .alert("Modifica non salvata", isPresented: $saveError) {
+            Button("OK", role: .cancel) { }
+        } message: { Text("Inserisci un nome valido e riprova.") }
+    }
 }

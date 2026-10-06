@@ -1,6 +1,8 @@
 # Forgia: stato della verifica funzionale
 
-Audit del 6 ottobre 2026 sul codice fino a `7d9f847`.
+Registro delle verifiche del 6 ottobre 2026. Le prove sotto riportano il
+proprio ambito; quelle precedenti alla revisione UI non validano da sole
+le schermate successive.
 L’obiettivo di parità funzionale resta aperto: le prove di sistema elencate qui
 non sono sostituite dai test unitari o dai collegamenti aperti direttamente.
 
@@ -167,3 +169,26 @@ non contiene azioni e non è stato eseguito.
 La prova cloud con soli dati sintetici è stata autorizzata esplicitamente il
 6 ottobre. Nessuna release o trasmissione di dati personali è autorizzata da
 questo audit.
+
+
+## Revisione UI dalle note dell’utente
+
+Implementati info del margine azionabile, saldo storico dentro Analisi collegato
+allo stesso periodo, FAB spesa/entrata in Movimenti con periodo in safe area bar,
+nuova gerarchia a schede di Pianifica, dettagli e azioni per libri/conti,
+categorie con ricerca e sottocategorie. Rimossi selettore e codice inutilizzato
+delle modalità semplificata/avanzata.
+
+Build finali Mac e iPhone firmato riuscite. Nel simulatore con dati sintetici:
+
+- Info in Oggi apre Il tuo margine con formula e limiti della stima.
+- Analisi mostra saldo inline; periodo personalizzato aperto e applicato.
+- Movimenti mostra periodo e filtri sopra la lista, FAB sopra i tab; entrambe
+  le opzioni aprono la bozza con il tipo corretto, poi annullata.
+- Nome libro modificato e rilevato nella lista; editor conto aperto e annullato.
+- Pianifica apre budget, ricorrenze e dettagli conto; selettore mensile attivato.
+- Categorie si apre e la ricerca è visibile; inserimento della query non
+  verificato per limite dello strumento di interazione.
+
+Queste prove non coprono ogni formato di schermo o dimensione del testo.
+La revisione visiva sul dispositivo da parte dell’utente resta da raccogliere.

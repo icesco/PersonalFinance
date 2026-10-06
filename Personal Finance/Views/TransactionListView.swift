@@ -88,19 +88,6 @@ struct TransactionListView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if let initialInterval {
-                    Text("\(initialInterval.start.formatted(date: .abbreviated, time: .omitted)) – \(initialInterval.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))")
-                        .font(.headline).padding()
-                } else {
-                    compactPeriodHeader
-                }
-                unifiedFiltersBar
-                if isSearching {
-                    TransactionSearchField(text: $searchText) {
-                        searchText = ""
-                        isSearching = false
-                    }
-                }
                 if isLoading && transactions.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -115,21 +102,54 @@ struct TransactionListView: View {
                 }
             }
             .themedBackground()
-            .navigationTitle(navigationTitle)
-            #if os(iOS)
-            .toolbarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        withAnimation { isSearching.toggle() }
-                        if !isSearching { searchText = "" }
-                    } label: { Label("Cerca movimenti", systemImage: "magnifyingglass") }
+            .safeAreaBar(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    if let initialInterval {
+                        Text("\(initialInterval.start.formatted(date: .abbreviated, time: .omitted)) – \(initialInterval.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))")
+                            .font(.headline).padding()
+                    } else {
+                        compactPeriodHeader
+                    }
+                    HStack(spacing: 4) {
+                        unifiedFiltersBar
+                        Button {
+                            withAnimation { isSearching.toggle() }
+                            if !isSearching { searchText = "" }
+                        } label: { Image(systemName: "magnifyingglass").frame(width: 40, height: 44) }
+                        .accessibilityLabel("Cerca movimenti")
+                        toolbarMenu.frame(width: 40, height: 44).accessibilityLabel("Opzioni movimenti")
+                    }.padding(.trailing, 12)
+                    if isSearching {
+                        TransactionSearchField(text: $searchText) {
+                            searchText = ""
+                            isSearching = false
+                        }
+                    }
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    toolbarMenu
+                .background(.ultraThinMaterial)
+            }
+            .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 12) {
+                if !isInSelectionMode {
+                    Menu {
+                        Button("Nuova spesa", systemImage: "arrow.up.right") { appState.presentQuickTransaction(type: .expense) }
+                        Button("Nuova entrata", systemImage: "arrow.down.left") { appState.presentQuickTransaction(type: .income) }
+                    } label: {
+                        Label("Aggiungi movimento", systemImage: "plus")
+                            .labelStyle(.iconOnly)
+                            .font(.title2.weight(.semibold))
+                            .frame(width: 56, height: 56)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(ForgiaPalette.accent)
+                    .accessibilityIdentifier("transactions-add")
+                    .padding(.trailing, 20)
                 }
             }
+            .navigationTitle(initialConto?.name ?? "")
+            #if os(iOS)
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar(initialConto == nil && initialInterval == nil ? .hidden : .visible, for: .navigationBar)
+            #endif
             .sheet(isPresented: $showingRecurring) {
                 RecurringTransactionsSheet(
                     contoIDs: contoIDsForQuery,
@@ -166,10 +186,6 @@ struct TransactionListView: View {
             .onChange(of: searchText) { _, _ in resetAndFetch() }
             .onChange(of: appState.dataRefreshTrigger) { _, _ in fetchTransactions() }
         }
-    }
-
-    private var navigationTitle: String {
-        selectedConto?.name ?? "Movimenti"
     }
 
     private var contoIDsForQuery: Set<UUID> {

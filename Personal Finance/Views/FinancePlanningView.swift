@@ -67,116 +67,104 @@ struct FinancePlanningView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button { appState.presentAccountSelection() } label: {
-                        Label(appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Scegli libro",
-                              systemImage: "books.vertical")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Dai spazio ai tuoi progetti")
+                            .font(.system(size: 32, weight: .semibold, design: .serif))
+                        Text("Conti, limiti e prossimi impegni, in un unico posto.")
+                            .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                        Button { appState.presentAccountSelection() } label: {
+                            Label(appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Scegli libro", systemImage: "books.vertical")
+                        }.buttonStyle(.glass)
                     }
-                }
-
-                Section("Budget") {
-                    if !appState.showAllAccounts, appState.selectedAccount != nil {
-                        Button { showingBudgets = true } label: {
-                            Label("Budget e limiti di spesa", systemImage: "chart.bar.xaxis")
+                    PlanningPanel(title: "Budget", symbol: "chart.bar.xaxis") {
+                        Text("Scegli quanto destinare alle tue spese e controlla i limiti del libro.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        if !appState.showAllAccounts, appState.selectedAccount != nil {
+                            Button { showingBudgets = true } label: {
+                                Label("Budget e limiti di spesa", systemImage: "arrow.up.right")
+                            }.buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
+                                .accessibilityIdentifier("planning-budgets")
+                        } else {
+                            Button("Scegli un libro per gestire i budget") { appState.presentAccountSelection() }
+                                .buttonStyle(.bordered)
                         }
-                        .accessibilityIdentifier("planning-budgets")
-                    } else {
-                        Button("Scegli un libro per gestire i budget") { appState.presentAccountSelection() }
                     }
-                }
-
-                Section {
-                    NavigationLink("Inviti ai libri condivisi") { SharedInvitationsView() }
-                }
-
-                ForEach(books) { book in
-                    Section(books.count > 1 ? "Conti · \(book.name ?? "Libro")" : "Conti") {
-                        ForEach(book.activeConti) { conto in
-                            NavigationLink {
-                                TransactionListView(initialConto: conto)
-                            } label: {
-                                HStack {
-                                    Label(conto.name ?? "Conto", systemImage: conto.type?.icon ?? "creditcard")
-                                    Spacer()
-                                    Text(conto.displayBalance, format: .currency(code: book.currency ?? "EUR"))
-                                        .monospacedDigit()
-                                }
+                    PlanningPanel(title: "Scadenze da gestire", symbol: "calendar") {
+                        Picker("Periodo delle scadenze", selection: $browseByMonth) {
+                            Text("Vicino a oggi").tag(false)
+                            Text("Per mese").tag(true)
+                        }.pickerStyle(.segmented).accessibilityIdentifier("planning-schedule-mode")
+                        if browseByMonth {
+                            HStack {
+                                Button { moveScheduleMonth(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                                    .accessibilityLabel("Mese precedente delle scadenze")
+                                Spacer()
+                                Text(scheduleInterval.start, format: .dateTime.month(.wide).year())
+                                    .font(.headline).accessibilityIdentifier("planning-schedule-month")
+                                Spacer()
+                                Button { moveScheduleMonth(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                                    .accessibilityLabel("Mese successivo delle scadenze")
+                            }.buttonStyle(.plain)
+                            Button("Torna al mese corrente") { scheduleMonth = Date() }
+                        }
+                        if _recurring.fetchError != nil || _resolutions.fetchError != nil {
+                            Label("Impossibile caricare le ricorrenti", systemImage: "exclamationmark.triangle")
+                        } else if occurrences.isEmpty {
+                            Label("Nessuna scadenza da gestire nel periodo selezionato.", systemImage: "checkmark.circle")
+                                .foregroundStyle(.secondary).padding(.vertical, 12)
+                        } else {
+                            ForEach(occurrences) { occurrence in
+                                Button { selectedOccurrence = occurrence } label: {
+                                    occurrenceRow(occurrence).padding(12)
+                                        .background(ForgiaPalette.canvas, in: RoundedRectangle(cornerRadius: 16))
+                                }.buttonStyle(.plain)
+                                .accessibilityIdentifier("occurrence-\(RecurrenceResolution.key(sourceID: occurrence.transaction.id, date: occurrence.date))")
                             }
-                            .contextMenu {
-                                Button("Modifica conto") { editingConto = conto }
-                            }
-                            .swipeActions {
-                                Button("Modifica") { editingConto = conto }.tint(.blue)
-                            }
                         }
-                        Button { creatingContoFor = book } label: {
-                            Label("Nuovo conto", systemImage: "plus")
+                        Text(browseByMonth ? "Tocca una scadenza per registrarla o saltarla. Le scadenze future restano previsioni." : "I 30 giorni passati e i prossimi 30. Scegli Per mese per consultare altri periodi.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Divider()
+                        NavigationLink { RecurringManagementView(contoIDs: Set(books.flatMap(\.activeConti).map(\.id))) } label: {
+                            Label("Gestisci ricorrenze", systemImage: "repeat")
                         }
-                        NavigationLink {
-                            SharedBookView(book: book)
-                        } label: {
-                            SharedBookStatusLabel(status: storage.isCloudSyncEnabled && !storage.isMigrating && memberships.contains(where: { $0.localBookID == book.id })
-                                                  ? storage.sharedBookAutomaticRefresh.statuses[book.id] : nil)
+                        NavigationLink { ResolvedRecurrencesView(contoIDs: Set(books.flatMap(\.activeConti).map(\.id))) } label: {
+                            Label("Scadenze gestite", systemImage: "checkmark.circle")
                         }
-                        .accessibilityIdentifier("planning-share-book")
                     }
+                    ForEach(books) { book in
+                        PlanningPanel(title: books.count > 1 ? "Conti · \(book.name ?? "Libro")" : "I tuoi conti", symbol: "creditcard") {
+                            ForEach(book.activeConti) { conto in
+                                NavigationLink { FinanceContoDetailsView(conto: conto) } label: {
+                                    HStack {
+                                        ContoSettingsRow(conto: conto)
+                                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                                    }.padding(12).background(ForgiaPalette.canvas, in: RoundedRectangle(cornerRadius: 16))
+                                }.buttonStyle(.plain)
+                                .contextMenu { Button("Modifica conto") { editingConto = conto } }
+                            }
+                            Button { creatingContoFor = book } label: { Label("Nuovo conto", systemImage: "plus") }
+                                .buttonStyle(.bordered)
+                            NavigationLink { SharedBookView(book: book) } label: {
+                                SharedBookStatusLabel(status: storage.isCloudSyncEnabled && !storage.isMigrating && memberships.contains(where: { $0.localBookID == book.id }) ? storage.sharedBookAutomaticRefresh.statuses[book.id] : nil)
+                            }.accessibilityIdentifier("planning-share-book")
+                        }
+                    }
+                    NavigationLink { SharedInvitationsView() } label: {
+                        Label("Inviti ai libri condivisi", systemImage: "person.2.badge.plus")
+                    }.buttonStyle(.bordered)
                 }
-
-                Section {
-                    NavigationLink("Gestisci ricorrenze") {
-                        RecurringManagementView(contoIDs: Set(books.flatMap(\.activeConti).map(\.id)))
-                    }
-                    NavigationLink("Scadenze gestite") {
-                        ResolvedRecurrencesView(contoIDs: Set(books.flatMap(\.activeConti).map(\.id)))
-                    }
-                    Picker("Periodo delle scadenze", selection: $browseByMonth) {
-                        Text("Vicino a oggi").tag(false)
-                        Text("Per mese").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("planning-schedule-mode")
-                    if browseByMonth {
-                        HStack {
-                            Button { moveScheduleMonth(-1) } label: { Image(systemName: "chevron.left") }
-                                .accessibilityLabel("Mese precedente delle scadenze")
-                            Spacer()
-                            Text(scheduleInterval.start, format: .dateTime.month(.wide).year())
-                                .accessibilityIdentifier("planning-schedule-month")
-                            Spacer()
-                            Button { moveScheduleMonth(1) } label: { Image(systemName: "chevron.right") }
-                                .accessibilityLabel("Mese successivo delle scadenze")
-                        }.buttonStyle(.borderless)
-                        Button("Torna al mese corrente") { scheduleMonth = Date() }
-                    }
-                    if _recurring.fetchError != nil || _resolutions.fetchError != nil {
-                        Label("Impossibile caricare le ricorrenti", systemImage: "exclamationmark.triangle")
-                    } else if occurrences.isEmpty {
-                        Text("Nessuna scadenza da gestire nel periodo selezionato.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(occurrences) { occurrence in
-                            Button { selectedOccurrence = occurrence } label: {
-                                occurrenceRow(occurrence)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("occurrence-\(RecurrenceResolution.key(sourceID: occurrence.transaction.id, date: occurrence.date))")
-                        }
-                    }
-                } header: {
-                    Text("Scadenze da gestire")
-                } footer: {
-                    Text(browseByMonth
-                         ? "Esplora i mesi per gestire anche le scadenze più vecchie. Tocca una scadenza per registrarla o saltarla. Quelle future restano previsioni."
-                         : "Scadenze dei 30 giorni passati e dei prossimi 30. Scegli Per mese per consultare altri periodi. Quelle future restano previsioni finché non vengono registrate.")
-                }
+                .frame(maxWidth: 760)
+                .padding(22)
+                .frame(maxWidth: .infinity)
             }
+            .themedBackground()
             .navigationTitle("Pianifica")
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { appState.presentQuickTransaction() } label: {
-                        Label("Nuova spesa", systemImage: "plus")
-                    }
+                    Button { appState.presentQuickTransaction() } label: { Label("Nuova spesa", systemImage: "plus") }
                 }
             }
             .confirmationDialog("Gestisci scadenza", isPresented: Binding(
@@ -238,5 +226,22 @@ struct FinancePlanningView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+
+private struct PlanningPanel<Content: View>: View {
+    let title: String
+    let symbol: String
+    @ViewBuilder let content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label(title, systemImage: symbol)
+                .font(.system(.title2, design: .serif, weight: .semibold))
+                .foregroundStyle(ForgiaPalette.accent)
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .unifiedCard()
     }
 }
