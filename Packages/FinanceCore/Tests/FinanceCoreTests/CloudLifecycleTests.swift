@@ -6,6 +6,24 @@ import Testing
 
 @MainActor
 struct CloudLifecycleTests {
+    #if DEBUG
+    @Test func localUISessionIsIsolatedAndCannotEnableCloud() async throws {
+        let first = DataStorageManager.makeLocalTestStorage()
+        try await first.initializeContainer()
+        let original = try #require(first.currentContainer)
+        original.mainContext.insert(Account(name: "Synthetic UI book"))
+        try original.mainContext.save()
+        await first.performSyncToggle(enableCloud: true)
+        #expect(!first.isCloudSyncEnabled)
+        #expect(first.currentContainer === original)
+        #expect(first.syncToggleError != nil)
+        let second = DataStorageManager.makeLocalTestStorage()
+        try await second.initializeContainer()
+        let fresh = try #require(second.currentContainer)
+        #expect(try fresh.mainContext.fetchCount(FetchDescriptor<Account>()) == 0)
+    }
+    #endif
+
     private func defaults() -> (UserDefaults, String) {
         let name = "CloudLifecycleTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: name)!, name)

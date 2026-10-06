@@ -148,6 +148,9 @@ final class RecurrenceReminders {
     }
 
     func update(_ plans: [DailyRecurrenceReminder]) {
+        #if DEBUG
+        guard !ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL") else { return }
+        #endif
         desired = plans
         revision += 1
         guard worker == nil else { return }

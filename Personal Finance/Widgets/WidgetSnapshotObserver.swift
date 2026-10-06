@@ -23,6 +23,9 @@ enum WidgetSnapshotPublisher {
     }
 
     private static func publish(_ snapshot: FinanceWidgetSnapshot) {
+        #if DEBUG
+        guard !ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL") else { return }
+        #endif
         guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1",
               let url = FinanceWidgetStorage.sharedURL else { return }
         do { try FinanceWidgetStorage.write(snapshot, to: url) }

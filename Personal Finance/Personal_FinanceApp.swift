@@ -124,6 +124,18 @@ struct Personal_FinanceApp: App {
     @MainActor
     private func initializeApp() async {
         do {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL") {
+                guard !isInitialized else { return }
+                try await dataStorageManager.initializeContainer()
+                if let container = dataStorageManager.currentContainer {
+                    try await DemoDataService(modelContext: container.mainContext).generateDemoData()
+                }
+                isInitialized = true
+                initializationError = nil
+                return
+            }
+            #endif
             // Check and perform migration if needed
             if dataStorageManager.needsMigration() {
                 try dataStorageManager.performMigration()

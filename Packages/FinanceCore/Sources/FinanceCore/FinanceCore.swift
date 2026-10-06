@@ -111,7 +111,32 @@ public struct FinanceCoreModule {
 @Observable
 @MainActor
 public final class DataStorageManager {
-    public static let shared = DataStorageManager()
+    public static let shared: DataStorageManager = {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL") {
+            return makeLocalTestStorage()
+        }
+        #endif
+        return DataStorageManager()
+    }()
+
+    #if DEBUG
+    /// Local UI verification without opening the user's store or contacting CloudKit.
+    public static func makeLocalTestStorage() -> DataStorageManager {
+        DataStorageManager(
+            appGroupIdentifier: "Forgia.UITest",
+            userDefaults: UserDefaults(suiteName: "Forgia.UITest.\(UUID().uuidString)")!,
+            makeContainer: { enabled in
+                guard !enabled else {
+                    throw NSError(domain: "Forgia.LocalUITest", code: 1,
+                                  userInfo: [NSLocalizedDescriptionKey: "iCloud non è disponibile nella sessione di prova."])
+                }
+                return try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+            },
+            requestAccountStatus: { .noAccount }
+        )
+    }
+    #endif
     
     private let appGroupIdentifier: String
     private let userDefaults: UserDefaults
