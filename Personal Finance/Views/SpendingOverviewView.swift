@@ -363,9 +363,11 @@ private struct SpendingPeriodBar: View {
                     Button { move(-1) } label: {
                         Image(systemName: "chevron.left")
                             .font(.subheadline.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .background(ForgiaPalette.surface, in: Circle())
                     }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+                    .controlSize(.large)
+                    .frame(width: 44, height: 44)
                     .accessibilityLabel("Periodo precedente")
                 }
                 Spacer(minLength: 0)
@@ -396,9 +398,11 @@ private struct SpendingPeriodBar: View {
                     Button { move(1) } label: {
                         Image(systemName: "chevron.right")
                             .font(.subheadline.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .background(ForgiaPalette.surface, in: Circle())
                     }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+                    .controlSize(.large)
+                    .frame(width: 44, height: 44)
                     .accessibilityLabel("Periodo successivo")
                     .disabled(!canMoveForward)
                     .opacity(canMoveForward ? 1 : 0.4)

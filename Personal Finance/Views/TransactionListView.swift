@@ -205,9 +205,11 @@ struct TransactionListView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.subheadline.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .background(ForgiaPalette.surface, in: Circle())
                 }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
+                .frame(width: 44, height: 44)
 
                 Spacer()
 
@@ -233,9 +235,11 @@ struct TransactionListView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.subheadline.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .background(ForgiaPalette.surface, in: Circle())
                 }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
+                .frame(width: 44, height: 44)
                 .disabled(isAtCurrentPeriod)
                 .opacity(isAtCurrentPeriod ? 0.4 : 1)
 
