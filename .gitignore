@@ -1,1 +1,5 @@
 Packages/FinanceCore/.build
+
+# Local Finder and Xcode user state
+.DS_Store
+**/xcuserdata/
