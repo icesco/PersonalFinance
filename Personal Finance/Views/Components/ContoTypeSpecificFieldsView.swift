@@ -72,7 +72,25 @@ struct ContoTypeSpecificFieldsView: View {
 
     // MARK: - Savings Fields
 
-    private var savingsFields: some View {
+    @ViewBuilder private var savingsFields: some View {
+        Section("Rendimento del risparmio") {
+            HStack {
+                Text("Tasso annuo (%)")
+                Spacer()
+                Button { annualInterestRate = -(annualInterestRate ?? 0) } label: {
+                    Image(systemName: "plus.forwardslash.minus")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Cambia segno del rendimento")
+                TextField("0,00", value: $annualInterestRate, format: .number)
+#if os(iOS)
+                    .keyboardType(.decimalPad)
+#endif
+                    .multilineTextAlignment(.trailing)
+            }
+            Text("Un tasso negativo stima una perdita rispetto al capitale. La stima usa il tasso indicato, senza dedurre imposte o costi. Inserisci un tasso netto per stimare il rendimento netto. Gli interessi non ancora accreditati non vengono capitalizzati.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
         Section("Obiettivo di Risparmio") {
             HStack {
                 Text("Obiettivo")

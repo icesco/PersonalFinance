@@ -55,6 +55,9 @@ public final class Conto {
 
     // Risparmio
     public var savingsGoal: Decimal?
+    /// Optional additive fields remain compatible with existing CloudKit stores.
+    public var savingsRatesJSON: String?
+    public var savingsGoalID: UUID?
 
     public var account: Account?
 
@@ -88,6 +91,10 @@ public final class Conto {
         self.annualInterestRate = annualInterestRate
         self.savingsGoal = savingsGoal
         self.createdAt = Date()
+        if type == .savings, let rate = annualInterestRate,
+           let data = try? JSONEncoder().encode([SavingsRate(effectiveDate: self.createdAt!, annualPercent: rate)]) {
+            self.savingsRatesJSON = String(decoding: data, as: UTF8.self)
+        }
         self.updatedAt = Date()
         self.isActive = true
         self.outgoingTransactions = []

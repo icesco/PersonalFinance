@@ -177,6 +177,7 @@ public enum SharedBookImporter {
                 case .conto:
                     let value = try required(uuid.flatMap { conti[$0] }); value.account = book
                     try applyConto(record, to: value)
+                    value.savingsGoalID = try localID(record.reference("linkedSavingsGoal", kind: .goal))
                 case .category:
                     let value = try required(uuid.flatMap { categories[$0] }); value.account = book
                     value.externalID = try required(record.text("externalID")); value.name = try record.text("name")
@@ -333,12 +334,14 @@ public enum SharedBookImporter {
         value.paymentDueDay = try record.integer("paymentDueDay")
         value.annualInterestRate = try record.decimal("annualInterestRate")
         value.savingsGoal = try record.decimal("savingsGoal")
+        value.savingsRatesJSON = try record.text("savingsRates")
     }
 
     private static func applyTransaction(_ record: SharedBookRecord, to value: Transaction) throws {
         value.externalID = try required(record.text("externalID"))
         value.amount = try record.decimal("amount")
         value.destinationAmount = try record.decimal("destinationAmount")
+        value.isSavingsInterest = try record.flag("isSavingsInterest")
         value.date = try required(record.date("date"))
         value.createdAt = try record.date("createdAt")
         value.updatedAt = try record.date("updatedAt")

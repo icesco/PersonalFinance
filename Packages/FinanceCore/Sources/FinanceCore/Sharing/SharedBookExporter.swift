@@ -49,7 +49,9 @@ public enum SharedBookExporter {
                 "description": conto.contoDescription.map(SharedValue.text), "color": conto.color.map(SharedValue.text),
                 "creditLimit": conto.creditLimit.map(SharedValue.decimal), "statementClosingDay": conto.statementClosingDay.map(SharedValue.integer),
                 "paymentDueDay": conto.paymentDueDay.map(SharedValue.integer), "annualInterestRate": conto.annualInterestRate.map(SharedValue.decimal),
-                "savingsGoal": conto.savingsGoal.map(SharedValue.decimal)]))
+                "savingsGoal": conto.savingsGoal.map(SharedValue.decimal),
+                "savingsRates": conto.savingsRatesJSON.map(SharedValue.text),
+                "linkedSavingsGoal": reference(.goal, conto.savingsGoalID.flatMap { goalID in (book.savingsGoals ?? []).contains { $0.id == goalID } ? goalID : nil })]))
         }
         for category in categories {
             if let parent = category.parentCategoryId, !categoryIDs.contains(parent) { throw Failure.invalidBoundary }
@@ -69,7 +71,7 @@ public enum SharedBookExporter {
             let category = originalCategory.flatMap { categoryIDs.contains($0) ? $0 : nil }
             records.append(record(.transaction, transaction.id, ["book": bookReference,
                 "externalID": .text(transaction.externalID), "amount": transaction.amount.map(SharedValue.decimal),
-                "destinationAmount": transaction.destinationAmount.map(SharedValue.decimal), "date": .date(transaction.date),
+                "destinationAmount": transaction.destinationAmount.map(SharedValue.decimal), "isSavingsInterest": transaction.isSavingsInterest.map(SharedValue.flag), "date": .date(transaction.date),
                 "createdAt": transaction.createdAt.map(SharedValue.date), "updatedAt": transaction.updatedAt.map(SharedValue.date),
                 "description": transaction.transactionDescription.map(SharedValue.text), "notes": transaction.notes.map(SharedValue.text),
                 "type": .text(transaction.typeRaw), "fromConto": reference(.conto, from), "toConto": reference(.conto, to),

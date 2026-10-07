@@ -79,6 +79,8 @@ public final class Transaction {
     public var amount: Decimal?
     /// Amount credited by a cross-currency transfer; nil retains legacy same-currency behavior.
     public var destinationAmount: Decimal?
+    /// An actual interest credit is income, but is not a savings contribution.
+    public var isSavingsInterest: Bool?
     public var date: Date = Date()
     public var createdAt: Date?
     public var updatedAt: Date?

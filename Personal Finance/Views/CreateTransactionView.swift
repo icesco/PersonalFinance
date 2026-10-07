@@ -19,6 +19,7 @@ struct CreateTransactionView: View {
     @State private var showingCalculator = false
     @State private var description = ""
     @State private var notes = ""
+    @State private var isSavingsInterest = false
     @State private var selectedDate = Date()
     @State private var includeTime = false
     @State private var selectedCategory: FinanceCategory?
@@ -93,7 +94,8 @@ struct CreateTransactionView: View {
         return false
     }
     
-    init(conto: Conto?, transactionType: TransactionType) {
+    init(conto: Conto?, transactionType: TransactionType, savingsInterest: Bool = false) {
+        _isSavingsInterest = State(initialValue: savingsInterest)
         self.conto = conto
         self.transactionType = transactionType
         
@@ -177,6 +179,14 @@ struct CreateTransactionView: View {
                     }
                 }
                 
+                if transactionType == .income && conto?.type == .savings {
+                    Section("Risparmio") {
+                        Toggle("Interessi accreditati", isOn: $isSavingsInterest)
+                        Text("Aumentano il saldo senza essere conteggiati come capitale versato.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
                 Section { TransactionPlaceEditor(place: $place, isLocating: $loadingLocation) }
                 Section { DraftAttachmentsView(attachments: $attachmentDrafts, onSelectAmount: { amount = $0 }, loading: $loadingAttachment) }
 
@@ -390,6 +400,7 @@ struct CreateTransactionView: View {
                 recurrenceEndDate: isRecurring && hasEndDate ? effectiveRecurrenceEndDate : nil
             )
 
+            transaction.isSavingsInterest = transactionType == .income && conto.type == .savings && isSavingsInterest
             transaction.setCategory(selectedCategory)
 
             if transactionType == .income {

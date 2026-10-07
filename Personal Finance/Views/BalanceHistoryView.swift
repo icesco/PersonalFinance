@@ -51,6 +51,9 @@ struct BalanceHistoryView: View {
                 }
                 BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
                     .unifiedCard()
+                if let conto = conti.first(where: { $0.id == contoID }), conto.type == .savings {
+                    SavingsAccountSummary(conto: conto)
+                }
                 Text("Saldo ricostruito dai saldi iniziali e dai movimenti datati fino a oggi. Il tratteggio indica la previsione basata sulle transazioni programmate e sulle ricorrenze fino alla fine del periodo. Sono compresi anche i conti archiviati del libro; le valute di libri diversi restano separate.")
                     .font(.footnote).foregroundStyle(.secondary)
             }.padding()
@@ -142,13 +145,17 @@ private struct BalanceHistoryChart: View {
                 BalanceHistoryPlot(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
                     .frame(height: 230)
 
-                if hasProjection {
-                    HStack(spacing: 18) {
-                        Label { Text("Registrato") } icon: { Capsule().frame(width: 18, height: 2) }
-                        Label { Text("Previsto") } icon: {
-                            HStack(spacing: 3) {
-                                Capsule().frame(width: 7, height: 2)
-                                Capsule().frame(width: 7, height: 2)
+                let hasSavings = series.contains(where: { $0.savingsCapital != nil })
+                if hasProjection || hasSavings {
+                    BalanceLineLegend(hasProjection: hasProjection, hasSavings: hasSavings,
+                                      tint: series.count == 1 ? series[0].color : .secondary)
+                }
+                if hasSavings {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(series.filter { $0.savingsCapital != nil }) { account in
+                            if let capital = account.savingsAmount(at: probeDate, estimated: false),
+                               let value = account.savingsAmount(at: probeDate, estimated: true) {
+                                Text("\(account.name): versato \(capital.formatted(.currency(code: currency))) · controvalore \(value.formatted(.currency(code: currency)))")
                             }
                         }
                     }.font(.caption).foregroundStyle(.secondary)
@@ -184,6 +191,50 @@ private struct BalanceHistoryChart: View {
 
 }
 
+private struct BalanceLineLegend: View {
+    let hasProjection: Bool
+    let hasSavings: Bool
+    let tint: Color
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+            GridRow {
+                BalanceLegendItem(title: "Saldo registrato", tint: tint, dash: [], opacity: 1)
+                if hasProjection {
+                    BalanceLegendItem(title: "Saldo previsto", tint: tint, dash: [5, 4], opacity: 0.65)
+                }
+            }
+            if hasSavings {
+                GridRow {
+                    BalanceLegendItem(title: "Capitale versato", tint: tint, dash: [], opacity: 0.45)
+                    BalanceLegendItem(title: "Controvalore stimato", tint: tint, dash: [2, 3], opacity: 1)
+                }
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct BalanceLegendItem: View {
+    let title: LocalizedStringKey
+    let tint: Color
+    let dash: [CGFloat]
+    let opacity: Double
+    var body: some View {
+        HStack(spacing: 7) {
+            LegendLine().stroke(tint.opacity(opacity), style: StrokeStyle(lineWidth: 2, dash: dash))
+                .frame(width: 25, height: 12).accessibilityHidden(true)
+            Text(title).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }.accessibilityElement(children: .combine)
+    }
+    private struct LegendLine: Shape {
+        func path(in rect: CGRect) -> Path {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: rect.midY))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            }
+        }
+    }
+}
+
 #if DEBUG
 /// Isolated visual verification data; never written to the user's ledger.
 struct BalanceHistoryFixture: View {
@@ -198,6 +249,11 @@ struct BalanceHistoryFixture: View {
         container.mainContext.insert(book)
         let now = Date()
         let start = Calendar.current.date(byAdding: .day, value: -30, to: now)!
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS") {
+            try! savings.setSavingsRate(ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS_LOSS") ? -3 : 3, effectiveDate: Calendar.current.date(byAdding: .year, value: -1, to: start)!)
+            try! savings.setSavingsRate(ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS_LOSS") ? -4 : 4, effectiveDate: start)
+            try! SavingsAccountEdits.linkGoal(conto: savings, existingID: nil, target: 10000, context: container.mainContext)
+        }
         @MainActor func add(_ day: Int, _ amount: Decimal, _ type: TransactionType, from: Conto? = nil, to: Conto? = nil) {
             let transaction = FinanceCore.Transaction(amount: amount, type: type,
                 date: Calendar.current.date(byAdding: .day, value: day, to: start)!)
@@ -225,7 +281,14 @@ struct BalanceHistoryFixture: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Registrato e previsto · dati demo")
                         .font(.subheadline).foregroundStyle(.secondary)
-                    InlineBalanceHistoryCard(scopeContoIDs: Self.data.ids, interval: Self.data.interval, currency: "EUR")
+                    if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS"),
+                       let savings = (try? Self.data.container.mainContext.fetch(FetchDescriptor<Conto>()))?.first(where: { $0.type == .savings }) {
+                        InlineBalanceHistoryCard(scopeContoIDs: [savings.id], interval: Self.data.interval, currency: "EUR")
+                        SavingsAccountSummary(conto: savings)
+                            .unifiedCard()
+                    } else {
+                        InlineBalanceHistoryCard(scopeContoIDs: Self.data.ids, interval: Self.data.interval, currency: "EUR")
+                    }
                 }.padding()
             }
             .themedBackground()

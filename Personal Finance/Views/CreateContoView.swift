@@ -18,6 +18,9 @@ struct CreateContoView: View {
     @State private var paymentDueDay: Int?
     @State private var annualInterestRate: Decimal?
     @State private var savingsGoal: Decimal?
+    @State private var linkedGoalID: UUID?
+    @State private var rateDate = Calendar.current.startOfDay(for: Date())
+    @Query private var goals: [SavingsGoal]
     
     init(account: Account) {
         self.account = account
@@ -79,6 +82,20 @@ struct CreateContoView: View {
                     savingsGoal: $savingsGoal
                 )
 
+                if selectedType == .savings {
+                    Section("Collegamento al risparmio") {
+                        DatePicker("Tasso valido dal", selection: $rateDate, in: ...Date(), displayedComponents: .date)
+                        Picker("Obiettivo collegato", selection: $linkedGoalID) {
+                            Text("Nuovo obiettivo dal valore indicato").tag(nil as UUID?)
+                            ForEach(goals.filter { $0.account?.id == account.id }) { goal in
+                                Text(goal.name ?? "Obiettivo").tag(Optional(goal.id))
+                            }
+                        }
+                        Text("I versamenti e i prelievi aggiornano automaticamente l’obiettivo. Il saldo iniziale è incluso; gli interessi restano separati. Senza importo o selezione non viene creato un obiettivo.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Personalizzazione") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Colore")
@@ -108,7 +125,7 @@ struct CreateContoView: View {
                     Button("Salva") {
                         createConto()
                     }
-                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsedBalance == nil)
+                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsedBalance == nil || (savingsGoal != nil && (savingsGoal ?? 0) <= 0))
                     .accessibilityIdentifier("conto-save")
                 }
             }
@@ -148,6 +165,10 @@ struct CreateContoView: View {
 
             conto.account = savedAccount
             context.insert(conto)
+            if selectedType == .savings {
+                if let rate = annualInterestRate { try conto.setSavingsRate(rate, effectiveDate: rateDate) }
+                try SavingsAccountEdits.linkGoal(conto: conto, existingID: linkedGoalID, target: savingsGoal, context: context)
+            }
             try context.save()
             dismiss()
         } catch {
@@ -164,6 +185,8 @@ struct EditContoView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
+    @State private var saveError: String?
+    @State private var loaded = false
     @State private var contoName = ""
     @State private var selectedType: ContoType = .checking
     @State private var description = ""
@@ -173,6 +196,9 @@ struct EditContoView: View {
     @State private var paymentDueDay: Int?
     @State private var annualInterestRate: Decimal?
     @State private var savingsGoal: Decimal?
+    @State private var linkedGoalID: UUID?
+    @State private var rateDate = Calendar.current.startOfDay(for: Date())
+    @Query private var goals: [SavingsGoal]
     
     var body: some View {
         NavigationStack {
@@ -203,10 +229,27 @@ struct EditContoView: View {
                     savingsGoal: $savingsGoal
                 )
 
+                if selectedType == .savings {
+                    Section("Collegamento al risparmio") {
+                        DatePicker("Tasso valido dal", selection: $rateDate, in: ...Date(), displayedComponents: .date)
+                        Picker("Obiettivo collegato", selection: $linkedGoalID) {
+                            Text("Nuovo obiettivo dal valore indicato").tag(nil as UUID?)
+                            ForEach(goals.filter { $0.account?.id == conto.account?.id }) { goal in
+                                Text(goal.name ?? "Obiettivo").tag(Optional(goal.id))
+                            }
+                        }
+                        Text("I versamenti e i prelievi aggiornano automaticamente l’obiettivo. Il saldo iniziale è incluso; gli interessi restano separati. Senza importo o selezione non viene creato un obiettivo.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Personalizzazione") {
                     AccountColorGrid(selection: $selectedColor)
                 }
 
+                if selectedType == .savings {
+                    SavingsAccountSummary(conto: conto, allowsActions: false)
+                }
                 Section("Saldo Corrente") {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Saldo attuale")
@@ -233,13 +276,18 @@ struct EditContoView: View {
                     Button("Salva") {
                         updateConto()
                     }
-                    .disabled(contoName.isEmpty)
+                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (savingsGoal != nil && (savingsGoal ?? 0) <= 0))
                 }
             }
         }
         .onAppear {
+            guard !loaded else { return }
             loadContoData()
+            loaded = true
         }
+        .alert("Impossibile salvare il conto", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: { Text(saveError ?? "") }
     }
     
     private func loadContoData() {
@@ -250,29 +298,47 @@ struct EditContoView: View {
         creditLimit = conto.creditLimit
         statementClosingDay = conto.statementClosingDay
         paymentDueDay = conto.paymentDueDay
-        annualInterestRate = conto.annualInterestRate
-        savingsGoal = conto.savingsGoal
+        annualInterestRate = conto.savingsRates.last?.annualPercent ?? conto.annualInterestRate
+        savingsGoal = conto.linkedSavingsGoal?.targetAmount ?? conto.savingsGoal
+        linkedGoalID = conto.savingsGoalID
+        rateDate = Calendar.current.startOfDay(for: Date())
     }
 
     private func updateConto() {
-        conto.name = contoName
-        conto.type = selectedType
-        conto.contoDescription = description.isEmpty ? nil : description
-        conto.color = selectedColor
-        conto.creditLimit = selectedType == .credit ? creditLimit : nil
-        conto.statementClosingDay = selectedType == .credit ? statementClosingDay : nil
-        conto.paymentDueDay = selectedType == .credit ? paymentDueDay : nil
-        conto.annualInterestRate = selectedType == .investment ? annualInterestRate : nil
-        conto.savingsGoal = selectedType == .savings ? savingsGoal : nil
-        conto.updatedAt = Date()
-
+        let context = ModelContext(modelContext.container)
+        context.autosaveEnabled = false
+        let id = conto.id
         do {
-            try modelContext.save()
+            guard let target = try context.fetch(FetchDescriptor<Conto>(predicate: #Predicate { $0.id == id })).first else {
+                saveError = "Il conto non è più disponibile."
+                return
+            }
+            target.name = contoName.trimmingCharacters(in: .whitespacesAndNewlines)
+            target.type = selectedType
+            target.contoDescription = description.isEmpty ? nil : description
+            target.color = selectedColor
+            target.creditLimit = selectedType == .credit ? creditLimit : nil
+            target.statementClosingDay = selectedType == .credit ? statementClosingDay : nil
+            target.paymentDueDay = selectedType == .credit ? paymentDueDay : nil
+            target.annualInterestRate = selectedType == .investment ? annualInterestRate : (selectedType == .savings ? target.annualInterestRate : nil)
+            target.savingsGoal = selectedType == .savings ? savingsGoal : nil
+            target.updatedAt = Date()
+            if selectedType == .savings {
+                if let rate = annualInterestRate, target.savingsRates.last?.annualPercent != rate {
+                    try target.setSavingsRate(rate, effectiveDate: rateDate)
+                } else if annualInterestRate == nil && !target.savingsRates.isEmpty {
+                    try target.setSavingsRate(0, effectiveDate: rateDate)
+                }
+                try SavingsAccountEdits.linkGoal(conto: target, existingID: linkedGoalID, target: savingsGoal, context: context)
+            } else { target.savingsGoalID = nil }
+            try context.save()
             dismiss()
         } catch {
-            print("Error updating conto: \(error)")
+            context.rollback()
+            saveError = "Non è stato possibile salvare il conto. I dati inseriti restano qui: riprova."
         }
     }
+
 }
 
 // MARK: - Color Picker View

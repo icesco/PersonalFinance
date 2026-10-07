@@ -85,21 +85,30 @@ public final class SavingsGoal: Identifiable {
         self.isActive = true
     }
     
+    public var linkedConti: [Conto] {
+        (account?.conti ?? []).filter { $0.type == .savings && $0.savingsGoalID == id }
+    }
+
+    public var fundedAmount: Decimal {
+        guard !linkedConti.isEmpty else { return currentAmount ?? 0 }
+        return linkedConti.reduce(0) { $0 + $1.savingsCapital(at: Date()) }
+    }
+
     public var progressPercentage: Double {
-        guard let target = targetAmount, target > 0,
-              let current = currentAmount else { return 0.0 }
-        return min(Double(truncating: current as NSDecimalNumber) / Double(truncating: target as NSDecimalNumber), 1.0) * 100
+        guard let target = targetAmount, target > 0 else { return 0.0 }
+        let current = fundedAmount
+        return max(0, min(Double(truncating: current as NSDecimalNumber) / Double(truncating: target as NSDecimalNumber), 1.0)) * 100
     }
     
     public var remainingAmount: Decimal {
-        guard let target = targetAmount,
-              let current = currentAmount else { return 0 }
+        guard let target = targetAmount else { return 0 }
+        let current = fundedAmount
         return max(target - current, 0)
     }
     
     public var isCompleted: Bool {
-        guard let target = targetAmount,
-              let current = currentAmount else { return false }
+        guard let target = targetAmount else { return false }
+        let current = fundedAmount
         return current >= target
     }
     

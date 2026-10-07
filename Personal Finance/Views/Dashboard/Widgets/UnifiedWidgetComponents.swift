@@ -59,7 +59,7 @@ private struct UnifiedCardModifier: ViewModifier {
             .padding(18)
             .background { TintedCardBackground(cornerRadius: 22) }
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(ForgiaPalette.border.opacity(0.8), lineWidth: 0.5) }
+            .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(ForgiaPalette.border.opacity(0.8), lineWidth: 0.5).allowsHitTesting(false) }
     }
 }
 

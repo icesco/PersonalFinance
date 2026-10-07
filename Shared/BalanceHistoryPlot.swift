@@ -34,11 +34,24 @@ struct BalanceHistoryPlot: View {
         let hasProjection = series.contains { !$0.projected.isEmpty }
         let endDate = hasProjection ? interval.end : closingDate
         let probeDate = selectedDate.map { min(max($0, openingDate), endDate) } ?? closingDate
-        let domain = BalanceCalculator.chartYDomain(dataPoints: series.flatMap { $0.points + $0.projected })
+        let domain = BalanceCalculator.chartYDomain(dataPoints: series.flatMap { $0.points + $0.projected + ($0.savingsCapital ?? []) + ($0.savingsValue ?? []) })
         return Chart {
             ForEach(series) { account in
                 ForEach(account.points, id: \.date) { point in
                     accountLine(account, point: point)
+                }
+                ForEach(account.savingsCapital ?? [], id: \.date) { point in
+                    LineMark(x: .value("Data", point.date), y: .value("Capitale versato", NSDecimalNumber(decimal: point.balance).doubleValue),
+                             series: .value("Conto", account.id.uuidString + "-capitale"))
+                        .interpolationMethod(.stepEnd)
+                        .foregroundStyle(account.color.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                }
+                ForEach(account.savingsValue ?? [], id: \.date) { point in
+                    LineMark(x: .value("Data", point.date), y: .value("Controvalore stimato", NSDecimalNumber(decimal: point.balance).doubleValue),
+                             series: .value("Conto", account.id.uuidString + "-controvalore"))
+                        .foregroundStyle(account.color)
+                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [2, 3]))
                 }
                 ForEach(account.projected, id: \.date) { point in
                     accountLine(account, point: point, projected: true)

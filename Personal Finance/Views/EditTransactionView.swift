@@ -15,6 +15,7 @@ struct EditTransactionView: View {
     @State private var amountText = ""
     @State private var description = ""
     @State private var notes = ""
+    @State private var isSavingsInterest = false
     @State private var selectedDate = Date()
     @State private var includeTime = false
     @State private var selectedCategory: FinanceCategory?
@@ -147,6 +148,14 @@ struct EditTransactionView: View {
                     }
                 }
 
+                if transaction.type == .income && transaction.toConto?.type == .savings {
+                    Section("Risparmio") {
+                        Toggle("Interessi accreditati", isOn: $isSavingsInterest)
+                        Text("Aumentano il saldo senza essere conteggiati come capitale versato.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
                 Section { TransactionPlaceEditor(place: $place, isLocating: $loadingLocation) }
 
                 Section("Dettagli Aggiuntivi") {
@@ -226,6 +235,7 @@ struct EditTransactionView: View {
         amount = transaction.amount ?? Decimal(0)
         description = transaction.transactionDescription ?? ""
         notes = transaction.notes ?? ""
+        isSavingsInterest = transaction.isSavingsInterest == true
         selectedDate = transaction.date
         selectedCategory = transaction.category
         isRecurring = transaction.isRecurring ?? false
@@ -253,6 +263,7 @@ struct EditTransactionView: View {
         let oldDate = transaction.date
         let oldDescription = transaction.transactionDescription
         let oldNotes = transaction.notes
+        let oldInterest = transaction.isSavingsInterest
         let oldRecurring = transaction.isRecurring
         let oldFrequency = transaction.recurrenceFrequency
         let oldEnd = transaction.recurrenceEndDate
@@ -266,6 +277,7 @@ struct EditTransactionView: View {
         transaction.date = selectedDate
         transaction.transactionDescription = description.isEmpty ? nil : description
         transaction.notes = notes.isEmpty ? nil : notes
+        transaction.isSavingsInterest = transaction.type == .income && transaction.toConto?.type == .savings && isSavingsInterest
         transaction.isRecurring = isRecurring
         transaction.recurrenceFrequency = isRecurring ? selectedFrequency : nil
         transaction.recurrenceEndDate = isRecurring && hasEndDate
@@ -293,6 +305,7 @@ struct EditTransactionView: View {
             transaction.date = oldDate
             transaction.transactionDescription = oldDescription
             transaction.notes = oldNotes
+            transaction.isSavingsInterest = oldInterest
             transaction.isRecurring = oldRecurring
             transaction.recurrenceFrequency = oldFrequency
             transaction.recurrenceEndDate = oldEnd

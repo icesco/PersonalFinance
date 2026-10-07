@@ -32,13 +32,20 @@ public struct AccountCreation {
             context.insert(category)
             return category
         }
-        do { try save(); return account }
+        do {
+            for conto in conti where conto.type == .savings && conto.savingsGoal != nil {
+                try SavingsAccountEdits.linkGoal(conto: conto, existingID: nil, target: conto.savingsGoal, context: context)
+            }
+            try save()
+            return account
+        }
         catch {
             // Remove only this failed creation; preserve edits to existing books.
             for category in categories {
                 category.account = nil
                 context.delete(category)
             }
+            for goal in account.savingsGoals ?? [] { context.delete(goal) }
             for conto in conti {
                 conto.account = nil
                 context.delete(conto)
