@@ -47,11 +47,16 @@ struct SpendingOverviewView: View {
                 .padding(.horizontal, 22)
 
                 VStack(alignment: .leading, spacing: 24) {
+                    if period == .month {
+                        MonthlySpendingTrendCard(trend: MonthlySpendingTrend.calculate(transactions: transactions, anchor: anchor),
+                            currency: currency, periodTitle: periodTitle)
+                    }
                     RecordedSavingsCard(
                         report: RecordedSavingsReport.calculate(transactions: transactions, interval: interval),
-                        currency: currency, isInProgress: interval.end > Date()
+                        currency: currency, isInProgress: interval.end > Date(), periodTitle: periodTitle
                     )
-                    InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
+                    FinanceCalendarPreview(contoIDs: scopeContoIDs, currency: currency, initialDate: anchor)
+                    InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency, periodTitle: periodTitle)
 
                     if report.expenses > 0 {
                         VStack(alignment: .leading, spacing: 12) {

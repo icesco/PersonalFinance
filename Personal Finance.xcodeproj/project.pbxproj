@@ -21,6 +21,7 @@ F047CA000000000000000015 = {isa = PBXBuildFile; fileRef = F047CA0000000000000000
 F047CA00000000000000001F = {isa = PBXBuildFile; fileRef = F047CA00000000000000001E; };
 F047CA000000000000000029 = {isa = PBXBuildFile; fileRef = F047CA000000000000000028; };
 F047CB00000000000000000E = {isa = PBXBuildFile; fileRef = F047CB000000000000000002; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F1CA1E000000000000000001 /* FinanceUICalendar in Frameworks */ = {isa = PBXBuildFile; productRef = F1CA1E000000000000000002 /* FinanceUICalendar */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,7 @@ F047CB000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions
 			buildActionMask = 2147483647;
 			files = (
 				6D6508F92E5B418F0033992E /* FinanceCore in Frameworks */,
+				F1CA1E000000000000000001 /* FinanceUICalendar in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -179,6 +181,7 @@ F047CA000000000000000028,
 			name = "Personal Finance";
 			packageProductDependencies = (
 				6D6508F82E5B418F0033992E /* FinanceCore */,
+				F1CA1E000000000000000002 /* FinanceUICalendar */,
 			);
 			productName = "Personal Finance";
 			productReference = 6D6508C82E5B400F0033992E /* Personal Finance.app */;
@@ -271,6 +274,7 @@ F047CB000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = F047
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				6D6508F72E5B418F0033992E /* XCLocalSwiftPackageReference "Packages/FinanceCore" */,
+				F1CA1E000000000000000003 /* XCLocalSwiftPackageReference "Packages/FinanceUICalendar" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D6508C92E5B400F0033992E /* Products */;
@@ -743,6 +747,10 @@ F047CB000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (F0
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/FinanceCore;
 		};
+		F1CA1E000000000000000003 /* XCLocalSwiftPackageReference "Packages/FinanceUICalendar" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FinanceUICalendar;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -751,6 +759,10 @@ F047CB000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (F0
 			productName = FinanceCore;
 		};
 		F0471A00000000000000000F = {isa = XCSwiftPackageProductDependency; productName = FinanceCore; };
+		F1CA1E000000000000000002 /* FinanceUICalendar */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FinanceUICalendar;
+		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6D6508C02E5B400F0033992E /* Project object */;

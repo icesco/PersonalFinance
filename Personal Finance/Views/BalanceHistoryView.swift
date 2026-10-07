@@ -50,7 +50,7 @@ struct BalanceHistoryView: View {
                         .labelStyle(.iconOnly).disabled(interval.end > Date())
                 }
                 BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
-                    .unifiedCard()
+                    .unifiedCard(tint: ForgiaPalette.balance)
                 if let conto = conti.first(where: { $0.id == contoID }), conto.type == .savings {
                     SavingsAccountSummary(conto: conto)
                 }
@@ -74,7 +74,7 @@ struct BalanceHistoryView: View {
 
 
 /// Uses the same account scope and date window as the surrounding analysis.
-struct InlineBalanceHistoryCard: View {
+struct InlineBalanceHistoryDetailCard: View {
     let scopeContoIDs: Set<UUID>
     let interval: DateInterval
     let currency: String
@@ -97,7 +97,7 @@ struct InlineBalanceHistoryCard: View {
 
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .unifiedCard()
+        .unifiedCard(tint: ForgiaPalette.balance)
         .accessibilityIdentifier("analysis-balance-history")
         .onChange(of: interval) { selectedDate = nil }
         .onChange(of: scopeContoIDs) { selectedDate = nil }
@@ -105,7 +105,69 @@ struct InlineBalanceHistoryCard: View {
 }
 
 
-/// Recorded balances and scheduled projections remain separate.
+/// A compact entry point; the interactive chart keeps this exact scope in its detail.
+struct InlineBalanceHistoryCard: View {
+    let scopeContoIDs: Set<UUID>
+    let interval: DateInterval
+    let currency: String
+    var periodTitle = ""
+    @Query private var conti: [Conto]
+    @Query private var transactions: [FinanceCore.Transaction]
+    @Query private var resolutions: [RecurrenceResolution]
+
+    var body: some View {
+        let series = AccountBalanceSeries.make(conti: conti, selectedIDs: scopeContoIDs,
+            transactions: transactions, resolutions: resolutions, interval: interval)
+        NavigationLink {
+            AnalysisDetailScreen(title: "Saldo per conto", periodTitle: periodTitle) {
+                InlineBalanceHistoryDetailCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                AnalysisPreviewHeading(title: "Saldo per conto", icon: "chart.xyaxis.line", tint: ForgiaPalette.balance)
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if series.isEmpty {
+                            Text("Nessun saldo nel periodo").font(.subheadline)
+                        } else {
+                            let total = series.reduce(Decimal.zero) { $0 + ($1.points.last?.balance ?? 0) }
+                            Text(total, format: .currency(code: currency))
+                                .font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit().financeNumericMotion(total).foregroundStyle(ForgiaPalette.balance)
+                            Text(series.count == 1 ? "Saldo registrato · un conto" : "Saldo registrato · \(series.count) conti")
+                                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    if !series.isEmpty {
+                        BalanceHistoryMiniChart(series: series).frame(width: 100, height: 64).financeChartReveal()
+                            .accessibilityHidden(true)
+                    }
+                }
+            }.unifiedCard(tint: ForgiaPalette.balance).foregroundStyle(.primary)
+        }
+        .buttonStyle(.plain)
+        .financeCardEntrance()
+        .accessibilityIdentifier("analysis-balance-preview")
+    }
+}
+
+private struct BalanceHistoryMiniChart: View {
+    let series: [AccountBalanceSeries]
+    var body: some View {
+        Chart {
+            ForEach(series) { account in
+                ForEach(account.points, id: \.date) { point in
+                    LineMark(x: .value("Data", point.date),
+                             y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue),
+                             series: .value("Conto", account.id.uuidString))
+                        .foregroundStyle(account.color).interpolationMethod(.stepEnd)
+                }
+            }
+        }
+        .chartXAxis(.hidden).chartYAxis(.hidden).chartLegend(.hidden)
+    }
+}
+
+/// Recorded balances, savings estimates, and scheduled projections remain separate.
 private struct BalanceHistoryChart: View {
     let series: [AccountBalanceSeries]
     let interval: DateInterval
@@ -129,7 +191,7 @@ private struct BalanceHistoryChart: View {
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     Text(total, format: .currency(code: currency))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        .monospacedDigit().foregroundStyle(ForgiaPalette.accent)
+                        .monospacedDigit().foregroundStyle(ForgiaPalette.balance)
                         .minimumScaleFactor(0.65).lineLimit(1)
                     Text(probeDate, format: .dateTime.day().month().year())
                         .font(.caption).foregroundStyle(.secondary)
@@ -140,10 +202,10 @@ private struct BalanceHistoryChart: View {
                     Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
                 }
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(delta >= 0 ? ForgiaPalette.accent : Color(hex: "#C06748"))
+                .foregroundStyle(delta >= 0 ? ForgiaPalette.balance : ForgiaPalette.deficit)
 
                 BalanceHistoryPlot(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
-                    .frame(height: 230)
+                    .frame(height: 230).financeChartReveal()
 
                 let hasSavings = series.contains(where: { $0.savingsCapital != nil })
                 if hasProjection || hasSavings {
@@ -283,11 +345,11 @@ struct BalanceHistoryFixture: View {
                         .font(.subheadline).foregroundStyle(.secondary)
                     if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS"),
                        let savings = (try? Self.data.container.mainContext.fetch(FetchDescriptor<Conto>()))?.first(where: { $0.type == .savings }) {
-                        InlineBalanceHistoryCard(scopeContoIDs: [savings.id], interval: Self.data.interval, currency: "EUR")
+                        InlineBalanceHistoryDetailCard(scopeContoIDs: [savings.id], interval: Self.data.interval, currency: "EUR")
                         SavingsAccountSummary(conto: savings)
-                            .unifiedCard()
+                            .unifiedCard(tint: ForgiaPalette.balance)
                     } else {
-                        InlineBalanceHistoryCard(scopeContoIDs: Self.data.ids, interval: Self.data.interval, currency: "EUR")
+                        InlineBalanceHistoryDetailCard(scopeContoIDs: Self.data.ids, interval: Self.data.interval, currency: "EUR")
                     }
                 }.padding()
             }

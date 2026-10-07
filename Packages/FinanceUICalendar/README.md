@@ -1,0 +1,1 @@
+Calendar components adapted from the standalone Monstera PlantCareUICalendar package. Kept local so finance builds do not depend on another app checkout. The original grouping tests are retained, with additional month-grid and daylight-saving checks.

@@ -83,6 +83,7 @@ struct TodayView: View {
                             )
                             quickActions
                             if !snapshot.hasMixedCurrencies {
+                                FinanceCalendarPreview(contoIDs: snapshot.contoIDs, currency: snapshot.currency)
                                 SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
                                 TodayActivityLayout(snapshot: snapshot)
                             }
@@ -199,10 +200,57 @@ private struct TodayMarginCard: View {
     let onVerify: () -> Void
     let onImport: () -> Void
     let onAddIncome: () -> Void
+
+    var body: some View {
+        NavigationLink {
+            AnalysisDetailScreen(title: "Il tuo margine", periodTitle: snapshot.accountName) {
+                TodayMarginDetailContent(snapshot: snapshot, onVerify: onVerify, onImport: onImport, onAddIncome: onAddIncome)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                AnalysisPreviewHeading(title: "Quanto puoi ancora spendere", icon: "circle.dotted", tint: ForgiaPalette.margin)
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        if snapshot.hasMixedCurrencies {
+                            Text("Seleziona un solo libro").font(.title3.weight(.semibold))
+                            Text("Il margine richiede una sola valuta").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                        } else if let margin = snapshot.direction.estimatedMargin {
+                            Text(margin, format: .currency(code: snapshot.currency))
+                                .font(.system(.title, design: .rounded, weight: .semibold))
+                                .foregroundStyle(margin >= 0 ? ForgiaPalette.margin : ForgiaPalette.deficit).monospacedDigit().financeNumericMotion(margin)
+                            Text("Margine stimato").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                            if let nextIncome = snapshot.direction.nextIncome {
+                                Text("Fino al \(nextIncome.date, format: .dateTime.day().month(.abbreviated))")
+                                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                            }
+                        } else {
+                            Text("Stima da completare").font(.title3.weight(.semibold))
+                            Text("Apri per vedere cosa manca").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    let available = snapshot.direction.liquidBalance - snapshot.direction.creditDebt
+                    if !snapshot.hasMixedCurrencies, let margin = snapshot.direction.estimatedMargin,
+                       available > 0, margin >= 0, margin <= available {
+                        FinancialSharePreview(share: NSDecimalNumber(decimal: margin / available).doubleValue, icon: "wallet.bifold")
+                            .accessibilityHidden(true)
+                    }
+                }
+            }.unifiedCard(tint: ForgiaPalette.margin).foregroundStyle(.primary)
+        }
+        .buttonStyle(.plain)
+        .financeCardEntrance()
+        .accessibilityIdentifier("today-margin-preview")
+    }
+}
+
+private struct TodayMarginDetailContent: View {
+    let snapshot: TodaySnapshot
+    let onVerify: () -> Void
+    let onImport: () -> Void
+    let onAddIncome: () -> Void
     @State private var showsCalculation = false
     @State private var showsMarginInfo = false
     @State private var showsPurchaseCheck = false
-    @ScaledMetric(relativeTo: .largeTitle) private var marginFontSize: CGFloat = 43
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
@@ -226,13 +274,8 @@ private struct TodayMarginCard: View {
                 Label("Seleziona un solo libro o una sola valuta per stimare il margine.", systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
             } else if let margin = snapshot.direction.estimatedMargin {
-                Text(margin, format: .currency(code: snapshot.currency))
-                    .font(.system(size: marginFontSize, weight: .semibold, design: .rounded))
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                    .tracking(-1)
-                    .monospacedDigit()
-                    .foregroundStyle(margin >= 0 ? Color.primary : Color.red)
+                TodayMarginHero(margin: margin, available: snapshot.direction.liquidBalance - snapshot.direction.creditDebt,
+                                currency: snapshot.currency)
                 if let nextIncome = snapshot.direction.nextIncome {
                     Text("Fino alla prossima entrata · \(nextIncome.date.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "it_IT"))))")
                         .font(.subheadline)
@@ -502,3 +545,38 @@ private struct TodayActivityLayout: View {
         }
     }
 }
+
+#if DEBUG
+/// Exercises the real margin card without inserting or changing ledger records.
+struct TodayMarginVisualFixture: View {
+    private var snapshot: TodaySnapshot {
+        let now = Date()
+        let entries = (0..<30).map { index in
+            DirectionTransaction(date: Calendar.current.date(byAdding: .day, value: -(index * 3 + 1), to: now)!,
+                amount: 45, type: .expense, categoryID: nil, categoryName: "Spese quotidiane", isRecurring: false)
+        }
+        let planned = [
+            PlannedCashMovement(date: Calendar.current.date(byAdding: .day, value: 14, to: now)!, amount: 2200, type: .income, title: "Stipendio"),
+            PlannedCashMovement(date: Calendar.current.date(byAdding: .day, value: 5, to: now)!, amount: 480, type: .expense, title: "Affitto")
+        ]
+        let direction = SpendingDirectionCalculator.calculate(transactions: entries, planned: planned,
+            liquidBalance: 3000, creditDebt: 120, balancesVerified: true, now: now)
+        return TodaySnapshot(entries: entries, contoIDs: [], accountName: "Esempio", currency: "EUR",
+            hasMixedCurrencies: false, direction: direction, planned: planned.filter { $0.type == .expense })
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Anteprima · dati illustrativi").font(.caption).foregroundStyle(.secondary)
+                    TodayMarginCard(snapshot: snapshot, onVerify: {}, onImport: {}, onAddIncome: {})
+                }.padding(22)
+            }
+            .themedBackground()
+            .navigationTitle("Il tuo margine")
+            .toolbarTitleDisplayMode(.inline)
+        }
+    }
+}
+#endif

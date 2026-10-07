@@ -10,104 +10,95 @@ import SwiftUI
 struct ThemeSelectionView: View {
     @Environment(AppStateManager.self) private var appState
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 14)]
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Image(systemName: "paintbrush.pointed.fill")
-                        .font(.system(size: 50))
-                        .foregroundStyle(appState.themeManager.currentTheme.gradient)
-                        .padding(.top, 20)
-
-                    Text("Scegli il tuo tema")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text("Seleziona un colore per personalizzare l'aspetto dell'app")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                .padding(.bottom, 8)
-
-                // Theme Grid
-                LazyVGrid(columns: columns, spacing: 16) {
+            VStack(alignment: .leading, spacing: 24) {
+                LazyVGrid(columns: columns, spacing: 14) {
                     ForEach(AppTheme.allCases) { theme in
-                        ThemeCard(
-                            theme: theme,
-                            isSelected: appState.themeManager.currentTheme == theme
-                        ) {
+                        ThemeCard(theme: theme, isSelected: appState.themeManager.currentTheme == theme) {
                             appState.themeManager.setTheme(theme)
                         }
                     }
                 }
-                .padding(.horizontal)
+
+                Text("Ogni tema include colori dedicati a margine, risparmio, spese, saldo e calendario.")
+                    .font(.footnote).foregroundStyle(ForgiaPalette.mutedText)
+
+
             }
-            .padding(.bottom, 20)
+            .padding(20)
         }
-        .navigationTitle("Tema")
+        .themedBackground()
+        .navigationTitle("Aspetto")
         .toolbarTitleDisplayMode(.inline)
     }
 }
 
+/// A miniature of the app drawn with the theme's own palette, so each choice
+/// shows its canvas, surfaces and accent together, in the current appearance.
 struct ThemeCard: View {
     let theme: AppTheme
     let isSelected: Bool
     let action: () -> Void
 
+    private var palette: ThemePalette { theme.palette }
+
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
-                // Icon with gradient background
-                ZStack {
-                    Circle()
-                        .fill(theme.gradient)
-                        .frame(width: 70, height: 70)
-
-                    Image(systemName: theme.icon)
-                        .font(.system(size: 30))
-                        .foregroundStyle(.white)
-                }
-
-                // Theme name
-                Text(theme.displayName)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                // Selected indicator
-                if isSelected {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                        Text("Selezionato")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(theme.color)
+            VStack(alignment: .leading, spacing: 10) {
+                preview
+                HStack {
+                    Text(theme.displayName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isSelected ? palette.accent : Color.secondary.opacity(0.5))
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: isSelected ? theme.color.opacity(0.3) : Color.black.opacity(0.05),
-                           radius: isSelected ? 8 : 4,
-                           x: 0,
-                           y: 2)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(
-                        isSelected ? theme.color : Color.clear,
-                        lineWidth: 2
-                    )
-            )
+            .padding(10)
+            .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(isSelected ? palette.accent : ForgiaPalette.border, lineWidth: isSelected ? 2 : 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Tema \(theme.displayName)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: theme.icon)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(palette.onAccent)
+                    .frame(width: 22, height: 22)
+                    .background(palette.accent, in: Circle())
+                Capsule().fill(palette.mutedText.opacity(0.35)).frame(width: 46, height: 6)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Capsule().fill(palette.accent).frame(width: 58, height: 8)
+                Capsule().fill(palette.mutedText.opacity(0.3)).frame(height: 5)
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 6).fill(palette.indicators.margin)
+                    RoundedRectangle(cornerRadius: 6).fill(palette.indicators.savings)
+                    RoundedRectangle(cornerRadius: 6).fill(palette.indicators.spending)
+                    RoundedRectangle(cornerRadius: 6).fill(palette.indicators.balance)
+                    RoundedRectangle(cornerRadius: 6).fill(palette.indicators.calendar)
+                }
+                .frame(height: 20)
+            }
+            .padding(9)
+            .background(palette.surface, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(palette.border))
+        }
+        .padding(10)
+        .background(palette.canvas, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

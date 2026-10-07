@@ -34,6 +34,7 @@ extension EnvironmentValues {
 /// Solid, quiet card surface. The optional tint stays below the content layer.
 private struct TintedCardBackground: View {
     let cornerRadius: CGFloat
+    var identityTint: Color? = nil
     @Environment(\.cardTint) private var cardTint
     @Environment(\.tintedBackgrounds) private var tintedBackgrounds
     @Environment(\.colorScheme) private var colorScheme
@@ -44,7 +45,7 @@ private struct TintedCardBackground: View {
             .overlay {
                 if tintedBackgrounds {
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(cardTint.opacity(colorScheme == .dark ? 0.025 : 0.018))
+                        .fill((identityTint ?? cardTint).opacity(identityTint == nil ? (colorScheme == .dark ? 0.025 : 0.018) : (colorScheme == .dark ? 0.10 : 0.065)))
                 }
             }
     }
@@ -53,19 +54,20 @@ private struct TintedCardBackground: View {
 // MARK: - Card Modifier
 
 private struct UnifiedCardModifier: ViewModifier {
+    var identityTint: Color? = nil
     func body(content: Content) -> some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
-            .background { TintedCardBackground(cornerRadius: 22) }
+            .background { TintedCardBackground(cornerRadius: 22, identityTint: identityTint) }
             .clipShape(RoundedRectangle(cornerRadius: 22))
             .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(ForgiaPalette.border.opacity(0.8), lineWidth: 0.5).allowsHitTesting(false) }
     }
 }
 
 extension View {
-    func unifiedCard() -> some View {
-        modifier(UnifiedCardModifier())
+    func unifiedCard(tint: Color? = nil) -> some View {
+        modifier(UnifiedCardModifier(identityTint: tint))
     }
 
     /// Applies the calm surface used across the main screens.

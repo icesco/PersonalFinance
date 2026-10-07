@@ -103,7 +103,7 @@ final class AppStateManager {
     var navigationRouter = NavigationRouter()
 
     // MARK: - Theme Management
-    var themeManager = ThemeManager()
+    var themeManager = ThemeManager.shared
 
     // MARK: - Onboarding
     var hasCompletedOnboarding: Bool {

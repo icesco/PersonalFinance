@@ -104,7 +104,13 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_REMINDER_NOTIFICATION") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS_GAUGE") {
+            SavingsGaugeVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_FINANCE_CALENDAR") {
+            FinanceCalendarFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_MARGIN_VISUAL") {
+            TodayMarginVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_REMINDER_NOTIFICATION") {
             ContentView().safeAreaInset(edge: .bottom) { ReminderNotificationFixture() }
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_STATUS") {
             SharedBookStatusFixture()
