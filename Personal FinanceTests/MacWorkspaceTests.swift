@@ -8,6 +8,27 @@ import Testing
 
 @MainActor
 struct MacWorkspaceTests {
+    @Test(arguments: MacSettingsPane.allCases)
+    func desktopSettingsPanesRenderWithTheirDependencies(pane: MacSettingsPane) async throws {
+        let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        let book = Account(name: "Preferenze di prova")
+        container.mainContext.insert(book)
+        let state = AppStateManager(persistsSelection: false)
+        state.selectedAccount = book
+        let content = FinanceTaskContent(presented: MacSettingsWorkspace(initialPane: pane), state: state,
+            lock: AppLock(), storage: DataStorageManager.makeLocalTestStorage(),
+            reminders: RecurrenceReminders(), router: NavigationRouter(), modelContext: container.mainContext)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 740),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: content)
+        defer { window.close() }
+        window.contentView?.layoutSubtreeIfNeeded()
+        await Task.yield()
+        #expect(window.contentView?.fittingSize.width ?? 0 >= 820)
+        #expect(window.toolbarStyle == .preference)
+    }
+
     @Test(arguments: [false, true])
     func dockActionOpensExpenseWithMainWindowOpenOrClosed(closed: Bool) throws {
         let inbox = FinanceShortcutInbox()
@@ -73,7 +94,7 @@ struct MacWorkspaceTests {
     enum DesktopTask: String, CaseIterable {
         case expense, income, transfer, transactionDetail, editTransaction, recurring
         case budgets, newBudget, editBudget, budgetDetail, newAccount, editAccount
-        case reconcile, csvImport, csvExport, settings
+        case reconcile, csvImport, csvExport, settings, savingsPlan, guides
     }
 
     @Test(arguments: DesktopTask.allCases)
@@ -116,6 +137,8 @@ struct MacWorkspaceTests {
         case .csvImport: presented = AnyView(CSVImportView())
         case .csvExport: presented = AnyView(CSVExportView())
         case .settings: presented = AnyView(SettingsView())
+        case .savingsPlan: presented = AnyView(BudgetingSetupView(account: book))
+        case .guides: presented = AnyView(BudgetingGuidesView())
         }
         let content = FinanceTaskContent(presented: presented, state: state, lock: AppLock(),
             storage: DataStorageManager.makeLocalTestStorage(), reminders: RecurrenceReminders(),

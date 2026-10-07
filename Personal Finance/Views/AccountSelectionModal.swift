@@ -35,6 +35,11 @@ struct AccountSelectionModal: View {
             .navigationTitle(isInitialSelection ? "Seleziona libro" : "Cambia libro")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .secondaryAction) {
+                    NavigationLink { BooksSettingsView() } label: {
+                        Label("Gestisci libri", systemImage: "books.vertical")
+                    }
+                }
                 if !isInitialSelection {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Annulla") {

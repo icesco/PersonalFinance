@@ -13,6 +13,7 @@ struct ThemeSelectionView: View {
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 14)]
 
     var body: some View {
+        @Bindable var appState = appState
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 LazyVGrid(columns: columns, spacing: 14) {
@@ -26,7 +27,17 @@ struct ThemeSelectionView: View {
                 Text("Ogni tema include colori dedicati a margine, risparmio, spese, saldo e calendario.")
                     .font(.footnote).foregroundStyle(ForgiaPalette.mutedText)
 
-
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle(isOn: $appState.tintedBackgrounds) {
+                        Label("Sfondi sfumati", systemImage: "circle.lefthalf.filled.righthalf.striped.horizontal")
+                    }
+                    .tint(ForgiaPalette.accent)
+                    Text("Aggiunge una leggera sfumatura del colore del tema in cima alle schermate.")
+                        .font(.footnote)
+                        .foregroundStyle(ForgiaPalette.mutedText)
+                }
+                .padding(16)
+                .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .padding(20)
         }
