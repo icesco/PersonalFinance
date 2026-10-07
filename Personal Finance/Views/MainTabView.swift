@@ -11,6 +11,8 @@ import FinanceCore
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var bookSelectionNamespace
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var shortcutInbox = FinanceShortcutInbox.shared
@@ -75,8 +77,22 @@ struct MainTabView: View {
             get: { appState.showingAccountSelection },
             set: { _ in appState.dismissAccountSelection() }
         )) {
+            bookSelectionSheet
+        }
+    }
+
+    @ViewBuilder
+    private var bookSelectionSheet: some View {
+        #if os(iOS)
+        if appState.selectedTab == .dashboard && !reduceMotion {
+            AccountSelectionModal()
+                .navigationTransition(.zoom(sourceID: "home-book-picker", in: bookSelectionNamespace))
+        } else {
             AccountSelectionModal()
         }
+        #else
+        AccountSelectionModal()
+        #endif
     }
 
     private func deliverShortcut() {
@@ -125,7 +141,7 @@ struct MainTabView: View {
     private var iOS26TabView: some View {
         TabView(selection: compactTabSelection) {
             Tab(value: AppTab.dashboard) {
-                TodayView()
+                TodayView(bookSelectionNamespace: bookSelectionNamespace)
             } label: {
                 Label("Oggi", systemImage: "house")
             }
@@ -160,7 +176,7 @@ struct MainTabView: View {
 
     private var legacyTabView: some View {
         TabView(selection: compactTabSelection) {
-            TodayView()
+            TodayView(bookSelectionNamespace: bookSelectionNamespace)
                 .tabItem {
                     Label("Oggi", systemImage: "house")
                 }
@@ -315,7 +331,7 @@ struct MainTabView: View {
     private var detailContent: some View {
             switch appState.selectedTab {
             case .dashboard:
-                TodayView()
+                TodayView(bookSelectionNamespace: bookSelectionNamespace)
             case .analysis:
                 TodayView(screen: .analysis)
             case .transactions:
@@ -329,7 +345,7 @@ struct MainTabView: View {
             case .settings:
                 SettingsView()
             case .addTransaction:
-                TodayView()
+                TodayView(bookSelectionNamespace: bookSelectionNamespace)
             }
     }
 }

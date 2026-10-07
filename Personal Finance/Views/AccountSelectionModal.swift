@@ -1,462 +1,266 @@
-//
-//  AccountSelectionModal.swift
-//  Personal Finance
-//
-//  Created by Claude on 24/08/25.
-//
-
 import SwiftUI
 import SwiftData
 import FinanceCore
 
 struct AccountSelectionModal: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    
-    @Query private var accounts: [Account]
+    @Query(sort: \Account.name) private var accounts: [Account]
     @State private var showingAccountCreation = false
-    
-    // Check if this is the initial selection (no account selected)
-    private var isInitialSelection: Bool {
-        appState.selectedAccount == nil
-    }
-    
+    #if os(iOS)
+    @State private var selectedDetent: PresentationDetent = .large
+    #endif
+
+    private var activeAccounts: [Account] { accounts.filter { $0.isActive == true } }
+    private var isInitialSelection: Bool { appState.selectedAccount == nil && !appState.showAllAccounts }
+
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                if accounts.isEmpty {
-                    emptyStateView
-                } else {
-                    accountListView
-                }
-            }
-            .financeEmptyOverlay(isPresented: accounts.isEmpty) { emptyStateView }
-            .navigationTitle(isInitialSelection ? "Seleziona libro" : "Cambia libro")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .secondaryAction) {
-                    NavigationLink { BooksSettingsView() } label: {
-                        Label("Gestisci libri", systemImage: "books.vertical")
-                    }
-                }
-                if !isInitialSelection {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Annulla") {
-                            dismiss()
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    if activeAccounts.isEmpty {
+                        emptyState
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("I tuoi libri")
+                                .font(.system(.title, design: .serif, weight: .semibold))
+                            Text("Scegli quale vuoi consultare.")
+                                .font(.subheadline)
+                                .foregroundStyle(ForgiaPalette.mutedText)
+                        }
+
+                        if activeAccounts.count > 1 {
+                            AllAccountsSelectionCard(accounts: activeAccounts) {
+                                appState.selectAllAccounts()
+                                dismiss()
+                            }
+                        }
+
+                        VStack(spacing: 12) {
+                            ForEach(activeAccounts) { account in
+                                AccountSelectionCard(account: account) {
+                                    appState.selectAccount(account)
+                                    dismiss()
+                                }
+                            }
                         }
                     }
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAccountCreation = true
+
+                    NavigationLink {
+                        BooksSettingsView()
                     } label: {
-                        Image(systemName: "plus")
+                        HStack(spacing: 10) {
+                            Label("Gestisci libri", systemImage: "books.vertical")
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(ForgiaPalette.mutedText)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: 560, alignment: .leading)
+                .padding(20)
+                .frame(maxWidth: .infinity)
+            }
+            .themedBackground()
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                if !isInitialSelection {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Chiudi", systemImage: "xmark") { dismiss() }
+                            .labelStyle(.iconOnly)
                     }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Nuovo libro", systemImage: "plus") { showingAccountCreation = true }
+                        .labelStyle(.iconOnly)
+                }
             }
-            .interactiveDismissDisabled(isInitialSelection) // Prevent dismissal if no account is selected
         }
+        .tint(ForgiaPalette.accent)
+        .interactiveDismissDisabled(isInitialSelection)
+        #if os(iOS)
+        .presentationDetents([.medium, .large], selection: $selectedDetent)
+        .presentationDragIndicator(.visible)
+        .presentationBackground(ForgiaPalette.canvas)
+        #endif
         .sheet(isPresented: $showingAccountCreation) {
             CreateAccountView { newAccount in
-                // Auto-select the newly created account
                 appState.selectAccount(newAccount)
+                dismiss()
             }
+            .environment(appState)
         }
     }
-    
-    // MARK: - Account List View
 
-    private var activeAccounts: [Account] {
-        accounts.filter { $0.isActive == true }
-    }
-
-    private var accountListView: some View {
-        ScrollView {
-            LazyVStack(spacing: 16) {
-                // Header Information
-                if isInitialSelection {
-                    VStack(spacing: 12) {
-                        Image(systemName: "building.columns.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.accentColor)
-
-                        Text("Benvenuto in Personal Finance")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-
-                        Text("Seleziona un account per iniziare a gestire le tue finanze")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                    .padding(.vertical, 24)
-                }
-
-                // "All Accounts" option (only if more than 1 account)
-                if activeAccounts.count > 1 {
-                    AllAccountsSelectionCard(accounts: activeAccounts) {
-                        appState.selectAllAccounts()
-                    }
-                }
-
-                // Account Cards
-                ForEach(activeAccounts, id: \.id) { account in
-                    AccountSelectionCard(account: account) {
-                        appState.selectAccount(account)
-                    }
-                }
-            }
-            .padding()
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Image(systemName: "book.closed")
+                .font(.largeTitle)
+                .foregroundStyle(ForgiaPalette.accent)
+            Text("Il tuo prossimo libro")
+                .font(.system(.title2, design: .serif, weight: .semibold))
+            Text("Crea un libro per raccogliere conti e movimenti in un unico spazio.")
+                .foregroundStyle(ForgiaPalette.mutedText)
+            Button("Crea un libro", systemImage: "plus") { showingAccountCreation = true }
+                .buttonStyle(.borderedProminent)
         }
-    }
-    
-    // MARK: - Empty State View
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "building.columns.fill")
-                .font(.system(size: 64))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 12) {
-                Text("Nessun libro")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Crea il tuo primo libro per iniziare a gestire le tue finanze personali")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            Button("Crea il primo libro") {
-                showingAccountCreation = true
-            }
-            .buttonStyle(.borderedProminent)
-            .font(.headline)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .unifiedCard()
     }
 }
-
-// MARK: - Account Selection Card
 
 struct AccountSelectionCard: View {
     let account: Account
     let onSelect: () -> Void
-
     @Environment(AppStateManager.self) private var appState
 
     private var isSelected: Bool {
-        account.id == appState.selectedAccount?.id
+        !appState.showAllAccounts && account.id == appState.selectedAccount?.id
     }
 
-    // Extracted colors to help compiler
-    private var primaryTextColor: Color { isSelected ? .white : .primary }
-    private var secondaryTextColor: Color { isSelected ? .white.opacity(0.8) : .secondary }
-    private var iconColor: Color { isSelected ? .white : .accentColor }
-    private var balanceColor: Color {
-        if isSelected { return .white }
-        return account.totalBalance >= 0 ? .primary : .red
-    }
-    private var cardBackground: Color { isSelected ? .accentColor : Color(.systemBackground) }
-    private var shadowOpacity: Double { isSelected ? 0.2 : 0.05 }
-    private var shadowRadius: CGFloat { isSelected ? 8 : 2 }
-    private var shadowY: CGFloat { isSelected ? 4 : 1 }
-
-    private var categoriesCount: Int {
-        account.categories?.filter { $0.isActive == true }.count ?? 0
-    }
-
-    private var budgetsCount: Int {
-        account.budgets?.filter { $0.isActive == true }.count ?? 0
+    private var contiLabel: String {
+        account.activeConti.count == 1 ? "1 conto" : "\(account.activeConti.count) conti"
     }
 
     var body: some View {
-        Button(action: onSelect) {
-            cardContent
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-    }
-
-    private var cardContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            headerSection
-            statisticsSection
-            creationDateSection
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(cardBackground)
-                .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
+        BookSelectionRow(
+            title: account.name ?? "Libro",
+            subtitle: "\(contiLabel) · \(account.currency ?? "EUR")",
+            icon: "book.closed",
+            balances: [BookSelectionBalance(currency: account.currency ?? "EUR", amount: account.totalBalance)],
+            isSelected: isSelected,
+            action: onSelect
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(isSelected ? Color.clear : Color(.systemGray4), lineWidth: 1)
-        )
-    }
-
-    private var headerSection: some View {
-        HStack {
-            Image(systemName: "building.columns.fill")
-                .font(.title2)
-                .foregroundColor(iconColor)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(account.name ?? "Account Sconosciuto")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(primaryTextColor)
-
-                Text(account.currency ?? "EUR")
-                    .font(.caption)
-                    .foregroundColor(secondaryTextColor)
-            }
-
-            Spacer()
-
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.white)
-            }
-        }
-    }
-
-    private var statisticsSection: some View {
-        VStack(spacing: 12) {
-            // Balance
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Saldo Totale")
-                        .font(.caption)
-                        .foregroundColor(secondaryTextColor)
-
-                    Text(account.totalBalance.formatted(.currency(code: account.currency ?? "EUR")))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(balanceColor)
-                }
-
-                Spacer()
-            }
-
-            // Account Info
-            HStack {
-                AccountInfoChip(
-                    title: "Conti",
-                    value: "\(account.activeConti.count)",
-                    isSelected: isSelected
-                )
-
-                AccountInfoChip(
-                    title: "Categorie",
-                    value: "\(categoriesCount)",
-                    isSelected: isSelected
-                )
-
-                AccountInfoChip(
-                    title: "Budget",
-                    value: "\(budgetsCount)",
-                    isSelected: isSelected
-                )
-
-                Spacer()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var creationDateSection: some View {
-        if let createdAt = account.createdAt {
-            Text("Creato il \(DateFormatter.longDate.string(from: createdAt))")
-                .font(.caption)
-                .foregroundColor(secondaryTextColor)
-        }
     }
 }
-
-// MARK: - All Accounts Selection Card
 
 struct AllAccountsSelectionCard: View {
     let accounts: [Account]
     let onSelect: () -> Void
-
     @Environment(AppStateManager.self) private var appState
 
-    private var isSelected: Bool {
-        appState.showAllAccounts
-    }
-
-    private var balances: [(currency: String, amount: Decimal)] {
+    private var balances: [BookSelectionBalance] {
         Dictionary(grouping: accounts, by: { $0.currency ?? "EUR" })
-            .map { (currency: $0.key, amount: $0.value.reduce(Decimal.zero) { $0 + $1.totalBalance }) }
+            .map { BookSelectionBalance(currency: $0.key, amount: $0.value.reduce(.zero) { $0 + $1.totalBalance }) }
             .sorted { $0.currency < $1.currency }
     }
 
-    private var totalConti: Int {
-        accounts.reduce(0) { $0 + $1.activeConti.count }
-    }
-
-    // Extracted colors
-    private var primaryTextColor: Color { isSelected ? .white : .primary }
-    private var secondaryTextColor: Color { isSelected ? .white.opacity(0.8) : .secondary }
-    private var iconColor: Color { isSelected ? .white : .accentColor }
-    private var cardBackground: Color { isSelected ? .accentColor : Color(.systemBackground) }
-
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header
-                HStack {
-                    Image(systemName: "square.stack.3d.up.fill")
-                        .font(.title2)
-                        .foregroundColor(iconColor)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Tutti gli Account")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(primaryTextColor)
-
-                        Text("\(accounts.count) account")
-                            .font(.caption)
-                            .foregroundColor(secondaryTextColor)
-                    }
-
-                    Spacer()
-
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                }
-
-                // Stats
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(balances.count > 1 ? "Saldi per valuta" : "Saldo Totale")
-                            .font(.caption)
-                            .foregroundColor(secondaryTextColor)
-
-                        ForEach(balances, id: \.currency) { balance in
-                            Text(balance.amount, format: .currency(code: balance.currency))
-                                .font(.title2.bold())
-                                .foregroundColor(isSelected ? .white : (balance.amount >= 0 ? .primary : .red))
-                        }
-                    }
-
-                    Spacer()
-                }
-
-                // Info chips
-                HStack {
-                    AccountInfoChip(
-                        title: "Account",
-                        value: "\(accounts.count)",
-                        isSelected: isSelected
-                    )
-
-                    AccountInfoChip(
-                        title: "Conti",
-                        value: "\(totalConti)",
-                        isSelected: isSelected
-                    )
-
-                    Spacer()
-                }
-            }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(cardBackground)
-                    .shadow(color: .black.opacity(isSelected ? 0.2 : 0.05), radius: isSelected ? 8 : 2, x: 0, y: isSelected ? 4 : 1)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(isSelected ? Color.clear : Color(.systemGray4), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-    }
-}
-
-// MARK: - Account Info Chip
-
-struct AccountInfoChip: View {
-    let title: String
-    let value: String
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(isSelected ? .white : .primary)
-
-            Text(title)
-                .font(.caption)
-                .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.white.opacity(0.2) : Color(.systemGray6))
+        BookSelectionRow(
+            title: "Tutti i libri",
+            subtitle: "\(accounts.count) libri · \(accounts.reduce(0) { $0 + $1.activeConti.count }) conti",
+            icon: "books.vertical",
+            balances: balances,
+            isSelected: appState.showAllAccounts,
+            action: onSelect
         )
     }
 }
 
-// MARK: - DateFormatter Extensions
-
-extension DateFormatter {
-    static let longDate: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        return formatter
-    }()
+private struct BookSelectionBalance: Identifiable {
+    let currency: String
+    let amount: Decimal
+    var id: String { currency }
 }
 
-#Preview {
-    AccountSelectionModal()
-        .environment(AppStateManager())
-        .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
-}
-#if DEBUG
-/// Currency selection controls with synthetic balances; no persistent writes.
-struct CurrencySelectionFixture: View {
-    @State private var appState = AppStateManager()
-    private let accounts: [Account] = [
-        ("Libro euro", "EUR", Decimal(200)),
-        ("Libro dollari", "USD", Decimal(100)),
-        ("Altro libro dollari", "USD", Decimal(50))
-    ].map { name, currency, amount in
-        let book = Account(name: name, currency: currency)
-        let conto = Conto(name: "Conto demo", type: .checking, initialBalance: amount)
-        conto.account = book
-        book.conti = [conto]
-        return book
-    }
+private struct BookSelectionRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let balances: [BookSelectionBalance]
+    let isSelected: Bool
+    let action: () -> Void
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                AllAccountsSelectionCard(accounts: accounts) { }
-                AccountSelectionCard(account: accounts[1]) { }
-            }.padding()
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(ForgiaPalette.accent)
+                    .frame(width: 44, height: 44)
+                    .background(ForgiaPalette.sageSurface, in: RoundedRectangle(cornerRadius: 14))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title).font(.headline).foregroundStyle(.primary)
+                    Text(subtitle).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    ForEach(balances) { balance in
+                        Text(balance.amount, format: .currency(code: balance.currency))
+                            .font(.system(.headline, design: .serif, weight: .semibold))
+                            .foregroundStyle(balance.amount < 0 ? ForgiaPalette.deficit : ForgiaPalette.balance)
+                            .monospacedDigit()
+                    }
+                }
+                Spacer(minLength: 8)
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? ForgiaPalette.accent : ForgiaPalette.border)
+                    .accessibilityHidden(true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 22))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22)
+                    .strokeBorder(isSelected ? ForgiaPalette.accent.opacity(0.65) : ForgiaPalette.border,
+                                  lineWidth: isSelected ? 1.5 : 0.5)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 22))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+#if DEBUG
+/// Presents the actual picker with an isolated store and synthetic, mixed-currency books.
+struct CurrencySelectionFixture: View {
+    @State private var appState: AppStateManager
+    @State private var showingSelection = true
+    @State private var container: ModelContainer
+
+    init() {
+        let container = try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        let state = AppStateManager(persistsSelection: false)
+        for (name, currency, amount) in [
+            ("Personale", "EUR", Decimal(2450)),
+            ("Famiglia", "EUR", Decimal(1820)),
+            ("Viaggi", "USD", Decimal(350))
+        ] {
+            let book = Account(name: name, currency: currency)
+            let conto = Conto(name: "Conto demo", type: .checking, initialBalance: amount)
+            conto.account = book
+            book.conti = [conto]
+            container.mainContext.insert(book)
+            if name == "Personale" { state.selectAccount(book) }
+        }
+        try! container.mainContext.save()
+        _container = State(initialValue: container)
+        _appState = State(initialValue: state)
+    }
+
+    var body: some View {
+        Group {
+            if ProcessInfo.processInfo.arguments.contains("UITEST_BOOK_ZOOM") {
+                MainTabView()
+            } else {
+                VStack(spacing: 20) {
+                    Text(appState.showAllAccounts ? "Tutti i libri" : appState.selectedAccount?.name ?? "Scegli libro")
+                    Button("Cambia libro") { showingSelection = true }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .themedBackground()
+                .sheet(isPresented: $showingSelection) { AccountSelectionModal() }
+            }
         }
         .environment(appState)
+        .modelContainer(container)
+
     }
 }
+
+#Preview { CurrencySelectionFixture() }
 #endif

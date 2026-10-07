@@ -29,13 +29,6 @@ struct ContentView: View {
                 MainTabView()
                     .environment(appState)
                     .sheet(isPresented: Binding(
-                        get: { appState.showingAccountSelection },
-                        set: { _ in appState.dismissAccountSelection() }
-                    )) {
-                        AccountSelectionModal()
-                            .environment(appState)
-                    }
-                    .sheet(isPresented: Binding(
                         get: { appState.showingAccountCreation },
                         set: { _ in appState.dismissAccountCreation() }
                     )) {

@@ -12,6 +12,7 @@ struct TodayView: View {
     @Query private var transactions: [FinanceTransaction]
 
     var screen: Screen = .home
+    var bookSelectionNamespace: Namespace.ID? = nil
 
     @State private var showingImport = false
     @State private var showingBudgets = false
@@ -128,17 +129,7 @@ struct TodayView: View {
                 }
                 .accessibilityElement(children: .combine)
                 Spacer()
-                Button { appState.presentAccountSelection() } label: {
-                    HStack(spacing: 6) {
-                        Text(snapshot.accountName).lineLimit(1)
-                        Image(systemName: "chevron.down").font(.caption2.weight(.bold))
-                    }
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .frame(height: 36)
-                    .glassEffect(.regular.interactive(), in: Capsule())
-                }
-                .accessibilityLabel("Scegli libro: \(snapshot.accountName)")
+                bookPickerButton(name: snapshot.accountName)
             }
             Text(Date(), format: .dateTime.weekday(.wide).day().month(.wide))
                 .font(.caption.weight(.medium))
@@ -147,6 +138,30 @@ struct TodayView: View {
                 .foregroundStyle(ForgiaPalette.mutedText)
         }
         .foregroundStyle(.primary)
+    }
+
+    @ViewBuilder
+    private func bookPickerButton(name: String) -> some View {
+        let button = Button { appState.presentAccountSelection() } label: {
+            HStack(spacing: 6) {
+                Text(name).lineLimit(1)
+                Image(systemName: "chevron.down").font(.caption2.weight(.bold))
+            }
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .glassEffect(.regular.interactive(), in: Capsule())
+        }
+        .accessibilityLabel("Scegli libro: \(name)")
+        #if os(iOS)
+        if let bookSelectionNamespace {
+            button.matchedTransitionSource(id: "home-book-picker", in: bookSelectionNamespace)
+        } else {
+            button
+        }
+        #else
+        button
+        #endif
     }
 }
 
