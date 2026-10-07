@@ -125,7 +125,7 @@ struct CSVExportView: View {
                         }
                     )) {
                         HStack {
-                            Image(systemName: conto.type?.icon ?? "creditcard")
+                            ContoLogo(conto: conto, size: 24)
                                 .foregroundColor(.accentColor)
                                 .frame(width: 24)
 

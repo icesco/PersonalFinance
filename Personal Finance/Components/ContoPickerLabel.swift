@@ -9,8 +9,7 @@ struct ContoPickerLabel: View {
     }
     var body: some View {
         Label { Text(title) } icon: {
-            Image(systemName: conto.type?.icon ?? "creditcard")
-                .foregroundStyle(Color(hex: conto.displayColorHex))
+            ContoLogo(conto: conto, size: 24)
         }
     }
 }

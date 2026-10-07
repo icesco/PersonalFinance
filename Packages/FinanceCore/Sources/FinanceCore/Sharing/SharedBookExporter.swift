@@ -47,6 +47,7 @@ public enum SharedBookExporter {
                 "initialBalance": conto.initialBalance.map(SharedValue.decimal), "createdAt": conto.createdAt.map(SharedValue.date),
                 "updatedAt": conto.updatedAt.map(SharedValue.date), "isActive": conto.isActive.map(SharedValue.flag),
                 "description": conto.contoDescription.map(SharedValue.text), "color": conto.color.map(SharedValue.text),
+                "logo": conto.logoData.map { .text($0.base64EncodedString()) },
                 "creditLimit": conto.creditLimit.map(SharedValue.decimal), "statementClosingDay": conto.statementClosingDay.map(SharedValue.integer),
                 "paymentDueDay": conto.paymentDueDay.map(SharedValue.integer), "annualInterestRate": conto.annualInterestRate.map(SharedValue.decimal),
                 "savingsGoal": conto.savingsGoal.map(SharedValue.decimal),

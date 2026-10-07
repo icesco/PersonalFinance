@@ -573,10 +573,7 @@ struct ContoSettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: conto.type?.icon ?? "creditcard")
-                .foregroundStyle(Color(hex: conto.displayColorHex))
-                .font(.title3)
-                .frame(width: 32)
+            ContoLogo(conto: conto, size: 32)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(conto.name ?? "Conto")

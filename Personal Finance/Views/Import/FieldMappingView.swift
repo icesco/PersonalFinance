@@ -273,7 +273,7 @@ struct FieldMappingView: View {
                 Text("Automatico").tag(nil as UUID?)
                 ForEach(availableConti, id: \.id) { conto in
                     HStack {
-                        Image(systemName: conto.type?.icon ?? "creditcard")
+                        ContoLogo(conto: conto, size: 24)
                         Text(conto.name ?? "Conto")
                     }
                     .tag(conto.id as UUID?)

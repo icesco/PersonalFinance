@@ -329,6 +329,12 @@ public enum SharedBookImporter {
         value.isActive = try record.flag("isActive")
         value.contoDescription = try record.text("description")
         value.color = try record.text("color")
+        if let encoded = try record.text("logo") {
+            guard encoded.utf8.count <= 180_000, let data = Data(base64Encoded: encoded), data.count <= 128 * 1024 else {
+                throw Failure.invalidField("logo")
+            }
+            value.logoData = data
+        } else { value.logoData = nil }
         value.creditLimit = try record.decimal("creditLimit")
         value.statementClosingDay = try record.integer("statementClosingDay")
         value.paymentDueDay = try record.integer("paymentDueDay")

@@ -44,6 +44,8 @@ public final class Conto {
     public var isActive: Bool?
     public var contoDescription: String?
     public var color: String?
+    /// Small, normalized PNG; optional for existing accounts and CloudKit migration.
+    @Attribute(.externalStorage) public var logoData: Data?
     
     // Carta di Credito
     public var creditLimit: Decimal?

@@ -12,6 +12,8 @@ struct CreateContoView: View {
     @State private var saveError: String?
     private var parsedBalance: Decimal? { BalanceInput.parse(initialBalance, currency: account.currency ?? "EUR") }
     @State private var description = ""
+    @State private var logoData: Data?
+    @State private var loadingLogo = false
     @State private var selectedColor = AccountPalette.fallback
     @State private var creditLimit: Decimal?
     @State private var statementClosingDay: Int?
@@ -97,6 +99,7 @@ struct CreateContoView: View {
                 }
 
                 Section("Personalizzazione") {
+                    ContoLogoEditor(data: $logoData, loading: $loadingLogo, symbol: selectedType.icon, color: selectedColor, accountName: contoName)
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Colore")
                         AccountColorGrid(selection: $selectedColor)
@@ -125,7 +128,7 @@ struct CreateContoView: View {
                     Button("Salva") {
                         createConto()
                     }
-                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsedBalance == nil || (savingsGoal != nil && (savingsGoal ?? 0) <= 0))
+                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsedBalance == nil || loadingLogo || (savingsGoal != nil && (savingsGoal ?? 0) <= 0))
                     .accessibilityIdentifier("conto-save")
                 }
             }
@@ -163,6 +166,7 @@ struct CreateContoView: View {
                 savingsGoal: selectedType == .savings ? savingsGoal : nil
             )
 
+            conto.logoData = logoData
             conto.account = savedAccount
             context.insert(conto)
             if selectedType == .savings {
@@ -190,6 +194,8 @@ struct EditContoView: View {
     @State private var contoName = ""
     @State private var selectedType: ContoType = .checking
     @State private var description = ""
+    @State private var logoData: Data?
+    @State private var loadingLogo = false
     @State private var selectedColor = AccountPalette.fallback
     @State private var creditLimit: Decimal?
     @State private var statementClosingDay: Int?
@@ -244,6 +250,7 @@ struct EditContoView: View {
                 }
 
                 Section("Personalizzazione") {
+                    ContoLogoEditor(data: $logoData, loading: $loadingLogo, symbol: selectedType.icon, color: selectedColor, accountName: contoName)
                     AccountColorGrid(selection: $selectedColor)
                 }
 
@@ -276,7 +283,7 @@ struct EditContoView: View {
                     Button("Salva") {
                         updateConto()
                     }
-                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (savingsGoal != nil && (savingsGoal ?? 0) <= 0))
+                    .disabled(contoName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loadingLogo || (savingsGoal != nil && (savingsGoal ?? 0) <= 0))
                 }
             }
         }
@@ -294,6 +301,7 @@ struct EditContoView: View {
         contoName = conto.name ?? ""
         selectedType = conto.type ?? .checking
         description = conto.contoDescription ?? ""
+        logoData = conto.logoData
         selectedColor = conto.displayColorHex
         creditLimit = conto.creditLimit
         statementClosingDay = conto.statementClosingDay
@@ -317,6 +325,7 @@ struct EditContoView: View {
             target.type = selectedType
             target.contoDescription = description.isEmpty ? nil : description
             target.color = selectedColor
+            target.logoData = logoData
             target.creditLimit = selectedType == .credit ? creditLimit : nil
             target.statementClosingDay = selectedType == .credit ? statementClosingDay : nil
             target.paymentDueDay = selectedType == .credit ? paymentDueDay : nil
