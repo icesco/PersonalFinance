@@ -73,7 +73,7 @@ final class WatchConnection: NSObject, WCSessionDelegate {
     private func send(_ request: WatchRequest) {
         guard !isSending else { return }
         guard WCSession.default.activationState == .activated, WCSession.default.isReachable else {
-            message = "iPhone non raggiungibile. Apri Forgia sul telefono e riprova."
+            message = "iPhone non raggiungibile. Apri Formi sul telefono e riprova."
                 + ((request.expense != nil || request.draft != nil) ? " La richiesta resta sul Watch." : "")
             return
         }
@@ -107,7 +107,7 @@ final class WatchConnection: NSObject, WCSessionDelegate {
         switch reply.status {
         case .accepted:
             if pendingDraft?.id == draftID { UserDefaults.standard.removeObject(forKey: draftKey) }
-            message = "Bozza ricevuta. Apri Forgia su iPhone per controllare budget, conto e categoria e salvarla."
+            message = "Bozza ricevuta. Apri Formi su iPhone per controllare budget, conto e categoria e salvarla."
         case .busy: message = "Completa prima la bozza già in attesa su iPhone."
         case .invalid, .unavailable:
             message = reply.message ?? "Controlla importo e descrizione e riprova."

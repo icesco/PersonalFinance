@@ -38,7 +38,7 @@ struct SharedBookView: View {
             if !enabled {
                 Section {
                     Label("Sincronizzazione iCloud disattivata", systemImage: "icloud.slash")
-                    Text("Attiva iCloud nelle impostazioni di Forgia per condividere o aggiornare un libro.")
+                    Text("Attiva iCloud nelle impostazioni di Formi per condividere o aggiornare un libro.")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -89,7 +89,7 @@ struct SharedBookView: View {
                 action = Action(kind: .resolve)
             }
             Section {
-                Text("I libri già condivisi si aggiornano automaticamente mentre Forgia è aperta e sbloccata, con iCloud attivo. Puoi anche usare Sincronizza adesso. La prima condivisione carica i dati su iCloud prima di aprire gli inviti.")
+                Text("I libri già condivisi si aggiornano automaticamente mentre Formi è aperta e sbloccata, con iCloud attivo. Puoi anche usare Sincronizza adesso. La prima condivisione carica i dati su iCloud prima di aprire gli inviti.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }

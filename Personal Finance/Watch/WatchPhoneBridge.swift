@@ -39,7 +39,7 @@ final class WatchPhoneBridge: NSObject, WCSessionDelegate {
                               budgetRemaining: book.budget?.remaining,
                               upcomingCount: book.occurrenceDates.filter { $0 <= week }.count,
                               conti: accounts.first(where: { $0.id == book.id })?.activeConti.map { WatchOption(id: $0.id, name: $0.name ?? "Conto") },
-                              categories: accounts.first(where: { $0.id == book.id })?.categories?.filter { $0.isActive == true }.map { WatchOption(id: $0.id, name: $0.name ?? "Categoria") })
+                              categories: accounts.first(where: { $0.id == book.id }).map(Self.expenseCategories))
                 }, hidden: snapshot.state != .ready)
         } catch { overview = .redacted }
         publish()
@@ -63,7 +63,7 @@ final class WatchPhoneBridge: NSObject, WCSessionDelegate {
         guard UserDefaults.standard.bool(forKey: Self.preferenceKey),
               !UserDefaults.standard.bool(forKey: AppLock.preferenceKey),
               let container = DataStorageManager.shared.currentContainer else {
-            return WatchReply(status: .unavailable, overview: nil, message: "Apri Forgia su iPhone. Il salvataggio dal Watch richiede il riepilogo attivo e Forgia senza blocco.")
+            return WatchReply(status: .unavailable, overview: nil, message: "Apri Formi su iPhone. Il salvataggio dal Watch richiede il riepilogo attivo e Formi senza blocco.")
         }
         do {
             if let confirmation {
@@ -106,6 +106,15 @@ final class WatchPhoneBridge: NSObject, WCSessionDelegate {
             } else { reply = WatchReply(status: .invalid, overview: nil) }
             replyHandler((try? JSONEncoder().encode(reply)) ?? Data())
         }
+    }
+}
+
+private extension WatchPhoneBridge {
+    /// Expense categories in tree order; subcategories carry their macro category's name.
+    static func expenseCategories(of book: Account) -> [WatchOption] {
+        let hierarchy = CategoryHierarchy(categories: book.categories ?? [], kind: .expense)
+        return hierarchy.roots.flatMap { [$0] + hierarchy.children(of: $0) }
+            .map { WatchOption(id: $0.id, name: hierarchy.path(of: $0)) }
     }
 }
 #endif

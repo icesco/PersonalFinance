@@ -33,7 +33,7 @@ struct WatchSettingsSection: View {
             Text("Dal Watch puoi scegliere conto e categoria, controllare i budget e confermare una spesa. iPhone deve essere raggiungibile.")
                 .font(.caption).foregroundStyle(.secondary)
         } header: { Text("Apple Watch") } footer: {
-            Text("Il riepilogo contiene conti, categorie, budget, spese del mese e numero di scadenze. Il blocco di Forgia lo nasconde. Le modifiche alla privacy raggiungono il Watch alla successiva connessione.")
+            Text("Il riepilogo contiene conti, categorie, budget, spese del mese e numero di scadenze. Il blocco di Formi lo nasconde. Le modifiche alla privacy raggiungono il Watch alla successiva connessione.")
         }
     }
 }

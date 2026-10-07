@@ -71,12 +71,8 @@ struct OnboardingView: View {
     private var welcomePage: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Image("logo-forgia")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 42, height: 42)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                Text("Forgia")
+                FormiLogo()
+                Text("Formi")
                     .font(.system(size: 28, weight: .semibold, design: .serif))
             }
             .padding(.top, 28)

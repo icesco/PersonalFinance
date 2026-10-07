@@ -35,7 +35,7 @@ final class SharedInvitationInbox {
             next.append(Entry(scope: scope, metadata: metadata))
             try persist(next)
             pending = next
-        } catch { self.error = "L’invito non è stato salvato. Verifica che il link riguardi un libro Forgia e riaprilo." }
+        } catch { self.error = "L’invito non è stato salvato. Verifica che il link riguardi un libro Formi e riaprilo." }
     }
     func remove(_ id: String) {
         do {

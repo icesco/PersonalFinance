@@ -38,7 +38,7 @@ struct WatchDirectExpenseView: View {
                 .disabled(contoID == nil || categoryID == nil || amount.isEmpty || connection.isSending)
                 if let message = connection.message { Text(message).font(.caption) }
             } else {
-                Text("Libro non disponibile. Aggiorna Forgia su iPhone.")
+                Text("Libro non disponibile. Aggiorna Formi su iPhone.")
             }
             if connection.isSending { ProgressView() }
         }

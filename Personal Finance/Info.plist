@@ -2,25 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CKSharingSupported</key>
-	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Associa la posizione al movimento quando scegli Usa posizione attuale.</string>
-	<key>NSLocationUsageDescription</key>
-	<string>Associa la posizione al movimento quando scegli Usa posizione attuale.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Fotografa e scansiona gli scontrini da allegare ai tuoi movimenti.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Usa Face ID per sbloccare Forgia e proteggere l’accesso ai tuoi dati finanziari.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>cc.fbianco.personalfinance.exampletask</string>
-	</array>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-		<string>processing</string>
-		<string>fetch</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -33,6 +17,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>CKSharingSupported</key>
+	<true/>
 	<key>UIApplicationShortcutItems</key>
 	<array>
 		<dict>
@@ -43,6 +29,12 @@
 			<key>UIApplicationShortcutItemIconSymbolName</key>
 			<string>plus</string>
 		</dict>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>processing</string>
+		<string>fetch</string>
 	</array>
 </dict>
 </plist>

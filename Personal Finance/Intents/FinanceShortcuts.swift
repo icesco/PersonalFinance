@@ -98,7 +98,7 @@ enum FinanceShortcutError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .invalidAmount: "Inserisci un importo positivo, senza simboli di valuta o separatori delle migliaia."
-        case .busy: "C’è già una richiesta in attesa. Apri Forgia per completarla."
+        case .busy: "C’è già una richiesta in attesa. Apri Formi per completarla."
         }
     }
 }
@@ -117,7 +117,7 @@ enum ShortcutAmount {
 
 struct PrepareExpenseIntent: AppIntent {
     static let title: LocalizedStringResource = "Prepara una spesa"
-    static let description = IntentDescription("Apre una spesa da controllare e salvare in Forgia. L’importo usa la valuta del libro selezionato; nessun movimento viene salvato automaticamente.")
+    static let description = IntentDescription("Apre una spesa da controllare e salvare in Formi. L’importo usa la valuta del libro selezionato; nessun movimento viene salvato automaticamente.")
     static var supportedModes: IntentModes { .foreground }
 
     @Parameter(title: "Importo nella valuta del libro") var amount: String?

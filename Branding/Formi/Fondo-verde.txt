@@ -1,0 +1,25 @@
+FORMÌ — Formica in cammino, fondo colorato e logo tenue
+
+La versione riprende la posa originale scelta dall'utente: una formica
+trasporta un seme, un piccolo passo alla volta verso una riserva futura.
+Cambiano solo i colori, mantenendo identiche silhouette e proporzioni.
+
+Fondo: #255D5E, verde del tema predefinito dell'app.
+Formica: #C7E5D9, menta tenue.
+Seme: #E6F2E9, menta più luminosa.
+Occhio e solco del seme: #255D5E.
+
+Concept aggiornato con imagegen, mantenuto in Assets/formi-logo-tenue-imagegen.png.
+Asset finale: FormiVerdePieno.icon con due foreground SVG e fondo separato.
+Effetti Glass attivi; translucenza del gruppo 15%, ombra neutra 35%.
+Esportazioni ufficiali con ictool incluso in Apple Icon Composer:
+Default, Dark, TintedLight, TintedDark, ClearLight, ClearDark.
+Il fondo pieno caratterizza l'aspetto Default; gli aspetti di sistema
+Dark, Tinted e Clear possono trasformare fondo e colori.
+Anteprime Default e Dark controllate visivamente.
+Il 6 ottobre 2026 questa proposta è stata integrata nel documento condiviso
+Personal Finance/ForgiaIcon.icon, usato dai target iPhone/iPad, macOS e watchOS.
+Il nome dell'app resta Forgia; il rebranding del nome non fa parte di questa modifica.
+
+Confronto-sfondi.html mette a confronto la stessa formica su fondo chiaro
+e su fondo colorato, con aspetto chiaro/scuro e dimensione regolabile.

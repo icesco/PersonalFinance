@@ -72,9 +72,9 @@ struct WidgetSettingsSection: View {
             Toggle("Mostra dati finanziari nei widget", isOn: $showsData)
                 .disabled(lock.isEnabled)
                 .onChange(of: showsData) { _, value in if !value { WidgetSnapshotPublisher.redact() } }
-            if lock.isEnabled { Text("I dati nei widget sono nascosti perché il blocco di Forgia è attivo.").font(.caption) }
+            if lock.isEnabled { Text("I dati nei widget sono nascosti perché il blocco di Formi è attivo.").font(.caption) }
         } header: { Text("Widget") } footer: {
-            Text("Aggiungi Riepilogo Forgia o Saldo per conto dalla galleria widget e scegli un libro. Per il saldo puoi scegliere anche il periodo. I dati si aggiornano quando apri o modifichi l’app; l’orario indica l’ultimo aggiornamento. Il sistema gestisce quando ridisegnare il widget. L’accesso Nuova spesa resta disponibile anche con i dati nascosti.")
+            Text("Aggiungi Riepilogo Formi o Saldo per conto dalla galleria widget e scegli un libro. Per il saldo puoi scegliere anche il periodo. I dati si aggiornano quando apri o modifichi l’app; l’orario indica l’ultimo aggiornamento. Il sistema gestisce quando ridisegnare il widget. L’accesso Nuova spesa resta disponibile anche con i dati nascosti.")
         }
     }
 }

@@ -1,0 +1,4 @@
+Edit this ant-and-seed logo concept: preserve the exact ant pose, all proportions, silhouette and seed shape. Change only its palette. Ant body and all limbs: deep calm green-teal #255D5E, the actual default accent color of the personal finance app. Seed: saturated sage green #73A88F. Seed central groove and ant eye: pale mint #E6EFEB. Genuine transparent background. Absolutely no brown, no gold, no yellow, no orange. Flat opaque vector-like fills, clean smooth contours. No background tile, no shadows, no baked glass material, no text. A mature friendly symbol of steady savings, intended for separate real Liquid Glass layers in Apple Icon Composer.
+
+Built-in image_gen edit. Reference: formi-imagegen-master.png.
+Final SVG layers use #D4EADB for the seed detail; Liquid Glass applied by Icon Composer.

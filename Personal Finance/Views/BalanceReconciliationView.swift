@@ -91,7 +91,7 @@ private struct BalanceEntryView: View {
             } header: {
                 Text("Saldo verificato")
             } footer: {
-                Text("Inserisci il saldo che vedi oggi nella banca o nella carta. Forgia allinea il registro senza aggiungere un movimento fittizio.")
+                Text("Inserisci il saldo che vedi oggi nella banca o nella carta. Formi allinea il registro senza aggiungere un movimento fittizio.")
             }
             if !movementsAreRecent {
                 Section {

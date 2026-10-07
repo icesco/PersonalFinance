@@ -23,7 +23,7 @@ struct SharedBookConflictReview: View {
                     Button("Applica le scelte", action: onApply)
                         .disabled(!enabled || busy || referenceCount > 0 || conflicts.contains { choices[$0.local.id] == nil })
                         .accessibilityIdentifier("shared-book-apply-choices")
-                    Text("Le modifiche compatibili vengono conservate. Se una versione cambia prima della conferma, Forgia ti chiederà di confrontarla di nuovo.")
+                    Text("Le modifiche compatibili vengono conservate. Se una versione cambia prima della conferma, Formi ti chiederà di confrontarla di nuovo.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 if referenceCount > 0 {

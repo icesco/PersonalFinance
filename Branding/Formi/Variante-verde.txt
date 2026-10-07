@@ -1,0 +1,23 @@
+FORMÌ — Variante verde
+
+Piccoli passi. Un domani più sereno.
+
+Il simbolo conserva la formica che raccoglie un seme per preparare il futuro.
+La palette ora riprende il tema predefinito dell'app:
+Formica: #255D5E, dal colore ForgiaAccent in aspetto chiaro.
+Fondo: #E6EFEB, dal colore ForgiaSageSurface in aspetto chiaro.
+Seme: #73A88F, verde salvia intermedio.
+Dettaglio del seme: #D4EADB.
+
+Concept aggiornato con imagegen. Foreground SVG distinti per formica e seme.
+FormiVerde.icon aperto e salvato in Apple Icon Composer, con effetti Glass
+attivi. Anteprime esportate con il renderer ufficiale per Default, Dark,
+TintedLight, TintedDark, ClearLight e ClearDark. Default e Dark controllati
+visivamente. Nessuna sostituzione del nome o dell'icona nel target dell'app.
+
+Il seme rappresenta la piccola riserva che cresce con continuità.
+La formica rappresenta il gesto quotidiano: conoscere le spese,
+organizzare gli impegni e mettere da parte per ciò che conta.
+
+Formì resta un nome di lavoro: esiste già un'app omonima dedicata alle
+offerte e al risparmio sugli acquisti. Vedere Storia.txt per le fonti.

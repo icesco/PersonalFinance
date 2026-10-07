@@ -56,7 +56,7 @@ struct ReminderNotificationFixture: View {
                         // adding this synthetic request outside the real reminder plan.
                         await reminders.waitForPendingUpdates()
                         let content = UNMutableNotificationContent()
-                        content.title = "Promemoria Forgia di prova"
+                        content.title = "Promemoria Formi di prova"
                         content.body = "Apri le scadenze. Dati sintetici."
                         content.sound = .default
                         let request = UNNotificationRequest(identifier: "forgia.recurrence.uitest", content: content,
@@ -189,7 +189,7 @@ final class RecurrenceReminders {
                 guard plan.fireDate > currentDate() else { continue }
                 let content = UNMutableNotificationContent()
                 content.title = "Scadenze da controllare"
-                content.body = "Hai \(plan.count) scadenze da controllare in Forgia."
+                content.body = "Hai \(plan.count) scadenze da controllare in Formi."
                 content.sound = .default
                 var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: plan.fireDate)
                 components.timeZone = .current

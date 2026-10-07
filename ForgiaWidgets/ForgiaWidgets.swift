@@ -26,7 +26,7 @@ struct WidgetBookQuery: EntityQuery {
 }
 
 struct FinanceWidgetConfiguration: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "Riepilogo Forgia"
+    static let title: LocalizedStringResource = "Riepilogo Formi"
     @Parameter(title: "Libro") var book: WidgetBookEntity?
     static var parameterSummary: some ParameterSummary { Summary("Riepilogo di \(\.$book)") }
 }
@@ -67,7 +67,7 @@ struct FinanceWidgetProvider: AppIntentTimelineProvider {
 struct FinanceWidgetView: View {
     let entry: FinanceWidgetEntry
     @Environment(\.widgetFamily) private var family
-    private let accent = Color(red: 0.75, green: 0.36, blue: 0.16)
+    private let accent = Color("FormiAccent")
 
     var body: some View {
         Group {
@@ -78,7 +78,7 @@ struct FinanceWidgetView: View {
                     Image(systemName: "plus").font(.title2.bold())
                     Text("Spesa").font(.caption2)
                 }
-                .accessibilityLabel("Aggiungi una spesa in Forgia")
+                .accessibilityLabel("Aggiungi una spesa in Formi")
             case .accessoryInline:
                 Label("Nuova spesa", systemImage: "plus.circle")
             case .accessoryRectangular:
@@ -104,7 +104,7 @@ struct FinanceWidgetView: View {
     private var homeSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label("Forgia", systemImage: "flame.fill").font(.caption.weight(.semibold)).foregroundStyle(accent)
+                Label { Text("Formi") } icon: { Image("FormiMark").resizable().scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold)).foregroundStyle(accent)
                 Spacer()
                 if family != .systemSmall {
                     Link(destination: FinanceWidgetRoute(destination: .expense, bookID: entry.book?.id ?? entry.bookID).url) {
@@ -116,9 +116,9 @@ struct FinanceWidgetView: View {
                 summary(book).privacySensitive()
             } else {
                 Spacer(minLength: 0)
-                Label(entry.snapshot.state == .hidden ? "Dati nascosti" : "Apri Forgia", systemImage: entry.snapshot.state == .hidden ? "lock.fill" : "arrow.clockwise")
+                Label(entry.snapshot.state == .hidden ? "Dati nascosti" : "Apri Formi", systemImage: entry.snapshot.state == .hidden ? "lock.fill" : "arrow.clockwise")
                     .font(.headline)
-                Text(entry.snapshot.state == .hidden ? (family == .systemSmall ? "Gestisci in Forgia" : "Gestisci la visibilità nelle impostazioni.") : "Aggiorna nell’app.")
+                Text(entry.snapshot.state == .hidden ? (family == .systemSmall ? "Gestisci in Formi" : "Gestisci la visibilità nelle impostazioni.") : "Aggiorna nell’app.")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 Text(entry.snapshot.state == .hidden ? "Nuova spesa" : "Apri il riepilogo").font(.caption2).foregroundStyle(accent)
@@ -164,7 +164,7 @@ private struct FinanceLockScreenSummary: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Label("Forgia", systemImage: "flame.fill").font(.caption.weight(.semibold))
+            Label { Text("Formi") } icon: { Image("FormiMark").resizable().scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold))
             if let book = entry.book {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(book.budget?.remaining ?? book.monthSpent, format: .currency(code: book.currency))
@@ -197,7 +197,7 @@ struct ForgiaOverviewWidget: Widget {
         AppIntentConfiguration(kind: FinanceWidgetStorage.kind, intent: FinanceWidgetConfiguration.self, provider: FinanceWidgetProvider()) {
             FinanceWidgetView(entry: $0)
         }
-        .configurationDisplayName("Riepilogo Forgia")
+        .configurationDisplayName("Riepilogo Formi")
         .description("Budget residuo, spese del mese e scadenze per un libro.")
         #if os(iOS)
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryInline, .accessoryRectangular])

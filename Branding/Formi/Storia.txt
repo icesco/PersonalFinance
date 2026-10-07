@@ -1,0 +1,45 @@
+FORMÌ — La formica che prepara il domani
+Proposta creativa · 5 ottobre 2026
+
+Piccoli passi. Un domani più sereno.
+
+La formica porta un seme alla volta. Ogni gesto è piccolo, ma insieme
+costruiscono una riserva per quando servirà. Formì prende questa immagine
+e la porta nella vita quotidiana: capire le proprie spese, preparare gli
+impegni e mettere da parte qualcosa per i progetti che contano.
+
+Il seme dorato rappresenta il valore di ciò che accantoni. La formica
+in movimento rappresenta la continuità. La storia racconta preparazione
+e serenità, senza giudicare le spese o trasformare il risparmio in una gara.
+
+Tre gesti: raccogli i movimenti, organizza le spese, prepara il domani.
+Le funzioni del prodotto sostengono la storia con conti, movimenti,
+ricorrenze, budget, analisi e obiettivi di risparmio.
+
+Nome di lavoro: Formì
+Tagline: Piccoli passi. Un domani più sereno.
+Titolo onboarding: Un piccolo passo oggi. / Più serenità domani.
+Testo onboarding: Conosci le tue spese, prepara gli impegni in arrivo
+e metti da parte per ciò che conta. Un seme alla volta.
+Azione principale: Comincia da qui
+Azione alternativa: Esplora con dati demo
+Obiettivi vuoti: Per cosa vuoi mettere da parte?
+Movimenti vuoti: Il primo passo è conoscere le tue spese.
+Nome App Store di lavoro: Formì: spese e risparmi
+Sottotitolo: Budget, conti e obiettivi
+
+Direzione visiva: formica essenziale e adulta, silhouette tondeggiante,
+un unico seme dorato, sfondo caldo. Evitare monete, grafici, effetti
+fotorealistici, espressioni caricaturali e dettagli sottili.
+Castagna #613E2D · Seme #D9AA4F · Crema #F4E7CA · Bosco #223C30.
+
+Produzione: concept con imagegen; documento nativo .icon e materiale
+Liquid Glass tramite Apple Icon Composer. Le PNG sono anteprime,
+il documento .icon è l'asset da integrare nel target.
+
+Il nome resta di lavoro: la ricerca preliminare ha individuato un'app
+omonima formi dedicata a offerte e risparmio sugli acquisti:
+https://www.patronpoints.com/formi
+https://apps.apple.com/us/app/formi-app/id6446944797
+Questa consegna sviluppa il simbolo scelto; non certifica la disponibilità
+commerciale del nome e non sostituisce ancora il brand nell'app.

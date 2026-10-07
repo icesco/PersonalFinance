@@ -40,16 +40,16 @@ struct SharedInvitationsView: View {
                 Section {
                     Label("Sincronizzazione iCloud disattivata", systemImage: "icloud.slash")
                     if inbox.pending.isEmpty {
-                        Text("Per accettare un invito, attiva iCloud nelle impostazioni di Forgia.")
+                        Text("Per accettare un invito, attiva iCloud nelle impostazioni di Formi.")
                     } else {
-                        Text("Gli inviti restano salvati. Attiva iCloud nelle impostazioni di Forgia, poi torna qui per accettarli.")
+                        Text("Gli inviti restano salvati. Attiva iCloud nelle impostazioni di Formi, poi torna qui per accettarli.")
                     }
                 }
             }
             ForEach(inbox.pending) { entry in
                 Section {
                     Text(entry.title).font(.headline)
-                    Text("Accettando, Forgia aggiungerà il libro condiviso senza collegarlo ai tuoi libri privati.")
+                    Text("Accettando, Formi aggiungerà il libro condiviso senza collegarlo ai tuoi libri privati.")
                         .foregroundStyle(.secondary)
                     if entry.metadata.participantPermission != .readWrite {
                         Text("Questo invito non consente modifiche. L’apertura dei libri in sola lettura non è ancora disponibile.")
@@ -84,7 +84,7 @@ struct SharedInvitationsView: View {
             switch result {
             case .synchronized:
                 inbox.remove(entry.id)
-                message = "Libro aggiunto. Lo trovi nell’elenco dei libri di Forgia."
+                message = "Libro aggiunto. Lo trovi nell’elenco dei libri di Formi."
             case .needsReview:
                 message = "Il libro contiene modifiche da confrontare. Apri la sua schermata Condivisione per scegliere quali conservare."
             }

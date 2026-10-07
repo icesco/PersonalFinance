@@ -55,14 +55,14 @@ struct WatchHomeView: View {
                         Text("Aggiornato \(connection.overview.generatedAt.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption2).foregroundStyle(.secondary)
                     } else {
-                        Text(connection.overview.hidden ? "Attiva il riepilogo Apple Watch nelle impostazioni di Forgia su iPhone." : "Riepilogo da aggiornare. Apri Forgia su iPhone.")
+                        Text(connection.overview.hidden ? "Attiva il riepilogo Apple Watch nelle impostazioni di Formi su iPhone." : "Riepilogo da aggiornare. Apri Formi su iPhone.")
                             .font(.caption)
                     }
                     Button("Aggiorna", systemImage: "arrow.clockwise") { connection.refresh() }
                         .disabled(connection.isSending)
                     if let message = connection.message { Text(message).font(.caption) }
                 }
-                .navigationTitle("Forgia")
+                .navigationTitle("Formi")
             }
             .id(connection.overview.usable(at: context.date))
         }
@@ -109,7 +109,7 @@ struct WatchExpenseView: View {
                 .disabled(connection.isSending)
             if connection.isSending { ProgressView() }
             if let message = connection.message { Text(message).font(.caption) }
-            Text("La spesa viene registrata solo dopo la conferma in Forgia su iPhone.").font(.caption2).foregroundStyle(.secondary)
+            Text("La spesa viene registrata solo dopo la conferma in Formi su iPhone.").font(.caption2).foregroundStyle(.secondary)
         }
         .navigationTitle("Nuova spesa")
         .task {

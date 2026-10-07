@@ -82,8 +82,8 @@ final class AppLock {
         errorMessage = nil
         do {
             let accepted = try await authenticator.authenticate(reason: enable == nil
-                ? "Sblocca Forgia per accedere ai tuoi dati finanziari."
-                : "Conferma la modifica del blocco di Forgia.")
+                ? "Sblocca Formi per accedere ai tuoi dati finanziari."
+                : "Conferma la modifica del blocco di Formi.")
             guard requestID == id else { return }
             guard accepted, !Task.isCancelled else {
                 isAuthenticating = false
@@ -111,8 +111,18 @@ struct AppLockScreen: View {
     @Environment(AppLock.self) private var lock
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "lock.fill").font(.system(size: 48))
-            Text("Forgia è bloccata").font(.title.bold())
+            FormiLogo(size: 72)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(ForgiaPalette.onAccent)
+                        .padding(7)
+                        .background(ForgiaPalette.accent, in: Circle())
+                        .overlay(Circle().stroke(ForgiaPalette.canvas, lineWidth: 3))
+                        .offset(x: 8, y: 8)
+                        .accessibilityHidden(true)
+                }
+            Text("Formi è bloccata").font(.title.bold())
             Text("Autenticati per accedere ai tuoi dati.").foregroundStyle(.secondary)
             if let error = lock.errorMessage {
                 Text(error).font(.caption).multilineTextAlignment(.center)
@@ -138,7 +148,7 @@ struct AppLockSettingsSection: View {
     @Environment(AppLock.self) private var lock
     var body: some View {
         Section {
-            Toggle("Blocca Forgia", isOn: Binding(
+            Toggle("Blocca Formi", isOn: Binding(
                 get: { lock.isEnabled },
                 set: { enabled in Task { await lock.setEnabled(enabled) } }
             ))

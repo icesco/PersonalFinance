@@ -170,7 +170,7 @@ struct CreateContoView: View {
             conto.account = savedAccount
             context.insert(conto)
             if selectedType == .savings {
-                if let rate = annualInterestRate { try conto.setSavingsRate(rate, effectiveDate: rateDate) }
+                if let rate = annualInterestRate, conto.savingsRates.last?.annualPercent != rate { try conto.setSavingsRate(rate, effectiveDate: rateDate) }
                 try SavingsAccountEdits.linkGoal(conto: conto, existingID: linkedGoalID, target: savingsGoal, context: context)
             }
             try context.save()

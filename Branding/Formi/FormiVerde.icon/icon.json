@@ -1,0 +1,36 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.90200,0.93700,0.91800,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "seme.svg",
+          "name" : "Il seme del domani"
+        },
+        {
+          "glass" : true,
+          "image-name" : "formica.svg",
+          "name" : "La formica"
+        }
+      ],
+      "name" : "Un seme alla volta",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.35
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.15
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

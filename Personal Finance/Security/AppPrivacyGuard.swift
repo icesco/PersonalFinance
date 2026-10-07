@@ -10,8 +10,8 @@ private struct PrivacyWindowContent: View {
                 AppLockScreen().environment(lock)
             } else {
                 VStack(spacing: 16) {
-                    Image(systemName: "lock.fill").font(.largeTitle)
-                    Text("Forgia").font(.title.bold())
+                    FormiLogo(size: 72)
+                    Text("Formi").font(.title.bold())
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ForgiaPalette.canvas)

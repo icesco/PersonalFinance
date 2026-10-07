@@ -1,0 +1,25 @@
+FORMÌ — Variante B: la riserva
+
+Una piccola riserva. Un domani più sereno.
+
+La formica è vista di fronte e custodisce il seme vicino al corpo.
+La posa raccolta comunica continuità, cura e preparazione. Il seme
+diventa la piccola riserva da costruire per ciò che conta.
+
+Confronto:
+A — Formica in cammino: lavoro quotidiano, iniziativa, preparazione.
+B — Formica che custodisce: risparmio, cura, serenità; una mascotte
+più compatta e frontale, meno dinamica e più affettuosa.
+
+Entrambe riprendono la palette del tema predefinito:
+corpo #255D5E, seme #73A88F, fondo #E6EFEB.
+
+Concept generato con imagegen; segno ricostruito in SVG con tre
+foreground separati: corpo, seme e braccia. Documento aperto in
+Apple Icon Composer. PNG esportate con il renderer ufficiale in
+Default, Dark, TintedLight, TintedDark, ClearLight e ClearDark.
+Default e Dark verificati visivamente. Il formato .icon resta
+modificabile. La proposta non è ancora integrata nel target dell'app.
+
+Nome Formì ancora di lavoro; controllo preliminare del nome già
+documentato in ../Storia.txt. Questa variante esplora il simbolo.

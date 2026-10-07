@@ -25,7 +25,7 @@ private struct ExpenseComplicationView: View {
                 Label("Prepara spesa", systemImage: "plus.circle.fill")
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 2) {
-                    Label("Forgia", systemImage: "flame.fill")
+                    Label { Text("Formi") } icon: { Image("FormiMark").resizable().scaledToFit().frame(width: 14, height: 14) }
                         .font(.caption).foregroundStyle(.secondary)
                     Label("Prepara spesa", systemImage: "plus.circle.fill")
                         .font(.headline)
@@ -44,7 +44,7 @@ private struct ExpenseComplicationView: View {
                 }
             }
         }
-        .accessibilityLabel("Prepara una spesa in Forgia")
+        .accessibilityLabel("Prepara una spesa in Formi")
         .containerBackground(for: .widget) { Color.clear }
         .widgetURL(URL(string: "forgia://watch/expense"))
     }
