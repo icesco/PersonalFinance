@@ -12,7 +12,7 @@ enum RecordedBudgetSpending {
 
     static func entries(for budget: Budget, transactions: [Transaction], start: Date, end: Date,
                         excludingTransactionID: UUID? = nil) -> [Transaction] {
-        let categoryIDs = Set((budget.categories ?? []).map(\.id))
+        let categoryIDs = budget.coveredCategoryIDs
         let contoIDs = Set((budget.account?.conti ?? []).map(\.id))
         guard !categoryIDs.isEmpty, !contoIDs.isEmpty, start < end else { return [] }
         var visited = Set<ObjectIdentifier>()

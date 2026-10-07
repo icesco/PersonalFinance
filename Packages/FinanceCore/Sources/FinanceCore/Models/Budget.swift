@@ -39,6 +39,10 @@ public final class Budget {
     public var alertThreshold: Double? // Percentage (0.0 - 1.0)
     public var includeRecurringTransactions: Bool?  // Include transazioni ricorrenti pianificate
     
+    /// Generated limits use exact membership so child overrides cannot overlap.
+    public var usesExactCategories: Bool?
+    public var planningGroupRaw: String?
+
     public var account: Account?
 
     /// Direct many-to-many relationship with Category (no junction table needed)
@@ -96,10 +100,23 @@ public final class Budget {
 
     /// Calculate spent in memory (inefficient, prefer BudgetService methods)
     private func calculateSpentInMemory(for period: (start: Date, end: Date)) -> Decimal {
-        RecordedBudgetSpending.total(
-            for: self, transactions: (categories ?? []).flatMap { $0.transactions ?? [] },
+        let covered = coveredCategoryIDs
+        // Repeated transactions are counted once by RecordedBudgetSpending.
+        let categories = (self.categories ?? []) + (account?.categories ?? []).filter { covered.contains($0.id) }
+        return RecordedBudgetSpending.total(
+            for: self, transactions: categories.flatMap { $0.transactions ?? [] },
             start: period.start, end: period.end
         )
+    }
+
+    /// Manual limits expand macro categories; plan limits resolve disjoint groups, including new children.
+    public var coveredCategoryIDs: Set<UUID> {
+        if let raw = planningGroupRaw, let group = BudgetAllocationGroup(rawValue: raw),
+           let plan = account?.budgetingPlan, plan.method != .manual {
+            return Set((account?.categories ?? []).filter { $0.fits(.expense) && plan.group(for: $0) == group }.map(\.id))
+        }
+        let selected = Set((categories ?? []).map(\.id))
+        return usesExactCategories == true ? selected : CategoryHierarchy(categories: account?.categories ?? []).expanding(selected)
     }
 
     /// Add a category to this budget

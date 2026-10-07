@@ -19,9 +19,19 @@ public struct SpendingDirectionInputs: Sendable {
             (($0.fromContoId.map { ids.contains($0) } ?? false) ||
              ($0.toContoId.map { ids.contains($0) } ?? false))
         }
+        // Spending rolls up to macro categories; subcategories are the detail behind each one.
+        var roots: [UUID: Category] = [:]
+        func root(of category: Category?) -> Category? {
+            guard let category else { return nil }
+            if let cached = roots[category.id] { return cached }
+            let root = category.rootCategory
+            roots[category.id] = root
+            return root
+        }
         let entries = relevant.map {
-            DirectionTransaction(date: $0.date, amount: $0.amount ?? 0, type: $0.type,
-                                 categoryID: $0.categoryId, categoryName: $0.category?.name ?? "Da classificare",
+            let category = root(of: $0.category)
+            return DirectionTransaction(date: $0.date, amount: $0.amount ?? 0, type: $0.type,
+                                 categoryID: category?.id ?? $0.categoryId, categoryName: category?.name ?? "Da classificare",
                                  isRecurring: $0.isRecurring == true || $0.recurrenceSourceID != nil,
                                  hasValidAmount: $0.amount != nil && $0.amount?.isNaN == false)
         }

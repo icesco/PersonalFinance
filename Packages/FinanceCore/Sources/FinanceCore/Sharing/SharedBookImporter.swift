@@ -172,6 +172,7 @@ public enum SharedBookImporter {
                 switch record.id.kind {
                 case .book:
                     book.name = try record.text("name"); book.currency = try record.text("currency")
+                    book.budgetingPlanJSON = try record.text("budgetingPlan")
                     book.externalID = try required(record.text("externalID"))
                     book.createdAt = try record.date("createdAt"); book.updatedAt = try record.date("updatedAt"); book.isActive = try record.flag("isActive")
                 case .conto:
@@ -184,6 +185,7 @@ public enum SharedBookImporter {
                     value.color = try record.text("color"); value.icon = try record.text("icon")
                     value.createdAt = try record.date("createdAt"); value.updatedAt = try record.date("updatedAt")
                     value.isActive = try record.flag("isActive")
+                    value.kindRaw = try record.text("kind").flatMap { CategoryKind(rawValue: $0)?.rawValue }
                     value.parentCategoryId = try localID(record.reference("parent", kind: .category))
                 case .transaction:
                     let value = try required(uuid.flatMap { transactions[$0] })
@@ -198,6 +200,8 @@ public enum SharedBookImporter {
                     value.amount = try record.decimal("amount"); value.period = try record.enumeration("period", BudgetPeriod.self)
                     value.isActive = try record.flag("isActive"); value.createdAt = try record.date("createdAt"); value.updatedAt = try record.date("updatedAt")
                     value.alertThreshold = try record.number("threshold"); value.includeRecurringTransactions = try record.flag("includeRecurring")
+                    value.usesExactCategories = try record.flag("exactCategories")
+                    value.planningGroupRaw = try record.text("planningGroup")
                     value.categories = try record.references("categories", kind: .category).map { try required(localID($0).flatMap { categories[$0] }) }
                 case .goal:
                     let value = try required(uuid.flatMap { goals[$0] }); value.account = book

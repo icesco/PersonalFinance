@@ -40,7 +40,8 @@ public enum SharedBookExporter {
         let bookReference = reference(.book, book.id)
         records.append(record(.book, book.id, ["name": book.name.map(SharedValue.text), "currency": book.currency.map(SharedValue.text),
             "externalID": .text(book.externalID), "createdAt": book.createdAt.map(SharedValue.date),
-            "updatedAt": book.updatedAt.map(SharedValue.date), "isActive": book.isActive.map(SharedValue.flag)]))
+            "updatedAt": book.updatedAt.map(SharedValue.date), "isActive": book.isActive.map(SharedValue.flag),
+            "budgetingPlan": book.budgetingPlanJSON.map(SharedValue.text)]))
         for conto in conti {
             records.append(record(.conto, conto.id, ["book": bookReference, "externalID": .text(conto.externalID),
                 "name": conto.name.map(SharedValue.text), "type": conto.type.map { .text($0.rawValue) },
@@ -60,6 +61,7 @@ public enum SharedBookExporter {
                 "name": category.name.map(SharedValue.text), "color": category.color.map(SharedValue.text),
                 "icon": category.icon.map(SharedValue.text), "createdAt": category.createdAt.map(SharedValue.date),
                 "updatedAt": category.updatedAt.map(SharedValue.date), "isActive": category.isActive.map(SharedValue.flag),
+                "kind": category.kindRaw.map(SharedValue.text),
                 "parent": reference(.category, category.parentCategoryId.flatMap { categoryIDs.contains($0) ? $0 : nil })]))
         }
         for transaction in transactions {
@@ -102,7 +104,8 @@ public enum SharedBookExporter {
                 "period": budget.period.map { .text($0.rawValue) }, "isActive": budget.isActive.map(SharedValue.flag),
                 "createdAt": budget.createdAt.map(SharedValue.date), "updatedAt": budget.updatedAt.map(SharedValue.date),
                 "threshold": budget.alertThreshold.map(SharedValue.number), "includeRecurring": budget.includeRecurringTransactions.map(SharedValue.flag),
-                "categories": .references(refs)]))
+                "categories": .references(refs), "exactCategories": budget.usesExactCategories.map(SharedValue.flag),
+                "planningGroup": budget.planningGroupRaw.map(SharedValue.text)]))
         }
         for goal in book.savingsGoals ?? [] {
             records.append(record(.goal, goal.id, ["book": bookReference, "externalID": .text(goal.externalID),

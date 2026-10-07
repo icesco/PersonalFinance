@@ -34,6 +34,24 @@ public enum RecurrenceFrequency: String, CaseIterable, Codable, Sendable {
         }
     }
     
+    /// Average occurrences per year, used to compare series of different frequencies.
+    public var occurrencesPerYear: Decimal {
+        switch self {
+        case .daily: return 365
+        case .weekly: return 52
+        case .biweekly: return 26
+        case .monthly: return 12
+        case .quarterly: return 4
+        case .semiannually: return 2
+        case .yearly: return 1
+        }
+    }
+
+    /// Average monthly amount of a series repeating `amount` at this frequency.
+    public func monthlyEquivalent(of amount: Decimal) -> Decimal {
+        amount * occurrencesPerYear / 12
+    }
+
     public var componentValue: Int {
         switch self {
         case .daily: return 1

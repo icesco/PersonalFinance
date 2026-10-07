@@ -10,6 +10,8 @@ public final class Account {
     public var createdAt: Date?
     public var updatedAt: Date?
     public var isActive: Bool?
+    /// Versioned, portable plan; nil means the user has not made a choice yet.
+    public var budgetingPlanJSON: String?
     
     @Relationship(deleteRule: .cascade, inverse: \Conto.account)
     public var conti: [Conto]?

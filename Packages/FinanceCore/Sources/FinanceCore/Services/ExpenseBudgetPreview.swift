@@ -45,8 +45,7 @@ extension BudgetService {
             guard budget.isActive == true, budget.account?.id == accountID,
                   let limit = budget.amount, limit >= 0,
                   let interval = budget.period?.interval(containing: date, calendar: calendar) else { return nil }
-            let categoryIDs = Set((budget.categories ?? []).map(\.id))
-            guard categoryIDs.contains(categoryID) else { return nil }
+            guard budget.coveredCategoryIDs.contains(categoryID) else { return nil }
             let spent = RecordedBudgetSpending.total(
                 for: budget, transactions: transactions, start: interval.start, end: interval.end,
                 excludingTransactionID: excludingTransactionID

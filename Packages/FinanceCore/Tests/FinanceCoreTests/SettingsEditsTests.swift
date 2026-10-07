@@ -99,7 +99,7 @@ struct SettingsEditsTests {
             try failing.updateCategory(category, name: "Cambio", color: "#FFFFFF", icon: "heart")
         }
         #expect(category.name == "A")
-        #expect(category.color == "#007AFF")
+        #expect(category.color == CategoryPalette.fallback)
         #expect(category.icon == "tag")
         #expect(category.updatedAt == originalDate)
         #expect(book.name == "Bozza")

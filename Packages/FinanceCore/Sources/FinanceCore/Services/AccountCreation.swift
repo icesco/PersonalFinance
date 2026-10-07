@@ -25,13 +25,7 @@ public struct AccountCreation {
             conto.account = account
             context.insert(conto)
         }
-        let categories = Category.defaultCategoryDefinitions.map { definition in
-            let category = Category(name: definition.name, color: definition.color, icon: definition.icon)
-            category.externalID = "\(account.id)-\(definition.stableKey)"
-            category.account = account
-            context.insert(category)
-            return category
-        }
+        let removeCategories = CategoryDefaults.apply(CategoryDefaults.plan(for: account), to: account, in: context)
         do {
             for conto in conti where conto.type == .savings && conto.savingsGoal != nil {
                 try SavingsAccountEdits.linkGoal(conto: conto, existingID: nil, target: conto.savingsGoal, context: context)
@@ -41,10 +35,7 @@ public struct AccountCreation {
         }
         catch {
             // Remove only this failed creation; preserve edits to existing books.
-            for category in categories {
-                category.account = nil
-                context.delete(category)
-            }
+            removeCategories()
             for goal in account.savingsGoals ?? [] { context.delete(goal) }
             for conto in conti {
                 conto.account = nil
