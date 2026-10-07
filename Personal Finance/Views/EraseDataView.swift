@@ -195,10 +195,8 @@ struct EraseDataView: View {
 
         do {
             try modelContext.save()
-            try CaptureStore.eraseAll()
         } catch {
-            deletionError = error.localizedDescription
-            return
+            print("Error erasing all data: \(error)")
         }
 
         // Reset onboarding so user sees setup again
