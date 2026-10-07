@@ -79,7 +79,7 @@ struct Personal_FinanceApp: App {
             .onOpenURL { url in
                 guard let route = FinanceWidgetRoute(url: url) else { return }
                 do { try FinanceShortcutInbox.shared.submit(.widget(route)) }
-                catch { FinanceShortcutInbox.shared.reportError("Completa la richiesta già aperta in Forgia.") }
+                catch { FinanceShortcutInbox.shared.reportError("Completa la richiesta già aperta in Formi.") }
             }
             .onChange(of: scenePhase) { _, phase in appLock.sceneChanged(phase) }
             .task {
@@ -90,6 +90,7 @@ struct Personal_FinanceApp: App {
         .defaultSize(width: 1100, height: 700)
         .commands { FinanceMacCommands() }
         #endif
+
         #if os(macOS)
         WindowGroup("Formi", id: "finance-task", for: UUID.self) { $id in
             FinanceTaskWindow(id: id)
@@ -104,7 +105,9 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS_GAUGE") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_QUICK_TRANSFER") {
+            QuickTransferFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS_GAUGE") {
             SavingsGaugeVisualFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_FINANCE_CALENDAR") {
             FinanceCalendarFixture()
@@ -148,6 +151,15 @@ struct Personal_FinanceApp: App {
     private func initializeApp() async {
         do {
             #if DEBUG
+            // One-off: complete the CloudKit Development schema before deploying it to Production.
+            if ProcessInfo.processInfo.arguments.contains(CloudKitSchemaInitializer.launchArgument) {
+                do {
+                    try await CloudKitSchemaInitializer.initializeInBackground()
+                    NSLog("[CloudKitSchema] Schema completo inviato all'ambiente Development.")
+                } catch {
+                    NSLog("[CloudKitSchema] Inizializzazione fallita: %@", String(describing: error))
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("UITEST_MAC_LOCAL") {
                 guard !isInitialized else { return }
                 try await dataStorageManager.initializeContainer()

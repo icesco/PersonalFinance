@@ -20,6 +20,10 @@ struct TransactionListView: View {
     var initialInterval: DateInterval? = nil
     var expensesOnly = false
     var scopeContoIDs: Set<UUID>? = nil
+    /// Pushed from another screen: reuse that navigation stack instead of nesting a new one.
+    var isPushed = false
+    /// Title shown when pushed, e.g. the category being reviewed.
+    var pushedTitle: String? = nil
 
     // Filter states
     @State private var selectedMonth: Date = Date()
@@ -28,8 +32,8 @@ struct TransactionListView: View {
     @State private var selectedCategories: Set<UUID> = []
     @State private var showingRecurring = false
     @State private var showingCategoryFilter = false
+    @Query private var allCategories: [FinanceCategory]
     @State private var selectedTimeframe: TransactionTimeframe = .month
-    @State private var showSummaryDetail = false
     #if os(macOS)
     @State private var desktopSelection: Set<UUID> = []
     @State private var desktopDetail: FinanceTransaction?
@@ -44,16 +48,13 @@ struct TransactionListView: View {
     @State private var selectedTransactions: Set<UUID> = []
     @State private var showingBatchDeleteAlert = false
 
-    // Fetched data
+    // Loaded pages and whole-period totals
     @State private var transactions: [FinanceTransaction] = []
-    @State private var totalCount: Int = 0
-    @State private var matchingIncome: Decimal = 0
-    @State private var matchingExpenses: Decimal = 0
-    @State private var isLoading = false
-
-    // Pagination
-    @State private var currentLimit: Int = 30
-    private let pageSize: Int = 30
+    @State private var summary = TransactionListSummary()
+    @State private var hasLoaded = false
+    @State private var didApplyInitialFilters = false
+    @State private var isScrolledDown = false
+    private let pageSize = 40
 
     private var currency: String { selectedConto?.account?.currency ?? account?.currency ?? "EUR" }
     private var account: Account? { appState.selectedAccount }
@@ -67,16 +68,33 @@ struct TransactionListView: View {
     }
 
     private var hasMoreTransactions: Bool {
-        transactions.count >= currentLimit && transactions.count < totalCount
+        transactions.count < summary.count
+    }
+
+    /// Every filter the store evaluates; any change reloads from the first page.
+    private var currentQuery: TransactionListQuery {
+        let contoIDs: Set<UUID>
+        if let selectedConto {
+            contoIDs = [selectedConto.id]
+        } else if let scopeContoIDs {
+            contoIDs = scopeContoIDs
+        } else {
+            contoIDs = Set(availableConti.map(\.id))
+        }
+        return TransactionListQuery(
+            interval: initialInterval ?? selectedTimeframe.interval(containing: selectedMonth),
+            contoIDs: contoIDs,
+            type: selectedType.transactionType,
+            categoryIDs: CategoryHierarchy(categories: allCategories).expanding(selectedCategories)
+        )
     }
 
     private var showContoInCell: Bool {
         selectedConto == nil
     }
 
-    // Monthly totals (calculated from fetched transactions)
-    private var periodIncome: Decimal { matchingIncome }
-    private var periodExpenses: Decimal { matchingExpenses }
+    private var periodIncome: Decimal { summary.income }
+    private var periodExpenses: Decimal { summary.expenses }
 
     private var activeFiltersCount: Int {
         var count = 0
@@ -87,24 +105,19 @@ struct TransactionListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        if isPushed {
+            content
+        } else {
+            NavigationStack { content }
+                .transactionButtonRoot(.transactions, isActive: !isInSelectionMode)
+        }
+    }
+
+    private var content: some View {
             VStack(spacing: 0) {
-                if isLoading && transactions.isEmpty {
+                if !hasLoaded {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if transactions.isEmpty {
-                    #if os(macOS)
-                    transactionList
-                    #else
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            periodSummary.unifiedCard()
-                            TransactionSearchLink(scopeContoIDs: scopeContoIDs)
-                            Button("Ricorrenti", systemImage: "repeat") { showingRecurring = true }
-                            emptyState
-                        }.padding(16)
-                    }
-                    #endif
                 } else {
                     transactionList
 
@@ -118,23 +131,28 @@ struct TransactionListView: View {
                 VStack(spacing: 0) {
                     if let initialInterval {
                         Text("\(initialInterval.start.formatted(date: .abbreviated, time: .omitted)) – \(initialInterval.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))")
-                            .font(.headline).padding()
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(ForgiaPalette.mutedText)
+                            .padding(.top, 4)
                     } else {
                         compactPeriodHeader
                     }
                     unifiedFiltersBar
                 }
             }
-            .modifier(TransactionAddButtonModifier(isVisible: !isInSelectionMode))
-            .navigationTitle(initialConto?.name ?? desktopTitle)
+            .navigationTitle(navigationTitle)
             #if os(iOS)
             .toolbarTitleDisplayMode(.inline)
-            .toolbar(initialConto == nil && initialInterval == nil ? .hidden : .visible, for: .navigationBar)
+            .toolbar(isPushed || initialConto != nil ? .visible : .hidden, for: .navigationBar)
             #endif
             .financePresentation(isPresented: $showingRecurring, title: "Ricorrenze", width: 800) {
                 NavigationStack {
                     RecurringManagementView(contoIDs: contoIDsForQuery)
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { FinanceTaskDoneButton() } }
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                FinanceTaskDoneButton()
+                            }
+                        }
                 }
             }
             .sheet(isPresented: $showingCategoryFilter) {
@@ -147,6 +165,11 @@ struct TransactionListView: View {
                 EditTransactionView(transaction: transaction)
             }
             .onAppear {
+                guard !didApplyInitialFilters else {
+                    reload(keepingLoadedRows: true)
+                    return
+                }
+                didApplyInitialFilters = true
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
                 }
@@ -154,15 +177,51 @@ struct TransactionListView: View {
                     selectedCategories = [initialCategoryID]
                 }
                 if expensesOnly { selectedType = .expense }
-                fetchTransactions()
+                reload()
             }
-            .onChange(of: selectedMonth) { _, _ in resetAndFetch() }
-            .onChange(of: selectedTimeframe) { _, _ in resetAndFetch() }
-            .onChange(of: selectedType) { _, _ in resetAndFetch() }
-            .onChange(of: selectedConto) { _, _ in resetAndFetch() }
-            .onChange(of: selectedCategories) { _, _ in resetAndFetch() }
-            .onChange(of: appState.dataRefreshTrigger) { _, _ in fetchTransactions() }
+            .onChange(of: currentQuery) { _, _ in reload() }
+            .onChange(of: appState.dataRefreshTrigger) { _, _ in reload(keepingLoadedRows: true) }
+            .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
+                Button("Elimina", role: .destructive) {
+                    if let transaction = transactionToDelete {
+                        deleteTransaction(transaction)
+                    }
+                    transactionToDelete = nil
+                }
+                Button("Annulla", role: .cancel) {
+                    transactionToDelete = nil
+                }
+            } message: {
+                Text("Sei sicuro di voler eliminare questa transazione? Questa azione non può essere annullata.")
+            }
+            .alert("Impossibile eliminare", isPresented: $showingDeleteError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Non è stato possibile completare la cancellazione. Aggiorna l’elenco e riprova.")
+            }
+            .alert("Elimina Transazioni", isPresented: $showingBatchDeleteAlert) {
+                Button("Elimina \(selectedTransactions.count)", role: .destructive) {
+                    deleteSelectedTransactions()
+                }
+                Button("Annulla", role: .cancel) { }
+            } message: {
+                Text("Sei sicuro di voler eliminare \(selectedTransactions.count) transazioni? Questa azione non può essere annullata.")
+            }
+    }
+
+    private var navigationTitle: String {
+        if isPushed, initialCategoryID != nil {
+            return selectedCategories.isEmpty ? "Movimenti" : categoryFilterTitle
         }
+        return pushedTitle ?? initialConto?.name ?? (isPushed ? "Movimenti" : desktopTitle)
+    }
+
+    private var desktopTitle: String {
+        #if os(macOS)
+        "Movimenti"
+        #else
+        ""
+        #endif
     }
 
     private var contoIDsForQuery: Set<UUID> {
@@ -182,17 +241,20 @@ struct TransactionListView: View {
         periodIncome - periodExpenses
     }
 
-    private var balanceExplanation: String {
-        let hasFuture = transactions.contains { $0.date > Date() }
-        if initialInterval != nil { return "Bilancio del periodo selezionato" }
-        return hasFuture ? "\(selectedTimeframe.balanceTitle) · inclusi movimenti futuri" : selectedTimeframe.balanceTitle
+    private var summaryTitle: String {
+        initialInterval != nil ? "Bilancio del periodo" : selectedTimeframe.balanceTitle
+    }
+
+    /// Future-dated rows sort first, so the first loaded page is enough to tell.
+    private var includesFutureTransactions: Bool {
+        transactions.first.map { $0.date > Date() } ?? false
     }
 
     private var compactPeriodHeader: some View {
         VStack(spacing: 2) {
             HStack(spacing: 8) {
                 Button {
-                    withAnimation { selectedMonth = selectedTimeframe.moving(selectedMonth, by: -1) }
+                    selectedMonth = selectedTimeframe.moving(selectedMonth, by: -1)
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.subheadline.weight(.semibold))
@@ -211,10 +273,17 @@ struct TransactionListView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Text(selectedTimeframe.title(containing: selectedMonth))
-                            .font(.system(.title3, design: .serif, weight: .semibold))
-                        Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                    VStack(spacing: 0) {
+                        HStack(spacing: 6) {
+                            Text(selectedTimeframe.title(containing: selectedMonth))
+                                .font(.system(.title3, design: .serif, weight: .semibold))
+                            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                        }
+                        if let subtitle = selectedTimeframe.subtitle(containing: selectedMonth) {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(ForgiaPalette.mutedText)
+                        }
                     }.frame(minHeight: 44)
                 }
                 .accessibilityIdentifier("transactions-period-menu")
@@ -222,7 +291,7 @@ struct TransactionListView: View {
                 Spacer()
 
                 Button {
-                    withAnimation { selectedMonth = selectedTimeframe.moving(selectedMonth, by: 1) }
+                    selectedMonth = selectedTimeframe.moving(selectedMonth, by: 1)
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.subheadline.weight(.semibold))
@@ -241,52 +310,12 @@ struct TransactionListView: View {
     }
 
     private var periodSummary: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            let summaryLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout())
-            summaryLayout {
-                Text(balanceExplanation)
-                    .font(.caption)
-                    .foregroundStyle(ForgiaPalette.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
-                Button {
-                    withAnimation { showSummaryDetail.toggle() }
-                } label: {
-                    Text((periodBalance >= 0 ? "+" : "") + periodBalance.formatted(.currency(code: currency)))
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(periodBalance >= 0 ? ForgiaPalette.accent : Color.primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(periodBalance >= 0 ? ForgiaPalette.sageSurface : ForgiaPalette.apricotSurface, in: Capsule())
-                }
-            }
-
-            // Expandable summary detail row
-            if showSummaryDetail {
-                VStack(spacing: 6) {
-                    HStack(spacing: 16) {
-                        Label("+\(periodIncome.formatted(.currency(code: currency)))", systemImage: "arrow.down.circle")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(ForgiaPalette.accent)
-                        Label("-\(periodExpenses.formatted(.currency(code: currency)))", systemImage: "arrow.up.circle")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.primary)
-                    }
-                    Text(balanceExplanation)
-                        .font(.caption2)
-                        .foregroundStyle(ForgiaPalette.mutedText)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 16)
-                .background(ForgiaPalette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 2)
-        .padding(.bottom, 4)
+        PeriodSummaryCard(
+            title: summaryTitle,
+            summary: summary,
+            currency: currency,
+            includesFuture: includesFutureTransactions
+        )
     }
 
     // MARK: - Unified Filters Bar
@@ -352,7 +381,7 @@ struct TransactionListView: View {
         Button { showingCategoryFilter = true } label: {
             HStack(spacing: 4) {
                 Image(systemName: "tag").font(.caption)
-                Text(selectedCategories.isEmpty ? "Categorie" : "\(selectedCategories.count)")
+                Text(categoryFilterTitle)
                 Image(systemName: "chevron.down").font(.caption2)
             }
             .font(.subheadline)
@@ -361,129 +390,70 @@ struct TransactionListView: View {
             .foregroundStyle(selectedCategories.isEmpty ? Color.primary : ForgiaPalette.accent)
         }
         .tint(selectedCategories.isEmpty ? nil : ForgiaPalette.accent)
+        .accessibilityIdentifier("transactions-category-filter")
+    }
+
+    private var categoryFilterTitle: String {
+        guard !selectedCategories.isEmpty else { return "Categorie" }
+        if selectedCategories.count == 1,
+           let category = allCategories.first(where: { selectedCategories.contains($0.id) }) {
+            return category.displayPath
+        }
+        return "Categorie · \(selectedCategories.count)"
     }
 
     // MARK: - Sectioning Logic
 
+    /// Short periods read best day by day; longer ones by month.
+    private var groupsByDay: Bool {
+        let interval = currentQuery.interval
+        return interval.duration <= 32 * 24 * 3600
+    }
+
     private var sectionedTransactions: [TransactionSection] {
-        if selectedTimeframe != .month {
-            return buildMultiMonthSections()
-        } else {
-            return buildMonthSections()
-        }
-    }
-
-    private func buildMonthSections() -> [TransactionSection] {
         let calendar = Calendar.current
-        let now = Date()
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedMonth))!
-        let isCurrentMonth = calendar.isDate(selectedMonth, equalTo: now, toGranularity: .month)
-        let isFutureMonth = startOfMonth > now
+        let locale = Locale(identifier: "it_IT")
+        let startOfToday = calendar.startOfDay(for: Date())
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
-        if isCurrentMonth {
-            let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now)!)
-            let upcoming = transactions.filter { $0.date >= startOfTomorrow }.sorted { $0.date < $1.date }
-            let past = transactions.filter { $0.date < startOfTomorrow }.sorted { $0.date > $1.date }
-
-            var sections: [TransactionSection] = []
-            if !upcoming.isEmpty {
-                sections.append(TransactionSection(id: "upcoming", title: "In Arrivo", transactions: upcoming, isUpcoming: true))
-            }
-            if !past.isEmpty {
-                sections.append(TransactionSection(id: "past", title: "Passate", transactions: past, isUpcoming: false))
-            }
-            return sections
-        } else if isFutureMonth {
-            return [TransactionSection(id: "upcoming", title: "In Arrivo", transactions: transactions.sorted { $0.date < $1.date }, isUpcoming: true)]
-        } else {
-            return [TransactionSection(id: "past", title: "Passate", transactions: transactions.sorted { $0.date > $1.date }, isUpcoming: false)]
-        }
-    }
-
-    private func buildMultiMonthSections() -> [TransactionSection] {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now)!)
-
-        // Group by (year, month)
-        let grouped = Dictionary(grouping: transactions) { transaction in
-            let comps = calendar.dateComponents([.year, .month], from: transaction.date)
-            return comps
-        }
-
-        // Sort month groups newest-first
-        let sortedKeys = grouped.keys.sorted { a, b in
-            let dateA = calendar.date(from: a)!
-            let dateB = calendar.date(from: b)!
-            return dateA > dateB
-        }
-
-        let monthFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "it_IT")
-            f.dateFormat = "MMMM yyyy"
-            return f
-        }()
-
+        let upcoming = transactions.filter { $0.date >= startOfTomorrow }.sorted { $0.date < $1.date }
         var sections: [TransactionSection] = []
-
-        for key in sortedKeys {
-            guard let monthTransactions = grouped[key] else { continue }
-            let monthDate = calendar.date(from: key)!
-            let monthName = monthFormatter.string(from: monthDate).localizedCapitalized
-            let isCurrentMonth = calendar.isDate(monthDate, equalTo: now, toGranularity: .month)
-            let isFutureMonth = monthDate > now && !isCurrentMonth
-
-            if isCurrentMonth {
-                let upcoming = monthTransactions.filter { $0.date >= startOfTomorrow }.sorted { $0.date < $1.date }
-                let past = monthTransactions.filter { $0.date < startOfTomorrow }.sorted { $0.date > $1.date }
-
-                if !upcoming.isEmpty {
-                    sections.append(TransactionSection(
-                        id: "upcoming-\(key.year!)-\(key.month!)",
-                        title: "\(monthName) \u{00B7} In Arrivo",
-                        transactions: upcoming,
-                        isUpcoming: true
-                    ))
-                }
-                if !past.isEmpty {
-                    sections.append(TransactionSection(
-                        id: "past-\(key.year!)-\(key.month!)",
-                        title: "\(monthName) \u{00B7} Passate",
-                        transactions: past,
-                        isUpcoming: false
-                    ))
-                }
-            } else if isFutureMonth {
-                sections.append(TransactionSection(
-                    id: "upcoming-\(key.year!)-\(key.month!)",
-                    title: "\(monthName) \u{00B7} In Arrivo",
-                    transactions: monthTransactions.sorted { $0.date < $1.date },
-                    isUpcoming: true
-                ))
-            } else {
-                sections.append(TransactionSection(
-                    id: "past-\(key.year!)-\(key.month!)",
-                    title: monthName,
-                    transactions: monthTransactions.sorted { $0.date > $1.date },
-                    isUpcoming: false
-                ))
-            }
+        if !upcoming.isEmpty {
+            sections.append(TransactionSection(id: "upcoming", title: "In arrivo", transactions: upcoming, isUpcoming: true))
         }
 
+        // Pages arrive newest first, so equal keys are always adjacent.
+        for transaction in transactions where transaction.date < startOfTomorrow {
+            let key = groupsByDay
+                ? calendar.startOfDay(for: transaction.date)
+                : calendar.dateInterval(of: .month, for: transaction.date)!.start
+            let id = key.ISO8601Format()
+            if sections.last?.id == id {
+                sections[sections.count - 1].transactions.append(transaction)
+                continue
+            }
+            let title: String
+            if !groupsByDay {
+                title = key.formatted(.dateTime.month(.wide).year().locale(locale)).localizedCapitalized
+            } else if key == startOfToday {
+                title = "Oggi"
+            } else if calendar.isDateInYesterday(key) {
+                title = "Ieri"
+            } else {
+                // Italian keeps month names lowercase: capitalize only the weekday.
+                let text = key.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(locale))
+                title = text.prefix(1).uppercased() + text.dropFirst()
+            }
+            sections.append(TransactionSection(id: id, title: title, transactions: [transaction], isUpcoming: false))
+        }
         return sections
-    }
-
-    private var desktopTitle: String {
-        #if os(macOS)
-        "Movimenti"
-        #else
-        ""
-        #endif
     }
 
     // MARK: - Transaction List
 
+    private static let summaryRowID = "period-summary"
+
+    /// One list for every state, so the summary card survives period changes and can animate.
     @ViewBuilder private var transactionList: some View {
         #if os(macOS)
         desktopTable
@@ -561,8 +531,8 @@ struct TransactionListView: View {
                 }
                 .disabled(isInSelectionMode || desktopSelection.count != 1)
                 Spacer()
-                Text("\(transactions.count) di \(totalCount) movimenti").foregroundStyle(.secondary)
-                if hasMoreTransactions { Button("Carica altri movimenti") { loadMore() } }
+                Text("\(transactions.count) di \(summary.count) movimenti").foregroundStyle(.secondary)
+                if hasMoreTransactions { Button("Carica altri movimenti") { loadNextPage() } }
             }
             .font(.caption)
             .buttonStyle(.bordered)
@@ -571,150 +541,139 @@ struct TransactionListView: View {
         .financePresentation(item: $desktopDetail, title: "Movimento") { transaction in
             NavigationStack { TransactionDetailView(transaction: transaction, showsCloseButton: true) }
         }
-        .onChange(of: selectedMonth) { _, _ in desktopSelection.removeAll() }
-        .onChange(of: selectedTimeframe) { _, _ in desktopSelection.removeAll() }
-        .onChange(of: selectedType) { _, _ in desktopSelection.removeAll() }
-        .onChange(of: selectedConto?.id) { _, _ in desktopSelection.removeAll() }
-        .onChange(of: selectedCategories) { _, _ in desktopSelection.removeAll() }
+        .onChange(of: currentQuery) { _, _ in desktopSelection.removeAll() }
     }
     #endif
 
     private var groupedTransactionList: some View {
-        List {
-            Section {
-                periodSummary
-                    .listRowBackground(ForgiaPalette.surface)
-                    .accessibilityIdentifier("transactions-period-summary")
-            } footer: {
-                TransactionListActions(isSelecting: $isInSelectionMode, searchContoIDs: scopeContoIDs) {
-                    selectedTransactions.removeAll()
-                } showRecurring: {
-                    showingRecurring = true
+        ScrollViewReader { proxy in
+            List {
+                Section {
+                    periodSummary
+                        .listRowBackground(
+                            PeriodSummaryCard.background(balance: summary.balance)
+                                .animation(.smooth, value: summary.balance >= 0)
+                        )
+                        .accessibilityIdentifier("transactions-period-summary")
+                        .id(Self.summaryRowID)
+                } footer: {
+                    TransactionListActions(isSelecting: $isInSelectionMode, searchContoIDs: scopeContoIDs,
+                                           showsSelection: !transactions.isEmpty) {
+                        selectedTransactions.removeAll()
+                    } showRecurring: {
+                        showingRecurring = true
+                    }
+                }
+                if transactions.isEmpty {
+                    emptyState
+                        .listRowBackground(Color.clear)
+                }
+                ForEach(sectionedTransactions) { section in
+                    Section {
+                        ForEach(section.transactions, id: \.id) { transaction in
+                            if isInSelectionMode {
+                                Button {
+                                    toggleSelection(transaction)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: selectedTransactions.contains(transaction.id) ? "checkmark.circle.fill" : "circle")
+                                            .font(.title3)
+                                            .foregroundStyle(selectedTransactions.contains(transaction.id) ? Color.accentColor : .secondary)
+                                        TransactionCell(transaction: transaction, showConto: showContoInCell,
+                                                        showDate: section.isUpcoming || !groupsByDay)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .listRowBackground(ForgiaPalette.surface)
+                            } else {
+                                NavigationLink {
+                                    TransactionDetailView(transaction: transaction)
+                                } label: {
+                                    TransactionCell(transaction: transaction, showConto: showContoInCell,
+                                                    showDate: section.isUpcoming || !groupsByDay)
+                                }
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        transactionToEdit = transaction
+                                    } label: {
+                                        Label("Modifica", systemImage: "pencil")
+                                    }
+                                    .tint(.blue)
+                                }
+                                .swipeActions(edge: .trailing) {
+                                    Button("Elimina", role: .destructive) {
+                                        transactionToDelete = transaction
+                                        showingDeleteAlert = true
+                                    }
+                                }
+                                .contextMenu {
+                                    Button {
+                                        transactionToEdit = transaction
+                                    } label: {
+                                        Label("Modifica", systemImage: "pencil")
+                                    }
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        transactionToDelete = transaction
+                                        showingDeleteAlert = true
+                                    } label: {
+                                        Label("Elimina", systemImage: "trash")
+                                    }
+                                }
+                                .listRowBackground(ForgiaPalette.surface)
+                            }
+                        }
+                    } header: {
+                        HStack(spacing: 6) {
+                            if section.isUpcoming {
+                                Image(systemName: "clock")
+                                    .font(.caption)
+                            }
+                            Text(section.title)
+                        }
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(section.isUpcoming ? ForgiaPalette.accent : ForgiaPalette.mutedText)
+                    }
+                }
+
+                if hasMoreTransactions {
+                    loadMoreRow
                 }
             }
-            ForEach(sectionedTransactions) { section in
-                Section {
-                    ForEach(section.transactions, id: \.id) { transaction in
-                        if isInSelectionMode {
-                            Button {
-                                toggleSelection(transaction)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: selectedTransactions.contains(transaction.id) ? "checkmark.circle.fill" : "circle")
-                                        .font(.title3)
-                                        .foregroundStyle(selectedTransactions.contains(transaction.id) ? Color.accentColor : .secondary)
-                                    TransactionCell(transaction: transaction, showConto: showContoInCell)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .listRowBackground(ForgiaPalette.surface)
-                        } else {
-                            NavigationLink {
-                                TransactionDetailView(transaction: transaction)
-                            } label: {
-                                TransactionCell(transaction: transaction, showConto: showContoInCell)
-                            }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    transactionToEdit = transaction
-                                } label: {
-                                    Label("Modifica", systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button("Elimina", role: .destructive) {
-                                    transactionToDelete = transaction
-                                    showingDeleteAlert = true
-                                }
-                            }
-                            .contextMenu {
-                                Button {
-                                    transactionToEdit = transaction
-                                } label: {
-                                    Label("Modifica", systemImage: "pencil")
-                                }
-                                Divider()
-                                Button(role: .destructive) {
-                                    transactionToDelete = transaction
-                                    showingDeleteAlert = true
-                                } label: {
-                                    Label("Elimina", systemImage: "trash")
-                                }
-                            }
-                            .listRowBackground(ForgiaPalette.surface)
-                        }
-                    }
-                } header: {
-                    HStack(spacing: 6) {
-                        if section.isUpcoming {
-                            Image(systemName: "clock")
-                                .font(.caption)
-                        }
-                        Text(section.title)
-                    }
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(section.isUpcoming ? ForgiaPalette.accent : ForgiaPalette.mutedText)
-                }
+            #if os(iOS)
+            .listStyle(.insetGrouped)
+            #else
+            .listStyle(.inset)
+            #endif
+            .scrollContentBackground(.hidden)
+            // Rows swap without animation (only the card animates); a scrolled list returns to the card.
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > 1
+            } action: { _, scrolled in
+                isScrolledDown = scrolled
+            }
+            .onChange(of: currentQuery.interval) { _, _ in
+                // At rest the card is already in place; only bring it back when the list was scrolled.
+                guard isScrolledDown else { return }
+                proxy.scrollTo(Self.summaryRowID, anchor: .top)
             }
 
-            if hasMoreTransactions {
-                loadMoreRow
-            }
-        }
-        #if os(iOS)
-        .listStyle(.insetGrouped)
-        #else
-        .listStyle(.inset)
-        #endif
-        .scrollContentBackground(.hidden)
-        .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
-            Button("Elimina", role: .destructive) {
-                if let transaction = transactionToDelete {
-                    deleteTransaction(transaction)
-                }
-                transactionToDelete = nil
-            }
-            Button("Annulla", role: .cancel) {
-                transactionToDelete = nil
-            }
-        } message: {
-            Text("Sei sicuro di voler eliminare questa transazione? Questa azione non può essere annullata.")
-        }
-        .alert("Impossibile eliminare", isPresented: $showingDeleteError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Non è stato possibile completare la cancellazione. Aggiorna l’elenco e riprova.")
-        }
-        .alert("Elimina Transazioni", isPresented: $showingBatchDeleteAlert) {
-            Button("Elimina \(selectedTransactions.count)", role: .destructive) {
-                deleteSelectedTransactions()
-            }
-            Button("Annulla", role: .cancel) { }
-        } message: {
-            Text("Sei sicuro di voler eliminare \(selectedTransactions.count) transazioni? Questa azione non può essere annullata.")
         }
     }
 
+    /// Loads the next page as soon as the end of the list scrolls into view.
     private var loadMoreRow: some View {
-        Button {
-            loadMore()
-        } label: {
-            HStack {
-                Spacer()
-                if isLoading {
-                    ProgressView()
-                } else {
-                    Text("Carica altre transazioni")
-                        .font(.subheadline)
-                }
-                Spacer()
-            }
-            .padding(.vertical, 12)
+        HStack {
+            Spacer()
+            ProgressView()
+            Spacer()
         }
-        .listRowBackground(ForgiaPalette.surface)
-        .disabled(isLoading)
+        .padding(.vertical, 12)
+        .listRowBackground(Color.clear)
+        .accessibilityLabel("Caricamento di altre transazioni")
+        .id(transactions.count)
+        .onAppear { loadNextPage() }
     }
 
     // MARK: - Empty State
@@ -747,99 +706,29 @@ struct TransactionListView: View {
 
     // MARK: - Data Fetching
 
-    private func fetchTransactions() {
-        guard account != nil || scopeContoIDs != nil else {
-            transactions = []
-            matchingIncome = 0
-            matchingExpenses = 0
-            totalCount = 0
-            return
-        }
-
-        isLoading = true
-
-        let period = initialInterval ?? selectedTimeframe.interval(containing: selectedMonth)
-        let periodStart = period.start
-        let periodEnd = period.end
-
-        // Get conto IDs to filter
-        let contoIDs: Set<UUID>
-        if let conto = selectedConto {
-            contoIDs = [conto.id]
-        } else if let scopeContoIDs {
-            contoIDs = scopeContoIDs
-        } else {
-            contoIDs = Set(account?.activeConti.map { $0.id } ?? [])
-        }
-
-        // Build fetch descriptor with predicate
-        var descriptor = FetchDescriptor<FinanceTransaction>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-
-        // Base predicate: date range (date is non-optional now)
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.date >= periodStart && transaction.date < periodEnd
-        }
-
-        // Filter the bounded period before paginating so categories cannot lose matches.
-
+    /// Reloads totals and the first page. After an edit, keeps as many rows as were loaded.
+    private func reload(keepingLoadedRows: Bool = false) {
+        let query = currentQuery
+        let limit = keepingLoadedRows ? max(transactions.count, pageSize) : pageSize
+        if !keepingLoadedRows { selectedTransactions.removeAll() }
         do {
-            // Fetch from database
-            var results = try modelContext.fetch(descriptor)
-
-            // Filter by conti (in-memory, but dataset is already reduced by date)
-            results = results.filter { transaction in
-                if let fromContoId = transaction.fromContoId, contoIDs.contains(fromContoId) {
-                    return true
-                }
-                if let toContoId = transaction.toContoId, contoIDs.contains(toContoId) {
-                    return true
-                }
-                return false
-            }
-
-            // Filter by type
-            if selectedType != .all {
-                results = results.filter { transaction in
-                    switch selectedType {
-                    case .income: return transaction.type == .income
-                    case .expense: return transaction.type == .expense
-                    case .transfer: return transaction.type == .transfer
-                    case .all: return true
-                    }
-                }
-            }
-
-            // Filter by categories
-            if !selectedCategories.isEmpty {
-                results = results.filter { transaction in
-                    guard let categoryId = transaction.category?.id else { return false }
-                    return selectedCategories.contains(categoryId)
-                }
-            }
-
-            totalCount = results.count
-            matchingIncome = results.filter { $0.type == .income }.reduce(0) { $0 + ($1.amount ?? 0) }
-            matchingExpenses = results.filter { $0.type == .expense }.reduce(0) { $0 + ($1.amount ?? 0) }
-            transactions = Array(results.prefix(currentLimit))
+            summary = try query.summary(in: modelContext)
+            transactions = try query.fetchPage(in: modelContext, offset: 0, limit: limit)
         } catch {
             print("Error fetching transactions: \(error)")
+            summary = TransactionListSummary()
             transactions = []
         }
-
-        isLoading = false
+        hasLoaded = true
     }
 
-    private func resetAndFetch() {
-        selectedTransactions.removeAll()
-        currentLimit = selectedTimeframe == .month || selectedTimeframe == .week ? pageSize : pageSize * 4
-        fetchTransactions()
-    }
-
-    private func loadMore() {
-        currentLimit += pageSize
-        fetchTransactions()
+    private func loadNextPage() {
+        guard hasMoreTransactions else { return }
+        do {
+            transactions += try currentQuery.fetchPage(in: modelContext, offset: transactions.count, limit: pageSize)
+        } catch {
+            print("Error fetching transactions: \(error)")
+        }
     }
 
     private func clearAllFilters() {
@@ -897,7 +786,7 @@ struct TransactionListView: View {
             try TransactionDeletion(context: modelContext).delete(ids: selectedTransactions)
             selectedTransactions.removeAll()
             isInSelectionMode = false
-            fetchTransactions()
+            reload(keepingLoadedRows: true)
             appState.triggerDataRefresh()
         } catch {
             showingDeleteError = true
@@ -907,76 +796,10 @@ struct TransactionListView: View {
     private func deleteTransaction(_ transaction: FinanceTransaction) {
         do {
             try TransactionDeletion(context: modelContext).delete(ids: [transaction.id])
-            fetchTransactions()
+            reload(keepingLoadedRows: true)
             appState.triggerDataRefresh()
         } catch {
             showingDeleteError = true
-        }
-    }
-}
-
-// MARK: - Recurring Transactions Sheet (with Query)
-
-struct RecurringTransactionsSheet: View {
-    let contoIDs: Set<UUID>
-    let showConto: Bool
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-
-    @State private var transactions: [FinanceTransaction] = []
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if transactions.isEmpty {
-                    ContentUnavailableView {
-                        Label("Nessuna ricorrente", systemImage: "repeat")
-                    } description: {
-                        Text("Le transazioni ricorrenti appariranno qui")
-                    }
-                } else {
-                    List(transactions, id: \.id) { transaction in
-                        TransactionCell(transaction: transaction, showConto: showConto)
-                    }
-                }
-            }
-            .navigationTitle("Transazioni Ricorrenti")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") { dismiss() }
-                }
-            }
-            .onAppear { fetchRecurring() }
-        }
-    }
-
-    private func fetchRecurring() {
-        var descriptor = FetchDescriptor<FinanceTransaction>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-
-        descriptor.predicate = #Predicate<FinanceTransaction> { transaction in
-            transaction.isRecurring == true
-        }
-
-        do {
-            var results = try modelContext.fetch(descriptor)
-
-            // Filter by conti
-            results = results.filter { transaction in
-                if let fromContoId = transaction.fromContoId, contoIDs.contains(fromContoId) {
-                    return true
-                }
-                if let toContoId = transaction.toContoId, contoIDs.contains(toContoId) {
-                    return true
-                }
-                return false
-            }
-
-            transactions = results
-        } catch {
-            transactions = []
         }
     }
 }
@@ -988,9 +811,7 @@ struct CategoryFilterSheet: View {
     @Binding var selectedCategories: Set<UUID>
     @Environment(\.dismiss) private var dismiss
 
-    private var sortedCategories: [FinanceCategory] {
-        categories.sorted { ($0.name ?? "") < ($1.name ?? "") }
-    }
+    private var hierarchy: CategoryHierarchy { CategoryHierarchy(categories: categories) }
 
     var body: some View {
         NavigationStack {
@@ -1007,15 +828,36 @@ struct CategoryFilterSheet: View {
                             }
                         }
                     }
+                } footer: {
+                    Text("Una categoria principale include tutte le sue sottocategorie. Tocca una sottocategoria per restringere i risultati.")
                 }
 
-                Section("Seleziona categorie") {
-                    ForEach(sortedCategories, id: \.id) { category in
-                        categoryRow(category)
+                let hierarchy = hierarchy
+                ForEach(Array(hierarchy.roots.enumerated()), id: \.element.id) { index, root in
+                    let children = hierarchy.children(of: root)
+                    let rootSelected = selectedCategories.contains(root.id)
+                    Section {
+                        categoryRow(root) {
+                            CategoryTreeRow(category: root, level: .macro(childCount: children.count),
+                                            subtitle: children.isEmpty ? nil : "Include le sottocategorie") {
+                                checkmark(selected: rootSelected)
+                            }
+                        }
+                        .categoryTreeRowStyle(isMacro: true)
+                        ForEach(Array(children.enumerated()), id: \.element.id) { childIndex, child in
+                            categoryRow(child, includedByParent: rootSelected) {
+                                CategoryTreeRow(category: child, level: .child(isLast: childIndex == children.count - 1)) {
+                                    checkmark(selected: selectedCategories.contains(child.id), included: rootSelected)
+                                }
+                            }
+                            .categoryTreeRowStyle(isMacro: false)
+                        }
+                    } header: {
+                        if index == 0 { Text("Seleziona categorie") }
                     }
                 }
             }
-            .navigationTitle("Filtra per Categoria")
+            .navigationTitle("Categorie e sottocategorie")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -1030,27 +872,29 @@ struct CategoryFilterSheet: View {
         }
     }
 
-    private func categoryRow(_ category: FinanceCategory) -> some View {
-        Button { toggleCategory(category) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: category.icon ?? "tag")
-                    .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
-                    .frame(width: 24)
-                Text(category.name ?? "Categoria").foregroundStyle(.primary)
-                Spacer()
-                if selectedCategories.contains(category.id) {
-                    Image(systemName: "checkmark")
-                }
-            }
+    private func categoryRow(_ category: FinanceCategory, includedByParent: Bool = false,
+                             @ViewBuilder label: () -> some View) -> some View {
+        Button { toggleCategory(category) } label: { label() }
+            .buttonStyle(.plain)
+            .accessibilityLabel(category.displayPath)
+            .accessibilityValue(includedByParent ? "Inclusa nella categoria principale" : "")
+            .accessibilityHint(includedByParent ? "Tocca per mostrare solo questa sottocategoria" : "")
+            .accessibilityAddTraits(selectedCategories.contains(category.id) || includedByParent ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private func checkmark(selected: Bool, included: Bool = false) -> some View {
+        if selected {
+            Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(ForgiaPalette.accent)
+        } else if included {
+            Image(systemName: "checkmark.circle").font(.title3).foregroundStyle(.tertiary)
+        } else {
+            Image(systemName: "circle").font(.title3).foregroundStyle(.quaternary)
         }
     }
 
     private func toggleCategory(_ category: FinanceCategory) {
-        if selectedCategories.contains(category.id) {
-            selectedCategories.remove(category.id)
-        } else {
-            selectedCategories.insert(category.id)
-        }
+        selectedCategories = hierarchy.toggling(category, in: selectedCategories)
     }
 }
 
@@ -1060,6 +904,8 @@ struct TransactionCell: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let transaction: FinanceTransaction
     let showConto: Bool
+    /// Off under day headers, where the date would only repeat the section title.
+    var showDate = true
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -1096,14 +942,18 @@ struct TransactionCell: View {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
                     .font(.body.weight(.medium)).lineLimit(1)
 
-                HStack(spacing: 4) {
-                    Text(transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))
-                    if showConto, let conto = contoName {
-                        Text("•")
-                        Text(conto)
+                if showDate || (showConto && contoName != nil) {
+                    HStack(spacing: 4) {
+                        if showDate {
+                            Text(transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))
+                        }
+                        if showConto, let conto = contoName {
+                            if showDate { Text("•") }
+                            Text(conto)
+                        }
                     }
+                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
-                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
             }
 
             Spacer()
@@ -1139,7 +989,7 @@ struct TransactionCell: View {
                     Image(systemName: icon).font(.caption)
                         .foregroundStyle(ForgiaPalette.mutedText)
                 }
-                Text(transaction.category?.name ?? "-").font(.subheadline).lineLimit(1)
+                Text(transaction.category?.displayPath ?? "-").font(.subheadline).lineLimit(1)
             }
             .frame(width: 120, alignment: .leading)
 
@@ -1173,6 +1023,15 @@ enum TransactionTypeFilter: CaseIterable {
         case .income: return "Entrate"
         case .expense: return "Uscite"
         case .transfer: return "Trasferimenti"
+        }
+    }
+
+    var transactionType: TransactionType? {
+        switch self {
+        case .all: nil
+        case .income: .income
+        case .expense: .expense
+        case .transfer: .transfer
         }
     }
 
@@ -1229,6 +1088,21 @@ enum TransactionTimeframe: String, CaseIterable {
                              value: self == .week ? offset : offset * monthCount, to: start)!
     }
 
+    /// What a non-obvious period covers: the months of a quarter or semester, the week number.
+    func subtitle(containing date: Date, calendar: Calendar = .current, locale: Locale = Locale(identifier: "it_IT")) -> String? {
+        let range = interval(containing: date, calendar: calendar)
+        switch self {
+        case .week:
+            return "Settimana \(calendar.component(.weekOfYear, from: range.start))"
+        case .quarter, .halfYear:
+            let first = range.start.formatted(.dateTime.month(.wide).locale(locale))
+            let last = range.end.addingTimeInterval(-1).formatted(.dateTime.month(.wide).locale(locale))
+            return "\(first) – \(last)".localizedCapitalized
+        case .month, .year:
+            return nil
+        }
+    }
+
     func title(containing date: Date, calendar: Calendar = .current, locale: Locale = Locale(identifier: "it_IT")) -> String {
         let range = interval(containing: date, calendar: calendar)
         let year = date.formatted(.dateTime.year().locale(locale))
@@ -1248,7 +1122,7 @@ enum TransactionTimeframe: String, CaseIterable {
 private struct TransactionSection: Identifiable {
     let id: String
     let title: String
-    let transactions: [FinanceTransaction]
+    var transactions: [FinanceTransaction]
     let isUpcoming: Bool
 }
 
@@ -1294,27 +1168,68 @@ private struct AccessibleTransactionRow: View {
 private struct TransactionListActions: View {
     @Binding var isSelecting: Bool
     let searchContoIDs: Set<UUID>?
+    /// Selecting makes no sense on an empty list.
+    var showsSelection = true
     let clearSelection: () -> Void
     let showRecurring: () -> Void
 
     var body: some View {
-        HStack {
-            TransactionSearchLink(scopeContoIDs: searchContoIDs)
-                .accessibilityIdentifier("transactions-open-search")
-            Spacer()
-            Button("Ricorrenti", systemImage: "repeat", action: showRecurring)
-            Spacer()
-            Button(isSelecting ? "Fine selezione" : "Seleziona", systemImage: isSelecting ? "xmark.circle" : "checkmark.circle") {
-                withAnimation {
-                    isSelecting.toggle()
-                    clearSelection()
+        HStack(spacing: 10) {
+            TransactionSearchLink(scopeContoIDs: searchContoIDs) {
+                ActionTile(title: "Cerca", symbol: "magnifyingglass", fill: ForgiaPalette.sageSurface)
+            }
+            .accessibilityIdentifier("transactions-open-search")
+
+            Button(action: showRecurring) {
+                ActionTile(title: "Ricorrenti", symbol: "repeat", fill: ForgiaPalette.apricotSurface)
+            }
+
+            if showsSelection {
+                Button {
+                    withAnimation {
+                        isSelecting.toggle()
+                        clearSelection()
+                    }
+                } label: {
+                    ActionTile(title: isSelecting ? "Fine" : "Seleziona",
+                               symbol: isSelecting ? "xmark" : "checkmark.circle",
+                               fill: ForgiaPalette.canvas, isActive: isSelecting)
                 }
+                .accessibilityLabel(isSelecting ? "Fine selezione" : "Seleziona")
             }
         }
-        .font(.subheadline)
-        .buttonStyle(.borderless)
-        .tint(ForgiaPalette.accent)
-        .frame(minHeight: 44)
+        .buttonStyle(.plain)
         .textCase(nil)
+        .padding(.top, 4)
+        // Footers are inset further than rows: line the tiles up with the card above.
+        .padding(.horizontal, -16)
+    }
+}
+
+/// Same shape as the quick actions in Oggi, so list shortcuts read as first-class actions.
+private struct ActionTile: View {
+    let title: String
+    let symbol: String
+    let fill: Color
+    var isActive = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(isActive ? ForgiaPalette.onAccent : ForgiaPalette.accent)
+                .frame(width: 40, height: 40)
+                .background(isActive ? ForgiaPalette.onAccent.opacity(0.18) : fill, in: Circle())
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(isActive ? ForgiaPalette.onAccent : Color.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 80)
+        .background(isActive ? ForgiaPalette.accent : ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(ForgiaPalette.border, lineWidth: isActive ? 0 : 0.7) }
+        .contentShape(RoundedRectangle(cornerRadius: 18))
     }
 }

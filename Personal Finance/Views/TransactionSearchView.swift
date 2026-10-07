@@ -131,19 +131,20 @@ struct TransactionSearchView: View {
         let contoIDs: Set<UUID> = criteria.contoID.map { [$0] } ?? scopeContoIDs ?? Set(availableConti.map(\.id))
         let interval = criteria.period.interval()
 
+        let categoryIDs = CategoryHierarchy(categories: account?.categories ?? []).expanding(criteria.categoryIDs)
         let matches = transactions.filter { transaction in
             let inScope = transaction.fromContoId.map(contoIDs.contains) == true
                 || transaction.toContoId.map(contoIDs.contains) == true
             guard inScope else { return false }
             if let interval, transaction.date < interval.start || transaction.date >= interval.end { return false }
             if !criteria.type.includes(transaction.type) { return false }
-            if !criteria.categoryIDs.isEmpty {
-                guard let categoryID = transaction.category?.id, criteria.categoryIDs.contains(categoryID) else { return false }
+            if !categoryIDs.isEmpty {
+                guard let categoryID = transaction.category?.id, categoryIDs.contains(categoryID) else { return false }
             }
             return TransactionSearch.matches(
                 query: criteria.query,
                 fields: [transaction.transactionDescription, transaction.notes,
-                         transaction.category?.name, transaction.fromConto?.name, transaction.toConto?.name],
+                         transaction.category?.name, transaction.category?.rootCategory.name, transaction.fromConto?.name, transaction.toConto?.name],
                 amount: transaction.amount ?? 0
             )
         }
@@ -388,8 +389,9 @@ private struct ResultsSummary: View {
 // MARK: - Entry Point
 
 /// Su iPhone apre la ricerca nello stack dei movimenti; su iPad e Mac passa al tab dedicato.
-struct TransactionSearchLink: View {
+struct TransactionSearchLink<Label: View>: View {
     var scopeContoIDs: Set<UUID>? = nil
+    @ViewBuilder var label: () -> Label
 
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -405,14 +407,10 @@ struct TransactionSearchLink: View {
 
     var body: some View {
         if usesSearchTab {
-            Button { appState.selectTab(.search) } label: { label }
+            Button { appState.selectTab(.search) } label: { label() }
         } else {
-            NavigationLink { TransactionSearchView(scopeContoIDs: scopeContoIDs) } label: { label }
+            NavigationLink { TransactionSearchView(scopeContoIDs: scopeContoIDs) } label: { label() }
         }
-    }
-
-    private var label: some View {
-        Label("Cerca", systemImage: "magnifyingglass")
     }
 }
 

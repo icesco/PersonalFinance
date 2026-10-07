@@ -32,7 +32,7 @@ final class Personal_FinanceUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Promemoria programmato"].waitForExistence(timeout: 5))
         XCUIDevice.shared.press(.home)
         let notification = springboard.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "Promemoria Forgia di prova")).firstMatch
+            .matching(NSPredicate(format: "label CONTAINS %@", "Promemoria Formi di prova")).firstMatch
         XCTAssertTrue(notification.waitForExistence(timeout: 20))
         notification.tap()
         XCTAssertTrue(app.tabBars.buttons["Pianifica"].waitForExistence(timeout: 10))
@@ -78,7 +78,7 @@ final class Personal_FinanceUITests: XCTestCase {
             app.buttons["Annulla"].tap()
         }
 
-        app.buttons["Spesa"].tap()
+        app.buttons["transactions-add"].tap()
         XCTAssertTrue(app.staticTexts["Nuova spesa"].waitForExistence(timeout: 10))
         capture(app, name: "04 Nuova spesa vuota")
         let amount = app.textFields["Importo"]
@@ -160,8 +160,8 @@ final class Personal_FinanceUITests: XCTestCase {
         if app.buttons["Esplora con dati demo"].waitForExistence(timeout: 3) {
             app.buttons["Esplora con dati demo"].tap()
         }
-        XCTAssertTrue(app.buttons["Spesa"].waitForExistence(timeout: 15))
-        app.buttons["Spesa"].tap()
+        XCTAssertTrue(app.buttons["transactions-add"].waitForExistence(timeout: 15))
+        app.buttons["transactions-add"].tap()
         app.buttons["Importo in valuta estera"].tap()
         let original = app.textFields["Importo in valuta estera"]
         XCTAssertTrue(original.waitForExistence(timeout: 5))
@@ -192,8 +192,8 @@ final class Personal_FinanceUITests: XCTestCase {
         if app.buttons["Esplora con dati demo"].waitForExistence(timeout: 3) {
             app.buttons["Esplora con dati demo"].tap()
         }
-        XCTAssertTrue(app.buttons["Spesa"].waitForExistence(timeout: 15))
-        app.buttons["Spesa"].tap()
+        XCTAssertTrue(app.buttons["transactions-add"].waitForExistence(timeout: 15))
+        app.buttons["transactions-add"].tap()
         let place = app.textFields["Nome del luogo (opzionale)"]
         for _ in 0..<6 {
             if place.isHittable && place.frame.midY < app.frame.height * 0.65 { break }
@@ -203,7 +203,7 @@ final class Personal_FinanceUITests: XCTestCase {
         place.tap()
         place.typeText("Luogo di prova")
         app.navigationBars["Nuova spesa"].buttons["Annulla"].tap()
-        app.buttons["Spesa"].tap()
+        app.buttons["transactions-add"].tap()
         for _ in 0..<6 {
             if place.isHittable && place.frame.midY < app.frame.height * 0.65 { break }
             app.swipeUp()
@@ -221,13 +221,15 @@ final class Personal_FinanceUITests: XCTestCase {
             app.buttons["Esplora con dati demo"].tap()
         }
         let title = "Ricorrenza test " + UUID().uuidString.prefix(6)
-        XCTAssertTrue(app.buttons["Spesa"].waitForExistence(timeout: 15))
-        app.buttons["Spesa"].tap()
+        XCTAssertTrue(app.buttons["transactions-add"].waitForExistence(timeout: 15))
+        app.buttons["transactions-add"].tap()
         app.buttons["Categoria"].tap()
         app.buttons["Alimentari"].tap()
         let recurring = app.switches["Transazione ricorrente"]
-        for _ in 0..<4 {
-            if recurring.isHittable { break }
+        // The save button floats over the form: scroll until the switch sits above it.
+        let save = app.buttons["Salva spesa"]
+        for _ in 0..<6 {
+            if recurring.isHittable && recurring.frame.maxY < save.frame.minY { break }
             app.swipeUp()
         }
         recurring.tap()
@@ -270,11 +272,11 @@ final class Personal_FinanceUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Sblocca"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.tabBars.buttons["Movimenti"].exists)
-        XCTAssertFalse(app.buttons["Spesa"].exists)
+        XCTAssertFalse(app.buttons["transactions-add"].exists)
         app.open(URL(string: "forgia://widget/expense")!)
         XCTAssertTrue(app.buttons["Sblocca"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.navigationBars["Nuova spesa"].exists)
-        capture(app, name: "Forgia bloccata")
+        capture(app, name: "Formi bloccata")
         XCUIDevice.shared.press(.home)
         app.activate()
         XCTAssertTrue(app.buttons["Sblocca"].waitForExistence(timeout: 10))
@@ -288,7 +290,7 @@ final class Personal_FinanceUITests: XCTestCase {
         if app.buttons["Esplora con dati demo"].waitForExistence(timeout: 3) {
             app.buttons["Esplora con dati demo"].tap()
         }
-        let expense = app.buttons["Spesa"]
+        let expense = app.buttons["transactions-add"]
         XCTAssertTrue(expense.waitForExistence(timeout: 15))
         expense.tap()
         app.buttons["Calcolatrice"].tap()
@@ -410,12 +412,12 @@ final class Personal_FinanceUITests: XCTestCase {
         let limit = app.textFields["0,00"]
         limit.tap()
         limit.typeText("1000000")
-        app.buttons["Salva"].tap()
+        app.buttons["budget-save"].tap()
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: name)
         waitForExpectations(timeout: 5)
         app.terminate()
         app.launch()
-        app.buttons["Spesa"].tap()
+        app.buttons["transactions-add"].tap()
         let amount = app.textFields["Importo"]
         XCTAssertTrue(amount.waitForExistence(timeout: 5))
         app.buttons["Categoria"].tap()

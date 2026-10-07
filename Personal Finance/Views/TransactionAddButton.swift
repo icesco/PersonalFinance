@@ -1,25 +1,38 @@
 import SwiftUI
 import FinanceCore
 
-struct TransactionAddButtonModifier: ViewModifier {
-    var isVisible = true
+/// Marks a tab's root screen as one where the shared new-transaction button belongs.
+/// The button disappears as soon as the root is covered by a pushed screen or `isActive` turns false.
+struct TransactionButtonRoot: ViewModifier {
+    let tab: AppTab
+    var isActive = true
+    @Environment(AppStateManager.self) private var appState
+    @State private var isOnScreen = false
 
     func body(content: Content) -> some View {
-        #if os(macOS)
         content
-        #else
-        content.safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 8) {
-            if isVisible {
-                TransactionAddButton()
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 16)
-            }
+            .onAppear { isOnScreen = true; update() }
+            .onDisappear { isOnScreen = false; update() }
+            .onChange(of: isActive) { _, _ in update() }
+    }
+
+    private func update() {
+        if isOnScreen && isActive {
+            appState.transactionButtonRoots.insert(tab)
+        } else {
+            appState.transactionButtonRoots.remove(tab)
         }
-        #endif
     }
 }
 
-private struct TransactionAddButton: View {
+extension View {
+    func transactionButtonRoot(_ tab: AppTab, isActive: Bool = true) -> some View {
+        modifier(TransactionButtonRoot(tab: tab, isActive: isActive))
+    }
+}
+
+/// The app-wide floating button: tap for a new expense, long-press for income or a transfer.
+struct TransactionAddButton: View {
     @Environment(AppStateManager.self) private var appState
 
     var body: some View {
@@ -36,15 +49,19 @@ private struct TransactionAddButton: View {
                 }
             }
         } label: {
-            Label("Nuovo movimento", systemImage: "square.and.pencil")
+            Label("Nuova spesa", systemImage: "square.and.pencil")
                 .labelStyle(.titleAndIcon)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(ForgiaPalette.onAccent)
                 .padding(.horizontal, 18)
                 .frame(minHeight: 52)
                 .glassEffect(.regular.tint(ForgiaPalette.accent).interactive(), in: .capsule)
+        } primaryAction: {
+            // A tap goes straight to the most common case; long-press offers the other kinds.
+            appState.presentQuickTransaction(type: .expense)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("transactions-add")
+        .accessibilityHint("Tieni premuto per scegliere entrata o trasferimento")
     }
 }

@@ -26,6 +26,15 @@ struct TransactionTimeframeTests {
                 == date(2026, 4, 1))
     }
 
+    @Test func subtitleExplainsWhatThePeriodCovers() {
+        let reference = date(2026, 11, 19)
+        #expect(TransactionTimeframe.quarter.subtitle(containing: reference, calendar: calendar) == "Ottobre – Dicembre")
+        #expect(TransactionTimeframe.halfYear.subtitle(containing: date(2026, 2, 3), calendar: calendar) == "Gennaio – Giugno")
+        #expect(TransactionTimeframe.week.subtitle(containing: date(2026, 10, 6), calendar: calendar) == "Settimana 41")
+        #expect(TransactionTimeframe.month.subtitle(containing: reference, calendar: calendar) == nil)
+        #expect(TransactionTimeframe.year.subtitle(containing: reference, calendar: calendar) == nil)
+    }
+
     @Test func navigationCrossesYearsWithoutSkippingPeriods() {
         #expect(TransactionTimeframe.quarter.moving(date(2026, 1, 31), by: -1, calendar: calendar)
                 == date(2025, 10, 1))

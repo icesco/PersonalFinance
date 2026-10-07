@@ -109,218 +109,70 @@ struct CreateTransactionView: View {
         }
     }
     
+    private var amountInvalid: Bool {
+        !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && amount <= 0
+    }
+
+    private var typeTint: Color {
+        transactionType == .income ? ForgiaPalette.sageSurface : transactionType == .expense ? ForgiaPalette.apricotSurface : ForgiaPalette.canvas
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Dettagli Transazione") {
-                    CurrencyAmountField(title: transactionType == .transfer ? "Importo Trasferimento" :
-                                            transactionType == .income ? "Importo Entrata" : "Importo Spesa",
-                                        text: $amountText, currency: amountCurrency,
-                                        identifier: "create-transaction-amount")
-                    
-                    if transactionType != .transfer {
-                        Button("Importo in valuta estera", systemImage: "arrow.left.arrow.right") { showingConversion = true }
-                        if let foreignAmount {
-                            Text("Originale: \(foreignAmount.originalAmount.formatted(.currency(code: foreignAmount.originalCurrency)))")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    amountCard
+
+                    if transactionType == .transfer && hasDifferentCurrencies {
+                        receivedAmountCard
+                    }
+
+                    FormCard(title: "Dettagli") { detailsRows }
+                    if transactionType == .income && conto?.type == .savings {
+                        FormCard(title: "Risparmio") {
+                            Toggle("Interessi accreditati", isOn: $isSavingsInterest)
+                            Text("Aumentano il saldo senza essere conteggiati come capitale versato.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    Button("Calcolatrice", systemImage: "plus.forwardslash.minus") { showingCalculator = true }
 
-                    if transactionType == .transfer {
-                        // Transfer-specific fields
-                        Picker("Da Conto", selection: $fromConto) {
-                            Text("Seleziona conto").tag(nil as Conto?)
-                            ForEach(activeConti, id: \.id) { conto in
-                                ContoPickerLabel(conto: conto)
-                                .tag(conto as Conto?)
-                            }
-                        }
-                        
-                        Picker("A Conto", selection: $toConto) {
-                            Text("Seleziona conto").tag(nil as Conto?)
-                            ForEach(activeConti.filter { $0.id != fromConto?.id }, id: \.id) { conto in
-                                ContoPickerLabel(conto: conto)
-                                .tag(conto as Conto?)
-                            }
+                    if transactionType == .expense && amount > 0 {
+                        if let category = selectedCategory, let account = conto?.account {
+                            ExpenseBudgetCheckView(amount: amount, categoryID: category.id, accountID: account.id,
+                                                   date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring)
+                        } else {
+                            Label("Scegli una categoria per confrontare la spesa con i budget del libro.", systemImage: "info.circle")
+                                .font(.subheadline)
+                                .foregroundStyle(ForgiaPalette.mutedText)
                         }
                     }
-                    
-                    if hasDifferentCurrencies {
-                        CurrencyAmountField(title: "Importo ricevuto", text: $destinationAmountText,
-                                            currency: toConto?.account?.currency ?? "EUR",
-                                            identifier: "create-transaction-destination-amount")
-                        Text("Inserisci i due importi effettivi: l'addebito nella valuta del conto di partenza e l'accredito nella valuta di destinazione.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
 
-                    TextField("Descrizione", text: $description)
-                    
-                    Toggle("Includi orario", isOn: $includeTime)
-                    
-                    if includeTime {
-                        DatePicker("Data e Ora", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
-                    } else {
-                        DatePicker("Data", selection: $selectedDate, displayedComponents: .date)
-                    }
-                    
-                    if transactionType != .transfer && !filteredCategories.isEmpty {
-                        Picker("Categoria", selection: $selectedCategory) {
-                            Text("Nessuna categoria").tag(nil as FinanceCategory?)
-                            ForEach(filteredCategories, id: \.id) { category in
-                                HStack {
-                                    Image(systemName: category.icon ?? "tag")
-                                        .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
-                                    Text(category.name ?? "Category")
-                                }
-                                .tag(category as FinanceCategory?)
-                            }
+                    balanceImpact
+
+                    FormCard(title: "Ricorrenza") { recurrenceRows }
+
+                    TransactionPlaceEditor(place: $place, isLocating: $loadingLocation, cardStyle: true)
+
+                    DraftAttachmentsView(attachments: $attachmentDrafts, onSelectAmount: { amount = $0 }, loading: $loadingAttachment,
+                                         cardStyle: true)
+
+                    FormCard(title: "Note") {
+                        FormRow(icon: "note.text") {
+                            TextField("Aggiungi una nota (opzionale)", text: $notes, axis: .vertical)
+                                .lineLimit(1...4)
+                                .padding(.vertical, 12)
                         }
                     }
                 }
-                
-                if transactionType == .income && conto?.type == .savings {
-                    Section("Risparmio") {
-                        Toggle("Interessi accreditati", isOn: $isSavingsInterest)
-                        Text("Aumentano il saldo senza essere conteggiati come capitale versato.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-
-                Section { TransactionPlaceEditor(place: $place, isLocating: $loadingLocation) }
-                Section { DraftAttachmentsView(attachments: $attachmentDrafts, onSelectAmount: { amount = $0 }, loading: $loadingAttachment) }
-
-                Section("Dettagli Aggiuntivi") {
-                    TextField("Note (opzionale)", text: $notes, axis: .vertical)
-                        .lineLimit(2...4)
-                    
-                    Toggle("Transazione Ricorrente", isOn: $isRecurring)
-                    
-                    if isRecurring {
-                        Picker("Frequenza", selection: $selectedFrequency) {
-                            ForEach(RecurrenceFrequency.allCases, id: \.self) { frequency in
-                                Text(frequency.displayName).tag(frequency)
-                            }
-                        }
-                        
-                        Toggle("Data di fine", isOn: $hasEndDate)
-                        
-                        if hasEndDate {
-                            DatePicker("Fine ricorrenza", selection: $recurrenceEndDate,
-                                       in: Calendar.current.startOfDay(for: selectedDate)..., displayedComponents: .date)
-                            if effectiveRecurrenceEndDate == nil {
-                                Text("La fine della ricorrenza non può precedere la data iniziale.")
-                                    .font(.caption).foregroundStyle(.red)
-                            }
-                        }
-                    }
-                }
-                
-                if transactionType == .expense, amount > 0,
-                   let category = selectedCategory, let account = conto?.account {
-                    ExpenseBudgetCheckView(
-                        amount: amount, categoryID: category.id, accountID: account.id,
-                        date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring
-                    )
-                }
-
-                Section {
-                    if transactionType == .transfer {
-                        // Transfer summary
-                        if let fromConto = fromConto, let toConto = toConto {
-                            VStack(spacing: 12) {
-                                // From conto
-                                HStack {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(.red)
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Da: \(fromConto.name ?? "Unknown Conto")")
-                                            .font(.subheadline.weight(.medium))
-                                        Text("Saldo attuale: \(fromConto.balance.formatted(.currency(code: fromConto.account?.currency ?? "EUR")))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    VStack(alignment: .trailing, spacing: 2) {
-                                        Text("Nuovo saldo:")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        
-                                        Text((fromConto.balance - amount).formatted(.currency(code: fromConto.account?.currency ?? "EUR")))
-                                            .font(.subheadline.weight(.medium))
-                                            .foregroundStyle((fromConto.balance - amount) >= 0 ? .primary : Color.red)
-                                    }
-                                }
-                                
-                                // To conto
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundStyle(.green)
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("A: \(toConto.name ?? "Unknown Conto")")
-                                            .font(.subheadline.weight(.medium))
-                                        Text("Saldo attuale: \(toConto.balance.formatted(.currency(code: toConto.account?.currency ?? "EUR")))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    VStack(alignment: .trailing, spacing: 2) {
-                                        Text("Nuovo saldo:")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        
-                                        Text((toConto.balance + (hasDifferentCurrencies ? destinationAmount : amount)).formatted(.currency(code: toConto.account?.currency ?? "EUR")))
-                                            .font(.subheadline.weight(.medium))
-                                            .foregroundStyle(.primary)
-                                    }
-                                }
-                            }
-                        }
-                    } else if let conto = conto {
-                        // Regular transaction summary
-                        HStack {
-                            Image(systemName: transactionType.icon)
-                                .foregroundStyle(transactionType == .income ? .green : Color.red)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(transactionType.displayName) su \(conto.name ?? "Unknown Conto")")
-                                    .font(.subheadline.weight(.medium))
-                                Text("Saldo attuale: \(conto.balance.formatted(.currency(code: conto.account?.currency ?? "EUR")))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text("Nuovo saldo:")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text(calculatedNewBalance.formatted(.currency(code: conto.account?.currency ?? "EUR")))
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(calculatedNewBalance >= 0 ? .primary : Color.red)
-                            }
-                        }
-                    }
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
             }
-            .safeAreaInset(edge: .bottom) {
-                if transactionType == .expense, amount > 0,
-                   let category = selectedCategory, let book = conto?.account {
-                    ExpenseBudgetCheckView(amount: amount, categoryID: category.id, accountID: book.id,
-                                           date: selectedDate, currency: book.currency ?? "EUR",
-                                           isRecurring: isRecurring, compact: true)
-                        .padding(12)
-                        .background(.regularMaterial)
-                }
-            }
+            .background(ForgiaPalette.canvas)
+            .scrollDismissesKeyboard(.interactively)
+            #if !os(macOS)
+            .safeAreaBar(edge: .bottom, spacing: 0) { saveBar }
+            #endif
             .sheet(isPresented: $showingConversion) {
                 CurrencyConversionSheet(targetCurrency: fromConto?.account?.currency ?? conto?.account?.currency ?? "EUR", transactionDate: selectedDate, existing: foreignAmount) { value in
                     foreignAmount = value; amount = value.converted ?? 0
@@ -330,33 +182,260 @@ struct CreateTransactionView: View {
                 if let foreignAmount, value != foreignAmount.converted { self.foreignAmount = nil }
             }
             .sheet(isPresented: $showingCalculator) {
-                AmountCalculatorView(initialAmount: amount, currency: fromConto?.account?.currency ?? conto?.account?.currency ?? "EUR") { amount = $0 }
+                AmountCalculatorView(initialAmount: amount, currency: amountCurrency) { amount = $0 }
             }
             .alert("Impossibile salvare", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
                 Button("OK") { saveError = nil }
             } message: { Text(saveError ?? "") }
-            .navigationTitle(transactionType.displayName)
+            .navigationTitle(transactionType == .transfer ? "Nuovo trasferimento" : transactionType == .income ? "Nuova entrata" : "Nuova spesa")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") {
-                        dismiss()
+                    Button("Annulla") { dismiss() }
+                }
+                #if os(macOS)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salva", action: createTransaction)
+                        .keyboardShortcut("s", modifiers: .command)
+                        .disabled(isFormInvalid)
+                }
+                #endif
+            }
+        }
+    }
+
+    // MARK: - Cards
+
+    private var amountCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(transactionType == .transfer ? "IMPORTO TRASFERITO" : "IMPORTO")
+                    .font(.caption2.weight(.semibold)).tracking(1.2)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+                Spacer()
+                Button { showingCalculator = true } label: {
+                    Label("Calcolatrice", systemImage: "plus.forwardslash.minus")
+                }
+                .font(.subheadline)
+                .tint(ForgiaPalette.accent)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(amountCurrency)
+                    .font(.headline)
+                    .foregroundStyle(ForgiaPalette.accent)
+                TextField("0,00", text: $amountText)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    #endif
+                    .accessibilityLabel("Importo")
+                    .accessibilityIdentifier("create-transaction-amount")
+            }
+            .font(.system(size: 45, weight: .semibold, design: .rounded))
+            .minimumScaleFactor(0.7)
+
+            if amountInvalid {
+                Text("Inserisci un importo positivo valido per questa valuta, senza separatori delle migliaia.")
+                    .font(.caption).foregroundStyle(.red)
+                    .accessibilityIdentifier("create-transaction-amount-invalid")
+            }
+
+            if transactionType != .transfer {
+                Button("Importo in valuta estera", systemImage: "arrow.left.arrow.right") { showingConversion = true }
+                    .font(.subheadline)
+                    .tint(ForgiaPalette.accent)
+                if let foreignAmount {
+                    Text("\(foreignAmount.originalAmount.formatted(.currency(code: foreignAmount.originalCurrency))) · cambio \(foreignAmount.rate.formatted())")
+                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+    }
+
+    private var receivedAmountCard: some View {
+        FormCard(title: "Accredito") {
+            FormRow(icon: "arrow.down.to.line", tint: ForgiaPalette.sageSurface) {
+                VStack(alignment: .leading, spacing: 4) {
+                    CurrencyAmountField(title: "Importo ricevuto", text: $destinationAmountText,
+                                        currency: toConto?.account?.currency ?? "EUR",
+                                        identifier: "create-transaction-destination-amount")
+                    Text("L'addebito è nella valuta del conto di partenza, l'accredito in quella di destinazione.")
+                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                }
+                .padding(.vertical, 10)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var detailsRows: some View {
+        if transactionType == .transfer {
+            FormRow(icon: "arrow.up.right", tint: ForgiaPalette.apricotSurface) {
+                contoMenu(title: "Dal conto", selection: $fromConto, options: activeConti)
+            }
+            FormRowDivider()
+            FormRow(icon: "arrow.down.left", tint: ForgiaPalette.sageSurface) {
+                contoMenu(title: "Al conto", selection: $toConto, options: activeConti.filter { $0.id != fromConto?.id })
+            }
+            FormRowDivider()
+        } else if !filteredCategories.isEmpty {
+            FormRow(icon: selectedCategory?.icon ?? "tag", tint: typeTint) {
+                CategoryPickerMenu(categories: filteredCategories, type: transactionType, selection: $selectedCategory) {
+                    FormSelectionLabel(title: "Categoria", value: selectedCategory?.displayPath ?? "Seleziona una categoria",
+                                       isPlaceholder: selectedCategory == nil)
+                }
+                .accessibilityLabel("Categoria")
+            }
+            FormRowDivider()
+        }
+
+        FormRow(icon: "text.alignleft") {
+            TextField(transactionType == .transfer ? "Descrizione (opzionale)" : "Descrizione", text: $description)
+                .accessibilityLabel("Descrizione")
+        }
+        FormRowDivider()
+        FormRow(icon: "calendar") {
+            Text("Data")
+            Spacer(minLength: 8)
+            DatePicker("Data", selection: $selectedDate,
+                       displayedComponents: includeTime ? [.date, .hourAndMinute] : .date)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .tint(ForgiaPalette.accent)
+        }
+        FormRowDivider()
+        FormRow(icon: "clock") {
+            Toggle("Includi orario", isOn: $includeTime.animation())
+                .tint(ForgiaPalette.accent)
+        }
+    }
+
+    @ViewBuilder
+    private var recurrenceRows: some View {
+        FormRow(icon: "arrow.triangle.2.circlepath", tint: ForgiaPalette.sageSurface) {
+            Toggle("Movimento ricorrente", isOn: $isRecurring.animation())
+                .tint(ForgiaPalette.accent)
+        }
+        if isRecurring {
+            FormRowDivider()
+            FormRow(icon: "calendar.badge.clock") {
+                Text("Frequenza")
+                Spacer(minLength: 8)
+                Picker("Frequenza", selection: $selectedFrequency) {
+                    ForEach(RecurrenceFrequency.allCases, id: \.self) { frequency in
+                        Text(frequency.displayName).tag(frequency)
                     }
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Salva") {
-                        createTransaction()
-                    }
-                    .disabled(isFormInvalid)
-                    #if os(macOS)
-                    .keyboardShortcut("s", modifiers: .command)
-                    #endif
+                .labelsHidden()
+                .tint(ForgiaPalette.accent)
+            }
+            FormRowDivider()
+            FormRow(icon: "flag.checkered") {
+                Toggle("Data di fine", isOn: $hasEndDate.animation())
+                    .tint(ForgiaPalette.accent)
+            }
+            if hasEndDate {
+                FormRowDivider()
+                FormRow(icon: "calendar.badge.minus") {
+                    Text("Fine ricorrenza")
+                    Spacer(minLength: 8)
+                    DatePicker("Fine ricorrenza", selection: $recurrenceEndDate,
+                               in: Calendar.current.startOfDay(for: selectedDate)..., displayedComponents: .date)
+                        .labelsHidden()
+                        .tint(ForgiaPalette.accent)
+                }
+                if effectiveRecurrenceEndDate == nil {
+                    Text("La fine della ricorrenza non può precedere la data iniziale.")
+                        .font(.caption).foregroundStyle(.red)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
                 }
             }
         }
     }
-    
+
+    /// Current and resulting balance of every account the movement touches.
+    @ViewBuilder
+    private var balanceImpact: some View {
+        if transactionType == .transfer {
+            if let fromConto, let toConto {
+                FormCard(title: "Effetto sui saldi") {
+                    balanceRow(conto: fromConto, icon: "minus", tint: ForgiaPalette.apricotSurface,
+                               after: fromConto.balance - amount)
+                    FormRowDivider()
+                    balanceRow(conto: toConto, icon: "plus", tint: ForgiaPalette.sageSurface,
+                               after: toConto.balance + (hasDifferentCurrencies ? destinationAmount : amount))
+                }
+            }
+        } else if let conto {
+            FormCard(title: "Effetto sul saldo") {
+                balanceRow(conto: conto, icon: transactionType == .income ? "plus" : "minus", tint: typeTint,
+                           after: calculatedNewBalance)
+            }
+        }
+    }
+
+    private func balanceRow(conto: Conto, icon: String, tint: Color, after: Decimal) -> some View {
+        let currency = conto.account?.currency ?? "EUR"
+        return FormRow(icon: icon, tint: tint) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(conto.name ?? "Conto")
+                    .font(.body)
+                    .lineLimit(1)
+                Text("Ora \(conto.balance.formatted(.currency(code: currency)))")
+                    .font(.caption)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("Dopo")
+                    .font(.caption)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+                Text(after.formatted(.currency(code: currency)))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(after >= 0 ? Color.primary : Color.red)
+                    .contentTransition(.numericText(value: NSDecimalNumber(decimal: after).doubleValue))
+                    .animation(.snappy, value: after)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func contoMenu(title: String, selection: Binding<Conto?>, options: [Conto]) -> some View {
+        Menu {
+            Picker(title, selection: selection) {
+                Text("Seleziona conto").tag(nil as Conto?)
+                ForEach(options, id: \.id) { conto in
+                    ContoPickerLabel(conto: conto).tag(conto as Conto?)
+                }
+            }
+        } label: {
+            FormSelectionLabel(title: title, value: selection.wrappedValue?.name ?? "Seleziona conto",
+                               isPlaceholder: selection.wrappedValue == nil)
+        }
+        .accessibilityLabel(title)
+    }
+
+    private var saveBar: some View {
+        Button(action: createTransaction) {
+            Text(transactionType == .transfer ? "Salva trasferimento" : transactionType == .income ? "Salva entrata" : "Salva spesa")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(isFormInvalid ? ForgiaPalette.border : ForgiaPalette.accent,
+                            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .foregroundStyle(isFormInvalid ? ForgiaPalette.mutedText : ForgiaPalette.onAccent)
+        }
+        .disabled(isFormInvalid)
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
     private func createTransaction() {
         guard !isFormInvalid else { return }
         var created: FinanceTransaction?
@@ -400,9 +479,9 @@ struct CreateTransactionView: View {
                 recurrenceEndDate: isRecurring && hasEndDate ? effectiveRecurrenceEndDate : nil
             )
 
-            transaction.isSavingsInterest = transactionType == .income && conto.type == .savings && isSavingsInterest
             transaction.setCategory(selectedCategory)
 
+            transaction.isSavingsInterest = transactionType == .income && conto.type == .savings && isSavingsInterest
             if transactionType == .income {
                 transaction.setToConto(conto)
             } else {

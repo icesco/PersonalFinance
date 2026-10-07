@@ -19,6 +19,10 @@ final class AppStateManager {
     // MARK: - Tab Navigation
     var selectedTab: AppTab = .dashboard
 
+    /// Tab roots currently on screen that want the new-transaction button; pushed screens drop out.
+    var transactionButtonRoots: Set<AppTab> = []
+    var showsTransactionButton: Bool { transactionButtonRoots.contains(selectedTab) }
+
     // MARK: - Tinted Backgrounds
     var tintedBackgrounds: Bool = true {
         didSet {
@@ -241,14 +245,10 @@ final class AppStateManager {
     }
     
     func presentQuickTransaction(type: TransactionType = .expense, planned: Bool = false) {
-        if type == .transfer {
-            showingTransferSheet = true
-        } else {
-            quickTransactionPrefill = nil
-            quickTransactionType = type
-            quickTransactionIsPlanned = planned
-            showingQuickTransaction = true
-        }
+        quickTransactionPrefill = nil
+        quickTransactionType = type
+        quickTransactionIsPlanned = planned
+        showingQuickTransaction = true
     }
 
     @MainActor
