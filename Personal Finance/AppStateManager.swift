@@ -14,6 +14,9 @@ import FinanceCore
 @Observable
 final class AppStateManager {
     private let persistsSelection: Bool
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var pendingAccountID: UUID?
+    @ObservationIgnored private var isRestoringSelection = false
     @ObservationIgnored private weak var refreshOrigin: AppStateManager?
 
     // MARK: - Tab Navigation
@@ -26,8 +29,8 @@ final class AppStateManager {
     // MARK: - Tinted Backgrounds
     var tintedBackgrounds: Bool = true {
         didSet {
-            guard persistsSelection else { return }
-            UserDefaults.standard.set(tintedBackgrounds, forKey: "tintedBackgrounds")
+            guard persistsSelection && !isRestoringSelection else { return }
+            defaults.set(tintedBackgrounds, forKey: "tintedBackgrounds")
         }
     }
 
@@ -40,11 +43,12 @@ final class AppStateManager {
     var selectedAccount: Account? {
         didSet {
             // Persist selected libro ID
-            if persistsSelection {
+            if persistsSelection && !isRestoringSelection {
+                pendingAccountID = nil
                 if let accountID = selectedAccount?.id.uuidString {
-                    UserDefaults.standard.set(accountID, forKey: "selectedAccountID")
+                    defaults.set(accountID, forKey: "selectedAccountID")
                 } else {
-                    UserDefaults.standard.removeObject(forKey: "selectedAccountID")
+                    defaults.removeObject(forKey: "selectedAccountID")
                 }
             }
             // Reset conto selection when libro changes
@@ -59,7 +63,7 @@ final class AppStateManager {
     var showAllAccounts: Bool = false {
         didSet {
             if persistsSelection {
-                UserDefaults.standard.set(showAllAccounts, forKey: "showAllAccounts")
+                defaults.set(showAllAccounts, forKey: "showAllAccounts")
             }
             if showAllAccounts {
                 selectedConto = nil
@@ -72,11 +76,11 @@ final class AppStateManager {
     /// The selected Conto (individual account like credit card, bank account)
     var selectedConto: Conto? {
         didSet {
-            guard persistsSelection else { return }
+            guard persistsSelection && !isRestoringSelection else { return }
             if let contoID = selectedConto?.id.uuidString {
-                UserDefaults.standard.set(contoID, forKey: "selectedContoID")
+                defaults.set(contoID, forKey: "selectedContoID")
             } else {
-                UserDefaults.standard.removeObject(forKey: "selectedContoID")
+                defaults.removeObject(forKey: "selectedContoID")
             }
         }
     }
@@ -84,8 +88,8 @@ final class AppStateManager {
     /// When true, shows all conti within the selected libro
     var showAllConti: Bool = true {
         didSet {
-            guard persistsSelection else { return }
-            UserDefaults.standard.set(showAllConti, forKey: "showAllConti")
+            guard persistsSelection && !isRestoringSelection else { return }
+            defaults.set(showAllConti, forKey: "showAllConti")
         }
     }
     
@@ -112,15 +116,17 @@ final class AppStateManager {
     // MARK: - Onboarding
     var hasCompletedOnboarding: Bool {
         get {
-            UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+            defaults.bool(forKey: "hasCompletedOnboarding")
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: "hasCompletedOnboarding")
+            defaults.set(newValue, forKey: "hasCompletedOnboarding")
         }
     }
 
-    init(persistsSelection: Bool = true) {
+    init(persistsSelection: Bool = true, defaults: UserDefaults = .standard) {
         self.persistsSelection = persistsSelection
+        self.defaults = defaults
+        pendingAccountID = defaults.string(forKey: "selectedAccountID").flatMap(UUID.init(uuidString:))
         loadTintedBackgrounds()
         loadShowAllAccounts()
         loadShowAllConti()
@@ -130,7 +136,7 @@ final class AppStateManager {
 
     /// Each desktop task keeps its book and draft inputs while the main window remains navigable.
     func windowSnapshot() -> AppStateManager {
-        let copy = AppStateManager(persistsSelection: false)
+        let copy = AppStateManager(persistsSelection: false, defaults: defaults)
         copy.refreshOrigin = refreshOrigin ?? self
         copy.selectedAccount = selectedAccount
         copy.selectedConto = selectedConto
@@ -144,23 +150,23 @@ final class AppStateManager {
     }
 
     private func loadTintedBackgrounds() {
-        if UserDefaults.standard.object(forKey: "tintedBackgrounds") == nil {
+        if defaults.object(forKey: "tintedBackgrounds") == nil {
             tintedBackgrounds = true
         } else {
-            tintedBackgrounds = UserDefaults.standard.bool(forKey: "tintedBackgrounds")
+            tintedBackgrounds = defaults.bool(forKey: "tintedBackgrounds")
         }
     }
 
     private func loadShowAllAccounts() {
-        showAllAccounts = UserDefaults.standard.bool(forKey: "showAllAccounts")
+        showAllAccounts = defaults.bool(forKey: "showAllAccounts")
     }
 
     private func loadShowAllConti() {
         // Default to true if not set
-        if UserDefaults.standard.object(forKey: "showAllConti") == nil {
+        if defaults.object(forKey: "showAllConti") == nil {
             showAllConti = true
         } else {
-            showAllConti = UserDefaults.standard.bool(forKey: "showAllConti")
+            showAllConti = defaults.bool(forKey: "showAllConti")
         }
     }
 
@@ -193,6 +199,7 @@ final class AppStateManager {
     }
 
     func selectAllAccounts() {
+        pendingAccountID = nil
         showAllAccounts = true
         dismissAccountSelection()
     }
@@ -210,30 +217,33 @@ final class AppStateManager {
     }
     
     func loadSelectedAccount(from accounts: [Account]? = nil) {
-        guard selectedAccount == nil else { return }
-        
-        // Try to load from UserDefaults
-        if let savedAccountID = UserDefaults.standard.string(forKey: "selectedAccountID"),
-           let uuid = UUID(uuidString: savedAccountID),
-           let accounts = accounts,
-           let account = accounts.first(where: { $0.id == uuid }) {
+        guard let accounts else { return }
+        let activeAccounts = accounts.filter { $0.isActive == true }
+
+        // A partially loaded (for example, iCloud) list must not overwrite the last choice.
+        if let pendingAccountID,
+           let account = activeAccounts.first(where: { $0.id == pendingAccountID }) {
+            isRestoringSelection = true
             selectedAccount = account
+            isRestoringSelection = false
+            self.pendingAccountID = nil
             return
         }
-        
-        // If no saved account or accounts array not provided, we'll need to show selection
-        if accounts?.isEmpty == false {
-            selectedAccount = accounts?.first
+
+        if let selectedAccount, activeAccounts.contains(where: { $0.id == selectedAccount.id }) {
+            return
         }
+
+        // Use an available book while waiting, retaining the saved ID for later query updates.
+        isRestoringSelection = pendingAccountID != nil || activeAccounts.isEmpty
+        selectedAccount = activeAccounts.first
+        isRestoringSelection = false
     }
-    
+
     func requiresAccountSelection(accounts: [Account]) -> Bool {
-        if accounts.isEmpty {
-            return false // Will show account creation instead
-        }
-        return selectedAccount == nil
+        !accounts.isEmpty && selectedAccount == nil && !showAllAccounts
     }
-    
+
     // MARK: - Modal Management
     
     func presentAccountSelection() {
