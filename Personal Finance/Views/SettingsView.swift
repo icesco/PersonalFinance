@@ -606,7 +606,10 @@ struct CategorySettingsRow: View {
     let onEdit: () -> Void
 
     var body: some View {
-        Button(action: onEdit) {
+        NavigationLink {
+            TransactionListView(initialCategoryID: category.id, isPushed: true,
+                                pushedTitle: category.displayPath)
+        } label: {
             HStack(spacing: 12) {
                 Image(systemName: category.icon ?? "tag")
                     .font(.title3)
@@ -625,6 +628,11 @@ struct CategorySettingsRow: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, 4)
+        }
+        .contextMenu { Button("Modifica", systemImage: "pencil", action: onEdit) }
+        .swipeActions(edge: .leading) {
+            Button("Modifica", systemImage: "pencil", action: onEdit)
+                .tint(ForgiaPalette.accent)
         }
     }
 }

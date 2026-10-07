@@ -21,6 +21,9 @@ struct TransactionListView: View {
     var expensesOnly = false
     var scopeContoIDs: Set<UUID>? = nil
 
+    var isPushed = false
+    var pushedTitle: String? = nil
+
     // Filter states
     @State private var selectedMonth: Date = Date()
     @State private var selectedType: TransactionTypeFilter = .all
@@ -28,6 +31,8 @@ struct TransactionListView: View {
     @State private var selectedCategories: Set<UUID> = []
     @State private var showingRecurring = false
     @State private var showingCategoryFilter = false
+    @Query private var allCategories: [FinanceCategory]
+    @State private var didApplyInitialFilters = false
     @State private var selectedTimeframe: TransactionTimeframe = .month
     @State private var showSummaryDetail = false
     #if os(macOS)
@@ -87,7 +92,12 @@ struct TransactionListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        if isPushed { content }
+        else { NavigationStack { content } }
+    }
+
+    private var content: some View {
+        Group {
             VStack(spacing: 0) {
                 if isLoading && transactions.isEmpty {
                     ProgressView()
@@ -126,10 +136,10 @@ struct TransactionListView: View {
                 }
             }
             .modifier(TransactionAddButtonModifier(isVisible: !isInSelectionMode))
-            .navigationTitle(initialConto?.name ?? desktopTitle)
+            .navigationTitle(initialCategoryID != nil ? (selectedCategories.isEmpty ? "Movimenti" : categoryFilterTitle) : (pushedTitle ?? initialConto?.name ?? desktopTitle))
             #if os(iOS)
             .toolbarTitleDisplayMode(.inline)
-            .toolbar(initialConto == nil && initialInterval == nil ? .hidden : .visible, for: .navigationBar)
+            .toolbar(!isPushed && initialConto == nil && initialInterval == nil ? .hidden : .visible, for: .navigationBar)
             #endif
             .financePresentation(isPresented: $showingRecurring, title: "Ricorrenze", width: 800) {
                 NavigationStack {
@@ -147,6 +157,8 @@ struct TransactionListView: View {
                 EditTransactionView(transaction: transaction)
             }
             .onAppear {
+                guard !didApplyInitialFilters else { fetchTransactions(); return }
+                didApplyInitialFilters = true
                 if let conto = initialConto, selectedConto == nil {
                     selectedConto = conto
                 }
@@ -352,7 +364,7 @@ struct TransactionListView: View {
         Button { showingCategoryFilter = true } label: {
             HStack(spacing: 4) {
                 Image(systemName: "tag").font(.caption)
-                Text(selectedCategories.isEmpty ? "Categorie" : "\(selectedCategories.count)")
+                Text(categoryFilterTitle)
                 Image(systemName: "chevron.down").font(.caption2)
             }
             .font(.subheadline)
@@ -361,6 +373,15 @@ struct TransactionListView: View {
             .foregroundStyle(selectedCategories.isEmpty ? Color.primary : ForgiaPalette.accent)
         }
         .tint(selectedCategories.isEmpty ? nil : ForgiaPalette.accent)
+    }
+
+    private var categoryFilterTitle: String {
+        guard !selectedCategories.isEmpty else { return "Categorie" }
+        if selectedCategories.count == 1,
+           let category = allCategories.first(where: { selectedCategories.contains($0.id) }) {
+            return category.displayPath
+        }
+        return "Categorie · \(selectedCategories.count)"
     }
 
     // MARK: - Sectioning Logic
@@ -811,11 +832,12 @@ struct TransactionListView: View {
                 }
             }
 
-            // Filter by categories
-            if !selectedCategories.isEmpty {
+            // Macro categories also include their subcategories' historical movements.
+            let categoryIDs = CategoryHierarchy(categories: allCategories).expanding(selectedCategories)
+            if !categoryIDs.isEmpty {
                 results = results.filter { transaction in
                     guard let categoryId = transaction.category?.id else { return false }
-                    return selectedCategories.contains(categoryId)
+                    return categoryIDs.contains(categoryId)
                 }
             }
 
@@ -988,9 +1010,7 @@ struct CategoryFilterSheet: View {
     @Binding var selectedCategories: Set<UUID>
     @Environment(\.dismiss) private var dismiss
 
-    private var sortedCategories: [FinanceCategory] {
-        categories.sorted { ($0.name ?? "") < ($1.name ?? "") }
-    }
+    private var hierarchy: CategoryHierarchy { CategoryHierarchy(categories: categories) }
 
     var body: some View {
         NavigationStack {
@@ -1007,15 +1027,36 @@ struct CategoryFilterSheet: View {
                             }
                         }
                     }
+                } footer: {
+                    Text("Una categoria principale include tutte le sue sottocategorie. Tocca una sottocategoria per restringere i risultati.")
                 }
 
-                Section("Seleziona categorie") {
-                    ForEach(sortedCategories, id: \.id) { category in
-                        categoryRow(category)
+                let hierarchy = hierarchy
+                ForEach(Array(hierarchy.roots.enumerated()), id: \.element.id) { index, root in
+                    let children = hierarchy.children(of: root)
+                    let rootSelected = selectedCategories.contains(root.id)
+                    Section {
+                        categoryRow(root) {
+                            CategoryTreeRow(category: root, level: .macro(childCount: children.count),
+                                            subtitle: children.isEmpty ? nil : "Include le sottocategorie") {
+                                checkmark(selected: rootSelected)
+                            }
+                        }
+                        .categoryTreeRowStyle(isMacro: true)
+                        ForEach(Array(children.enumerated()), id: \.element.id) { childIndex, child in
+                            categoryRow(child, includedByParent: rootSelected) {
+                                CategoryTreeRow(category: child, level: .child(isLast: childIndex == children.count - 1)) {
+                                    checkmark(selected: selectedCategories.contains(child.id), included: rootSelected)
+                                }
+                            }
+                            .categoryTreeRowStyle(isMacro: false)
+                        }
+                    } header: {
+                        if index == 0 { Text("Seleziona categorie") }
                     }
                 }
             }
-            .navigationTitle("Filtra per Categoria")
+            .navigationTitle("Categorie e sottocategorie")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -1030,27 +1071,29 @@ struct CategoryFilterSheet: View {
         }
     }
 
-    private func categoryRow(_ category: FinanceCategory) -> some View {
-        Button { toggleCategory(category) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: category.icon ?? "tag")
-                    .foregroundStyle(Color(hex: category.color ?? "#007AFF"))
-                    .frame(width: 24)
-                Text(category.name ?? "Categoria").foregroundStyle(.primary)
-                Spacer()
-                if selectedCategories.contains(category.id) {
-                    Image(systemName: "checkmark")
-                }
-            }
+    private func categoryRow(_ category: FinanceCategory, includedByParent: Bool = false,
+                             @ViewBuilder label: () -> some View) -> some View {
+        Button { toggleCategory(category) } label: { label() }
+            .buttonStyle(.plain)
+            .accessibilityLabel(category.displayPath)
+            .accessibilityValue(includedByParent ? "Inclusa nella categoria principale" : "")
+            .accessibilityHint(includedByParent ? "Tocca per mostrare solo questa sottocategoria" : "")
+            .accessibilityAddTraits(selectedCategories.contains(category.id) || includedByParent ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private func checkmark(selected: Bool, included: Bool = false) -> some View {
+        if selected {
+            Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(ForgiaPalette.accent)
+        } else if included {
+            Image(systemName: "checkmark.circle").font(.title3).foregroundStyle(.tertiary)
+        } else {
+            Image(systemName: "circle").font(.title3).foregroundStyle(.quaternary)
         }
     }
 
     private func toggleCategory(_ category: FinanceCategory) {
-        if selectedCategories.contains(category.id) {
-            selectedCategories.remove(category.id)
-        } else {
-            selectedCategories.insert(category.id)
-        }
+        selectedCategories = hierarchy.toggling(category, in: selectedCategories)
     }
 }
 

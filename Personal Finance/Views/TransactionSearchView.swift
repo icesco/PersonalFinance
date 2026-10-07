@@ -130,6 +130,7 @@ struct TransactionSearchView: View {
         guard criteria.isActive else { return [] }
         let contoIDs: Set<UUID> = criteria.contoID.map { [$0] } ?? scopeContoIDs ?? Set(availableConti.map(\.id))
         let interval = criteria.period.interval()
+        let categoryIDs = CategoryHierarchy(categories: account?.categories ?? []).expanding(criteria.categoryIDs)
 
         let matches = transactions.filter { transaction in
             let inScope = transaction.fromContoId.map(contoIDs.contains) == true
@@ -137,8 +138,8 @@ struct TransactionSearchView: View {
             guard inScope else { return false }
             if let interval, transaction.date < interval.start || transaction.date >= interval.end { return false }
             if !criteria.type.includes(transaction.type) { return false }
-            if !criteria.categoryIDs.isEmpty {
-                guard let categoryID = transaction.category?.id, criteria.categoryIDs.contains(categoryID) else { return false }
+            if !categoryIDs.isEmpty {
+                guard let categoryID = transaction.category?.id, categoryIDs.contains(categoryID) else { return false }
             }
             return TransactionSearch.matches(
                 query: criteria.query,
