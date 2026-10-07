@@ -218,10 +218,6 @@ private struct FinanceTimelineEventCard: View {
                     }
                 }
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(tint.opacity(0.22), style: StrokeStyle(lineWidth: 0.75, dash: event.kind == .recorded ? [] : [5, 5]))
-        }
         .shadow(color: tint.opacity(0.07), radius: 10, y: 5)
         .accessibilityElement(children: .combine)
         .financeCardEntrance()

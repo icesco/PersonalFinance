@@ -78,6 +78,9 @@ struct FinancePlanningView: View {
                             Label(appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Scegli libro", systemImage: "books.vertical")
                         }.buttonStyle(.glass)
                     }
+                    if !appState.showAllAccounts, let account = appState.selectedAccount {
+                        SavingsPlanningPanel(account: account)
+                    }
                     PlanningPanel(title: "Budget", symbol: "chart.bar.xaxis") {
                         Text("Scegli quanto destinare alle tue spese e controlla i limiti del libro.")
                             .font(.subheadline).foregroundStyle(.secondary)
@@ -167,7 +170,7 @@ struct FinancePlanningView: View {
                 .frame(maxWidth: .infinity)
             }
             .themedBackground()
-            .modifier(TransactionAddButtonModifier())
+            .transactionButtonRoot(.planning)
             .confirmationDialog("Gestisci scadenza", isPresented: Binding(
                 get: { selectedOccurrence != nil }, set: { if !$0 { selectedOccurrence = nil } }
             ), titleVisibility: .visible) {
@@ -186,7 +189,7 @@ struct FinancePlanningView: View {
             .financePresentation(item: $creatingContoFor, title: "Nuovo conto") { CreateContoView(account: $0) }
             .financePresentation(item: $editingConto, title: "Modifica conto") { EditContoView(conto: $0) }
             .financePresentation(item: $selectedTransaction, title: "Movimento") { transaction in
-                NavigationStack { TransactionDetailView(transaction: transaction) }
+                NavigationStack { TransactionDetailView(transaction: transaction, showsCloseButton: true) }
             }
         }
     }

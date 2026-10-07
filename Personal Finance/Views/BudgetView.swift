@@ -9,45 +9,94 @@ import SwiftUI
 import SwiftData
 import FinanceCore
 
+/// Everything a budget card shows, computed once: the model's figures recalculate on each access.
+struct BudgetSnapshot {
+    enum Status { case onTrack, warning, over }
+
+    let limit: Decimal
+    let spent: Decimal
+    let threshold: Double
+    let outlook: BudgetOutlook
+    let currency: String
+    let periodRange: (start: Date, end: Date)
+
+    init(_ budget: FinanceBudget) {
+        limit = budget.amount ?? 0
+        periodRange = budget.currentPeriodRange
+        spent = budget.getSpent(for: periodRange)
+        threshold = budget.alertThreshold ?? 0.8
+        outlook = budget.spendingOutlook()
+        currency = budget.account?.currency ?? "EUR"
+    }
+
+    var remaining: Decimal { limit - spent }
+    var share: Double { limit > 0 ? NSDecimalNumber(decimal: spent / limit).doubleValue : 0 }
+    var status: Status { spent > limit ? .over : share >= threshold ? .warning : .onTrack }
+
+    var color: Color {
+        switch status {
+        case .onTrack: ForgiaPalette.accent
+        case .warning: .orange
+        case .over: .red
+        }
+    }
+
+    var statusLabel: (text: String, icon: String) {
+        switch status {
+        case .onTrack: ("In linea", "checkmark.circle.fill")
+        case .warning: ("Da tenere d'occhio", "exclamationmark.circle.fill")
+        case .over: ("Superato", "exclamationmark.triangle.fill")
+        }
+    }
+
+    func money(_ value: Decimal) -> String { value.formatted(.currency(code: currency)) }
+}
+
 struct BudgetView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
-    
+
     @State private var showingCreateBudget = false
     @State private var selectedBudget: FinanceBudget?
     @State private var showingSaveError = false
-    
-    // Get budgets for selected account
+
     private var budgets: [FinanceBudget] {
-        appState.selectedAccount?.budgets?.filter { $0.isActive == true } ?? []
+        (appState.selectedAccount?.budgets?.filter { $0.isActive == true } ?? [])
+            .sorted { ($0.name ?? "") < ($1.name ?? "") }
     }
-    
+
+    private var archived: [FinanceBudget] {
+        (appState.selectedAccount?.budgets ?? []).filter { $0.isActive == false }
+            .sorted { ($0.name ?? "") < ($1.name ?? "") }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 16) {
-                    // Budget Overview Header
-                    budgetOverviewHeader
-                    
-                    // Budget Progress Summary
-                    if !budgets.isEmpty {
-                        budgetProgressSummary
+                VStack(alignment: .leading, spacing: 18) {
+                    let snapshots = budgets.map { ($0, BudgetSnapshot($0)) }
+                    if snapshots.isEmpty {
+                        emptyState
+                    } else {
+                        overview(snapshots.map(\.1))
+                        ForEach(snapshots, id: \.0.id) { budget, snapshot in
+                            Button { selectedBudget = budget } label: {
+                                BudgetCard(budget: budget, snapshot: snapshot)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    
-                    // Individual Budget Cards
-                    budgetCardsSection
-                    archivedBudgetsSection
-                    
-                    // Empty State or Create Button
-                    if budgets.isEmpty {
-                        emptyStateView
+                    if !archived.isEmpty {
+                        archivedSection
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 100) // Space for floating button
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            .financeEmptyOverlay(isPresented: budgets.isEmpty && (appState.selectedAccount?.budgets?.filter { $0.isActive == false }.isEmpty ?? true)) { emptyStateView }
+            .themedBackground()
+            .financeEmptyOverlay(isPresented: budgets.isEmpty && archived.isEmpty) { emptyState }
             .navigationTitle("Budget")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -62,7 +111,6 @@ struct BudgetView: View {
                     .accessibilityLabel("Nuovo budget")
                 }
             }
-            .background(Color(.systemGroupedBackground))
         }
         .financePresentation(isPresented: $showingCreateBudget, title: "Nuovo budget") {
             if let account = appState.selectedAccount {
@@ -76,252 +124,255 @@ struct BudgetView: View {
             Button("OK", role: .cancel) { }
         } message: { Text("La modifica non è stata salvata. Riprova.") }
     }
-    
-    // MARK: - Budget Overview Header
-    
-    private var budgetOverviewHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(budgets.count == 1 ? "1 budget attivo" : "\(budgets.count) budget attivi")
-                .font(.title2.bold())
-            Text("Ogni limite si riferisce al proprio periodo e alle categorie scelte. Una spesa può rientrare in più budget: confronta il residuo di ciascuno.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-    
-    // MARK: - Budget Progress Summary
-    
-    private var budgetProgressSummary: some View {
-        HStack(spacing: 12) {
-            // On Track Budgets
-            let onTrackCount = budgets.filter { !$0.shouldAlert && !$0.isOverBudget }.count
-            StatCardView(
-                title: "In Target",
-                value: "\(onTrackCount)",
-                icon: "checkmark.circle.fill", color: .green
-            )
-            
-            // Warning Budgets
-            let warningCount = budgets.filter { $0.shouldAlert && !$0.isOverBudget }.count
-            StatCardView(
-                title: "Attenzione",
-                value: "\(warningCount)",
-                icon: "exclamationmark.triangle.fill", color: .orange
-            )
-            
-            // Over Budget
-            let overBudgetCount = budgets.filter { $0.isOverBudget }.count
-            StatCardView(
-                title: "Superato",
-                value: "\(overBudgetCount)",
-                icon: "xmark.circle.fill", color: .red
-            )
-        }
-    }
-    
-    // MARK: - Budget Cards Section
-    
-    private var budgetCardsSection: some View {
-        LazyVStack(spacing: 12) {
-            ForEach(budgets.sorted { ($0.name ?? "") < ($1.name ?? "") }, id: \.id) { budget in
-                BudgetCard(budget: budget) {
-                    selectedBudget = budget
-                }
+
+    // MARK: - Overview
+
+    private func overview(_ snapshots: [BudgetSnapshot]) -> some View {
+        let over = snapshots.filter { $0.status == .over }.count
+        let warning = snapshots.filter { $0.status == .warning }.count
+        let onTrack = snapshots.count - over - warning
+        let tint = over > 0 ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(snapshots.count == 1 ? "1 BUDGET ATTIVO" : "\(snapshots.count) BUDGET ATTIVI")
+                .font(.caption2.weight(.semibold)).tracking(1.1)
+                .foregroundStyle(ForgiaPalette.mutedText)
+            Text(over > 0 ? (over == 1 ? "Un budget è oltre il limite" : "\(over) budget sono oltre il limite")
+                 : warning > 0 ? "Quasi tutto sotto controllo" : "Tutto sotto controllo")
+                .font(.system(.title2, design: .serif, weight: .semibold))
+            HStack(spacing: 8) {
+                statusCount(onTrack, "In linea", "checkmark.circle.fill", ForgiaPalette.accent)
+                statusCount(warning, "Attenzione", "exclamationmark.circle.fill", .orange)
+                statusCount(over, "Superati", "exclamationmark.triangle.fill", .red)
             }
+            Text("Ogni limite vale per il proprio periodo e le categorie scelte. Una spesa può rientrare in più budget.")
+                .font(.caption)
+                .foregroundStyle(ForgiaPalette.mutedText)
         }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(colors: [tint, tint.mix(with: ForgiaPalette.surface, by: 0.35)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 25, style: .continuous)
+        )
     }
-    
-    private var archivedBudgetsSection: some View {
-        let archived = (appState.selectedAccount?.budgets ?? []).filter { $0.isActive == false }
-            .sorted { ($0.name ?? "") < ($1.name ?? "") }
-        return Group {
-            if !archived.isEmpty {
-                DisclosureGroup("Budget disattivati (\(archived.count))") {
-                    ForEach(archived, id: \.id) { budget in
-                        HStack {
-                            Text(budget.name ?? "Budget")
-                            Spacer()
-                            Button("Riattiva") {
-                                do { try BudgetEdits(context: modelContext).setActive(true, for: budget) }
-                                catch { showingSaveError = true }
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityLabel("Riattiva \(budget.name ?? "budget")")
-                        }
-                        .padding(.vertical, 4)
+
+    private func statusCount(_ count: Int, _ title: String, _ icon: String, _ color: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).foregroundStyle(color)
+            Text("\(count)").monospacedDigit().fontWeight(.semibold)
+            Text(title)
+        }
+        .font(.caption)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(ForgiaPalette.surface.opacity(0.85), in: Capsule())
+        .opacity(count == 0 ? 0.6 : 1)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Archived
+
+    private var archivedSection: some View {
+        FormCard(title: "Disattivati") {
+            ForEach(Array(archived.enumerated()), id: \.element.id) { index, budget in
+                if index > 0 { FormRowDivider() }
+                FormRow(icon: "archivebox") {
+                    Text(budget.name ?? "Budget")
+                        .foregroundStyle(ForgiaPalette.mutedText)
+                    Spacer(minLength: 8)
+                    Button("Riattiva") {
+                        do { try BudgetEdits(context: modelContext).setActive(true, for: budget) }
+                        catch { showingSaveError = true }
                     }
+                    .buttonStyle(.borderless)
+                    .tint(ForgiaPalette.accent)
+                    .accessibilityLabel("Riattiva \(budget.name ?? "budget")")
                 }
-                .padding()
             }
         }
     }
 
     // MARK: - Empty State
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "chart.pie")
-                .font(.system(size: 64))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text("Nessun budget attivo")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Crea un budget per tenere traccia delle tue spese")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            Button("Crea budget") {
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "target")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(ForgiaPalette.accent)
+                .frame(width: 72, height: 72)
+                .background(ForgiaPalette.sageSurface, in: Circle())
+            Text("Nessun budget attivo")
+                .font(.system(.title2, design: .serif, weight: .semibold))
+            Text("Dai un limite alle categorie che vuoi tenere d'occhio: qui vedrai quanto ti resta in ogni periodo.")
+                .font(.subheadline)
+                .foregroundStyle(ForgiaPalette.mutedText)
+                .multilineTextAlignment(.center)
+            #if os(macOS)
+            Button("Crea il primo budget", systemImage: "plus") { showingCreateBudget = true }
+                .buttonStyle(.borderedProminent)
+                .tint(ForgiaPalette.accent)
+            #else
+            Button {
                 showingCreateBudget = true
+            } label: {
+                Text("Crea il primo budget")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(ForgiaPalette.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .foregroundStyle(ForgiaPalette.onAccent)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+            #endif
         }
-        .padding()
+        .padding(24)
         .frame(maxWidth: .infinity)
+        .unifiedCard()
     }
 }
 
 // MARK: - Budget Card
 
 struct BudgetCard: View {
-    @ScaledMetric(relativeTo: .caption) private var categoryMinimumWidth: CGFloat = 80
     let budget: FinanceBudget
-    let onTap: () -> Void
-    
-    private var progressPercentage: Double {
-        budget.spentPercentage
+    let snapshot: BudgetSnapshot
+
+    private var categories: [FinanceCategory] {
+        FinanceCategory.displayOrdered(budget.categories ?? [])
     }
-    
-    private var progressColor: Color {
-        if budget.isOverBudget {
-            return .red
-        } else if budget.shouldAlert {
-            return .orange
-        } else {
-            return .green
-        }
-    }
-    
+
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(budget.name ?? "Budget Sconosciuto")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Text(budget.period?.displayName ?? "Periodo sconosciuto")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    // Status Icon
-                    Image(systemName: budget.isOverBudget ? "xmark.circle.fill" : 
-                                    budget.shouldAlert ? "exclamationmark.triangle.fill" : 
-                                    "checkmark.circle.fill")
-                        .foregroundColor(progressColor)
-                        .font(.title3)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                BudgetIcon(category: categories.first)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(budget.name ?? "Budget")
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(periodText)
+                        .font(.caption)
+                        .foregroundStyle(ForgiaPalette.mutedText)
                 }
-                
-                // Amount Information
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Speso")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text(budget.currentSpent.formatted(.currency(code: budget.account?.currency ?? "EUR")))
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(progressColor)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("Budget")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text((budget.amount ?? 0).formatted(.currency(code: budget.account?.currency ?? "EUR")))
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                    }
-                }
-                
-                // Progress Bar
-                VStack(alignment: .leading, spacing: 8) {
-                    ProgressView(value: min(1.0, progressPercentage))
-                        .progressViewStyle(LinearProgressViewStyle(tint: progressColor))
-                        .scaleEffect(x: 1, y: 2, anchor: .center)
-                    
-                    HStack {
-                        Text("\(Int(progressPercentage * 100))% utilizzato")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        if budget.daysRemaining > 0 {
-                            Text("\(budget.daysRemaining) giorni rimasti")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("Periodo terminato")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                
-                // Categories
-                if !(budget.categories ?? []).isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Categorie")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                Spacer(minLength: 8)
+                BudgetStatusPill(snapshot: snapshot)
+            }
 
-                        LazyVGrid(columns: [
-                            GridItem(.adaptive(minimum: categoryMinimumWidth))
-                        ], spacing: 4) {
-                            ForEach((budget.categories ?? []).prefix(3), id: \.id) { category in
-                                CategoryChip(category: category)
-                            }
+            Text(snapshot.status == .over ? "Oltre di \(snapshot.money(-snapshot.remaining))" : "Restano \(snapshot.money(snapshot.remaining))")
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .foregroundStyle(snapshot.status == .over ? Color.red : Color.primary)
 
-                            if (budget.categories ?? []).count > 3 {
-                                Text("+\((budget.categories ?? []).count - 3)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(.systemGray5))
-                                    .cornerRadius(12)
-                            }
-                        }
+            BudgetMeter(snapshot: snapshot)
+
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    spentText
+                    Spacer(minLength: 8)
+                    dailyText
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    spentText
+                    dailyText
+                }
+            }
+            .font(.caption)
+            .monospacedDigit()
+            .foregroundStyle(ForgiaPalette.mutedText)
+
+            if !categories.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(categories.prefix(3), id: \.id) { CategoryChip(category: $0) }
+                    if categories.count > 3 {
+                        Text("+\(categories.count - 3)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(ForgiaPalette.mutedText)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(ForgiaPalette.canvas, in: Capsule())
                     }
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         }
-        .buttonStyle(PlainButtonStyle())
+        .unifiedCard()
+        .contentShape(RoundedRectangle(cornerRadius: 22))
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Apre il dettaglio del budget")
+    }
+
+    private var spentText: Text {
+        Text("Speso \(snapshot.money(snapshot.spent)) su \(snapshot.money(snapshot.limit))")
+    }
+
+    @ViewBuilder
+    private var dailyText: some View {
+        if snapshot.status != .over, snapshot.outlook.daysRemaining > 0 {
+            Text("≈ \(snapshot.money(snapshot.outlook.dailyAllowance)) al giorno")
+        }
+    }
+
+    private var periodText: String {
+        let period = budget.period?.displayName ?? "Periodo"
+        let days = snapshot.outlook.daysRemaining
+        if days <= 0 { return "\(period) · periodo concluso" }
+        return days == 1 ? "\(period) · ultimo giorno" : "\(period) · \(days) giorni rimasti"
+    }
+}
+
+/// Spending against the limit, with a tick where the alert fires.
+struct BudgetMeter: View {
+    let snapshot: BudgetSnapshot
+    var height: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(ForgiaPalette.canvas)
+                Capsule()
+                    .fill(snapshot.color)
+                    .frame(width: max(height, proxy.size.width * min(snapshot.share, 1)))
+                Rectangle()
+                    .fill(ForgiaPalette.mutedText.opacity(0.5))
+                    .frame(width: 2, height: height + 6)
+                    .offset(x: proxy.size.width * snapshot.threshold - 1)
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
+    }
+}
+
+struct BudgetStatusPill: View {
+    let snapshot: BudgetSnapshot
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: snapshot.statusLabel.icon).foregroundStyle(snapshot.color)
+            Text(snapshot.statusLabel.text)
+        }
+        .font(.caption.weight(.semibold))
+        .lineLimit(1)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(ForgiaPalette.canvas, in: Capsule())
+    }
+}
+
+/// The budget's lead category icon, in that category's colour.
+struct BudgetIcon: View {
+    let category: FinanceCategory?
+    var size: CGFloat = 42
+
+    var body: some View {
+        let color = (category?.tint ?? Color(hex: CategoryPalette.fallback))
+        Image(systemName: category?.icon?.isEmpty == false ? category!.icon! : "target")
+            .font(.system(size: size * 0.4, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: size, height: size)
+            .background(color.opacity(0.14), in: Circle())
     }
 }
 
@@ -329,281 +380,91 @@ struct BudgetCard: View {
 
 struct CategoryChip: View {
     let category: FinanceCategory
-    
+
     var body: some View {
         HStack(spacing: 4) {
             if let icon = category.icon, !icon.isEmpty {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .foregroundStyle(category.tint)
             }
             Text(category.name ?? "")
-                .font(.caption)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
         }
-        .foregroundColor(Color(hex: category.color ?? "#007AFF"))
+        .font(.caption)
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color(hex: category.color ?? "#007AFF").opacity(0.1))
-        .cornerRadius(12)
-    }
-}
-
-// MARK: - Create Budget View
-
-struct CreateBudgetView: View {
-    let account: Account
-    let budget: FinanceBudget?
-    @State private var showingSaveError = false
-
-    init(account: Account, budget: FinanceBudget? = nil) {
-        self.account = account
-        self.budget = budget
-        _budgetName = State(initialValue: budget?.name ?? "")
-        _budgetAmount = State(initialValue: budget?.amount.map { NSDecimalNumber(decimal: $0).stringValue } ?? "")
-        _selectedPeriod = State(initialValue: budget?.period ?? .monthly)
-        _alertThreshold = State(initialValue: budget?.alertThreshold ?? 0.8)
-        _selectedCategories = State(initialValue: Set(budget?.categories ?? []))
-    }
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Environment(AppStateManager.self) private var appState
-    
-    @State private var budgetName = ""
-    @State private var budgetAmount = ""
-    @State private var selectedPeriod: BudgetPeriod = .monthly
-    @State private var alertThreshold = 0.8
-    @State private var selectedCategories: Set<FinanceCategory> = []
-    
-    private var availableCategories: [FinanceCategory] {
-        (account.categories ?? []).filter { $0.isActive == true || selectedCategories.contains($0) }
-            .sorted { ($0.name ?? "") < ($1.name ?? "") }
-    }
-
-    private var isFormValid: Bool {
-        !budgetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        (BalanceInput.parse(budgetAmount, currency: account.currency ?? "EUR") ?? 0) > 0 &&
-        !selectedCategories.isEmpty
-    }
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section("Dettagli Budget") {
-                    TextField("Nome Budget", text: $budgetName)
-                    
-                    CurrencyAmountField(title: "Importo", text: $budgetAmount,
-                                        currency: account.currency ?? "EUR", identifier: "budget-amount")
-
-                    Picker("Periodo", selection: $selectedPeriod) {
-                        ForEach(BudgetPeriod.allCases, id: \.self) { period in
-                            Text(period.displayName).tag(period)
-                        }
-                    }
-                }
-                
-                Section("Soglia Avviso") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Avvisami al \(Int(alertThreshold * 100))%")
-                            Spacer()
-                        }
-                        
-                        Slider(value: $alertThreshold, in: 0.5...1.0, step: 0.05)
-                    }
-                }
-                
-                Section("Categorie") {
-                    if availableCategories.isEmpty {
-                        Text("Nessuna categoria di spesa disponibile")
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(availableCategories, id: \.id) { category in
-                            CategorySelectionRow(
-                                category: category,
-                                isSelected: selectedCategories.contains(category)
-                            ) {
-                                if selectedCategories.contains(category) {
-                                    selectedCategories.remove(category)
-                                } else {
-                                    selectedCategories.insert(category)
-                                }
-                            }
-                        }
-                    }
-                }
-                
-            }
-            .navigationTitle(budget == nil ? "Nuovo Budget" : "Modifica Budget")
-            .alert("Impossibile salvare", isPresented: $showingSaveError) {
-                Button("OK", role: .cancel) { }
-            } message: { Text("Il budget non è stato salvato. Controlla i dati e riprova.") }
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annulla") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Salva") {
-                        saveBudget()
-                    }
-                    .disabled(!isFormValid)
-                }
-            }
-        }
-    }
-    
-    private func saveBudget() {
-        guard isFormValid else { return }
-        do {
-            try BudgetEdits(context: modelContext).apply(
-                to: budget, account: account, name: budgetName, amountText: budgetAmount,
-                period: selectedPeriod, threshold: alertThreshold,
-                categories: selectedCategories.sorted { $0.id.uuidString < $1.id.uuidString }
-            )
-            dismiss()
-        } catch {
-            showingSaveError = true
-        }
-    }
-}
-
-// MARK: - Category Selection Row
-
-struct CategorySelectionRow: View {
-    let category: FinanceCategory
-    let isSelected: Bool
-    let onToggle: () -> Void
-    
-    var body: some View {
-        Button(action: onToggle) {
-            HStack {
-                HStack(spacing: 12) {
-                    if let icon = category.icon, !icon.isEmpty {
-                        Image(systemName: icon)
-                            .foregroundColor(Color(hex: category.color ?? "#007AFF"))
-                            .frame(width: 24)
-                    }
-                    
-                    Text(category.name ?? "Categoria Sconosciuta")
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundColor(.accentColor)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel(category.name ?? "Categoria")
-        .accessibilityValue(isSelected ? "Selezionata" : "Non selezionata")
-        .accessibilityIdentifier("budget-category-\(category.name ?? "")")
+        .padding(.vertical, 5)
+        .background(ForgiaPalette.canvas, in: Capsule())
     }
 }
 
 // MARK: - Budget Detail View
 
 struct BudgetDetailView: View {
-    @ScaledMetric(relativeTo: .caption) private var categoryMinimumWidth: CGFloat = 100
     let budget: FinanceBudget
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @State private var showingEdit = false
     @State private var confirmingArchive = false
     @State private var showingSaveError = false
-    @Environment(\.dismiss) private var dismiss
-    
+
+    private var categories: [FinanceCategory] {
+        FinanceCategory.displayOrdered(budget.categories ?? [])
+    }
+
     var body: some View {
-        NavigationView {
+        let snapshot = BudgetSnapshot(budget)
+        NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
-                    // Budget Overview
-                    VStack(spacing: 16) {
-                        Text(budget.currentSpent.formatted(.currency(code: budget.account?.currency ?? "EUR")))
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(budget.isOverBudget ? .red : .primary)
-                        
-                        Text("di \((budget.amount ?? 0).formatted(.currency(code: budget.account?.currency ?? "EUR")))")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                        
-                        ProgressView(value: min(1.0, budget.spentPercentage))
-                            .progressViewStyle(LinearProgressViewStyle(
-                                tint: budget.isOverBudget ? .red : budget.shouldAlert ? .orange : .green
-                            ))
-                            .scaleEffect(x: 1, y: 3, anchor: .center)
+                VStack(alignment: .leading, spacing: 18) {
+                    hero(snapshot)
+
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        MetricTile(title: snapshot.status == .over ? "Oltre il limite" : "Rimanente",
+                                   value: snapshot.money(abs(snapshot.remaining)),
+                                   icon: "wallet.pass",
+                                   tint: snapshot.status == .over ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface)
+                        MetricTile(title: "Giorni rimasti", value: "\(max(snapshot.outlook.daysRemaining, 0))",
+                                   icon: "calendar", tint: ForgiaPalette.canvas)
+                        MetricTile(title: "Margine al giorno", value: snapshot.money(snapshot.outlook.dailyAllowance),
+                                   icon: "sun.max", tint: ForgiaPalette.sageSurface)
+                        MetricTile(title: "Stima fine periodo",
+                                   value: snapshot.outlook.projectedTotal.map(snapshot.money) ?? "—",
+                                   icon: "chart.line.uptrend.xyaxis",
+                                   tint: (snapshot.outlook.projectedTotal ?? 0) > snapshot.limit ? ForgiaPalette.apricotSurface : ForgiaPalette.canvas)
                     }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    
-                    // Budget Stats
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 12) {
-                        StatCardView(
-                            title: "Rimanente",
-                            value: budget.remainingAmount.formatted(.currency(code: budget.account?.currency ?? "EUR")),
-                            icon: "wallet.pass", color: budget.remainingAmount >= 0 ? .green : .red
-                        )
-                        
-                        StatCardView(
-                            title: "Giorni Rimasti",
-                            value: "\(budget.daysRemaining)",
-                            icon: "calendar", color: .blue
-                        )
-                        
-                        StatCardView(
-                            title: "Margine al giorno",
-                            value: budget.dailySuggestedSpending.formatted(.currency(code: budget.account?.currency ?? "EUR")),
-                            icon: "chart.bar", color: .orange
-                        )
-                        
-                        let projection = budget.spendingOutlook().projectedTotal
-                        StatCardView(
-                            title: "Stima fine periodo",
-                            value: projection?.formatted(.currency(code: budget.account?.currency ?? "EUR")) ?? "—",
-                            icon: "chart.line.uptrend.xyaxis",
-                            color: projection.map { $0 > (budget.amount ?? 0) ? Color.red : Color.primary } ?? .secondary
-                        )
-                    }
-                    
+
                     Text("Il margine considera tutte le spese registrate nel periodo, anche future. La stima usa il ritmo delle spese variabili dei giorni conclusi e le ricorrenti già registrate; non aggiunge ricorrenze ancora da registrare. Disponibile dopo il primo giorno completo.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ForgiaPalette.mutedText)
+                        .padding(.horizontal, 4)
 
-                    // Categories
-                    if !(budget.categories ?? []).isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Categorie Incluse")
-                                .font(.headline)
-
-                            LazyVGrid(columns: [
-                                GridItem(.adaptive(minimum: categoryMinimumWidth))
-                            ], spacing: 8) {
-                                ForEach(budget.categories ?? [], id: \.id) { category in
-                                    CategoryChip(category: category)
+                    if !categories.isEmpty {
+                        FormCard(title: "Categorie incluse") {
+                            ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
+                                if index > 0 { FormRowDivider() }
+                                HStack(spacing: 14) {
+                                    BudgetIcon(category: category, size: 38)
+                                    Text(category.name ?? "Categoria")
+                                    Spacer()
                                 }
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 58)
                             }
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
                     }
                 }
-                .padding()
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
+            .themedBackground()
             .navigationTitle(budget.name ?? "Budget")
             .toolbarTitleDisplayMode(.inline)
             .financePresentation(isPresented: $showingEdit, title: "Modifica budget") {
-                if let account = budget.account { CreateBudgetView(account: account, budget: budget) }
+                if let account = budget.account {
+                    if budget.planningGroupRaw != nil { BudgetingSetupView(account: account) }
+                    else { CreateBudgetView(account: account, budget: budget) }
+                }
             }
             .confirmationDialog("Disattivare questo budget?", isPresented: $confirmingArchive, titleVisibility: .visible) {
                 Button("Disattiva budget", role: .destructive) {
@@ -618,22 +479,93 @@ struct BudgetDetailView: View {
             .alert("Impossibile salvare", isPresented: $showingSaveError) {
                 Button("OK", role: .cancel) { }
             } message: { Text("Il budget non è stato disattivato. Riprova.") }
-
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Menu {
                         Button("Modifica", systemImage: "pencil") { showingEdit = true }
                         Button("Disattiva budget", systemImage: "archivebox", role: .destructive) { confirmingArchive = true }
-                    } label: { Image(systemName: "ellipsis.circle") }
+                    } label: { Image(systemName: "ellipsis") }
                     .accessibilityLabel("Azioni budget")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") {
-                        dismiss()
-                    }
+                    Button("Fine") { dismiss() }
                 }
             }
         }
+    }
+
+    private func hero(_ snapshot: BudgetSnapshot) -> some View {
+        let tint = snapshot.status == .over ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface
+        let locale = Locale(identifier: "it_IT")
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("SPESO IN QUESTO PERIODO")
+                    .font(.caption2.weight(.semibold)).tracking(1.1)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+                Spacer(minLength: 8)
+                BudgetStatusPill(snapshot: snapshot)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(snapshot.money(snapshot.spent))
+                    .font(.system(size: 40, weight: .semibold, design: .rounded))
+                    .tracking(-0.5)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(snapshot.status == .over ? Color.red : Color.primary)
+                Text("su \(snapshot.money(snapshot.limit))")
+                    .font(.subheadline)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+            BudgetMeter(snapshot: snapshot, height: 10)
+            HStack {
+                Text("\(snapshot.periodRange.start.formatted(.dateTime.day().month(.abbreviated).locale(locale))) – \(snapshot.periodRange.end.addingTimeInterval(-1).formatted(.dateTime.day().month(.abbreviated).year().locale(locale)))")
+                Spacer(minLength: 8)
+                Text("Avviso al \(Int((snapshot.threshold * 100).rounded()))%")
+            }
+            .font(.caption)
+            .foregroundStyle(ForgiaPalette.mutedText)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(colors: [tint, tint.mix(with: ForgiaPalette.surface, by: 0.35)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 25, style: .continuous)
+        )
+    }
+}
+
+/// A figure with its tinted icon, in the shape of the quick-action tiles.
+private struct MetricTile: View {
+    let title: String
+    let value: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(ForgiaPalette.accent)
+                .frame(width: 34, height: 34)
+                .background(tint, in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.headline)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(ForgiaPalette.border, lineWidth: 0.7) }
+        .accessibilityElement(children: .combine)
     }
 }
 

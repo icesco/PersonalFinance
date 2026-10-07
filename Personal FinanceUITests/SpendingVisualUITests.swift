@@ -73,8 +73,8 @@ final class SpendingVisualUITests: XCTestCase {
         let savingsGuide = app.buttons["analysis-savings-explanation"]
         scrollTo(savingsGuide, in: app)
         savingsGuide.tap()
-        XCTAssertTrue(app.staticTexts["Quanto resta delle tue entrate"].waitForExistence(timeout: 5))
-        app.buttons["Fine"].tap()
+        XCTAssertTrue(app.staticTexts["Dai un significato ai numeri"].waitForExistence(timeout: 5))
+        app.buttons["Chiudi"].tap()
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["Periodo precedente"].tap()
         savingsPreview.tap()

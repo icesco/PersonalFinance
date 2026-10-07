@@ -56,37 +56,62 @@ struct ExpenseBudgetCheckView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("expense-budget-compact")
         } else {
-            VStack(alignment: .leading, spacing: 12) {
-                Label(excludingTransactionID == nil ? "Prima di spendere" : "Prima di salvare", systemImage: "checkmark.shield")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 7) {
+                    Image(systemName: "checkmark.shield")
+                    Text(excludingTransactionID == nil ? "PRIMA DI SPENDERE" : "PRIMA DI SALVARE")
+                        .tracking(1.1)
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(ForgiaPalette.mutedText)
+
                 if _budgets.fetchError != nil || _transactions.fetchError != nil {
-                    Text("Verifica del budget non disponibile")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Non riesco a leggere tutti i movimenti. Riprova prima di basarti su questo confronto.")
-                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    messageBlock("Verifica del budget non disponibile",
+                                 "Non riesco a leggere tutti i movimenti. Riprova prima di basarti su questo confronto.")
                 } else if previews.isEmpty {
-                    Text("Nessun budget per questa categoria")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Non posso confrontare questa spesa con un limite. Puoi impostare un budget da Pianifica.")
-                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    messageBlock("Nessun budget per questa categoria",
+                                 "Non posso confrontare questa spesa con un limite. Puoi impostare un budget da Pianifica.")
                 } else {
-                    ForEach(previews) { preview in
+                    ForEach(Array(previews.enumerated()), id: \.element.id) { index, preview in
+                        if index > 0 { Divider().overlay(ForgiaPalette.border) }
                         ExpenseBudgetResultRow(preview: preview, currency: currency)
                     }
-                    Text("Il confronto usa i movimenti già inseriti, comprese eventuali spese future. Rientrare nel budget non garantisce disponibilità sul conto.")
-                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                }
-                if excludingTransactionID != nil {
-                    Text("La spesa originale è esclusa dal totale già inserito: il confronto usa il nuovo importo, la categoria e la data scelti.")
-                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                }
-                if isRecurring {
-                    Text("Stai verificando solo questa occorrenza, non le ripetizioni successive.")
-                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    DisclosureGroup("Come funziona il confronto") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(footnotes, id: \.self) { note in
+                                Text(note)
+                                    .font(.caption)
+                                    .foregroundStyle(ForgiaPalette.mutedText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 8)
+                    }
+                    .font(.footnote.weight(.medium))
+                    .tint(ForgiaPalette.accent)
                 }
             }
             .accessibilityIdentifier("expense-budget-preview")
             .unifiedCard()
+        }
+    }
+
+    private var footnotes: [String] {
+        var notes = ["Il confronto usa i movimenti già inseriti, comprese eventuali spese future. Rientrare nel budget non garantisce disponibilità sul conto."]
+        if excludingTransactionID != nil {
+            notes.append("La spesa originale è esclusa dal totale già inserito: il confronto usa il nuovo importo, la categoria e la data scelti.")
+        }
+        if isRecurring {
+            notes.append("Stai verificando solo questa occorrenza, non le ripetizioni successive.")
+        }
+        return notes
+    }
+
+    private func messageBlock(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.subheadline.weight(.semibold))
+            Text(detail).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
         }
     }
 }
@@ -96,6 +121,7 @@ private struct ExpenseBudgetResultRow: View {
     let currency: String
     var compact = false
 
+    /// Icons carry the status colour; text stays primary so it reads on light and dark surfaces.
     private var color: Color {
         switch preview.status {
         case .overLimit: .red
@@ -104,31 +130,92 @@ private struct ExpenseBudgetResultRow: View {
         }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(preview.name).font(.subheadline.weight(.semibold))
-            switch preview.status {
-            case .overLimit:
-                Label("Sforeresti di \(-preview.remaining, format: .currency(code: currency))", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(color)
-            case .atLimit:
-                Label("Raggiungeresti il limite del budget", systemImage: "exclamationmark.circle")
-                    .foregroundStyle(color)
-            case .approachingLimit:
-                Label("Vicino al limite: resterebbero \(preview.remaining, format: .currency(code: currency))", systemImage: "exclamationmark.circle")
-                    .foregroundStyle(color)
-            case .withinLimit:
-                Label("Rientra nel budget: resterebbero \(preview.remaining, format: .currency(code: currency))", systemImage: "checkmark.circle")
-                    .foregroundStyle(color)
-            }
-            if !compact {
-                Text("Già inseriti \(preview.spent, format: .currency(code: currency)) su \(preview.limit, format: .currency(code: currency))")
-                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                Text("Periodo: \(preview.period.start, format: .dateTime.day().month()) – \(preview.period.end.addingTimeInterval(-1), format: .dateTime.day().month().year())")
-                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-            }
+    private var statusLabel: (text: String, icon: String) {
+        switch preview.status {
+        case .overLimit: ("Oltre il limite", "exclamationmark.triangle.fill")
+        case .atLimit: ("Raggiungeresti il limite del budget", "exclamationmark.circle.fill")
+        case .approachingLimit: ("Vicino al limite", "exclamationmark.circle.fill")
+        case .withinLimit: ("Rientra nel budget", "checkmark.circle.fill")
         }
-        .font(.subheadline)
+    }
+
+    private var outcome: String {
+        preview.status == .overLimit
+            ? "Sforeresti di \((-preview.remaining).formatted(.currency(code: currency)))"
+            : "Resterebbero \(preview.remaining.formatted(.currency(code: currency)))"
+    }
+
+    private func share(_ value: Decimal) -> Double {
+        guard preview.limit > 0 else { return 0 }
+        return min(max(NSDecimalNumber(decimal: value / preview.limit).doubleValue, 0), 1)
+    }
+
+    var body: some View {
+        if compact { compactBody } else { fullBody }
+    }
+
+    private var compactBody: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(preview.name).font(.subheadline.weight(.semibold))
+            HStack(spacing: 6) {
+                Image(systemName: statusLabel.icon).foregroundStyle(color)
+                Text(preview.status == .withinLimit ? "Rientra nel budget: \(outcome.lowercased())" : outcome)
+            }
+            .font(.subheadline)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var fullBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(preview.name)
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 8)
+                HStack(spacing: 5) {
+                    Image(systemName: statusLabel.icon).foregroundStyle(color)
+                    Text(statusLabel.text)
+                }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(ForgiaPalette.canvas, in: Capsule())
+            }
+
+            Text(outcome)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(preview.status == .overLimit ? Color.red : Color.primary)
+
+            GeometryReader { proxy in
+                let spentWidth = proxy.size.width * share(preview.spent)
+                let proposedWidth = proxy.size.width * min(share(preview.proposedAmount), 1 - share(preview.spent))
+                ZStack(alignment: .leading) {
+                    Capsule().fill(ForgiaPalette.canvas)
+                    HStack(spacing: 2) {
+                        if spentWidth > 0 {
+                            Capsule().fill(ForgiaPalette.mutedText.opacity(0.45)).frame(width: spentWidth)
+                        }
+                        Capsule().fill(color).frame(width: max(proposedWidth, 6))
+                    }
+                }
+            }
+            .frame(height: 8)
+            .accessibilityHidden(true)
+
+            HStack(alignment: .firstTextBaseline) {
+                Text("Già inseriti \(preview.spent.formatted(.currency(code: currency))) + questa spesa")
+                Spacer(minLength: 8)
+                Text("su \(preview.limit.formatted(.currency(code: currency)))")
+                    .monospacedDigit()
+            }
+            .font(.caption)
+            .foregroundStyle(ForgiaPalette.mutedText)
+
+            Text("Periodo: \(preview.period.start, format: .dateTime.day().month()) – \(preview.period.end.addingTimeInterval(-1), format: .dateTime.day().month().year())")
+                .font(.caption)
+                .foregroundStyle(ForgiaPalette.mutedText)
+        }
         .accessibilityElement(children: .combine)
     }
 }

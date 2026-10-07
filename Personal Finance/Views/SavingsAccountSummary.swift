@@ -71,7 +71,7 @@ private struct SavingsValueHeader: View {
                 Spacer()
                 if let rate {
                     Text("\(rate.formatted(.number))% annuo")
-                        .font(.caption.weight(.semibold)).foregroundStyle(rate < 0 ? Color(hex: "#C06748") : tint)
+                        .font(.caption.weight(.semibold)).foregroundStyle(rate < 0 ? ForgiaPalette.deficit : tint)
                         .padding(.horizontal, 10).padding(.vertical, 6)
                         .background(tint.opacity(0.09), in: Capsule())
                 }
@@ -80,18 +80,18 @@ private struct SavingsValueHeader: View {
                 Text("Controvalore stimato").font(.caption).foregroundStyle(.secondary)
                 Text(value.estimatedValue, format: .currency(code: currency))
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(value.estimatedValue < value.capital ? Color(hex: "#C06748") : tint).monospacedDigit().minimumScaleFactor(0.65).lineLimit(1)
+                    .foregroundStyle(value.estimatedValue < value.capital ? ForgiaPalette.deficit : tint).monospacedDigit().minimumScaleFactor(0.65).lineLimit(1)
             }.accessibilityElement(children: .combine)
             if value.estimatedValue < 0 {
                 Text("Saldo sotto zero")
-                    .font(.subheadline.weight(.medium)).foregroundStyle(Color(hex: "#C06748"))
+                    .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.deficit)
             }
             HStack {
                 Text("Capitale versato netto").font(.subheadline).foregroundStyle(.secondary)
                 Spacer(minLength: 12)
                 Text(value.capital, format: .currency(code: currency))
                     .font(.subheadline.weight(.semibold)).monospacedDigit()
-                    .foregroundStyle(value.capital < 0 ? Color(hex: "#C06748") : .primary)
+                    .foregroundStyle(value.capital < 0 ? ForgiaPalette.deficit : .primary)
             }.accessibilityElement(children: .combine)
             HStack(alignment: .top, spacing: 12) {
                 SavingsInterestMetric(title: "Accreditati", amount: value.creditedInterest, currency: currency, icon: "checkmark.circle", tint: tint)
@@ -113,7 +113,7 @@ private struct SavingsInterestMetric: View {
             Text(amount, format: .currency(code: currency))
                 .font(.system(.title3, design: .rounded, weight: .semibold))
                 .monospacedDigit().minimumScaleFactor(0.7).lineLimit(1)
-                .foregroundStyle(amount < 0 ? Color(hex: "#C06748") : .primary)
+                .foregroundStyle(amount < 0 ? ForgiaPalette.deficit : .primary)
             Text(amount < 0 ? "Rendimento" : "Interessi").font(.caption2).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

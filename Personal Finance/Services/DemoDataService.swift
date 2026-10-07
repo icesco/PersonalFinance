@@ -23,7 +23,7 @@ final class DemoDataService {
         let account = Account(name: "Demo", currency: "EUR")
         modelContext.insert(account)
 
-        let categories = createCategories(for: account)
+        let categories = try createCategories(for: account)
 
         let conto = Conto(name: "Conto Corrente", type: .checking, initialBalance: 2500)
         conto.account = account
@@ -47,33 +47,10 @@ final class DemoDataService {
 
     // MARK: - Categories
 
-    private func createCategories(for account: Account) -> [String: FinanceCategory] {
-        var map: [String: FinanceCategory] = [:]
-
-        let data: [(String, String, String)] = [
-            ("Stipendio", "#4CAF50", "dollarsign.circle"),
-            ("Bonus", "#2E7D32", "gift.circle"),
-            ("Alimentari", "#F44336", "cart"),
-            ("Trasporti", "#2196F3", "car"),
-            ("Casa", "#9C27B0", "house"),
-            ("Utenze", "#673AB7", "bolt"),
-            ("Salute", "#E91E63", "cross.case"),
-            ("Intrattenimento", "#FF5722", "gamecontroller"),
-            ("Abbigliamento", "#795548", "tshirt"),
-            ("Ristoranti", "#FF6F00", "fork.knife"),
-            ("Abbonamenti", "#00BCD4", "tv"),
-            ("Sport", "#FF9800", "figure.run"),
-            ("Altro", "#9E9E9E", "questionmark.circle"),
-        ]
-
-        for (name, color, icon) in data {
-            let cat = FinanceCategory(name: name, color: color, icon: icon)
-            cat.account = account
-            modelContext.insert(cat)
-            map[name] = cat
-        }
-
-        return map
+    /// The same suggested macro categories and subcategories a new book gets.
+    private func createCategories(for account: Account) throws -> [String: FinanceCategory] {
+        try CategoryDefaults(context: modelContext).upgrade(account)
+        return Dictionary((account.categories ?? []).map { ($0.name ?? "", $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // MARK: - Month Generation
@@ -97,7 +74,7 @@ final class DemoDataService {
         }
 
         // — Affitto (1st)
-        if let cat = categories["Casa"] {
+        if let cat = categories["Affitto o mutuo"] {
             addTx(amount: 650, type: .expense, day: 1, month: monthDate,
                    desc: "Affitto", fromConto: conto, category: cat, calendar: calendar)
         }
@@ -125,7 +102,7 @@ final class DemoDataService {
         }
 
         // — Trasporti (1st)
-        if let cat = categories["Trasporti"] {
+        if let cat = categories["Mezzi pubblici"] {
             addTx(amount: 39, type: .expense, day: 1, month: monthDate,
                    desc: "Abbonamento metro", fromConto: conto, category: cat, calendar: calendar)
         }

@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import SwiftData
 import FinanceCore
 
 /// A factual drill-down of recorded expenses, excluding transfers.
@@ -9,6 +10,8 @@ struct SpendingOverviewView: View {
     let currency: String
     let scopeContoIDs: Set<UUID>
     var initialBookID: UUID? = nil
+
+    @Query private var books: [Account]
 
     @State private var period: SpendingAnalysisPeriod? = .month
     @State private var customStart = Calendar.current.dateInterval(of: .month, for: Date())!.start
@@ -25,6 +28,15 @@ struct SpendingOverviewView: View {
     private var comparisonInterval: DateInterval { window.previous }
     private var report: RecordedSpendingReport {
         RecordedSpendingReport.calculate(transactions: transactions, interval: interval, previous: comparisonInterval)
+    }
+
+    /// The current plan only applies to the current full-book month, not arbitrary historical subsets.
+    private var applicableSavingsPlan: BudgetingPlan? {
+        guard period == .month, interval.contains(Date()), let initialBookID,
+              let book = books.first(where: { $0.id == initialBookID }),
+              Set(book.activeConti.map(\.id)) == scopeContoIDs,
+              let plan = book.budgetingPlan, plan.method != .manual else { return nil }
+        return plan
     }
 
     private var largestAmount: Decimal {
@@ -48,12 +60,14 @@ struct SpendingOverviewView: View {
 
                 VStack(alignment: .leading, spacing: 24) {
                     if period == .month {
-                        MonthlySpendingTrendCard(trend: MonthlySpendingTrend.calculate(transactions: transactions, anchor: anchor),
-                            currency: currency, periodTitle: periodTitle)
+                        MonthlySpendingTrendCard(
+                            trend: MonthlySpendingTrend.calculate(transactions: transactions, anchor: anchor),
+                            currency: currency, periodTitle: periodTitle
+                        )
                     }
                     RecordedSavingsCard(
                         report: RecordedSavingsReport.calculate(transactions: transactions, interval: interval),
-                        currency: currency, isInProgress: interval.end > Date(), periodTitle: periodTitle
+                        currency: currency, isInProgress: interval.end > Date(), plan: applicableSavingsPlan, periodTitle: periodTitle
                     )
                     FinanceCalendarPreview(contoIDs: scopeContoIDs, currency: currency, initialDate: anchor)
                     InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency, periodTitle: periodTitle)
@@ -80,10 +94,8 @@ struct SpendingOverviewView: View {
                                 if let categoryID = category.categoryID {
                                     NavigationLink {
                                         TransactionListView(initialCategoryID: categoryID,
-                                                            initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())), expensesOnly: true, scopeContoIDs: scopeContoIDs)
-                                            #if os(iOS)
-                                            .toolbar(.visible, for: .navigationBar)
-                                            #endif
+                                                            initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())), expensesOnly: true, scopeContoIDs: scopeContoIDs,
+                                                            isPushed: true, pushedTitle: category.name)
                                     } label: {
                                         categoryRow(category, index: index)
                                     }.buttonStyle(.plain)

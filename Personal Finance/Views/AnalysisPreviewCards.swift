@@ -90,12 +90,13 @@ struct RecordedSavingsCard: View {
     let report: RecordedSavingsReport
     let currency: String
     let isInProgress: Bool
+    var plan: BudgetingPlan? = nil
     var periodTitle = ""
 
     var body: some View {
         NavigationLink {
             AnalysisDetailScreen(title: "Tasso di risparmio", periodTitle: periodTitle) {
-                RecordedSavingsDetailContent(report: report, currency: currency, isInProgress: isInProgress)
+                RecordedSavingsDetailContent(report: report, currency: currency, isInProgress: isInProgress, plan: plan)
             }
         } label: {
             VStack(alignment: .leading, spacing: 12) {

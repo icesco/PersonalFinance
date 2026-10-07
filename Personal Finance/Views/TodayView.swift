@@ -81,23 +81,16 @@ struct TodayView: View {
                                 onImport: { showingImport = true },
                                 onAddIncome: { appState.presentQuickTransaction(type: .income, planned: true) }
                             )
-                            quickActions
+                            if appState.selectedAccount != nil {
+                                TodayBudgetsCard(budgets: appState.selectedAccount?.budgets?.filter { $0.isActive == true } ?? []) {
+                                    showingBudgets = true
+                                }
+                            }
                             if !snapshot.hasMixedCurrencies {
                                 FinanceCalendarPreview(contoIDs: snapshot.contoIDs, currency: snapshot.currency)
                                 SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
                                 TodayActivityLayout(snapshot: snapshot)
                             }
-                            Button { showingBudgets = true } label: {
-                                HStack {
-                                    Label("I tuoi budget", systemImage: "scope")
-                                    Spacer()
-                                    Image(systemName: "arrow.up.right")
-                                }
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(ForgiaPalette.accent)
-                                .padding(.vertical, 6)
-                            }
-                            .accessibilityIdentifier("today-budgets")
                         }
                         #if os(macOS)
                         .frame(maxWidth: 1040)
@@ -113,7 +106,7 @@ struct TodayView: View {
                     #endif
                 }
             }
-            .modifier(TransactionAddButtonModifier(isVisible: screen == .analysis))
+            .transactionButtonRoot(screen == .analysis ? .analysis : .dashboard, isActive: screen != .analysis)
             .financePresentation(isPresented: $showingImport, title: "Importa CSV", width: 800) { CSVImportView() }
             .financePresentation(isPresented: $showingBudgets, title: "Budget", width: 800) { BudgetView() }
             .financePresentation(isPresented: $showingBalances, title: "Verifica saldi") {
@@ -126,10 +119,14 @@ struct TodayView: View {
 
     private func header(snapshot: TodaySnapshot) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 12) {
-                Text("Forgia")
-                    .font(.system(size: 34, weight: .semibold, design: .serif))
-                    .tracking(-1)
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: 10) {
+                    FormiLogo(size: 36)
+                    Text("Formi")
+                        .font(.system(size: 34, weight: .semibold, design: .serif))
+                        .tracking(-1)
+                }
+                .accessibilityElement(children: .combine)
                 Spacer()
                 Button { appState.presentAccountSelection() } label: {
                     HStack(spacing: 6) {
@@ -150,38 +147,6 @@ struct TodayView: View {
                 .foregroundStyle(ForgiaPalette.mutedText)
         }
         .foregroundStyle(.primary)
-    }
-
-    private var quickActions: some View {
-        HStack(spacing: 10) {
-            quickAction("Spesa", symbol: "arrow.up.right", fill: ForgiaPalette.apricotSurface) {
-                appState.presentQuickTransaction(type: .expense)
-            }
-            quickAction("Entrata", symbol: "arrow.down.left", fill: ForgiaPalette.sageSurface) {
-                appState.presentQuickTransaction(type: .income)
-            }
-            quickAction("Importa", symbol: "square.and.arrow.down", fill: ForgiaPalette.surface) {
-                showingImport = true
-            }
-        }
-    }
-
-    private func quickAction(_ title: String, symbol: String, fill: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(ForgiaPalette.accent)
-                    .frame(width: 40, height: 40)
-                    .background(fill, in: Circle())
-                Text(title).font(.caption.weight(.semibold))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 18))
-            .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(ForgiaPalette.border, lineWidth: 0.7) }
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -504,10 +469,7 @@ private struct TodayShiftsCard: View {
             } else {
                 ForEach(Array(shifts.enumerated()), id: \.offset) { _, shift in
                     NavigationLink {
-                        TransactionListView(initialCategoryID: shift.categoryID)
-                            #if os(iOS)
-                            .toolbar(.visible, for: .navigationBar)
-                            #endif
+                        TransactionListView(initialCategoryID: shift.categoryID, isPushed: true)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(shift.categoryName).font(.subheadline.weight(.semibold))

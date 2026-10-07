@@ -25,10 +25,8 @@ struct SpendingCommitmentSummary: View {
                     .font(.subheadline)
                 if let categoryID = category.categoryID {
                     NavigationLink {
-                        TransactionListView(initialCategoryID: categoryID, initialInterval: DateInterval(start: Calendar.current.date(byAdding: .day, value: -30, to: Date())!, end: Date()), expensesOnly: true, scopeContoIDs: scopeContoIDs)
-                            #if os(iOS)
-                            .toolbar(.visible, for: .navigationBar)
-                            #endif
+                        TransactionListView(initialCategoryID: categoryID, initialInterval: DateInterval(start: Calendar.current.date(byAdding: .day, value: -30, to: Date())!, end: Date()), expensesOnly: true, scopeContoIDs: scopeContoIDs,
+                                            isPushed: true, pushedTitle: category.name)
                     } label: {
                         Label("Rivedi questa categoria", systemImage: "arrow.up.right")
                     }
