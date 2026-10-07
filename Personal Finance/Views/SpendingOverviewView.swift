@@ -47,6 +47,10 @@ struct SpendingOverviewView: View {
                 .padding(.horizontal, 22)
 
                 VStack(alignment: .leading, spacing: 24) {
+                    RecordedSavingsCard(
+                        report: RecordedSavingsReport.calculate(transactions: transactions, interval: interval),
+                        currency: currency, isInProgress: interval.end > Date()
+                    )
                     InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
 
                     if report.expenses > 0 {

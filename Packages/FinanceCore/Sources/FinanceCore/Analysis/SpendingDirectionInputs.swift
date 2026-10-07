@@ -22,7 +22,8 @@ public struct SpendingDirectionInputs: Sendable {
         let entries = relevant.map {
             DirectionTransaction(date: $0.date, amount: $0.amount ?? 0, type: $0.type,
                                  categoryID: $0.categoryId, categoryName: $0.category?.name ?? "Da classificare",
-                                 isRecurring: $0.isRecurring == true || $0.recurrenceSourceID != nil)
+                                 isRecurring: $0.isRecurring == true || $0.recurrenceSourceID != nil,
+                                 hasValidAmount: $0.amount != nil && $0.amount?.isNaN == false)
         }
         // A materialized occurrence may arrive before its resolution through iCloud.
         let resolved = Set(resolutions.map(\.key)).union(relevant.compactMap { transaction -> String? in

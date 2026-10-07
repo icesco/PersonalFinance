@@ -56,11 +56,10 @@ public struct AccountStatisticsResult: Sendable {
         self.calculatedAt = Date()
     }
 
-    /// Savings rate as percentage (0-100)
-    public var savingsRate: Double {
-        guard totalIncome > 0 else { return 0 }
-        return NSDecimalNumber(decimal: netIncome).doubleValue /
-               NSDecimalNumber(decimal: totalIncome).doubleValue * 100
+    /// Percentage, including negative values; nil when income is non-positive.
+    public var savingsRate: Double? {
+        RecordedSavingsReport.rate(income: totalIncome, expenses: totalExpenses)
+            .map { NSDecimalNumber(decimal: $0 * 100).doubleValue }
     }
 }
 

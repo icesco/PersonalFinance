@@ -8,10 +8,11 @@ public struct DirectionTransaction: Sendable {
     public let categoryID: UUID?
     public let categoryName: String
     public let isRecurring: Bool
+    public let hasValidAmount: Bool
 
     public init(
         date: Date, amount: Decimal, type: TransactionType,
-        categoryID: UUID?, categoryName: String, isRecurring: Bool
+        categoryID: UUID?, categoryName: String, isRecurring: Bool, hasValidAmount: Bool = true
     ) {
         self.date = date
         self.amount = amount
@@ -19,6 +20,7 @@ public struct DirectionTransaction: Sendable {
         self.categoryID = categoryID
         self.categoryName = categoryName
         self.isRecurring = isRecurring
+        self.hasValidAmount = hasValidAmount
     }
 }
 
