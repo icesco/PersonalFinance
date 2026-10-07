@@ -116,6 +116,12 @@ struct Personal_FinanceApp: App {
             EditExpenseBudgetFixture(entry: .quick)
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_EDIT_EXPENSE_BUDGET") {
             EditExpenseBudgetFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_ACCOUNT_PALETTE") {
+            AccountPaletteVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_WIDGET_VISUAL") {
+            BalanceWidgetVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_HISTORY") {
+            BalanceHistoryFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_RECONCILIATION") {
             BalanceReconciliationFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_CURRENCY_SELECTION") {

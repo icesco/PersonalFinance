@@ -6,6 +6,7 @@ import FinanceCore
 struct BalanceHistoryView: View {
     @Query(sort: \Account.name) private var books: [Account]
     @Query private var transactions: [FinanceCore.Transaction]
+    @Query private var resolutions: [RecurrenceResolution]
     @State private var bookID: UUID?
     @State private var contoID: UUID?
     @State private var anchor = Date()
@@ -20,20 +21,13 @@ struct BalanceHistoryView: View {
     private var conti: [Conto] { (book?.conti ?? []).sorted { ($0.name ?? "") < ($1.name ?? "") } }
     private var interval: DateInterval { Calendar.current.dateInterval(of: yearly ? .year : .month, for: anchor)! }
     private var currency: String { book?.currency ?? "EUR" }
-    private var points: [BalanceDataPoint] {
-        let selected = conti.filter { contoID == nil || $0.id == contoID }
-        let snapshots = transactions.map {
-            TransactionSnapshot(id: $0.id, amount: $0.amount ?? 0, type: $0.type, date: $0.date,
-                                fromContoId: $0.fromContoId ?? $0.fromConto?.id,
-                                toContoId: $0.toContoId ?? $0.toConto?.id, destinationAmount: $0.destinationAmount)
-        }
-        return RecordedBalanceHistory.points(transactions: snapshots, contiIDs: Set(selected.map(\.id)),
-                                             initialBalance: selected.reduce(0) { $0 + ($1.initialBalance ?? 0) },
-                                             interval: interval, now: Date())
+    private var history: [AccountBalanceSeries] {
+        AccountBalanceSeries.make(conti: conti, selectedIDs: Set(conti.filter { contoID == nil || $0.id == contoID }.map(\.id)),
+                                  transactions: transactions, resolutions: resolutions, interval: interval)
     }
 
     var body: some View {
-        let history = points
+        let series = history
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Picker("Libro", selection: Binding(get: { book?.id }, set: { bookID = $0; contoID = nil; selectedDate = nil })) {
@@ -55,9 +49,9 @@ struct BalanceHistoryView: View {
                     Button("Periodo successivo", systemImage: "chevron.right") { move(1) }
                         .labelStyle(.iconOnly).disabled(interval.end > Date())
                 }
-                BalanceHistoryChart(points: history, currency: currency, selectedDate: $selectedDate)
+                BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
                     .unifiedCard()
-                Text("Saldo ricostruito dai saldi iniziali e dai movimenti datati fino a oggi. Le ricorrenze future e le proiezioni non sono incluse. Sono compresi anche i conti archiviati del libro; le valute di libri diversi restano separate.")
+                Text("Saldo ricostruito dai saldi iniziali e dai movimenti datati fino a oggi. Il tratteggio indica la previsione basata sulle transazioni programmate e sulle ricorrenze fino alla fine del periodo. Sono compresi anche i conti archiviati del libro; le valute di libri diversi restano separate.")
                     .font(.footnote).foregroundStyle(.secondary)
             }.padding()
         }
@@ -72,10 +66,7 @@ struct BalanceHistoryView: View {
         anchor = Calendar.current.date(byAdding: yearly ? .year : .month, value: value, to: anchor) ?? anchor
         selectedDate = nil
     }
-    private func yDomain(_ points: [BalanceDataPoint]) -> ClosedRange<Double> {
-        let domain = BalanceCalculator.chartYDomain(dataPoints: points)
-        return NSDecimalNumber(decimal: domain.lowerBound).doubleValue...NSDecimalNumber(decimal: domain.upperBound).doubleValue
-    }
+
 }
 
 
@@ -86,26 +77,20 @@ struct InlineBalanceHistoryCard: View {
     let currency: String
     @Query private var conti: [Conto]
     @Query private var transactions: [FinanceCore.Transaction]
+    @Query private var resolutions: [RecurrenceResolution]
     @State private var selectedDate: Date?
 
-    private var history: [BalanceDataPoint] {
-        let selected = conti.filter { scopeContoIDs.contains($0.id) }
-        guard !selected.isEmpty else { return [] }
-        let snapshots = transactions.map {
-            TransactionSnapshot(id: $0.id, amount: $0.amount ?? 0, type: $0.type, date: $0.date,
-                                fromContoId: $0.fromContoId ?? $0.fromConto?.id,
-                                toContoId: $0.toContoId ?? $0.toConto?.id, destinationAmount: $0.destinationAmount)
-        }
-        return RecordedBalanceHistory.points(transactions: snapshots, contiIDs: scopeContoIDs,
-            initialBalance: selected.reduce(0) { $0 + ($1.initialBalance ?? 0) }, interval: interval, now: Date())
+    private var history: [AccountBalanceSeries] {
+        AccountBalanceSeries.make(conti: conti, selectedIDs: scopeContoIDs,
+                                  transactions: transactions, resolutions: resolutions, interval: interval)
     }
 
     var body: some View {
-        let points = history
+        let series = history
         VStack(alignment: .leading, spacing: 16) {
-            Label("Saldo nel periodo", systemImage: "chart.xyaxis.line")
+            Label("Saldo per conto", systemImage: "chart.xyaxis.line")
                 .font(.system(.title3, design: .serif, weight: .semibold))
-            BalanceHistoryChart(points: points, currency: currency, selectedDate: $selectedDate)
+            BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
 
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,92 +102,184 @@ struct InlineBalanceHistoryCard: View {
 }
 
 
-/// Shared presentation: ledger values stay stepped rather than inventing intermediate balances.
+/// Recorded balances and scheduled projections remain separate.
 private struct BalanceHistoryChart: View {
-    let points: [BalanceDataPoint]
+    let series: [AccountBalanceSeries]
+    let interval: DateInterval
     let currency: String
     @Binding var selectedDate: Date?
-    private let balanceColor = Color(hex: "#238B83")
-    private let openingColor = Color(hex: "#9575CD")
 
     var body: some View {
-        if let opening = points.first, let closing = points.last {
-            let probeDate = selectedDate.map { min(max($0, opening.date), closing.date) }
-            let selected = probeDate.flatMap { date in points.last { $0.date <= date } } ?? closing
-            let delta = closing.balance - opening.balance
-            let domain = BalanceCalculator.chartYDomain(dataPoints: points)
-            let lower = NSDecimalNumber(decimal: domain.lowerBound).doubleValue
-            let upper = NSDecimalNumber(decimal: domain.upperBound).doubleValue
+        if let openingDate = series.first?.points.first?.date,
+           let closingDate = series.first?.points.last?.date {
+            let hasProjection = series.contains { !$0.projected.isEmpty }
+            let endDate = hasProjection ? interval.end : closingDate
+            let probeDate = selectedDate.map { min(max($0, openingDate), endDate) } ?? closingDate
+            let isProjectedSelection = probeDate > closingDate
+            let total = series.reduce(Decimal(0)) { $0 + $1.balance(at: probeDate) }
+            let delta = series.reduce(Decimal(0)) { $0 + $1.balance(at: closingDate) - $1.balance(at: openingDate) }
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(selectedDate == nil ? "Saldo finale registrato" : "Saldo selezionato")
+                    Text(isProjectedSelection
+                         ? (series.count > 1 ? "Saldo totale previsto" : "Saldo previsto")
+                         : (series.count > 1 ? "Saldo totale registrato" : "Saldo registrato"))
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                    Text(selected.balance, format: .currency(code: currency))
+                    Text(total, format: .currency(code: currency))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        .monospacedDigit().foregroundStyle(balanceColor)
+                        .monospacedDigit().foregroundStyle(ForgiaPalette.accent)
                         .minimumScaleFactor(0.65).lineLimit(1)
-                    Text(probeDate ?? selected.date,
-                         format: .dateTime.day().month().year())
+                    Text(probeDate, format: .dateTime.day().month().year())
                         .font(.caption).foregroundStyle(.secondary)
                 }.accessibilityElement(children: .combine)
                 Label {
-                    Text("\(delta >= 0 ? "+" : "")\(delta.formatted(.currency(code: currency))) nel periodo")
+                    Text("\(delta >= 0 ? "+" : "")\(delta.formatted(.currency(code: currency))) nel periodo registrato")
                 } icon: {
                     Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
                 }
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(delta >= 0 ? balanceColor : Color(hex: "#C06748"))
-                .padding(.horizontal, 10).padding(.vertical, 7)
-                .background((delta >= 0 ? balanceColor : Color(hex: "#C06748")).opacity(0.1), in: Capsule())
+                .foregroundStyle(delta >= 0 ? ForgiaPalette.accent : Color(hex: "#C06748"))
 
-                Chart {
-                    ForEach(points, id: \.date) { point in
-                        AreaMark(x: .value("Data", point.date), yStart: .value("Base", lower),
-                                 yEnd: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue))
-                            .interpolationMethod(.stepEnd)
-                            .foregroundStyle(LinearGradient(colors: [balanceColor.opacity(0.28), balanceColor.opacity(0.02)], startPoint: .top, endPoint: .bottom))
-                        LineMark(x: .value("Data", point.date), y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue))
-                            .interpolationMethod(.stepEnd)
-                            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                            .foregroundStyle(balanceColor)
-                    }
-                    RuleMark(y: .value("Saldo iniziale", NSDecimalNumber(decimal: opening.balance).doubleValue))
-                        .foregroundStyle(openingColor.opacity(0.8))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                    if let selectedDate {
-                        RuleMark(x: .value("Selezione", min(max(selectedDate, opening.date), closing.date)))
-                            .foregroundStyle(balanceColor.opacity(0.35))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    }
-                    PointMark(x: .value("Data", probeDate ?? closing.date),
-                              y: .value("Saldo", NSDecimalNumber(decimal: selected.balance).doubleValue))
-                        .foregroundStyle(balanceColor).symbolSize(65)
+                BalanceHistoryPlot(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
+                    .frame(height: 230)
+
+                if hasProjection {
+                    HStack(spacing: 18) {
+                        Label { Text("Registrato") } icon: { Capsule().frame(width: 18, height: 2) }
+                        Label { Text("Previsto") } icon: {
+                            HStack(spacing: 3) {
+                                Capsule().frame(width: 7, height: 2)
+                                Capsule().frame(width: 7, height: 2)
+                            }
+                        }
+                    }.font(.caption).foregroundStyle(.secondary)
                 }
-                .chartYScale(domain: lower...upper)
-                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
-                .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 4])).foregroundStyle(.secondary.opacity(0.2))
-                    AxisValueLabel { if let amount = value.as(Double.self) { Text(amount, format: .number.notation(.compactName)).font(.caption2) } }
-                } }
-                .chartXSelection(value: $selectedDate)
-                .frame(height: 230)
-                .accessibilityLabel("Saldo registrato, con riferimento al saldo iniziale. Valori in \(currency).")
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 20) { legend }
-                    VStack(alignment: .leading, spacing: 8) { legend }
+                if hasProjection {
+                    let projectedTotal = series.reduce(Decimal(0)) { $0 + $1.balance(at: endDate) }
+                    Text("Previsto a fine periodo: \(projectedTotal.formatted(.currency(code: currency)))")
+                        .font(.caption.weight(.semibold))
                 }
-                .font(.caption)
-                Text("Seleziona un punto del grafico per leggere il saldo. Solo movimenti registrati, senza proiezioni future.")
+                VStack(spacing: 10) {
+                    ForEach(series) { account in
+                        HStack(spacing: 8) {
+                            Capsule().fill(account.color).frame(width: 18, height: 3)
+                                .accessibilityHidden(true)
+                            Text(account.name).font(.caption.weight(.medium))
+                            Spacer(minLength: 8)
+                            Text(account.balance(at: probeDate), format: .currency(code: currency))
+                                .font(.caption.weight(.semibold)).monospacedDigit()
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                Text(hasProjection
+                     ? "Il tratteggio considera solo transazioni programmate e ricorrenze. Le spese e le entrate non programmate possono cambiare il saldo. Seleziona una data per leggere i saldi."
+                     : "Seleziona un punto del grafico per leggere il saldo di ogni conto. Solo movimenti registrati.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } else {
             ContentUnavailableView("Nessun saldo nel periodo", systemImage: "chart.xyaxis.line")
         }
     }
-    @ViewBuilder private var legend: some View {
-        Label { Text("Saldo · \(currency)") } icon: { Capsule().fill(balanceColor).frame(width: 18, height: 4) }
-        Label { Text("Inizio periodo") } icon: {
-            HStack(spacing: 3) { Capsule().fill(openingColor).frame(width: 7, height: 3); Capsule().fill(openingColor).frame(width: 7, height: 3) }
+
+
+}
+
+#if DEBUG
+/// Isolated visual verification data; never written to the user's ledger.
+struct BalanceHistoryFixture: View {
+    fileprivate static let data: (container: ModelContainer, ids: Set<UUID>, interval: DateInterval) = {
+        let container = try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        let book = Account(name: "Demo", currency: "EUR")
+        let current = Conto(name: "Conto corrente", type: .checking, initialBalance: 3600, color: AccountPalette.ottanio)
+        let savings = Conto(name: "Risparmi", type: .savings, initialBalance: 7000, color: AccountPalette.petrolio)
+        let cash = Conto(name: "Contanti", type: .cash, initialBalance: 300, color: AccountPalette.ocra)
+        book.conti = [current, savings, cash]
+        for conto in book.conti! { conto.account = book }
+        container.mainContext.insert(book)
+        let now = Date()
+        let start = Calendar.current.date(byAdding: .day, value: -30, to: now)!
+        @MainActor func add(_ day: Int, _ amount: Decimal, _ type: TransactionType, from: Conto? = nil, to: Conto? = nil) {
+            let transaction = FinanceCore.Transaction(amount: amount, type: type,
+                date: Calendar.current.date(byAdding: .day, value: day, to: start)!)
+            if let from { transaction.setFromConto(from) }
+            if let to { transaction.setToConto(to) }
+            container.mainContext.insert(transaction)
+        }
+        add(3, 250, .expense, from: current)
+        add(7, 80, .expense, from: cash)
+        add(11, 1800, .income, to: current)
+        add(15, 600, .transfer, from: current, to: savings)
+        add(19, 450, .expense, from: current)
+        add(23, 100, .transfer, from: current, to: cash)
+        add(27, 150, .expense, from: current)
+        add(33, 700, .transfer, from: current, to: savings)
+        add(38, 1800, .income, to: current)
+        add(45, 800, .expense, from: current)
+        try! container.mainContext.save()
+        return (container, Set(book.conti!.map(\.id)), DateInterval(start: start, end: Calendar.current.dateInterval(of: .month, for: now)!.end))
+    }()
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Registrato e previsto · dati demo")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    InlineBalanceHistoryCard(scopeContoIDs: Self.data.ids, interval: Self.data.interval, currency: "EUR")
+                }.padding()
+            }
+            .themedBackground()
+            .navigationTitle("Analisi")
+        }
+        .modelContainer(Self.data.container)
+    }
+}
+#endif
+
+#if DEBUG
+struct BalanceWidgetVisualFixture: View {
+    private static let history: WidgetBalanceSnapshot = {
+        let context = BalanceHistoryFixture.data.container.mainContext
+        return WidgetBalanceSnapshot.make(period: .month, conti: try! context.fetch(FetchDescriptor<Conto>()),
+            transactions: try! context.fetch(FetchDescriptor<FinanceCore.Transaction>()),
+            resolutions: [], now: Date())
+    }()
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Anteprima con dati demo").font(.caption).foregroundStyle(.secondary)
+                    if ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_WIDGET_PORTRAIT") {
+                        Text("Extra large verticale · iPhone").font(.caption.weight(.semibold))
+                        FinanceBalanceWidgetContent(history: Self.history, bookName: "Demo", currency: "EUR", size: .extraLargePortrait)
+                            .padding(16).frame(height: 550)
+                            .background(.background, in: RoundedRectangle(cornerRadius: 22))
+                    } else {
+                        if !ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_WIDGET_XL") {
+                            Text("Piccolo").font(.caption.weight(.semibold))
+                            FinanceBalanceWidgetContent(history: Self.history, bookName: "Demo", currency: "EUR", size: .small)
+                                .padding(16).frame(width: 170, height: 170)
+                                .background(.background, in: RoundedRectangle(cornerRadius: 22))
+                            Text("Medio").font(.caption.weight(.semibold))
+                            FinanceBalanceWidgetContent(history: Self.history, bookName: "Demo", currency: "EUR", size: .medium)
+                                .padding(16).frame(height: 170)
+                                .background(.background, in: RoundedRectangle(cornerRadius: 22))
+                            Text("Grande").font(.caption.weight(.semibold))
+                            FinanceBalanceWidgetContent(history: Self.history, bookName: "Demo", currency: "EUR")
+                                .padding(16).frame(height: 340)
+                                .background(.background, in: RoundedRectangle(cornerRadius: 22))
+                        }
+                        Text("Extra large · iPad").font(.caption.weight(.semibold))
+                        ScrollView(.horizontal) {
+                            FinanceBalanceWidgetContent(history: Self.history, bookName: "Demo", currency: "EUR", size: .extraLarge)
+                                .padding(20).frame(width: 720, height: 340)
+                                .background(.background, in: RoundedRectangle(cornerRadius: 22))
+                        }
+                    }
+                }.padding()
+            }.themedBackground().navigationTitle("Widget saldo")
         }
     }
 }
+#endif

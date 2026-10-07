@@ -12,24 +12,18 @@ struct CreateContoView: View {
     @State private var saveError: String?
     private var parsedBalance: Decimal? { BalanceInput.parse(initialBalance, currency: account.currency ?? "EUR") }
     @State private var description = ""
-    @State private var selectedColor = "#007AFF"
+    @State private var selectedColor = AccountPalette.fallback
     @State private var creditLimit: Decimal?
     @State private var statementClosingDay: Int?
     @State private var paymentDueDay: Int?
     @State private var annualInterestRate: Decimal?
     @State private var savingsGoal: Decimal?
     
-    private let colors = [
-        "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
-        "#34C759", "#5AC8FA", "#AF52DE", "#FF2D92",
-        "#A2845E", "#8E8E93"
-    ]
-    private let colorNames: [String: LocalizedStringKey] = [
-        "#007AFF": "Blu", "#FF3B30": "Rosso", "#FF9500": "Arancione", "#FFCC00": "Giallo",
-        "#34C759": "Verde", "#5AC8FA": "Azzurro", "#AF52DE": "Viola", "#FF2D92": "Rosa",
-        "#A2845E": "Marrone", "#8E8E93": "Grigio"
-    ]
-    
+    init(account: Account) {
+        self.account = account
+        _selectedColor = State(initialValue: AccountPalette.suggestedColor(used: (account.conti ?? []).map(\.displayColorHex)))
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -88,26 +82,7 @@ struct CreateContoView: View {
                 Section("Personalizzazione") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Colore")
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 32), spacing: 8)], spacing: 8) {
-                            ForEach(colors, id: \.self) { color in
-                                Button { selectedColor = color } label: {
-                                Circle()
-                                    .fill(Color(hex: color))
-                                    .frame(width: 30, height: 30)
-                                    .overlay {
-                                        if selectedColor == color {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(.white)
-                                                .font(.caption.weight(.bold))
-                                        }
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(Text(colorNames[color] ?? "Colore"))
-                                .accessibilityAddTraits(selectedColor == color ? .isSelected : [])
-                                .help(Text(colorNames[color] ?? "Colore"))
-                            }
-                        }
+                        AccountColorGrid(selection: $selectedColor)
                     }
 
                     TextField("Descrizione (opzionale)", text: $description, axis: .vertical)
@@ -192,19 +167,12 @@ struct EditContoView: View {
     @State private var contoName = ""
     @State private var selectedType: ContoType = .checking
     @State private var description = ""
-    @State private var selectedColor = "#007AFF"
-    @State private var showingColorPicker = false
+    @State private var selectedColor = AccountPalette.fallback
     @State private var creditLimit: Decimal?
     @State private var statementClosingDay: Int?
     @State private var paymentDueDay: Int?
     @State private var annualInterestRate: Decimal?
     @State private var savingsGoal: Decimal?
-    
-    private let colors = [
-        "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
-        "#34C759", "#5AC8FA", "#AF52DE", "#FF2D92",
-        "#A2845E", "#8E8E93"
-    ]
     
     var body: some View {
         NavigationStack {
@@ -236,21 +204,7 @@ struct EditContoView: View {
                 )
 
                 Section("Personalizzazione") {
-                    HStack {
-                        Text("Colore")
-                        Spacer()
-                        Button {
-                            showingColorPicker = true
-                        } label: {
-                            Circle()
-                                .fill(Color(hex: selectedColor))
-                                .frame(width: 30, height: 30)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
-                                )
-                        }
-                    }
+                    AccountColorGrid(selection: $selectedColor)
                 }
 
                 Section("Saldo Corrente") {
@@ -286,16 +240,13 @@ struct EditContoView: View {
         .onAppear {
             loadContoData()
         }
-        .sheet(isPresented: $showingColorPicker) {
-            ColorPickerView(selectedColor: $selectedColor)
-        }
     }
     
     private func loadContoData() {
         contoName = conto.name ?? ""
         selectedType = conto.type ?? .checking
         description = conto.contoDescription ?? ""
-        selectedColor = conto.color ?? "#007AFF"
+        selectedColor = conto.displayColorHex
         creditLimit = conto.creditLimit
         statementClosingDay = conto.statementClosingDay
         paymentDueDay = conto.paymentDueDay
@@ -330,52 +281,84 @@ struct ColorPickerView: View {
     @Binding var selectedColor: String
     @Environment(\.dismiss) private var dismiss
     
-    private let colors = [
-        "#007AFF", "#FF3B30", "#FF9500", "#FFCC00",
-        "#34C759", "#5AC8FA", "#AF52DE", "#FF2D92",
-        "#A2845E", "#8E8E93"
-    ]
-    
     var body: some View {
-        NavigationView {
-            LazyVGrid(columns: [
-                GridItem(.adaptive(minimum: 60))
-            ], spacing: 20) {
-                ForEach(colors, id: \.self) { color in
-                    Button {
-                        selectedColor = color
-                        dismiss()
-                    } label: {
-                        Circle()
-                            .fill(Color(hex: color))
-                            .frame(width: 50, height: 50)
-                            .overlay(
-                                Circle()
-                                    .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 3)
-                            )
-                            .overlay(
-                                selectedColor == color ?
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.white)
-                                    .font(.title3)
-                                : nil
-                            )
+        NavigationStack {
+            ScrollView { AccountColorGrid(selection: $selectedColor).padding() }
+                .navigationTitle("Seleziona Colore")
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fine") { dismiss() }
                     }
                 }
-            }
-            .padding()
-            .navigationTitle("Seleziona Colore")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") {
-                        dismiss()
-                    }
-                }
-            }
         }
     }
 }
+
+struct AccountColorGrid: View {
+    @Binding var selection: String
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 10)], spacing: 14) {
+            ForEach(AccountPalette.swatches) { swatch in
+                Button { selection = swatch.hex } label: {
+                    VStack(spacing: 6) {
+                        Circle().fill(Color(hex: swatch.hex)).frame(width: 36, height: 36)
+                            .overlay {
+                                if selection == swatch.hex {
+                                    Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white)
+                                }
+                            }
+                        Text(LocalizedStringKey(swatch.name)).font(.caption2).foregroundStyle(.primary).lineLimit(1)
+                    }.frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(LocalizedStringKey(swatch.name)))
+                .accessibilityAddTraits(selection == swatch.hex ? .isSelected : [])
+            }
+        }
+        ColorPicker("Colore personalizzato", selection: Binding(
+            get: { Color(hex: selection) },
+            set: { color in
+                let components = color.colorComponents
+                let red = Int((min(max(components.red, 0), 1) * 255).rounded())
+                let green = Int((min(max(components.green, 0), 1) * 255).rounded())
+                let blue = Int((min(max(components.blue, 0), 1) * 255).rounded())
+                selection = String(format: "#%02X%02X%02X", red, green, blue)
+            }
+        ), supportsOpacity: false)
+        .accessibilityIdentifier("conto-custom-color")
+        if !AccountPalette.swatches.contains(where: { $0.hex.caseInsensitiveCompare(selection) == .orderedSame }) {
+            Text(selection.uppercased()).font(.caption.monospaced()).foregroundStyle(.secondary)
+        }
+    }
+}
+
+#if DEBUG
+struct AccountPaletteVisualFixture: View {
+    @State private var selection = ProcessInfo.processInfo.arguments.contains("UITEST_CUSTOM_ACCOUNT_COLOR") ? "#D27C9A" : AccountPalette.fallback
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Palette dei conti · dati demo") {
+                    AccountColorGrid(selection: $selection)
+                }
+                Section("Anteprima") {
+                    Label { Text("Conto corrente") } icon: {
+                        Image(systemName: "creditcard").foregroundStyle(Color(hex: selection))
+                    }
+                    Label { Text("Risparmi") } icon: {
+                        Image(systemName: "banknote").foregroundStyle(Color(hex: AccountPalette.petrolio))
+                    }
+                    Label { Text("Contanti") } icon: {
+                        Image(systemName: "dollarsign.circle").foregroundStyle(Color(hex: AccountPalette.ocra))
+                    }
+                }
+            }.navigationTitle("Colori dei conti")
+        }
+    }
+}
+#endif
 
 struct CreateContoView_Previews: PreviewProvider {
     static var previews: some View {

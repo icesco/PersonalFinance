@@ -186,7 +186,10 @@ private struct FinanceLockScreenSummary: View {
 
 @main
 struct ForgiaWidgets: WidgetBundle {
-    var body: some Widget { ForgiaOverviewWidget() }
+    var body: some Widget {
+        ForgiaOverviewWidget()
+        FinanceBalanceWidget()
+    }
 }
 
 struct ForgiaOverviewWidget: Widget {

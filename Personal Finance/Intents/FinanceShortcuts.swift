@@ -78,6 +78,7 @@ final class FinanceShortcutInbox {
             switch route.destination {
             case .today: state.selectTab(.dashboard)
             case .planning: state.selectTab(.planning)
+            case .analysis: state.selectTab(.analysis)
             case .expense: state.presentQuickTransaction()
             }
         case .today: state.selectTab(.dashboard)

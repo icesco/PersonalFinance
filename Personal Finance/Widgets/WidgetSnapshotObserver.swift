@@ -34,6 +34,7 @@ enum WidgetSnapshotPublisher {
             try? FileManager.default.removeItem(at: url)
         }
         WidgetCenter.shared.reloadTimelines(ofKind: FinanceWidgetStorage.kind)
+        WidgetCenter.shared.reloadTimelines(ofKind: FinanceWidgetStorage.balanceKind)
     }
 }
 
@@ -73,7 +74,7 @@ struct WidgetSettingsSection: View {
                 .onChange(of: showsData) { _, value in if !value { WidgetSnapshotPublisher.redact() } }
             if lock.isEnabled { Text("I dati nei widget sono nascosti perché il blocco di Forgia è attivo.").font(.caption) }
         } header: { Text("Widget") } footer: {
-            Text("Aggiungi Riepilogo Forgia dalla galleria widget e scegli un libro. I dati si aggiornano quando apri o modifichi l’app; l’orario indica l’ultimo aggiornamento. Il sistema gestisce quando ridisegnare il widget. L’accesso Nuova spesa resta disponibile anche con i dati nascosti.")
+            Text("Aggiungi Riepilogo Forgia o Saldo per conto dalla galleria widget e scegli un libro. Per il saldo puoi scegliere anche il periodo. I dati si aggiornano quando apri o modifichi l’app; l’orario indica l’ultimo aggiornamento. Il sistema gestisce quando ridisegnare il widget. L’accesso Nuova spesa resta disponibile anche con i dati nascosti.")
         }
     }
 }

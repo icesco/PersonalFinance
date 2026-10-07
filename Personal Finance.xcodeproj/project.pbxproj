@@ -91,6 +91,7 @@ F047CB000000000000000004 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet
 		F0471A000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F0471A000000000000000004, ); path = ForgiaWidgets; sourceTree = "<group>"; };
 F047CA000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F047CA000000000000000004, ); path = ForgiaWatch; sourceTree = "<group>"; };
 F047CB000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F047CB000000000000000004, ); path = ForgiaWatchWidgets; sourceTree = "<group>"; };
+		F047BC000000000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; path = Shared; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +126,7 @@ F047CB000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 214
 		6D6508BF2E5B400F0033992E = {
 			isa = PBXGroup;
 			children = (
+				F047BC000000000000000001,
 				6D6508CA2E5B400F0033992E /* Personal Finance */,
 				F0471A000000000000000003,
 				F047CA000000000000000003,
@@ -171,6 +173,7 @@ F047CA000000000000000028,
 				F047CA00000000000000000B,
 			);
 			fileSystemSynchronizedGroups = (
+				F047BC000000000000000001,
 				6D6508CA2E5B400F0033992E /* Personal Finance */,
 			);
 			name = "Personal Finance";
@@ -229,7 +232,7 @@ F047CA000000000000000028,
 		};
 		F0471A000000000000000001 = {isa = PBXNativeTarget;
  buildConfigurationList = F0471A000000000000000008; buildPhases = (F0471A000000000000000005, F0471A000000000000000006, F0471A000000000000000007, );
- buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (F0471A000000000000000003, ); name = ForgiaWidgets;
+ buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (F0471A000000000000000003, F047BC000000000000000001, ); name = ForgiaWidgets;
  packageProductDependencies = (F0471A00000000000000000F, ); productName = ForgiaWidgets; productReference = F0471A000000000000000002; productType = "com.apple.product-type.app-extension";
  };
 F047CA000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = F047CA000000000000000008; buildPhases = (F047CA000000000000000005, F047CA000000000000000006, F047CA000000000000000007, F047CB00000000000000000D, ); buildRules = (); dependencies = (F047CB00000000000000000B, ); fileSystemSynchronizedGroups = (F047CA000000000000000003, ); name = ForgiaWatch; packageProductDependencies = (); productName = ForgiaWatch; productReference = F047CA000000000000000002; productType = "com.apple.product-type.application"; };

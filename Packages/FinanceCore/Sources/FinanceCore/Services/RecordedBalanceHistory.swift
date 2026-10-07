@@ -2,6 +2,15 @@ import Foundation
 
 /// Recorded ledger history only. Recurrence projections must be rendered separately.
 public enum RecordedBalanceHistory {
+    /// Independent ledger histories: transfers affect each participating account separately.
+    public static func series(transactions: [TransactionSnapshot], initialBalances: [UUID: Decimal],
+                              interval: DateInterval, now: Date) -> [UUID: [BalanceDataPoint]] {
+        Dictionary(uniqueKeysWithValues: initialBalances.map { id, initialBalance in
+            (id, points(transactions: transactions, contiIDs: [id], initialBalance: initialBalance,
+                        interval: interval, now: now))
+        })
+    }
+
     public static func points(transactions: [TransactionSnapshot], contiIDs: Set<UUID>, initialBalance: Decimal,
                               interval: DateInterval, now: Date) -> [BalanceDataPoint] {
         guard !contiIDs.isEmpty, interval.start <= now, interval.duration > 0 else { return [] }

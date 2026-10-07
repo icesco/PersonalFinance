@@ -8,6 +8,9 @@ struct ContoPickerLabel: View {
         return "\(conto.name ?? "Conto") · \(balance)"
     }
     var body: some View {
-        Label(title, systemImage: conto.type?.icon ?? "creditcard")
+        Label { Text(title) } icon: {
+            Image(systemName: conto.type?.icon ?? "creditcard")
+                .foregroundStyle(Color(hex: conto.displayColorHex))
+        }
     }
 }

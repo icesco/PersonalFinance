@@ -574,6 +574,7 @@ struct ContoSettingsRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: conto.type?.icon ?? "creditcard")
+                .foregroundStyle(Color(hex: conto.displayColorHex))
                 .font(.title3)
                 .frame(width: 32)
 
@@ -949,7 +950,7 @@ struct FinanceContoDetailsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 12) {
                     Label(conto.type?.displayName ?? "Conto", systemImage: conto.type?.icon ?? "creditcard")
-                        .foregroundStyle(ForgiaPalette.accent)
+                        .foregroundStyle(Color(hex: conto.displayColorHex))
                     Text(conto.displayBalance, format: .currency(code: conto.account?.currency ?? "EUR"))
                         .font(.system(.largeTitle, design: .rounded, weight: .semibold)).monospacedDigit()
                     Text(conto.account?.name ?? "Libro").foregroundStyle(.secondary)

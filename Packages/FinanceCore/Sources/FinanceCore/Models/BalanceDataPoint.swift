@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single data point in a balance history chart
-public struct BalanceDataPoint: Identifiable, Sendable {
+public struct BalanceDataPoint: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let date: Date
     public let balance: Decimal

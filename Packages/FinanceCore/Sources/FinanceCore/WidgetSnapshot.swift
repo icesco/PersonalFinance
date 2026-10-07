@@ -15,6 +15,8 @@ public struct WidgetBookSnapshot: Codable, Equatable, Identifiable, Sendable {
     public let monthSpent: Decimal
     public let budget: WidgetBudgetSnapshot?
     public let occurrenceDates: [Date]
+    /// Optional for compatibility with snapshots published by earlier app versions.
+    public let balanceHistories: [WidgetBalanceSnapshot]?
 }
 
 public struct FinanceWidgetSnapshot: Codable, Equatable, Sendable {
@@ -95,8 +97,13 @@ public enum FinanceWidgetBuilder {
                 if source.date > now && source.date <= coverageEnd { dates.append(source.date) }
             }
             dates.sort()
+            let histories = WidgetBalancePeriod.allCases.map { period in
+                WidgetBalanceSnapshot.make(period: period, conti: account.conti ?? [], transactions: transactions,
+                                           resolutions: resolutions, now: now, calendar: calendar)
+            }
+            validUntil = min(validUntil, histories.map(\.interval.end).min() ?? validUntil)
             books.append(WidgetBookSnapshot(id: account.id, name: account.name ?? "Libro", currency: account.currency ?? "EUR",
-                                      monthSpent: monthSpent, budget: bookBudgets.first, occurrenceDates: dates))
+                                      monthSpent: monthSpent, budget: bookBudgets.first, occurrenceDates: dates, balanceHistories: histories))
         }
         books.sort { $0.name == $1.name ? $0.id.uuidString < $1.id.uuidString : $0.name < $1.name }
         return FinanceWidgetSnapshot(version: 1, generatedAt: now, validUntil: validUntil, state: .ready, books: books)
@@ -105,6 +112,7 @@ public enum FinanceWidgetBuilder {
 
 public enum FinanceWidgetStorage {
     public static let kind = "ForgiaOverview"
+    public static let balanceKind = "FormiBalanceHistory"
     public static let filename = "forgia-widget-v1.json"
     public static var sharedURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: FinanceCoreModule.defaultAppGroupIdentifier)?
@@ -126,7 +134,7 @@ public enum FinanceWidgetStorage {
 }
 
 public struct FinanceWidgetRoute: Equatable, Sendable {
-    public enum Destination: String, Sendable { case today, planning, expense }
+    public enum Destination: String, Sendable { case today, planning, expense, analysis }
     public let destination: Destination
     public let bookID: UUID?
     public init(destination: Destination, bookID: UUID? = nil) { self.destination = destination; self.bookID = bookID }

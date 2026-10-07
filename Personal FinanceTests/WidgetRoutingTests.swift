@@ -32,4 +32,18 @@ struct WidgetRoutingTests {
         #expect(inbox.errorMessage != nil)
         #expect(inbox.pending == nil)
     }
+    @Test func balanceWidgetOpensAnalysisForItsConfiguredBook() throws {
+        let keys = ["selectedAccountID", "selectedContoID", "showAllAccounts", "showAllConti"]
+        let saved = keys.map { (key: $0, value: UserDefaults.standard.object(forKey: $0)) }
+        defer { for item in saved { UserDefaults.standard.set(item.value, forKey: item.key) } }
+        let book = Account(name: "Widget saldo")
+        let state = AppStateManager()
+        let inbox = FinanceShortcutInbox()
+        try inbox.submit(.widget(FinanceWidgetRoute(destination: .analysis, bookID: book.id)))
+        inbox.deliver(to: state, accounts: [book])
+        #expect(state.selectedAccount?.id == book.id)
+        #expect(state.selectedTab == .analysis)
+        #expect(!state.showingQuickTransaction)
+    }
+
 }
