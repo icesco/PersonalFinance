@@ -76,6 +76,8 @@ struct TodayView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
                             header(snapshot: snapshot)
+                            CaptureInboxEntry(compactHomeStyle: true)
+                                .buttonStyle(.plain)
                             TodayMarginCard(
                                 snapshot: snapshot,
                                 onVerify: { showingBalances = true },

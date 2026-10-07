@@ -5,6 +5,9 @@ struct FinanceShortcutsView: View {
     var body: some View {
         List {
             Section("Azioni disponibili") {
+                Label("Acquisisci notifica bancaria", systemImage: "tray.and.arrow.down")
+                NavigationLink("Configura l’automazione", destination: CaptureSetupView())
+                CaptureInboxEntry()
                 Label("Prepara una spesa", systemImage: "plus.circle")
                 Label("Apri il riepilogo di oggi", systemImage: "house")
                 Label("Apri budget e scadenze", systemImage: "calendar")

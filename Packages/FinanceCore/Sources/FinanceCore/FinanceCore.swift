@@ -10,6 +10,7 @@ public struct FinanceCoreModule {
         TransactionAttachment.self,
         RecurrenceResolution.self,
         RemoteExpenseReceipt.self,
+        CaptureApprovalReceipt.self,
         SharedBookMembership.self,
         SharedBookDeparture.self,
         SharedBookRecordLink.self,

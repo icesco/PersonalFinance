@@ -15,6 +15,8 @@
 		F047CA00000000000000001F /* Personal Finance/ForgiaIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = F047CA00000000000000001E /* Personal Finance/ForgiaIcon.icon */; };
 		F047CA000000000000000029 /* Packages/FinanceCore/Sources/FinanceCore/Services/RemoteExpenseMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = F047CA000000000000000028 /* Packages/FinanceCore/Sources/FinanceCore/Services/RemoteExpenseMessages.swift */; };
 		F047CB00000000000000000E /* ForgiaWatchWidgets.appex in Embed Watch Widgets */ = {isa = PBXBuildFile; fileRef = F047CB000000000000000002 /* ForgiaWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F0481B00000000000000000E /* FormiShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F0481B000000000000000002 /* FormiShare.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F0481B000000000000000010 /* FinanceCore in Frameworks */ = {isa = PBXBuildFile; productRef = F0481B00000000000000000F /* FinanceCore */; };
 		F1CA1E000000000000000001 /* FinanceUICalendar in Frameworks */ = {isa = PBXBuildFile; productRef = F1CA1E000000000000000002 /* FinanceUICalendar */; };
 /* End PBXBuildFile section */
 
@@ -54,6 +56,13 @@
 			remoteGlobalIDString = F047CB000000000000000001;
 			remoteInfo = ForgiaWatchWidgets;
 		};
+		F0481B00000000000000000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D6508C02E5B400F0033992E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F0481B000000000000000001;
+			remoteInfo = FormiShare;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -64,6 +73,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				F0471A00000000000000000E /* ForgiaWidgets.appex in Embed App Extensions */,
+				F0481B00000000000000000E /* FormiShare.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -102,6 +112,7 @@
 		F047CA00000000000000001E /* Personal Finance/ForgiaIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.icon; path = "Personal Finance/ForgiaIcon.icon"; sourceTree = "<group>"; };
 		F047CA000000000000000028 /* Packages/FinanceCore/Sources/FinanceCore/Services/RemoteExpenseMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Packages/FinanceCore/Sources/FinanceCore/Services/RemoteExpenseMessages.swift; sourceTree = "<group>"; };
 		F047CB000000000000000002 /* ForgiaWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForgiaWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0481B000000000000000002 /* FormiShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FormiShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -133,6 +144,13 @@
 				Info.plist,
 			);
 			target = F047CB000000000000000001 /* ForgiaWatchWidgets */;
+		};
+		F0481B000000000000000004 /* Exceptions for "FormiShare" folder in "FormiShare" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F0481B000000000000000001 /* FormiShare */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -184,6 +202,14 @@
 			path = ForgiaWatchWidgets;
 			sourceTree = "<group>";
 		};
+		F0481B000000000000000003 /* FormiShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F0481B000000000000000004 /* Exceptions for "FormiShare" folder in "FormiShare" target */,
+			);
+			path = FormiShare;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -232,6 +258,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0481B000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F0481B000000000000000010 /* FinanceCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -241,6 +275,7 @@
 				F047BC000000000000000001 /* Shared */,
 				6D6508CA2E5B400F0033992E /* Personal Finance */,
 				F0471A000000000000000003 /* ForgiaWidgets */,
+				F0481B000000000000000003 /* FormiShare */,
 				F047CA000000000000000003 /* ForgiaWatch */,
 				F047CB000000000000000003 /* ForgiaWatchWidgets */,
 				F047CA000000000000000014 /* ForgiaWatch/WatchProtocol.swift */,
@@ -257,6 +292,7 @@
 			children = (
 				6D6508C82E5B400F0033992E /* Personal Finance.app */,
 				F0471A000000000000000002 /* ForgiaWidgets.appex */,
+				F0481B000000000000000002 /* FormiShare.appex */,
 				F047CA000000000000000002 /* ForgiaWatch.app */,
 				F047CB000000000000000002 /* ForgiaWatchWidgets.appex */,
 				6D6508D92E5B40100033992E /* Personal FinanceTests.xctest */,
@@ -282,6 +318,7 @@
 			);
 			dependencies = (
 				F0471A00000000000000000B /* PBXTargetDependency */,
+				F0481B00000000000000000B /* PBXTargetDependency */,
 				F047CA00000000000000000B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -413,6 +450,29 @@
 			productReference = F047CB000000000000000002 /* ForgiaWatchWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		F0481B000000000000000001 /* FormiShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F0481B000000000000000008 /* Build configuration list for PBXNativeTarget "FormiShare" */;
+			buildPhases = (
+				F0481B000000000000000005 /* Sources */,
+				F0481B000000000000000006 /* Frameworks */,
+				F0481B000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F0481B000000000000000003 /* FormiShare */,
+			);
+			name = FormiShare;
+			packageProductDependencies = (
+				F0481B00000000000000000F /* FinanceCore */,
+			);
+			productName = FormiShare;
+			productReference = F0481B000000000000000002 /* FormiShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -457,6 +517,7 @@
 				F047CA000000000000000001 /* ForgiaWatch */,
 				F047CB000000000000000001 /* ForgiaWatchWidgets */,
 				F0471A000000000000000001 /* ForgiaWidgets */,
+				F0481B000000000000000001 /* FormiShare */,
 				6D6508C72E5B400F0033992E /* Personal Finance */,
 				6D6508D82E5B40100033992E /* Personal FinanceTests */,
 				6D6508E22E5B40100033992E /* Personal FinanceUITests */,
@@ -502,6 +563,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		F047CB000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0481B000000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -555,6 +623,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0481B000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -584,6 +659,12 @@
 			target = F047CB000000000000000001 /* ForgiaWatchWidgets */;
 			targetProxy = F047CB00000000000000000C /* PBXContainerItemProxy */;
 		};
+		F0481B00000000000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = F0481B000000000000000001 /* FormiShare */;
+			targetProxy = F0481B00000000000000000C /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -594,7 +675,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Personal Finance/Personal_Finance.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -641,7 +722,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Personal Finance/Personal_Finance.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -886,7 +967,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ForgiaWidgets/ForgiaWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -918,7 +999,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ForgiaWidgets/ForgiaWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -949,7 +1030,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = ForgiaIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForgiaWatch/Info.plist;
@@ -976,7 +1057,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = ForgiaIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForgiaWatch/Info.plist;
@@ -1003,7 +1084,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForgiaWatchWidgets/Info.plist;
@@ -1031,7 +1112,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForgiaWatchWidgets/Info.plist;
@@ -1051,6 +1132,70 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		F0481B000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = FormiShare/FormiShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FormiShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Formi;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.share";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F0481B00000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = FormiShare/FormiShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = 3SB8N9QD3Z;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FormiShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Formi;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance.share";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1120,6 +1265,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		F0481B000000000000000008 /* Build configuration list for PBXNativeTarget "FormiShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F0481B000000000000000009 /* Debug */,
+				F0481B00000000000000000A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -1139,6 +1293,10 @@
 			productName = FinanceCore;
 		};
 		F0471A00000000000000000F /* FinanceCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FinanceCore;
+		};
+		F0481B00000000000000000F /* FinanceCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FinanceCore;
 		};

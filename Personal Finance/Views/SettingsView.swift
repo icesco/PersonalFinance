@@ -170,6 +170,8 @@ struct SettingsView: View {
 
     private var integrationsSection: some View {
         Section("Integrazioni") {
+            CaptureInboxEntry()
+            NavigationLink("Automazione", destination: CaptureSetupView())
             NavigationLink {
                 SettingsFormPage("Widget") { WidgetSettingsSection() }
             } label: {
