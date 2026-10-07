@@ -19,6 +19,7 @@ struct EraseDataView: View {
     @State private var showingAccountEraseAlert = false
     @State private var showingAccountEraseConfirmation = false
     @State private var accountToErase: Account?
+    @State private var deletionError: String?
 
     var body: some View {
         List {
@@ -100,6 +101,9 @@ struct EraseDataView: View {
                 Text("Elimina tutti gli account e i relativi dati. Verrà mostrato nuovamente il setup iniziale.")
             }
         }
+        .alert("Impossibile eliminare", isPresented: Binding(get: { deletionError != nil }, set: { if !$0 { deletionError = nil } })) {
+            Button("OK", role: .cancel) { deletionError = nil }
+        } message: { Text(deletionError ?? "") }
         .navigationTitle("Cancella Dati")
         .toolbarTitleDisplayMode(.inline)
         .alert("Eliminare l'Account?", isPresented: $showingAccountEraseAlert) {
@@ -159,34 +163,21 @@ struct EraseDataView: View {
     // MARK: - Data Erasure Functions
 
     private func eraseAccount(_ account: Account) {
-        let isLastAccount = accounts.count <= 1
-        let wasSelected = appState.selectedAccount?.id == account.id
-
-        // Clear all references BEFORE deleting to prevent SwiftData access to invalidated objects
-        if wasSelected {
-            appState.selectedConto = nil
-            appState.selectedAccount = nil
-            UserDefaults.standard.removeObject(forKey: "selectedAccountID")
-            UserDefaults.standard.removeObject(forKey: "selectedContoID")
-        }
-
-        // Delete the account (cascade deletes conti, transactions, categories, budgets, etc.)
-        modelContext.delete(account)
-
+        let id = account.id
+        let wasSelected = appState.selectedAccount?.id == id
+        let remaining = accounts.filter { $0.id != id }
         do {
-            try modelContext.save()
-        } catch {
-            print("Error erasing account: \(error)")
-        }
-
-        // If no accounts remain, reset onboarding so user sees setup again
-        if isLastAccount {
-            appState.resetOnboarding()
-        } else if wasSelected {
-            // Select the first remaining account
-            if let firstAccount = accounts.first(where: { $0.id != account.id }) {
-                appState.selectAccount(firstAccount)
+            try FinanceContainerDeletion(context: modelContext).delete(.book(id))
+            if remaining.isEmpty {
+                appState.selectAllConti()
+                appState.showAllAccounts = false
+                appState.resetOnboarding()
+            } else if wasSelected, let next = remaining.first {
+                appState.selectAccount(next)
             }
+            appState.triggerDataRefresh()
+        } catch {
+            deletionError = error.localizedDescription
         }
     }
 
@@ -204,8 +195,10 @@ struct EraseDataView: View {
 
         do {
             try modelContext.save()
+            try CaptureStore.eraseAll()
         } catch {
-            print("Error erasing all data: \(error)")
+            deletionError = error.localizedDescription
+            return
         }
 
         // Reset onboarding so user sees setup again

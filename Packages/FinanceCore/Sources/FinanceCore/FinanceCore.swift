@@ -232,9 +232,16 @@ public final class DataStorageManager {
         try replaceContainer(enableCloud: isCloudSyncEnabled)
     }
 
+    /// The container being replaced. Views built on it are swapped out by `containerGeneration`,
+    /// but they can render once more first: releasing it now would invalidate their models
+    /// and SwiftData would trap on the next property read.
+    @ObservationIgnored private var retiredContainer: ModelContainer?
+
     private func replaceContainer(enableCloud: Bool) throws {
         try currentContainer?.mainContext.save()
-        currentContainer = try makeContainer(enableCloud)
+        let replacement = try makeContainer(enableCloud)
+        retiredContainer = currentContainer
+        currentContainer = replacement
         containerGeneration += 1
     }
 

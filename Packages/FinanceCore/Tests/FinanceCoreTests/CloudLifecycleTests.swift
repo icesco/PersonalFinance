@@ -24,6 +24,27 @@ struct CloudLifecycleTests {
     }
     #endif
 
+    @Test func modelsFromThePreviousContainerStayReadableAfterToggle() async throws {
+        let (preferences, name) = defaults()
+        defer { preferences.removePersistentDomain(forName: name) }
+        let manager = DataStorageManager(appGroupIdentifier: name, userDefaults: preferences, makeContainer: { _ in
+            try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        }, requestAccountStatus: { .available })
+        try await manager.initializeContainer()
+        var book: Account? = Account(name: "Libro aperto in Impostazioni")
+        weak var original = manager.currentContainer
+        try #require(original).mainContext.insert(book!)
+        try original?.mainContext.save()
+
+        await manager.performSyncToggle(enableCloud: true)
+
+        #expect(manager.currentContainer !== original)
+        // A view still showing the old book reads it once more before being replaced.
+        #expect(original != nil)
+        #expect(book?.name == "Libro aperto in Impostazioni")
+        book = nil
+    }
+
     private func defaults() -> (UserDefaults, String) {
         let name = "CloudLifecycleTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: name)!, name)
