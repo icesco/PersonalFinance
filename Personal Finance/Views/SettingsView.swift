@@ -661,12 +661,7 @@ struct AddCategorySheet: View {
     @State private var parentCategory: FinanceCategory?
 
     // MARK: - Constants
-    private let icons = [
-        "tag", "cart", "car", "house", "fork.knife", "tshirt",
-        "gamecontroller", "airplane", "gift", "heart", "book",
-        "briefcase", "banknote", "creditcard", "phone", "tv",
-        "bolt", "drop", "leaf", "pawprint", "figure.run"
-    ]
+    private let icons = CategoryIconChoices.all
 
     private let colors = [
         "#007AFF", "#34C759", "#FF3B30", "#FF9500", "#FFCC00",
@@ -736,6 +731,7 @@ struct AddCategorySheet: View {
                             .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
                     .foregroundStyle(selectedIcon == icon ? Color.accentColor : Color.primary)
                 }
             }
@@ -814,12 +810,7 @@ struct EditCategorySheet: View {
     @State private var selectedColor: String = "#007AFF"
 
     // MARK: - Constants
-    private let icons = [
-        "tag", "cart", "car", "house", "fork.knife", "tshirt",
-        "gamecontroller", "airplane", "gift", "heart", "book",
-        "briefcase", "banknote", "creditcard", "phone", "tv",
-        "bolt", "drop", "leaf", "pawprint", "figure.run"
-    ]
+    private let icons = CategoryIconChoices.all
 
     private let colors = [
         "#007AFF", "#34C759", "#FF3B30", "#FF9500", "#FFCC00",
@@ -878,6 +869,7 @@ struct EditCategorySheet: View {
                             .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
                     .foregroundStyle(selectedIcon == icon ? Color.accentColor : Color.primary)
                 }
             }
