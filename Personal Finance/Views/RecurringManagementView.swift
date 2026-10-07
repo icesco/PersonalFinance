@@ -27,10 +27,6 @@ struct RecurringManagementView: View {
 
     var body: some View {
         List {
-            Picker("Ricorrenze", selection: $showEnded) {
-                Text("Attive").tag(false)
-                Text("Terminate").tag(true)
-            }.pickerStyle(.segmented)
             if _recurring.fetchError != nil {
                 Text("Impossibile caricare le ricorrenze. Riapri la schermata per riprovare.")
             } else if series.isEmpty {
@@ -68,8 +64,23 @@ struct RecurringManagementView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .financeEmptyOverlay(isPresented: series.isEmpty && _recurring.fetchError == nil) {
+            ContentUnavailableView {
+                Label(showEnded ? "Nessuna ricorrenza terminata" : "Nessuna ricorrenza attiva", systemImage: "repeat")
+            } description: {
+                Text(showEnded
+                     ? "Le ricorrenze che termini restano qui, con i movimenti già registrati."
+                     : "Quando registri un movimento puoi renderlo ricorrente: lo ritroverai qui con la prossima scadenza.")
+            }
+        }
+        .safeAreaBar(edge: .top) {
+            Picker("Ricorrenze", selection: $showEnded) {
+                Text("Attive").tag(false)
+                Text("Terminate").tag(true)
+            }.pickerStyle(.segmented).padding(12)
+        }
         .navigationTitle("Ricorrenze")
-        .sheet(item: $editing) { EditTransactionView(transaction: $0) }
+        .financePresentation(item: $editing, title: "Modifica ricorrenza") { EditTransactionView(transaction: $0) }
         .confirmationDialog("Terminare questa ricorrenza?", isPresented: Binding(
             get: { terminating != nil }, set: { if !$0 { terminating = nil } }
         ), titleVisibility: .visible) {

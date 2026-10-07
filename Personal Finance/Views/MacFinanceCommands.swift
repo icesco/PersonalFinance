@@ -16,16 +16,16 @@ struct FinanceMenuContext {
     fileprivate let scope: FinanceCommandWindow
     var enabled: Bool {
         !lock.shouldConceal && !scope.hasSheet && scope.window != nil && scope.window?.attachedSheet == nil &&
-        !state.showingQuickTransaction && !state.showingTransferSheet &&
         !state.showingAccountSelection && !state.showingAccountCreation
     }
     func newExpense() {
-        guard enabled else { return }
+        guard enabled, !state.showingQuickTransaction else { return }
         state.presentQuickTransaction()
     }
     func select(_ tab: AppTab) {
         guard enabled else { return }
-        state.selectTab(tab)
+        if tab == .settings { state.showingSettingsWindow = true }
+        else { state.selectTab(tab) }
     }
 }
 
@@ -46,9 +46,14 @@ struct FinanceMacCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("Nuova spesa") { context?.newExpense() }
                 .keyboardShortcut("n", modifiers: .command)
-                .disabled(context?.enabled != true)
+                .disabled(context?.enabled != true || context?.state.showingQuickTransaction == true)
             Button("Nuova finestra") { openWindow(id: "finance") }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+        }
+        CommandGroup(replacing: .appSettings) {
+            Button("Impostazioni…") { context?.select(.settings) }
+                .keyboardShortcut(",", modifiers: .command)
+                .disabled(context?.enabled != true)
         }
         CommandMenu("Vai") {
             Group {

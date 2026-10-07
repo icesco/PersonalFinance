@@ -3,6 +3,29 @@ import Testing
 
 @MainActor
 struct FinanceShortcutTests {
+    @Test func iconActionWaitsForUnlockAndOpensAnEmptyExpense() {
+        let inbox = FinanceShortcutInbox()
+        let state = AppStateManager(persistsSelection: false)
+        #expect(FinanceIconQuickAction.receive(FinanceIconQuickAction.newExpenseType, inbox: inbox))
+        inbox.deliver(to: state, canAccessContent: false)
+        #expect(!state.showingQuickTransaction)
+        #expect(inbox.pending != nil)
+        inbox.deliver(to: state)
+        #expect(state.showingQuickTransaction)
+        #expect(state.quickTransactionPrefill?.amount == "")
+        #expect(inbox.pending == nil)
+    }
+
+    @Test func iconActionPreservesPendingRequestsAndRejectsUnknownActions() throws {
+        let inbox = FinanceShortcutInbox()
+        #expect(!FinanceIconQuickAction.receive("unknown", inbox: inbox))
+        #expect(inbox.pending == nil)
+        try inbox.submit(.expense(amount: "25", description: "Bozza da Siri"))
+        #expect(!FinanceIconQuickAction.receive(FinanceIconQuickAction.newExpenseType, inbox: inbox))
+        #expect(inbox.pending == .expense(amount: "25", description: "Bozza da Siri"))
+        #expect(inbox.errorMessage != nil)
+    }
+
     @Test func draftWaitsForExistingEditorAndIsDeliveredOnce() throws {
         let inbox = FinanceShortcutInbox()
         let state = AppStateManager()

@@ -84,13 +84,7 @@ struct TodayView: View {
                             quickActions
                             if !snapshot.hasMixedCurrencies {
                                 SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
-                                TodayRecentActivityCard(snapshot: snapshot)
-                                if !snapshot.planned.isEmpty {
-                                    TodayCommitmentsCard(snapshot: snapshot)
-                                }
-                                if !snapshot.direction.shifts.isEmpty {
-                                    TodayShiftsCard(shifts: snapshot.direction.shifts, currency: snapshot.currency)
-                                }
+                                TodayActivityLayout(snapshot: snapshot)
                             }
                             Button { showingBudgets = true } label: {
                                 HStack {
@@ -104,6 +98,10 @@ struct TodayView: View {
                             }
                             .accessibilityIdentifier("today-budgets")
                         }
+                        #if os(macOS)
+                        .frame(maxWidth: 1040)
+                        .frame(maxWidth: .infinity)
+                        #endif
                         .padding(.horizontal, 22)
                         .padding(.top, 14)
                         .padding(.bottom, 32)
@@ -115,9 +113,9 @@ struct TodayView: View {
                 }
             }
             .modifier(TransactionAddButtonModifier(isVisible: screen == .analysis))
-            .sheet(isPresented: $showingImport) { CSVImportView() }
-            .sheet(isPresented: $showingBudgets) { BudgetView() }
-            .sheet(isPresented: $showingBalances) {
+            .financePresentation(isPresented: $showingImport, title: "Importa CSV", width: 800) { CSVImportView() }
+            .financePresentation(isPresented: $showingBudgets, title: "Budget", width: 800) { BudgetView() }
+            .financePresentation(isPresented: $showingBalances, title: "Verifica saldi") {
                 if let account = appState.selectedAccount {
                     BalanceReconciliationView(account: account)
                 }
@@ -482,5 +480,25 @@ private struct TodayShiftsCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .unifiedCard()
+    }
+}
+
+private struct TodayActivityLayout: View {
+    let snapshot: TodaySnapshot
+    var body: some View {
+        #if os(macOS)
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), alignment: .top)], alignment: .leading, spacing: 24) {
+            cards
+        }
+        #else
+        cards
+        #endif
+    }
+    @ViewBuilder private var cards: some View {
+        TodayRecentActivityCard(snapshot: snapshot)
+        if !snapshot.planned.isEmpty { TodayCommitmentsCard(snapshot: snapshot) }
+        if !snapshot.direction.shifts.isEmpty {
+            TodayShiftsCard(shifts: snapshot.direction.shifts, currency: snapshot.currency)
+        }
     }
 }

@@ -47,6 +47,7 @@ struct BudgetView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 100) // Space for floating button
             }
+            .financeEmptyOverlay(isPresented: budgets.isEmpty && (appState.selectedAccount?.budgets?.filter { $0.isActive == false }.isEmpty ?? true)) { emptyStateView }
             .navigationTitle("Budget")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -63,12 +64,12 @@ struct BudgetView: View {
             }
             .background(Color(.systemGroupedBackground))
         }
-        .sheet(isPresented: $showingCreateBudget) {
+        .financePresentation(isPresented: $showingCreateBudget, title: "Nuovo budget") {
             if let account = appState.selectedAccount {
                 CreateBudgetView(account: account)
             }
         }
-        .sheet(item: $selectedBudget) { budget in
+        .financePresentation(item: $selectedBudget, title: "Budget") { budget in
             BudgetDetailView(budget: budget)
         }
         .alert("Impossibile salvare", isPresented: $showingSaveError) {
@@ -601,7 +602,7 @@ struct BudgetDetailView: View {
             }
             .navigationTitle(budget.name ?? "Budget")
             .toolbarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingEdit) {
+            .financePresentation(isPresented: $showingEdit, title: "Modifica budget") {
                 if let account = budget.account { CreateBudgetView(account: account, budget: budget) }
             }
             .confirmationDialog("Disattivare questo budget?", isPresented: $confirmingArchive, titleVisibility: .visible) {

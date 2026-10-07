@@ -192,7 +192,7 @@ private struct BalanceHistoryChart: View {
                     VStack(alignment: .leading, spacing: 8) { legend }
                 }
                 .font(.caption)
-                Text("Tocca o trascina per leggere il saldo. Solo movimenti registrati, senza proiezioni future.")
+                Text("Seleziona un punto del grafico per leggere il saldo. Solo movimenti registrati, senza proiezioni future.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } else {

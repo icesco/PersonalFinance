@@ -24,6 +24,11 @@ struct CreateContoView: View {
         "#34C759", "#5AC8FA", "#AF52DE", "#FF2D92",
         "#A2845E", "#8E8E93"
     ]
+    private let colorNames: [String: LocalizedStringKey] = [
+        "#007AFF": "Blu", "#FF3B30": "Rosso", "#FF9500": "Arancione", "#FFCC00": "Giallo",
+        "#34C759": "Verde", "#5AC8FA": "Azzurro", "#AF52DE": "Viola", "#FF2D92": "Rosa",
+        "#A2845E": "Marrone", "#8E8E93": "Grigio"
+    ]
     
     var body: some View {
         NavigationStack {
@@ -85,6 +90,7 @@ struct CreateContoView: View {
                         Text("Colore")
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 32), spacing: 8)], spacing: 8) {
                             ForEach(colors, id: \.self) { color in
+                                Button { selectedColor = color } label: {
                                 Circle()
                                     .fill(Color(hex: color))
                                     .frame(width: 30, height: 30)
@@ -95,9 +101,11 @@ struct CreateContoView: View {
                                                 .font(.caption.weight(.bold))
                                         }
                                     }
-                                    .onTapGesture {
-                                        selectedColor = color
-                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(Text(colorNames[color] ?? "Colore"))
+                                .accessibilityAddTraits(selectedColor == color ? .isSelected : [])
+                                .help(Text(colorNames[color] ?? "Colore"))
                             }
                         }
                     }

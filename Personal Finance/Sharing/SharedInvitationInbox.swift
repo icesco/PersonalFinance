@@ -66,6 +66,11 @@ final class SharedInvitationAppDelegate: NSObject, UIApplicationDelegate {
 final class SharedInvitationSceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         if let metadata = connectionOptions.cloudKitShareMetadata { SharedInvitationInbox.shared.receive(metadata) }
+        if let shortcut = connectionOptions.shortcutItem { FinanceIconQuickAction.receive(shortcut.type) }
+    }
+    func windowScene(_ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem,
+                     completionHandler: @escaping (Bool) -> Void) {
+        completionHandler(FinanceIconQuickAction.receive(shortcutItem.type))
     }
     func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
         SharedInvitationInbox.shared.receive(cloudKitShareMetadata)
@@ -73,9 +78,68 @@ final class SharedInvitationSceneDelegate: NSObject, UIWindowSceneDelegate {
 }
 #elseif os(macOS)
 import AppKit
+import SwiftUI
+@MainActor
 final class SharedInvitationAppDelegate: NSObject, NSApplicationDelegate {
+    private let shortcutInbox: FinanceShortcutInbox
+    private let mainWindows = NSHashTable<NSWindow>.weakObjects()
+    private var openMainWindow: (() -> Void)?
+
+    override convenience init() { self.init(inbox: .shared) }
+    init(inbox: FinanceShortcutInbox) {
+        shortcutInbox = inbox
+        super.init()
+    }
+
+    func registerMainWindow(_ window: NSWindow, open: @escaping () -> Void) {
+        mainWindows.add(window)
+        openMainWindow = open
+    }
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let item = NSMenuItem(title: "Nuova spesa", action: #selector(newExpenseFromDock), keyEquivalent: "")
+        item.target = self
+        item.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+        menu.addItem(item)
+        return menu
+    }
+
+    @objc private func newExpenseFromDock(_ sender: Any?) {
+        FinanceIconQuickAction.receive(FinanceIconQuickAction.newExpenseType, inbox: shortcutInbox)
+        if let window = mainWindows.allObjects.first(where: { $0.isVisible || $0.isMiniaturized }) {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            openMainWindow?()
+        }
+        NSApp.activate()
+    }
+
     func application(_ application: NSApplication, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
         SharedInvitationInbox.shared.receive(cloudKitShareMetadata)
+    }
+}
+
+/// Capture the SwiftUI scene action so the Dock also works after the last window closes.
+struct FinanceDockWindowBridge: NSViewRepresentable {
+    let delegate: SharedInvitationAppDelegate
+    @Environment(\.openWindow) private var openWindow
+
+    func makeNSView(context: Context) -> WindowProbe { WindowProbe() }
+    func updateNSView(_ view: WindowProbe, context: Context) {
+        view.register = { window in
+            delegate.registerMainWindow(window) { openWindow(id: "finance") }
+        }
+        if let window = view.window { view.register?(window) }
+    }
+
+    final class WindowProbe: NSView {
+        var register: ((NSWindow) -> Void)?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { register?(window) }
+        }
     }
 }
 #endif

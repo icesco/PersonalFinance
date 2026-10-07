@@ -13,6 +13,24 @@ enum FinanceShortcutRequest: Equatable, Sendable {
     case expense(amount: String, description: String)
 }
 
+/// Dock and Home Screen actions use the same protected draft delivery as Shortcuts.
+enum FinanceIconQuickAction {
+    static let newExpenseType = "cc.fbianco.finance.new-expense"
+
+    @MainActor
+    @discardableResult
+    static func receive(_ type: String, inbox: FinanceShortcutInbox = .shared) -> Bool {
+        guard type == newExpenseType else { return false }
+        do {
+            try inbox.submit(.expense(amount: "", description: ""))
+            return true
+        } catch {
+            inbox.reportError("Completa la richiesta già aperta in Formi.")
+            return false
+        }
+    }
+}
+
 @MainActor @Observable
 final class FinanceShortcutInbox {
     static let shared = FinanceShortcutInbox()

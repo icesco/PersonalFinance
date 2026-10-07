@@ -13,12 +13,16 @@ import FinanceCore
 /// Handles tab selection, account management, and modal presentation
 @Observable
 final class AppStateManager {
+    private let persistsSelection: Bool
+    @ObservationIgnored private weak var refreshOrigin: AppStateManager?
+
     // MARK: - Tab Navigation
     var selectedTab: AppTab = .dashboard
 
     // MARK: - Tinted Backgrounds
     var tintedBackgrounds: Bool = true {
         didSet {
+            guard persistsSelection else { return }
             UserDefaults.standard.set(tintedBackgrounds, forKey: "tintedBackgrounds")
         }
     }
@@ -32,8 +36,12 @@ final class AppStateManager {
     var selectedAccount: Account? {
         didSet {
             // Persist selected libro ID
-            if let accountID = selectedAccount?.id.uuidString {
-                UserDefaults.standard.set(accountID, forKey: "selectedAccountID")
+            if persistsSelection {
+                if let accountID = selectedAccount?.id.uuidString {
+                    UserDefaults.standard.set(accountID, forKey: "selectedAccountID")
+                } else {
+                    UserDefaults.standard.removeObject(forKey: "selectedAccountID")
+                }
             }
             // Reset conto selection when libro changes
             if selectedAccount != nil {
@@ -46,7 +54,9 @@ final class AppStateManager {
     /// When true, dashboard shows aggregated data from all libri
     var showAllAccounts: Bool = false {
         didSet {
-            UserDefaults.standard.set(showAllAccounts, forKey: "showAllAccounts")
+            if persistsSelection {
+                UserDefaults.standard.set(showAllAccounts, forKey: "showAllAccounts")
+            }
             if showAllAccounts {
                 selectedConto = nil
                 showAllConti = true
@@ -58,6 +68,7 @@ final class AppStateManager {
     /// The selected Conto (individual account like credit card, bank account)
     var selectedConto: Conto? {
         didSet {
+            guard persistsSelection else { return }
             if let contoID = selectedConto?.id.uuidString {
                 UserDefaults.standard.set(contoID, forKey: "selectedContoID")
             } else {
@@ -69,11 +80,13 @@ final class AppStateManager {
     /// When true, shows all conti within the selected libro
     var showAllConti: Bool = true {
         didSet {
+            guard persistsSelection else { return }
             UserDefaults.standard.set(showAllConti, forKey: "showAllConti")
         }
     }
     
     // MARK: - Modal States
+    var showingSettingsWindow = false
     var showingAccountSelection = false
     var watchDraftID: UUID?
     var showingQuickTransaction = false
@@ -102,12 +115,28 @@ final class AppStateManager {
         }
     }
 
-    init() {
+    init(persistsSelection: Bool = true) {
+        self.persistsSelection = persistsSelection
         loadTintedBackgrounds()
         loadShowAllAccounts()
         loadShowAllConti()
         loadSelectedAccount()
         checkOnboardingStatus()
+    }
+
+    /// Each desktop task keeps its book and draft inputs while the main window remains navigable.
+    func windowSnapshot() -> AppStateManager {
+        let copy = AppStateManager(persistsSelection: false)
+        copy.refreshOrigin = refreshOrigin ?? self
+        copy.selectedAccount = selectedAccount
+        copy.selectedConto = selectedConto
+        copy.showAllAccounts = showAllAccounts
+        copy.showAllConti = showAllConti
+        copy.tintedBackgrounds = tintedBackgrounds
+        copy.quickTransactionType = quickTransactionType
+        copy.quickTransactionIsPlanned = quickTransactionIsPlanned
+        copy.quickTransactionPrefill = quickTransactionPrefill
+        return copy
     }
 
     private func loadTintedBackgrounds() {
@@ -148,6 +177,7 @@ final class AppStateManager {
     /// Call when data changes to notify dependent views to refresh
     func triggerDataRefresh() {
         dataRefreshTrigger += 1
+        refreshOrigin?.triggerDataRefresh()
     }
     
     // MARK: - Account Management

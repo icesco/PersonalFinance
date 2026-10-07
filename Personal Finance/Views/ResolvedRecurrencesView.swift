@@ -41,9 +41,13 @@ struct ResolvedRecurrencesView: View {
                 }
             }
         }
+        .financeEmptyOverlay(isPresented: scoped.isEmpty) {
+            ContentUnavailableView("Nessuna scadenza gestita", systemImage: "checkmark.circle",
+                                   description: Text("Qui ritroverai le scadenze registrate o saltate."))
+        }
         .navigationTitle("Scadenze gestite")
-        .sheet(item: $selectedTransaction) { transaction in
-            NavigationStack { TransactionDetailView(transaction: transaction) }
+        .financePresentation(item: $selectedTransaction, title: "Movimento") { transaction in
+            NavigationStack { TransactionDetailView(transaction: transaction, showsCloseButton: true) }
         }
         .alert("Impossibile ripristinare", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK") { error = nil }

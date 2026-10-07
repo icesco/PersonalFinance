@@ -5,6 +5,9 @@ struct TransactionAddButtonModifier: ViewModifier {
     var isVisible = true
 
     func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+        #else
         content.safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 8) {
             if isVisible {
                 TransactionAddButton()
@@ -12,6 +15,7 @@ struct TransactionAddButtonModifier: ViewModifier {
                     .padding(.bottom, 16)
             }
         }
+        #endif
     }
 }
 

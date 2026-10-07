@@ -17,6 +17,11 @@ struct MainTabView: View {
     @Environment(AppLock.self) private var appLock
     @Query private var widgetAccounts: [Account]
 
+    #if os(macOS)
+    @State private var showingMacImport = false
+    @State private var showingMacExport = false
+    #endif
+
     private var usesSidebar: Bool {
         #if os(macOS)
         true
@@ -31,11 +36,15 @@ struct MainTabView: View {
 
     var body: some View {
         Group {
+            #if os(macOS)
+            macLayout
+            #else
             if usesSidebar {
                 iPadLayout
             } else {
                 iPhoneLayout
             }
+            #endif
         }
         #if os(macOS)
         .modifier(FinanceMacCommandScope())
@@ -51,16 +60,16 @@ struct MainTabView: View {
         } message: { Text(shortcutInbox.errorMessage ?? "") }
         .environment(\.cardTint, themeColor)
         .environment(\.tintedBackgrounds, appState.tintedBackgrounds)
-        .sheet(isPresented: Binding(
+        .financePresentation(isPresented: Binding(
             get: { appState.showingQuickTransaction },
             set: { _ in appState.dismissQuickTransaction() }
-        )) {
+        ), title: "Nuovo movimento") {
             QuickTransactionModal()
         }
-        .sheet(isPresented: Binding(
+        .financePresentation(isPresented: Binding(
             get: { appState.showingTransferSheet },
             set: { _ in appState.dismissTransferSheet() }
-        )) {
+        ), title: "Nuovo trasferimento") {
             CreateTransactionView(conto: nil, transactionType: .transfer)
         }
         .sheet(isPresented: Binding(
@@ -167,6 +176,99 @@ struct MainTabView: View {
                 }
                 .tag(AppTab.settings)
         }
+    }
+
+    #if os(macOS)
+    private var macLayout: some View {
+        NavigationSplitView {
+            List(selection: Binding(
+                get: { appState.selectedTab },
+                set: { if let tab = $0 { appState.selectTab(tab) } }
+            )) {
+                Section("Panoramica") {
+                    Label("Oggi", systemImage: "house").tag(AppTab.dashboard)
+                    Label("Analisi", systemImage: "chart.pie").tag(AppTab.analysis)
+                }
+                Section("Gestisci") {
+                    Label("Movimenti", systemImage: "list.bullet.rectangle").tag(AppTab.transactions)
+                    Label("Cerca", systemImage: "magnifyingglass").tag(AppTab.search)
+                    Label("Pianifica", systemImage: "calendar").tag(AppTab.planning)
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationTitle("Formi")
+            .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 280)
+            .safeAreaInset(edge: .bottom) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Menu {
+                        Button("Tutti i libri") { appState.selectAllAccounts() }
+                        Divider()
+                        ForEach(widgetAccounts.filter { $0.isActive == true }, id: \.id) { account in
+                            Button(account.name ?? "Libro") { appState.selectAccount(account) }
+                        }
+                        Divider()
+                        Button("Gestisci libri…") { appState.showingSettingsWindow = true }
+                    } label: {
+                        Label(appState.showAllAccounts ? "Tutti i libri" : appState.selectedAccount?.name ?? "Scegli libro", systemImage: "books.vertical")
+                            .lineLimit(1)
+                    }
+                    Button("Impostazioni…", systemImage: "gearshape") { appState.showingSettingsWindow = true }
+                }
+                .buttonStyle(.borderless)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.bar)
+            }
+        } detail: {
+            detailContent
+                .toolbar {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button("Nuova spesa", systemImage: "plus") { appState.presentQuickTransaction() }
+                            .buttonStyle(.glassProminent)
+                            .help("Nuova spesa (⌘N)")
+                            .disabled(appState.showingQuickTransaction)
+                        Menu {
+                            Button("Nuova entrata", systemImage: "arrow.down.left") { appState.presentQuickTransaction(type: .income) }
+                            Button("Nuovo trasferimento", systemImage: "arrow.left.arrow.right") { appState.presentQuickTransaction(type: .transfer) }
+                                .disabled(appState.activeConti(for: appState.selectedAccount).count < 2)
+                            Divider()
+                            Button("Importa CSV…") { showingMacImport = true }
+                            Button("Esporta CSV…") { showingMacExport = true }
+                        } label: { Label("Altre azioni", systemImage: "ellipsis.circle") }
+                    }
+                }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 780, minHeight: 520)
+        .financePresentation(isPresented: Binding(
+            get: { appState.showingSettingsWindow },
+            set: { appState.showingSettingsWindow = $0 }
+        ), title: "Impostazioni", width: 720, pinsBook: false) { SettingsView() }
+        .financePresentation(isPresented: $showingMacImport, title: "Importa CSV", width: 800) { CSVImportView() }
+        .financePresentation(isPresented: $showingMacExport, title: "Esporta CSV", width: 800) { CSVExportView() }
+    }
+    #endif
+
+    @ViewBuilder
+    private var detailContent: some View {
+            switch appState.selectedTab {
+            case .dashboard:
+                TodayView()
+            case .analysis:
+                TodayView(screen: .analysis)
+            case .transactions:
+                TransactionListView()
+            case .search:
+                NavigationStack {
+                    TransactionSearchView()
+                }
+            case .planning:
+                FinancePlanningView()
+            case .settings:
+                SettingsView()
+            case .addTransaction:
+                TodayView()
+            }
     }
 
     // MARK: - iPad Layout
@@ -339,7 +441,15 @@ struct QuickTransactionModal: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") { dismiss() }
                 }
+                #if os(macOS)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salva", action: saveTransaction)
+                        .keyboardShortcut("s", modifiers: .command)
+                        .disabled(!isFormValid)
+                }
+                #endif
             }
+            #if !os(macOS)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     if transactionType == .expense,
@@ -369,6 +479,7 @@ struct QuickTransactionModal: View {
                 }
                 .background(ForgiaPalette.canvas)
             }
+            #endif
             .sheet(isPresented: $showingConversion) {
                 CurrencyConversionSheet(targetCurrency: selectedConto?.account?.currency ?? "EUR", transactionDate: selectedDate, existing: foreignAmount) { value in
                     foreignAmount = value

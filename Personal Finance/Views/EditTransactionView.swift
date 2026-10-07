@@ -206,6 +206,9 @@ struct EditTransactionView: View {
                         updateTransaction()
                     }
                     .disabled(isFormInvalid)
+                    #if os(macOS)
+                    .keyboardShortcut("s", modifiers: .command)
+                    #endif
                 }
             }
             .alert("Impossibile salvare", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {

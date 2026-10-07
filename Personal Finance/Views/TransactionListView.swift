@@ -30,6 +30,10 @@ struct TransactionListView: View {
     @State private var showingCategoryFilter = false
     @State private var selectedTimeframe: TransactionTimeframe = .month
     @State private var showSummaryDetail = false
+    #if os(macOS)
+    @State private var desktopSelection: Set<UUID> = []
+    @State private var desktopDetail: FinanceTransaction?
+    #endif
     @State private var transactionToEdit: FinanceTransaction?
     @State private var transactionToDelete: FinanceTransaction?
     @State private var showingDeleteAlert = false
@@ -89,6 +93,9 @@ struct TransactionListView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if transactions.isEmpty {
+                    #if os(macOS)
+                    transactionList
+                    #else
                     ScrollView {
                         VStack(spacing: 16) {
                             periodSummary.unifiedCard()
@@ -97,6 +104,7 @@ struct TransactionListView: View {
                             emptyState
                         }.padding(16)
                     }
+                    #endif
                 } else {
                     transactionList
 
@@ -118,16 +126,16 @@ struct TransactionListView: View {
                 }
             }
             .modifier(TransactionAddButtonModifier(isVisible: !isInSelectionMode))
-            .navigationTitle(initialConto?.name ?? "")
+            .navigationTitle(initialConto?.name ?? desktopTitle)
             #if os(iOS)
             .toolbarTitleDisplayMode(.inline)
             .toolbar(initialConto == nil && initialInterval == nil ? .hidden : .visible, for: .navigationBar)
             #endif
-            .sheet(isPresented: $showingRecurring) {
-                RecurringTransactionsSheet(
-                    contoIDs: contoIDsForQuery,
-                    showConto: showContoInCell
-                )
+            .financePresentation(isPresented: $showingRecurring, title: "Ricorrenze", width: 800) {
+                NavigationStack {
+                    RecurringManagementView(contoIDs: contoIDsForQuery)
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { FinanceTaskDoneButton() } }
+                }
             }
             .sheet(isPresented: $showingCategoryFilter) {
                 CategoryFilterSheet(
@@ -135,7 +143,7 @@ struct TransactionListView: View {
                     selectedCategories: $selectedCategories
                 )
             }
-            .sheet(item: $transactionToEdit) { transaction in
+            .financePresentation(item: $transactionToEdit, title: "Modifica movimento") { transaction in
                 EditTransactionView(transaction: transaction)
             }
             .onAppear {
@@ -466,9 +474,112 @@ struct TransactionListView: View {
         return sections
     }
 
+    private var desktopTitle: String {
+        #if os(macOS)
+        "Movimenti"
+        #else
+        ""
+        #endif
+    }
+
     // MARK: - Transaction List
 
-    private var transactionList: some View {
+    @ViewBuilder private var transactionList: some View {
+        #if os(macOS)
+        desktopTable
+        #else
+        groupedTransactionList
+        #endif
+    }
+
+    #if os(macOS)
+    private var desktopTable: some View {
+        VStack(spacing: 0) {
+            periodSummary.padding(16)
+            HStack {
+                Button("Ricorrenze", systemImage: "repeat") { showingRecurring = true }
+                Spacer()
+                Button(isInSelectionMode ? "Fine selezione" : "Seleziona") {
+                    isInSelectionMode.toggle()
+                    selectedTransactions.removeAll()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 10)
+            Table(transactions, selection: Binding(
+                get: { isInSelectionMode ? selectedTransactions : desktopSelection },
+                set: { if isInSelectionMode { selectedTransactions = $0 } else { desktopSelection = $0 } }
+            )) {
+                TableColumn("Data") { transaction in
+                    Text(transaction.date, format: .dateTime.day().month(.abbreviated).year())
+                        .foregroundStyle(transaction.date > Date() ? Color.accentColor : Color.primary)
+                }.width(min: 90, ideal: 110)
+                TableColumn("Descrizione") { transaction in
+                    Text(transaction.transactionDescription.flatMap { $0.isEmpty ? nil : $0 } ?? transaction.type.displayName)
+                        .lineLimit(1)
+                }.width(min: 130, ideal: 230)
+                TableColumn("Tipo") { transaction in
+                    Text(transaction.type.displayName)
+                }.width(min: 70, ideal: 90)
+                TableColumn("Categoria") { transaction in
+                    Text(transaction.category?.name ?? "—").lineLimit(1)
+                }.width(min: 90, ideal: 130)
+                TableColumn("Conto") { transaction in
+                    Text(transaction.fromConto?.name ?? transaction.toConto?.name ?? "—").lineLimit(1)
+                }.width(min: 90, ideal: 130)
+                TableColumn("Importo") { transaction in
+                    Text(transaction.amount ?? 0, format: .currency(code: currency))
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }.width(min: 90, ideal: 110)
+            }
+            .contextMenu(forSelectionType: UUID.self) { ids in
+                if ids.count == 1, let transaction = transactions.first(where: { ids.contains($0.id) }) {
+                    Button("Apri movimento") { desktopDetail = transaction }
+                    Button("Modifica…") { transactionToEdit = transaction }
+                    Divider()
+                    Button("Elimina…", role: .destructive) {
+                        transactionToDelete = transaction
+                        showingDeleteAlert = true
+                    }
+                }
+            } primaryAction: { ids in
+                if !isInSelectionMode, let transaction = transactions.first(where: { ids.contains($0.id) }) {
+                    desktopDetail = transaction
+                }
+            }
+            .financeEmptyOverlay(isPresented: transactions.isEmpty) { emptyState }
+            HStack {
+                let selected = transactions.first { desktopSelection.contains($0.id) }
+                Button("Apri", systemImage: "arrow.up.forward.square") { desktopDetail = selected }
+                    .disabled(isInSelectionMode || desktopSelection.count != 1)
+                Button("Modifica…", systemImage: "pencil") { transactionToEdit = selected }
+                    .disabled(isInSelectionMode || desktopSelection.count != 1)
+                Button("Elimina…", systemImage: "trash", role: .destructive) {
+                    transactionToDelete = selected
+                    showingDeleteAlert = true
+                }
+                .disabled(isInSelectionMode || desktopSelection.count != 1)
+                Spacer()
+                Text("\(transactions.count) di \(totalCount) movimenti").foregroundStyle(.secondary)
+                if hasMoreTransactions { Button("Carica altri movimenti") { loadMore() } }
+            }
+            .font(.caption)
+            .buttonStyle(.bordered)
+            .padding(12)
+        }
+        .financePresentation(item: $desktopDetail, title: "Movimento") { transaction in
+            NavigationStack { TransactionDetailView(transaction: transaction, showsCloseButton: true) }
+        }
+        .onChange(of: selectedMonth) { _, _ in desktopSelection.removeAll() }
+        .onChange(of: selectedTimeframe) { _, _ in desktopSelection.removeAll() }
+        .onChange(of: selectedType) { _, _ in desktopSelection.removeAll() }
+        .onChange(of: selectedConto?.id) { _, _ in desktopSelection.removeAll() }
+        .onChange(of: selectedCategories) { _, _ in desktopSelection.removeAll() }
+    }
+    #endif
+
+    private var groupedTransactionList: some View {
         List {
             Section {
                 periodSummary

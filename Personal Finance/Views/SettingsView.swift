@@ -89,18 +89,18 @@ struct SettingsView: View {
             } message: {
                 Text("Le modifiche non sono state salvate. Riprova.")
             }
-            .sheet(isPresented: $showingAddConto) {
+            .financePresentation(isPresented: $showingAddConto, title: "Nuovo conto") {
                 AddContoSheet()
             }
-            .sheet(isPresented: $showingAddAccount) {
+            .financePresentation(isPresented: $showingAddAccount, title: "Nuovo libro") {
                 CreateAccountView { newAccount in
                     appState.selectAccount(newAccount)
                 }
             }
-            .sheet(isPresented: $showingCSVImport) {
+            .financePresentation(isPresented: $showingCSVImport, title: "Importa CSV", width: 800) {
                 CSVImportView()
             }
-            .sheet(isPresented: $showingCSVExport) {
+            .financePresentation(isPresented: $showingCSVExport, title: "Esporta CSV", width: 800) {
                 CSVExportView()
             }
             .alert("Dati Demo", isPresented: $showingDemoAlert) {
@@ -515,6 +515,10 @@ struct CategoryManagementView: View {
         .scrollContentBackground(.hidden)
         .themedBackground()
         .searchable(text: $searchText, prompt: "Cerca una categoria")
+        .financeEmptyOverlay(isPresented: categories.isEmpty) {
+            ContentUnavailableView(searchText.isEmpty ? "Nessuna categoria" : "Nessun risultato", systemImage: "tag",
+                description: Text(searchText.isEmpty ? "Crea categorie per riconoscere le tue abitudini di spesa." : "Prova con un altro nome."))
+        }
         .safeAreaInset(edge: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Dai un nome alle tue abitudini")

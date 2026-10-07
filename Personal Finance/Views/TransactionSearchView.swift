@@ -93,6 +93,12 @@ struct TransactionSearchView: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .themedBackground()
+        .financeEmptyOverlay(isPresented: !criteria.isActive || results.isEmpty) {
+            VStack(spacing: 16) {
+                if !criteria.isActive { idleState }
+                else { noResultsState }
+            }
+        }
         .safeAreaBar(edge: .top, spacing: 0) { filtersBar }
         .navigationTitle("Cerca")
         .toolbarTitleDisplayMode(.inline)

@@ -5,6 +5,7 @@ import MapKit
 
 struct TransactionDetailView: View {
     let transaction: FinanceTransaction
+    var showsCloseButton = false
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStateManager.self) private var appState
@@ -205,7 +206,7 @@ struct TransactionDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingEditSheet) {
+        .financePresentation(isPresented: $showingEditSheet, title: "Modifica movimento") {
             EditTransactionView(transaction: transaction)
         }
         .alert("Impossibile eliminare", isPresented: $showingDeleteError) {

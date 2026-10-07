@@ -339,6 +339,9 @@ struct CreateTransactionView: View {
                         createTransaction()
                     }
                     .disabled(isFormInvalid)
+                    #if os(macOS)
+                    .keyboardShortcut("s", modifiers: .command)
+                    #endif
                 }
             }
         }

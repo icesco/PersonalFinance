@@ -33,5 +33,16 @@
 			</array>
 		</dict>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>cc.fbianco.finance.new-expense</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Nuova spesa</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>plus</string>
+		</dict>
+	</array>
 </dict>
 </plist>

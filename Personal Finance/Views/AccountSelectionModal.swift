@@ -31,7 +31,8 @@ struct AccountSelectionModal: View {
                     accountListView
                 }
             }
-            .navigationTitle(isInitialSelection ? "Seleziona Account" : "Cambia Account")
+            .financeEmptyOverlay(isPresented: accounts.isEmpty) { emptyStateView }
+            .navigationTitle(isInitialSelection ? "Seleziona libro" : "Cambia libro")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 if !isInitialSelection {
@@ -116,18 +117,18 @@ struct AccountSelectionModal: View {
                 .foregroundColor(.secondary)
             
             VStack(spacing: 12) {
-                Text("Nessun Account")
+                Text("Nessun libro")
                     .font(.title2)
                     .fontWeight(.semibold)
                 
-                Text("Crea il tuo primo account per iniziare a gestire le tue finanze personali")
+                Text("Crea il tuo primo libro per iniziare a gestire le tue finanze personali")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
             
-            Button("Crea Primo Account") {
+            Button("Crea il primo libro") {
                 showingAccountCreation = true
             }
             .buttonStyle(.borderedProminent)

@@ -71,6 +71,9 @@ struct Personal_FinanceApp: App {
                 }
             }
             .background { AppPrivacyGuard(lock: appLock, concealed: appLock.shouldConceal) }
+            #if os(macOS)
+            .background { FinanceDockWindowBridge(delegate: invitationDelegate) }
+            #endif
             .environment(recurrenceReminders)
             .environment(appLock)
             .onOpenURL { url in
@@ -86,6 +89,14 @@ struct Personal_FinanceApp: App {
         #if os(macOS)
         .defaultSize(width: 1100, height: 700)
         .commands { FinanceMacCommands() }
+        #endif
+        #if os(macOS)
+        WindowGroup("Formi", id: "finance-task", for: UUID.self) { $id in
+            FinanceTaskWindow(id: id)
+        }
+        .defaultSize(width: 640, height: 720)
+        .windowResizability(.contentMinSize)
+        .restorationBehavior(.disabled)
         #endif
     }
     

@@ -123,7 +123,7 @@ struct FinancePlanningView: View {
                                 .accessibilityIdentifier("occurrence-\(RecurrenceResolution.key(sourceID: occurrence.transaction.id, date: occurrence.date))")
                             }
                         }
-                        Text(browseByMonth ? "Tocca una scadenza per registrarla o saltarla. Le scadenze future restano previsioni." : "I 30 giorni passati e i prossimi 30. Scegli Per mese per consultare altri periodi.")
+                        Text(browseByMonth ? "Seleziona una scadenza per registrarla o saltarla. Le scadenze future restano previsioni." : "I 30 giorni passati e i prossimi 30. Scegli Per mese per consultare altri periodi.")
                             .font(.caption).foregroundStyle(.secondary)
                         Divider()
                         NavigationLink { RecurringManagementView(contoIDs: Set(books.flatMap(\.activeConti).map(\.id))) } label: {
@@ -136,6 +136,7 @@ struct FinancePlanningView: View {
                     ForEach(books) { book in
                         PlanningPanel(title: books.count > 1 ? "Conti · \(book.name ?? "Libro")" : "I tuoi conti", symbol: "creditcard") {
                             ForEach(book.activeConti) { conto in
+                                HStack(spacing: 12) {
                                 NavigationLink { FinanceContoDetailsView(conto: conto) } label: {
                                     HStack {
                                         ContoSettingsRow(conto: conto)
@@ -143,6 +144,12 @@ struct FinancePlanningView: View {
                                     }.padding(12).background(ForgiaPalette.canvas, in: RoundedRectangle(cornerRadius: 16))
                                 }.buttonStyle(.plain)
                                 .contextMenu { Button("Modifica conto") { editingConto = conto } }
+                                    #if os(macOS)
+                                    Button("Modifica", systemImage: "pencil") { editingConto = conto }
+                                        .buttonStyle(.bordered)
+                                        .help("Modifica \(conto.name ?? "conto")")
+                                    #endif
+                                }
                             }
                             Button { creatingContoFor = book } label: { Label("Nuovo conto", systemImage: "plus") }
                                 .buttonStyle(.bordered)
@@ -175,10 +182,10 @@ struct FinancePlanningView: View {
             .alert("Scadenza non aggiornata", isPresented: Binding(get: { resolutionError != nil }, set: { if !$0 { resolutionError = nil } })) {
                 Button("OK") { resolutionError = nil }
             } message: { Text(resolutionError ?? "") }
-            .sheet(isPresented: $showingBudgets) { BudgetView() }
-            .sheet(item: $creatingContoFor) { CreateContoView(account: $0) }
-            .sheet(item: $editingConto) { EditContoView(conto: $0) }
-            .sheet(item: $selectedTransaction) { transaction in
+            .financePresentation(isPresented: $showingBudgets, title: "Budget", width: 800) { BudgetView() }
+            .financePresentation(item: $creatingContoFor, title: "Nuovo conto") { CreateContoView(account: $0) }
+            .financePresentation(item: $editingConto, title: "Modifica conto") { EditContoView(conto: $0) }
+            .financePresentation(item: $selectedTransaction, title: "Movimento") { transaction in
                 NavigationStack { TransactionDetailView(transaction: transaction) }
             }
         }
