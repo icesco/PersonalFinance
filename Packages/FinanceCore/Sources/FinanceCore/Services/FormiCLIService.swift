@@ -41,7 +41,7 @@ public enum FormiCLIService {
 
     public static func execute(_ request: FormiCLIRequest, container: ModelContainer,
                                calendar: Calendar = .current) throws -> Result {
-        guard request.version == 1, ["add", "import", "preview"].contains(request.command),
+        guard request.version == 1, request.categoryMutation == nil, ["add", "import", "preview"].contains(request.command),
               !request.movements.isEmpty, request.movements.count <= 500,
               request.command != "add" || request.movements.count == 1,
               request.command != "preview" || !request.commit else {

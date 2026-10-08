@@ -58,7 +58,7 @@ enum FormiCLIBridge {
             let context = ModelContext(container)
             switch request.command {
             case "accounts", "categories":
-                guard !request.commit, request.movements.isEmpty else {
+                guard !request.commit, request.movements.isEmpty, request.categoryMutation == nil else {
                     throw FormiCLIService.Failure("La lettura non accetta movimenti o commit.")
                 }
                 let shared = Set(try context.fetch(FetchDescriptor<SharedBookMembership>()).map(\.localBookID))
@@ -76,12 +76,22 @@ enum FormiCLIBridge {
                     }])
                 } else {
                     let categories = try context.fetch(FetchDescriptor<FinanceCore.Category>(sortBy: [SortDescriptor(\.name)]))
-                        .filter { $0.isActive == true && $0.account.map { bookIDs.contains($0.id) } == true }
-                    reply(["ok": true, "categories": categories.map { category -> [String: Any] in
-                        ["id": category.id.uuidString, "name": category.name ?? "Categoria",
-                         "bookID": category.account!.id.uuidString, "type": category.kindRaw ?? "both"]
-                    }])
+                        .filter { $0.account.map { bookIDs.contains($0.id) } == true }
+                    let rows = books.flatMap { FormiCLICategoryService.rows(categories, bookID: $0.id) }
+                        .filter { request.includeArchived == true || $0.active }
+                    let revisions = try Dictionary(uniqueKeysWithValues: books.map {
+                        ($0.id.uuidString, try FormiCLICategoryService.revision(categories, bookID: $0.id))
+                    })
+                    reply(["ok": true, "revisions": revisions, "categories":
+                        try JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(rows))])
                 }
+            case "category-create", "category-update":
+                if let icon = request.categoryMutation?.icon,
+                   NSImage(systemSymbolName: icon, accessibilityDescription: nil) == nil {
+                    throw FormiCLIService.Failure("SF Symbol non disponibile: \(icon).")
+                }
+                let result = try FormiCLICategoryService.execute(request, container: container)
+                reply(["ok": true, "result": try JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(result))])
             default:
                 let result = try FormiCLIService.execute(request, container: container)
                 let encoded = try FormiCLIWire.encoder().encode(result)

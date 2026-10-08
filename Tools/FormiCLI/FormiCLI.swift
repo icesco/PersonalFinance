@@ -32,25 +32,53 @@ struct FormiCLI {
     7. Il lotto è atomico (1–500 movimenti, massimo 2 MB). La CLI supporta solo
        spese ed entrate nei libri personali, senza conversioni implicite, trasferimenti,
        allegati o ricorrenze. saved prova il salvataggio locale, non la sincronizzazione cloud.
-    8. Non aggirare CLI disabilitata, blocco privacy, wrong_app o altre validazioni.
+    8. Per categorie usa category-create o category-update con --book e un nuovo
+       --request-id stabile per ciascuna operazione. categories --include-archived
+       mostra anche gli archiviati, parentID, type, active, color e icon.
+       I campi omessi si conservano. --parent none promuove a principale, --parent UUID
+       sposta sotto una principale dello stesso libro. Non cambiare libro o UUID.
+       Prima anteprima senza --yes: mostra tutti i changes (before/after), anche figli.
+       Dopo autorizzazione ripeti gli stessi campi con --revision della risposta e --yes.
+       Conserva anche revision sui retry. alreadyRecorded non prova lo stato attuale:
+       rileggi categories; non ripristinare automaticamente modifiche successive.
+       Se revision è scaduta rifai l'anteprima e sottoponi i nuovi effetti all'utente.
+       Il tipo dei figli segue il genitore; cambiare il tipo può essere rifiutato per
+       movimenti incompatibili. Archiviare una principale archivia i figli; riattivarla
+       non li riattiva. Sposta prima tutti i figli per rendere una principale figlia.
+       Nomi uguali fra fratelli sono rifiutati anche se archiviati. Colori #RRGGBB,
+       icone SF Symbols disponibili sul Mac. Nessuna eliminazione definitiva.
+    9. Non aggirare CLI disabilitata, blocco privacy, wrong_app o altre validazioni.
        Chiedi all'utente di aprire la copia corretta di Formi e risolvere il problema.
     """
     static let help = """
     Formi CLI — movimenti per assistenti AI esterni
 
     formi accounts [--book UUID]
-    formi categories [--book UUID]
+    formi categories [--book UUID] [--include-archived]
     formi add --account UUID --amount 25.50 --currency EUR
               [--category UUID] [--description "Spesa"] [--date YYYY-MM-DD]
               [--request-id UUID] [--type expense|income] [--yes] [--allow-duplicates]
     formi preview movimenti.json
     formi import movimenti.json [--yes] [--allow-duplicates]
     formi import - < movimenti.json
+    formi category-create --book UUID --name "Categoria" --request-id UUID
+              [--parent UUID|none] [--type expense|income|both]
+              [--color '#RRGGBB'] [--icon SF_SYMBOL] [--active true|false]
+              [--revision TOKEN --yes]
+    formi category-update --book UUID --category UUID --request-id UUID
+              [--name "Nome"] [--parent UUID|none] [--type expense|income|both]
+              [--color '#RRGGBB'] [--icon SF_SYMBOL] [--active true|false]
+              [--revision TOKEN --yes]
     formi schema
     formi info
     formi ai-help
 
     add e import restituiscono un'anteprima; --yes salva tutti i movimenti.
+    Le categorie richiedono --request-id stabile e --book. Prima esegui l'anteprima,
+    poi ripeti con --revision restituita e --yes. I campi omessi sono conservati.
+    --parent none rende principale; il tipo dei figli è ereditato dal genitore.
+    Archivio (--active false) di una principale archivia i figli; riattivarla
+    non riattiva automaticamente i figli. La gerarchia ha due livelli.
     Le risposte sono JSON. --json è accettato per compatibilità.
     Ogni movimento JSON richiede requestID, accountID, type, amount (stringa),
     currency e date (YYYY-MM-DD); categoryID e description sono facoltativi.
@@ -78,7 +106,7 @@ struct FormiCLI {
                 let executable = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
                 let appURL = executable.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().standardizedFileURL
                 let bundle = Bundle(url: appURL)
-                let metadata: [String: Any] = ["cliVersion": "1.0", "protocolVersion": 1,
+                let metadata: [String: Any] = ["cliVersion": "1.1", "protocolVersion": 1,
                     "command": commandName, "configuration": channel, "appPath": appURL.path,
                     "appVersion": bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
                     "appBuild": bundle?.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
@@ -86,7 +114,7 @@ struct FormiCLI {
                 print(String(decoding: try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]), as: UTF8.self)); return
             }
             if arguments == ["schema"] {
-                print(#"{"version":1,"maxBatchSize":500,"commands":["info","ai-help","accounts","categories","add","preview","import"],"movement":{"requestID":"UUID (stable on retries)","accountID":"UUID from accounts","categoryID":"optional UUID from categories","type":"expense|income","amount":"positive decimal string, e.g. 25.50","currency":"account currency, e.g. EUR","date":"YYYY-MM-DD in Formi's local time zone","description":"optional string"},"writes":"add/import require --yes","transfers":false}"#)
+                print(##"{"version":1,"maxBatchSize":500,"commands":["info","ai-help","accounts","categories","add","preview","import","category-create","category-update"],"categoryMutation":{"required":["bookID","requestID"],"create":"name required; categoryID assigned from requestID","update":"categoryID required; omitted fields preserved","fields":{"name":"1-200 characters","color":"#RRGGBB","icon":"SF Symbol","parent":"UUID or none","type":"expense|income|both (children inherit)","active":"true|false"},"commit":"preview first, then same arguments with --revision TOKEN --yes","hierarchyLevels":2,"archive":"root also archives children; reactivate individually","retry":"same requestID, fields and revision; alreadyRecorded never reapplies","list":"categories --include-archived includes parentID, type, active, icon, color"},"movement":{"requestID":"UUID (stable on retries)","accountID":"UUID from accounts","categoryID":"optional UUID from categories","type":"expense|income","amount":"positive decimal string, e.g. 25.50","currency":"account currency, e.g. EUR","date":"YYYY-MM-DD in Formi's local time zone","description":"optional string"},"writes":"add/import require --yes","transfers":false}"##)
                 return
             }
             let formatter = DateFormatter()

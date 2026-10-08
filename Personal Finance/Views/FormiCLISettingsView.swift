@@ -39,7 +39,7 @@ struct FormiCLISettingsView: View {
             Section {
                 Toggle("Abilita CLI per AI esterne", isOn: $enabled)
                     .accessibilityIdentifier("formi-cli-enabled")
-                Text("Consenti agli assistenti che usi su questo Mac di leggere conti e categorie e aggiungere movimenti. Se usi il blocco privacy, sblocca prima Formi.")
+                Text("Consenti agli assistenti che usi su questo Mac di leggere conti e categorie, aggiungere movimenti e creare o modificare categorie. Se usi il blocco privacy, sblocca prima Formi.")
                     .foregroundStyle(.secondary)
             }
             Section("Collega il tuo assistente") {
@@ -57,6 +57,7 @@ struct FormiCLISettingsView: View {
                         Leggi info, ai-help, --help e schema. Verifica che appPath e configuration corrispondano alla copia dell'app desiderata.
                         Usa accounts e categories per conoscere gli UUID reali.
                         Per una spesa usa add; per più movimenti usa import con JSON da file o stdin.
+                        Per categorie usa category-create e category-update: mostra gli effetti sui figli e salva con --revision dell’anteprima e --yes.
                         Gli importi sono stringhe decimali positive; le date sono YYYY-MM-DD nel fuso indicato da accounts.
                         Mostra l'anteprima e chiedimi conferma prima di salvare con --yes.
                         Conserva requestID e tutti i dati invariati durante i tentativi successivi, anche dopo un timeout.
@@ -69,6 +70,12 @@ struct FormiCLISettingsView: View {
                 Text("\(FormiCLIInstaller.commandName) add --account UUID --amount 25.50 --currency EUR --description 'Spesa'\n\(FormiCLIInstaller.commandName) import movimenti.json\n\(FormiCLIInstaller.commandName) import movimenti.json --yes")
                     .font(.system(.body, design: .monospaced)).textSelection(.enabled)
                 Text("Senza --yes viene mostrata solo l'anteprima. Il salvataggio verifica l'intero lotto e i possibili duplicati. Puoi inserire spese ed entrate nei libri personali, fino a 500 movimenti per richiesta.")
+                    .foregroundStyle(.secondary)
+            }
+            Section("Categorie e sottocategorie") {
+                Text("\(FormiCLIInstaller.commandName) categories --include-archived\n\(FormiCLIInstaller.commandName) category-create --book UUID --name 'Viaggi' --request-id UUID\n\(FormiCLIInstaller.commandName) category-update --book UUID --category UUID --parent UUID --request-id UUID")
+                    .font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                Text("Puoi modificare nome, tipo, icona, colore, stato e gerarchia a due livelli. Prima controlla l'anteprima, inclusi gli effetti sui figli; poi ripeti con --revision restituita e --yes. I movimenti e i budget mantengono i riferimenti alla categoria.")
                     .foregroundStyle(.secondary)
             }
         }

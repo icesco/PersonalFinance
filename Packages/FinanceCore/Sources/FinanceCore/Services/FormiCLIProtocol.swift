@@ -21,6 +21,27 @@ public struct FormiCLIMovement: Codable, Sendable, Equatable {
     }
 }
 
+/// Omitted fields are preserved on update; parent="none" promotes to a root.
+public struct FormiCLICategoryMutation: Codable, Sendable, Equatable {
+    public var requestID: UUID
+    public var categoryID: UUID?
+    public var name: String?
+    public var color: String?
+    public var icon: String?
+    public var parent: String?
+    public var type: String?
+    public var active: Bool?
+    public var revision: String?
+
+    public init(requestID: UUID, categoryID: UUID? = nil, name: String? = nil,
+                color: String? = nil, icon: String? = nil, parent: String? = nil,
+                type: String? = nil, active: Bool? = nil, revision: String? = nil) {
+        self.requestID = requestID; self.categoryID = categoryID; self.name = name
+        self.color = color; self.icon = icon; self.parent = parent; self.type = type
+        self.active = active; self.revision = revision
+    }
+}
+
 public struct FormiCLIRequest: Codable, Sendable {
     public var version: Int = 1
     public var id: UUID = UUID()
@@ -29,6 +50,8 @@ public struct FormiCLIRequest: Codable, Sendable {
     public var movements: [FormiCLIMovement] = []
     public var commit: Bool = false
     public var allowDuplicates: Bool = false
+    public var categoryMutation: FormiCLICategoryMutation?
+    public var includeArchived: Bool?
     public var bookID: UUID?
     /// The app must reject delivery to a different installed copy before any write.
     public var targetAppPath: String?

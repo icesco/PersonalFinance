@@ -106,6 +106,64 @@ senza conversione implicita. Categoria e descrizione sono facoltative.
 `add` usa la data odierna e `expense` se non specificati; per una singola entrata
 usa `--type income`. Il formato JSON richiede una data e un tipo espliciti.
 
+## Categorie: creazione e modifica
+
+`categories --book UUID --include-archived` elenca anche categorie archiviate,
+con `parentID` (omesso per le principali), `name`, `type`, `color`, `icon`, `active`
+e `updatedAt`. `revisions` contiene il token della gerarchia per ciascun libro.
+La gerarchia segue i due livelli dell'app: principali e sottocategorie.
+
+```sh
+# Anteprima creazione: UUID_STABILE è nuovo, generato una sola volta.
+formi category-create --book UUID_LIBRO --name 'Sport' \
+  --parent UUID_PRINCIPALE --color '#2F7A72' --icon figure.run \
+  --request-id UUID_STABILE
+
+# Ripeti gli stessi argomenti con il token result.revision dell'anteprima.
+formi category-create --book UUID_LIBRO --name 'Sport' \
+  --parent UUID_PRINCIPALE --color '#2F7A72' --icon figure.run \
+  --request-id UUID_STABILE --revision TOKEN_ANTEPRIMA --yes
+
+# Sposta e rinomina una sottocategoria; anche qui il primo comando è anteprima.
+formi category-update --book UUID_LIBRO --category UUID_CATEGORIA \
+  --parent UUID_NUOVA_PRINCIPALE --name 'Attività sportive' \
+  --request-id UUID_NUOVA_OPERAZIONE
+
+# Promuovi a principale, modifica tipo o archivia/riattiva.
+formi category-update --book UUID_LIBRO --category UUID_CATEGORIA \
+  --parent none --type both --active true --request-id UUID_NUOVA_OPERAZIONE
+```
+
+I campi omessi in modifica restano invariati. Il nome deve avere 1–200 caratteri,
+il colore è `#RRGGBB`, l'icona un SF Symbol disponibile sul Mac, il tipo
+`expense|income|both`, lo stato `--active true|false`. Gli identificatori, le date
+tecniche e il libro di appartenenza sono gestiti dall'app e non sono modificabili.
+`--parent none` rende principale; `--parent UUID` crea/sposta sotto una principale
+dello stesso libro. Per rendere una principale sottocategoria, sposta prima tutti
+i suoi figli, anche archiviati. Nomi uguali fra fratelli sono rifiutati anche se
+archiviati, per evitare selezioni ambigue.
+
+Le sottocategorie ereditano il tipo del genitore. Modificare il tipo di una
+principale aggiorna anche i figli; movimenti incompatibili, inclusi quelli
+programmati, impediscono l'operazione. L'archiviazione di una principale archivia
+anche i figli. La riattivazione della principale lascia i figli archiviati:
+riattivali singolarmente dopo aver riattivato il genitore. Non c'è eliminazione
+definitiva. Identificatori e collegamenti a movimenti e budget vengono conservati;
+spostare un figlio cambia naturalmente i raggruppamenti per categoria principale.
+
+`result.changes` mostra tutti i valori `before`/`after`, inclusi i figli coinvolti.
+Il comando senza `--yes` non scrive né categorie né ricevute. Per salvare, ripeti
+gli stessi argomenti con `--revision` restituita dall'anteprima e `--yes`.
+Se la gerarchia è cambiata, la CLI rifiuta il salvataggio: rigenera l'anteprima e
+verifica di nuovo gli effetti. Ogni modifica viene salvata in una sola operazione.
+
+Conserva `--request-id`, campi e `--revision` invariati sui retry. Le ricevute
+persistenti impediscono duplicati e la riapplicazione di modifiche già eseguite,
+anche se poi l'utente cambia o elimina la categoria. `alreadyRecorded: true`
+segnala la precedente esecuzione e `changes` è vuoto: rileggi `categories` per
+lo stato attuale. Un requestID già usato con dati diversi viene rifiutato. Per
+una nuova operazione genera un nuovo UUID. Vale anche il blocco dei libri condivisi.
+
 ## Integrità dei dati
 
 - `add` e `import` mostrano un'anteprima finché non viene passato `--yes`.
