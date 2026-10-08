@@ -374,6 +374,8 @@ struct QuickTransactionModal: View {
     @State private var selectedDate = Date()
     @State private var isRecurring = false
     @State private var recurrenceFrequency: RecurrenceFrequency = .monthly
+    @State private var hasRecurrenceEndDate = false
+    @State private var recurrenceEndDate = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
     @State private var saveError: String?
     @State private var showingCalculator = false
     @State private var showingAccountPicker = false
@@ -419,7 +421,12 @@ struct QuickTransactionModal: View {
         BalanceInput.parse(destinationAmount, currency: destinationConto?.account?.currency ?? "EUR")
     }
 
+    private var effectiveRecurrenceEndDate: Date? {
+        RecurrenceSchedule.inclusiveEnd(anchor: selectedDate, lastDay: recurrenceEndDate)
+    }
+
     private var isFormValid: Bool {
+        if isRecurring && hasRecurrenceEndDate && effectiveRecurrenceEndDate == nil { return false }
         guard let amountValue = parsedAmount else {
             return false
         }
@@ -792,32 +799,15 @@ struct QuickTransactionModal: View {
     }
 
     private var recurrenceCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 14) {
-                rowIcon("arrow.triangle.2.circlepath", tint: ForgiaPalette.sageSurface)
-                Toggle("Transazione ricorrente", isOn: $isRecurring)
-                    .tint(ForgiaPalette.accent)
-                    .font(.body)
-            }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 62)
-
-            if isRecurring {
-                rowDivider
-                HStack(spacing: 14) {
-                    rowIcon("calendar.badge.clock", tint: ForgiaPalette.canvas)
-                    Picker("Frequenza", selection: $recurrenceFrequency) {
-                        ForEach(RecurrenceFrequency.allCases, id: \.self) { frequency in
-                            Text(frequency.displayName).tag(frequency)
-                        }
-                    }
-                    .tint(ForgiaPalette.accent)
-                }
-                .padding(.horizontal, 16)
-                .frame(minHeight: 62)
-            }
+        FormCard {
+            RecurrenceEditorRows(
+                isRecurring: $isRecurring,
+                frequency: $recurrenceFrequency,
+                hasEndDate: $hasRecurrenceEndDate,
+                endDate: $recurrenceEndDate,
+                startDate: selectedDate
+            )
         }
-        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -875,7 +865,8 @@ struct QuickTransactionModal: View {
             date: selectedDate,
             transactionDescription: description.isEmpty ? nil : description,
             isRecurring: isRecurring,
-            recurrenceFrequency: isRecurring ? recurrenceFrequency : nil
+            recurrenceFrequency: isRecurring ? recurrenceFrequency : nil,
+            recurrenceEndDate: isRecurring && hasRecurrenceEndDate ? effectiveRecurrenceEndDate : nil
         )
 
         transaction.setCategory(transactionType == .transfer ? nil : selectedCategory)

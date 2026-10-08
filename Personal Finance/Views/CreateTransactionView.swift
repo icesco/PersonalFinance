@@ -315,46 +315,13 @@ struct CreateTransactionView: View {
 
     @ViewBuilder
     private var recurrenceRows: some View {
-        FormRow(icon: "arrow.triangle.2.circlepath", tint: ForgiaPalette.sageSurface) {
-            Toggle("Movimento ricorrente", isOn: $isRecurring.animation())
-                .tint(ForgiaPalette.accent)
-        }
-        if isRecurring {
-            FormRowDivider()
-            FormRow(icon: "calendar.badge.clock") {
-                Text("Frequenza")
-                Spacer(minLength: 8)
-                Picker("Frequenza", selection: $selectedFrequency) {
-                    ForEach(RecurrenceFrequency.allCases, id: \.self) { frequency in
-                        Text(frequency.displayName).tag(frequency)
-                    }
-                }
-                .labelsHidden()
-                .tint(ForgiaPalette.accent)
-            }
-            FormRowDivider()
-            FormRow(icon: "flag.checkered") {
-                Toggle("Data di fine", isOn: $hasEndDate.animation())
-                    .tint(ForgiaPalette.accent)
-            }
-            if hasEndDate {
-                FormRowDivider()
-                FormRow(icon: "calendar.badge.minus") {
-                    Text("Fine ricorrenza")
-                    Spacer(minLength: 8)
-                    DatePicker("Fine ricorrenza", selection: $recurrenceEndDate,
-                               in: Calendar.current.startOfDay(for: selectedDate)..., displayedComponents: .date)
-                        .labelsHidden()
-                        .tint(ForgiaPalette.accent)
-                }
-                if effectiveRecurrenceEndDate == nil {
-                    Text("La fine della ricorrenza non può precedere la data iniziale.")
-                        .font(.caption).foregroundStyle(.red)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 12)
-                }
-            }
-        }
+        RecurrenceEditorRows(
+            isRecurring: $isRecurring,
+            frequency: $selectedFrequency,
+            hasEndDate: $hasEndDate,
+            endDate: $recurrenceEndDate,
+            startDate: selectedDate
+        )
     }
 
     /// Current and resulting balance of every account the movement touches.
