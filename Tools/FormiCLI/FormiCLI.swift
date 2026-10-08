@@ -11,9 +11,19 @@ struct FormiCLI {
         #endif
     }
     static var commandName: String { channel == "debug" ? "formi-debug" : "formi" }
+    static func appInfo(at appURL: URL) throws -> [String: Any] {
+        // Bundle(url:) can return the CLI's embedded __info_plist for its enclosing
+        // app. Read the parent plist explicitly to identify the actual GUI process.
+        let data = try Data(contentsOf: appURL.appendingPathComponent("Contents/Info.plist"))
+        guard let info = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            throw FormiCLIArguments.Failure("Info.plist dell'app non valido.")
+        }
+        return info
+    }
     static let aiHelp = """
     Formi: istruzioni per assistenti AI
-    1. Esegui info e verifica appPath, configuration e versione dell'app prima di usare i dati.
+    1. Apri Formi prima di usare i dati: la CLI non avvia l'app e non apre finestre.
+       Esegui info e verifica appPath, configuration e versione dell'app prima di usare i dati.
        Usa formi per Release e formi-debug per Debug. I nomi non isolano il database.
     2. Leggi schema e --help. Esegui accounts e categories: non inventare UUID,
        valuta, conto, categoria o data. Se la selezione è ambigua chiedi all'utente.
@@ -84,6 +94,7 @@ struct FormiCLI {
     currency e date (YYYY-MM-DD); categoryID e description sono facoltativi.
     Riusa lo stesso requestID e gli stessi dati nei tentativi successivi.
     Abilita la CLI in Formi > Impostazioni > Integrazioni > CLI per AI.
+    Apri Formi prima dei comandi sui dati. La CLI non avvia l'app e non apre finestre.
     Il launcher installato legge i file indicati. Se usi direttamente il binario
     incluso nell'app, passa il JSON tramite stdin: formi import - < movimenti.json.
     """
@@ -107,12 +118,12 @@ struct FormiCLI {
             if arguments == ["--version"] || arguments == ["info"] || arguments == ["--version", "--json"] {
                 let executable = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
                 let appURL = executable.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().standardizedFileURL
-                let bundle = Bundle(url: appURL)
-                let metadata: [String: Any] = ["cliVersion": "1.1", "protocolVersion": 1,
+                let info = try appInfo(at: appURL)
+                let metadata: [String: Any] = ["cliVersion": "1.2", "protocolVersion": 1,
                     "command": commandName, "configuration": channel, "appPath": appURL.path,
-                    "appVersion": bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
-                    "appBuild": bundle?.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
-                    "bundleIdentifier": bundle?.bundleIdentifier ?? "unknown"]
+                    "appVersion": info["CFBundleShortVersionString"] as? String ?? "unknown",
+                    "appBuild": info["CFBundleVersion"] as? String ?? "unknown",
+                    "bundleIdentifier": info["CFBundleIdentifier"] as? String ?? "unknown"]
                 print(String(decoding: try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]), as: UTF8.self)); return
             }
             if arguments == ["schema"] {
@@ -148,6 +159,20 @@ struct FormiCLI {
             }
             request.targetAppPath = appURL.path
             request.targetConfiguration = channel
+            let info = try appInfo(at: appURL)
+            guard let bundleID = info["CFBundleIdentifier"] as? String else {
+                throw FormiCLIArguments.Failure("Bundle identifier dell'app non disponibile.")
+            }
+            let runningCopies = NSWorkspace.shared.runningApplications.filter {
+                !$0.isTerminated && $0.bundleIdentifier == bundleID &&
+                $0.bundleURL?.resolvingSymlinksInPath().standardizedFileURL == appURL
+            }
+            guard !runningCopies.isEmpty else {
+                throw FormiCLIArguments.Failure("Formi non è aperta. Apri la copia dell'app in \(appURL.path) e riprova. La CLI non avvia l'app automaticamente.")
+            }
+            guard runningCopies.count == 1 else {
+                throw FormiCLIArguments.Failure("Sono aperte più istanze della stessa copia di Formi. Chiudi le istanze aggiuntive e riprova.")
+            }
             let pasteboard = NSPasteboard(name: .init(FormiCLIWire.pasteboardName(request.id)))
             defer { pasteboard.releaseGlobally() }
             let data = try FormiCLIWire.encoder().encode(request)
@@ -156,11 +181,17 @@ struct FormiCLI {
             guard pasteboard.setData(data, forType: .init(FormiCLIWire.requestType)) else {
                 throw FormiCLIArguments.Failure("Impossibile inviare la richiesta a Formi.")
             }
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.activates = false
-            let url = URL(string: "formi://cli/\(request.id.uuidString)")!
-            _ = try await NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: configuration)
+            // Sandboxed distributed notifications must have nil userInfo. Only the
+            // random request UUID is broadcast; financial data stays on its pasteboard.
+            let notificationName = Notification.Name(FormiCLIWire.requestNotificationName(
+                appPath: appURL.path, configuration: channel))
+            func deliver() {
+                DistributedNotificationCenter.default().postNotificationName(notificationName,
+                    object: request.id.uuidString, userInfo: nil, deliverImmediately: true)
+            }
+            deliver()
             let deadline = ContinuousClock.now.advanced(by: .seconds(45))
+            var nextDelivery = ContinuousClock.now.advanced(by: .seconds(1))
             while ContinuousClock.now < deadline {
                 if let response = pasteboard.data(forType: .init(FormiCLIWire.responseType)),
                    let json = try JSONSerialization.jsonObject(with: response) as? [String: Any],
@@ -170,9 +201,15 @@ struct FormiCLI {
                     if json["ok"] as? Bool != true { exit(1) }
                     return
                 }
+                // The app may be running before its listener is installed. Retry
+                // delivery with the same UUID; the receiver deduplicates requests.
+                if ContinuousClock.now >= nextDelivery {
+                    deliver()
+                    nextDelivery = ContinuousClock.now.advanced(by: .seconds(1))
+                }
                 try await Task.sleep(for: .milliseconds(100))
             }
-            throw FormiCLIArguments.Failure("Formi non ha risposto. Apri l'app e verifica la CLI e il blocco privacy. Se avevi usato --yes, riprova con gli stessi requestID: la richiesta potrebbe essere stata salvata.")
+            throw FormiCLIArguments.Failure("Formi non ha risposto. Verifica che app e CLI siano aggiornate, che l'app sia aperta e che CLI e blocco privacy consentano l'accesso. Se avevi usato --yes, riprova con gli stessi requestID: la richiesta potrebbe essere stata salvata.")
         } catch {
             let json: [String: Any] = ["ok": false, "error": ["code": "cli_error", "message": error.localizedDescription]]
             if let data = try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]) {

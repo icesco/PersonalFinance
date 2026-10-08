@@ -160,6 +160,9 @@ struct Personal_FinanceApp: App {
     
     @MainActor
     private func initializeApp() async {
+        #if os(macOS)
+        FormiCLIBridge.start(storage: dataStorageManager, lock: appLock)
+        #endif
         do {
             #if DEBUG
             // One-off: complete the CloudKit Development schema before deploying it to Production.

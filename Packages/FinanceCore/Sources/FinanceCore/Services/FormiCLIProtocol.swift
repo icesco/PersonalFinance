@@ -69,6 +69,10 @@ public enum FormiCLIWire {
     public static let requestType = "cc.fbianco.formi.cli.request"
     public static let responseType = "cc.fbianco.formi.cli.response"
     public static let maxBytes = 2_000_000
+    /// Route to one installed copy without asking Launch Services to open a scene.
+    public static func requestNotificationName(appPath: String, configuration: String) -> String {
+        "cc.fbianco.formi.cli.request.\(configuration).\(Data(appPath.utf8).base64EncodedString())"
+    }
     public static func pasteboardName(_ id: UUID) -> String { "cc.fbianco.formi.cli.\(id.uuidString)" }
     public static func encoder() -> JSONEncoder {
         let encoder = JSONEncoder()

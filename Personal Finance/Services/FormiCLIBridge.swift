@@ -5,10 +5,25 @@ import FinanceCore
 
 @MainActor
 enum FormiCLIBridge {
+    private static var receiver: FormiCLIReceiver?
+
+    static func start(storage: DataStorageManager, lock: AppLock) {
+        guard receiver == nil else { return }
+        let path = Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL.path
+        receiver = FormiCLIReceiver(name: FormiCLIWire.requestNotificationName(
+            appPath: path, configuration: FormiCLIInstaller.channel)) { id in
+            await handle(id: id, storage: storage, lock: lock)
+        }
+    }
+
     static func accepts(_ url: URL) -> Bool { url.scheme == "formi" && url.host == "cli" }
 
     static func handle(_ url: URL, storage: DataStorageManager, lock: AppLock) async {
         guard accepts(url), let id = UUID(uuidString: url.lastPathComponent) else { return }
+        await handle(id: id, storage: storage, lock: lock)
+    }
+
+    private static func handle(id: UUID, storage: DataStorageManager, lock: AppLock) async {
         let pasteboard = NSPasteboard(name: .init(FormiCLIWire.pasteboardName(id)))
         func reply(_ payload: [String: Any]) {
             var response = payload
@@ -98,6 +113,57 @@ enum FormiCLIBridge {
                 reply(["ok": true, "result": try JSONSerialization.jsonObject(with: encoded)])
             }
         } catch { fail("invalid_request", error.localizedDescription) }
+    }
+}
+
+/// One listener per app, independent of the lifetime and number of SwiftUI windows.
+/// Bound the backlog and serialize requests even while the store is opening.
+@MainActor
+final class FormiCLIReceiver: NSObject {
+    static let maximumPendingRequests = 32
+    private let handler: @MainActor (UUID) async -> Void
+    private var pending: [UUID] = []
+    private var accepted: Set<UUID> = []
+    private var worker: Task<Void, Never>?
+
+    init(name: String, handler: @escaping @MainActor (UUID) async -> Void) {
+        self.handler = handler
+        super.init()
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(receive(_:)),
+            name: .init(name), object: nil, suspensionBehavior: .deliverImmediately)
+    }
+
+    deinit { DistributedNotificationCenter.default().removeObserver(self) }
+
+    @objc private func receive(_ notification: Notification) {
+        guard let object = notification.object as? String, let id = UUID(uuidString: object) else { return }
+        enqueue(id)
+    }
+
+    func enqueue(_ id: UUID) {
+        let pasteboard = NSPasteboard(name: .init(FormiCLIWire.pasteboardName(id)))
+        // Repeated delivery must neither repeat work nor overwrite an existing reply.
+        guard !accepted.contains(id), pasteboard.data(forType: .init(FormiCLIWire.responseType)) == nil else { return }
+        guard accepted.count < Self.maximumPendingRequests else {
+            let response: [String: Any] = ["version": 1, "requestID": id.uuidString, "ok": false,
+                "error": ["code": "app_busy", "message": "Troppe richieste CLI in corso. Riprova tra poco con gli stessi requestID."]]
+            if let data = try? JSONSerialization.data(withJSONObject: response, options: [.sortedKeys]) {
+                pasteboard.clearContents()
+                pasteboard.setData(data, forType: .init(FormiCLIWire.responseType))
+            }
+            return
+        }
+        accepted.insert(id)
+        pending.append(id)
+        guard worker == nil else { return }
+        worker = Task { [self] in
+            while !pending.isEmpty {
+                let next = pending.removeFirst()
+                await handler(next)
+                accepted.remove(next)
+            }
+            worker = nil
+        }
     }
 }
 #endif

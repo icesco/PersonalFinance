@@ -185,12 +185,18 @@ una nuova operazione genera un nuovo UUID. Vale anche il blocco dei libri condiv
 
 ## Collegamento locale
 
-La CLI apre la stessa copia dell'app che la contiene usando un URL `formi://cli/…`.
+Apri la copia corretta di Formi prima di usare i comandi sui dati. La CLI non avvia
+l'app, non la porta in primo piano e non crea finestre. Se l'app è chiusa, restituisce
+subito un errore. `info`, `schema`, `ai-help` e `--help` funzionano anche ad app chiusa.
+La CLI segnala la richiesta con una notifica distribuita indirizzata al percorso e
+alla configurazione dell'app. La notifica contiene soltanto l'UUID casuale, senza
+`userInfo`, per rispettare la sandbox macOS.
 La richiesta e la risposta passano su una pasteboard macOS dedicata a un UUID
 casuale, distinta dagli appunti dell'utente; viene rilasciata alla fine del comando.
-L'URL contiene solo l'identificatore, senza dati finanziari. Non viene aperta una
-porta di rete e la CLI non apre il database SwiftData. Le chiamate vengono elaborate
-in sequenza sul main actor dell'app con il container attualmente in uso.
+Non viene aperta una porta di rete e la CLI non apre il database SwiftData. Un unico
+ricevitore resta attivo anche dopo la chiusura delle finestre. Le chiamate vengono
+elaborate in sequenza sul main actor dell'app con il container attualmente in uso;
+oltre 32 richieste in corso restituisce `app_busy` senza accumulare altre operazioni.
 Come altre interfacce di automazione locale, una volta abilitata la CLI può essere
 usata dai processi dell'utente: concedi l'accesso soltanto agli assistenti scelti.
 Il blocco privacy e la disattivazione della CLI vengono verificati anche dopo

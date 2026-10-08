@@ -39,7 +39,7 @@ struct FormiCLISettingsView: View {
             Section {
                 Toggle("Abilita CLI per AI esterne", isOn: $enabled)
                     .accessibilityIdentifier("formi-cli-enabled")
-                Text("Consenti agli assistenti che usi su questo Mac di leggere conti e categorie, aggiungere movimenti e creare o modificare categorie. Se usi il blocco privacy, sblocca prima Formi.")
+                Text("Consenti agli assistenti che usi su questo Mac di leggere conti e categorie, aggiungere movimenti e creare o modificare categorie. Lascia Formi aperta: i comandi non avviano l'app e non aprono finestre. Se usi il blocco privacy, sblocca prima Formi.")
                     .foregroundStyle(.secondary)
             }
             Section("Collega il tuo assistente") {
@@ -55,6 +55,7 @@ struct FormiCLISettingsView: View {
                         copy("""
                         Usa la CLI di Formi a questo percorso: \(FormiCLIInstaller.shellQuote(commandPath)).
                         Leggi info, ai-help, --help e schema. Verifica che appPath e configuration corrispondano alla copia dell'app desiderata.
+                        Formi deve essere già aperta e sbloccata: la CLI non avvia l'app e non apre finestre.
                         Usa accounts e categories per conoscere gli UUID reali.
                         Per una spesa usa add; per più movimenti usa import con JSON da file o stdin.
                         Per categorie usa category-create e category-update: mostra gli effetti sui figli e salva con --revision dell’anteprima e --yes.
