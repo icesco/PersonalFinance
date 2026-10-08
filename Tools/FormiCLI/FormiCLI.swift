@@ -84,6 +84,8 @@ struct FormiCLI {
     currency e date (YYYY-MM-DD); categoryID e description sono facoltativi.
     Riusa lo stesso requestID e gli stessi dati nei tentativi successivi.
     Abilita la CLI in Formi > Impostazioni > Integrazioni > CLI per AI.
+    Il launcher installato legge i file indicati. Se usi direttamente il binario
+    incluso nell'app, passa il JSON tramite stdin: formi import - < movimenti.json.
     """
 
     @MainActor static func main() async {
@@ -122,8 +124,14 @@ struct FormiCLI {
             formatter.calendar = Calendar(identifier: .gregorian)
             formatter.dateFormat = "yyyy-MM-dd"
             var request = try FormiCLIArguments.parse(arguments, read: { path in
-                let handle = path == "-" ? FileHandle.standardInput
-                    : try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+                let handle: FileHandle
+                if path == "-" { handle = FileHandle.standardInput }
+                else {
+                    do { handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path)) }
+                    catch {
+                        throw FormiCLIArguments.Failure("Impossibile leggere il file. Usa il launcher installato dalle impostazioni oppure passa il JSON tramite stdin: \(commandName) import - < movimenti.json.")
+                    }
+                }
                 defer { if path != "-" { try? handle.close() } }
                 var data = Data()
                 while data.count <= FormiCLIWire.maxBytes {

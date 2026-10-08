@@ -8,6 +8,9 @@ ad esempio in `~/.local/bin` o in una cartella scrivibile già nel tuo PATH.
 Viene creato un piccolo launcher shell che esegue la CLI Swift inclusa nell'app:
 non serve installare Swift. Il launcher usa la versione aggiornata della CLI
 quando aggiorni Formi nella stessa posizione; se sposti l'app, reinstallalo.
+Il launcher apre i file JSON indicati e li passa alla CLI tramite stdin, conservando
+le opzioni e i percorsi con spazi. Il binario incluso nell’app usa una sandbox
+autonoma: per invocarlo direttamente con un import, usa `import - < movimenti.json`.
 Un launcher già installato da Formi viene aggiornato; un file `formi` diverso
 non viene sovrascritto. L'annullamento della finestra non scrive alcun file. Nessuna installazione avviene
 all'avvio, durante gli aggiornamenti o quando abiliti l'accesso ai dati.

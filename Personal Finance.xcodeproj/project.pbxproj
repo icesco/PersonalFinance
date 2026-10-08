@@ -586,6 +586,8 @@
             files = ();
             inputPaths = (
                 "$(SRCROOT)/Tools/FormiCLI/build.sh",
+                "$(SRCROOT)/Tools/FormiCLI/Info.plist",
+                "$(SRCROOT)/Tools/FormiCLI/FormiCLI.entitlements",
                 "$(SRCROOT)/Tools/FormiCLI/FormiCLI.swift",
                 "$(SRCROOT)/Packages/FinanceCore/Sources/FinanceCore/Services/FormiCLIProtocol.swift",
                 "$(SRCROOT)/Packages/FinanceCore/Sources/FinanceCore/Services/FormiCLIArguments.swift",

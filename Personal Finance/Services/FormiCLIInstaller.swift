@@ -79,6 +79,43 @@ enum FormiCLIInstaller {
             echo 'La CLI di Formi non è più disponibile in questa posizione. Reinstallala dalle impostazioni di Formi.' >&2
             exit 1
         fi
+        # The shell opens explicitly supplied files before the sandboxed CLI starts.
+        case "${1-}" in
+            import|preview)
+                formi_operation="$1"
+                shift
+                formi_source=""
+                formi_has_source=no
+                formi_value=no
+                formi_remaining=$#
+                while [ "$formi_remaining" -gt 0 ]; do
+                    formi_argument="$1"
+                    shift
+                    formi_remaining=$((formi_remaining - 1))
+                    if [ "$formi_value" = yes ]; then
+                        formi_value=no
+                    else
+                        case "$formi_argument" in
+                            --book) formi_value=yes ;;
+                            --*) ;;
+                            -) formi_has_source=yes ;;
+                            *)
+                                if [ "$formi_has_source" = no ]; then
+                                    formi_source="$formi_argument"
+                                    formi_argument=-
+                                    formi_has_source=yes
+                                fi
+                                ;;
+                        esac
+                    fi
+                    set -- "$@" "$formi_argument"
+                done
+                if [ -n "$formi_source" ]; then
+                    exec \(command) --expect-channel \(channel) "$formi_operation" "$@" < "$formi_source"
+                fi
+                exec \(command) --expect-channel \(channel) "$formi_operation" "$@"
+                ;;
+        esac
         exec \(command) --expect-channel \(channel) "$@"
 
         """
