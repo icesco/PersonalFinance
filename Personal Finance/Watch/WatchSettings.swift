@@ -2,6 +2,7 @@
 import SwiftUI
 import SwiftData
 import CoreData
+import FinanceCore
 
 struct WatchSnapshotObserver: View {
     @Environment(\.modelContext) private var context
@@ -14,8 +15,9 @@ struct WatchSnapshotObserver: View {
             .onChange(of: showsData) { _, _ in update() }
             .onChange(of: lock.isEnabled) { _, _ in update() }
             .onChange(of: phase) { _, phase in if phase == .active { update() } }
-            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave).receive(on: RunLoop.main)) { notification in
-                guard let saved = notification.object as? ModelContext, saved.container === context.container else { return }
+            .onReceive(NotificationCenter.default.publisher(for: FinanceDataChangeCenter.notificationName).receive(on: RunLoop.main)) { notification in
+                guard let change = FinanceDataChange.from(notification),
+                      change.affects(container: context.container, contoIDs: nil) else { return }
                 update()
             }
             .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in update() }

@@ -7,19 +7,25 @@ import CoreData
 @MainActor
 enum WidgetSnapshotPublisher {
     static let preferenceKey = "widgets.showFinancialData"
+    private static let reader = WidgetSnapshotReader()
 
     static func redact() { publish(.empty(.hidden)) }
 
-    static func update(container: ModelContainer, protected: Bool) {
+    static func update(container: ModelContainer, protected: Bool) async {
         guard !protected, UserDefaults.standard.bool(forKey: preferenceKey) else { redact(); return }
-        let reader = ModelContext(container)
         do {
-            let snapshot = try FinanceWidgetBuilder.build(
-                accounts: reader.fetch(FetchDescriptor<Account>()), budgets: reader.fetch(FetchDescriptor<Budget>()),
-                transactions: reader.fetch(FetchDescriptor<FinanceTransaction>()),
-                resolutions: reader.fetch(FetchDescriptor<RecurrenceResolution>()))
+            let snapshot = try await reader.load(container: container)
+            try Task.checkCancellation()
+            // Privacy can change while the reader is working.
+            guard !UserDefaults.standard.bool(forKey: AppLock.preferenceKey),
+                  UserDefaults.standard.bool(forKey: preferenceKey) else { redact(); return }
             publish(snapshot)
-        } catch { publish(.empty(.unavailable)) }
+        } catch is CancellationError {
+            // Superseded snapshots must never overwrite the current privacy state.
+        } catch {
+            guard !Task.isCancelled else { return }
+            publish(.empty(.unavailable))
+        }
     }
 
     private static func publish(_ snapshot: FinanceWidgetSnapshot) {
@@ -39,28 +45,39 @@ enum WidgetSnapshotPublisher {
 }
 
 struct WidgetSnapshotObserver: View {
-    var refreshSnapshot: @MainActor (ModelContainer, Bool) -> Void = { container, protected in
-        WidgetSnapshotPublisher.update(container: container, protected: protected)
+    var refreshSnapshot: @MainActor (ModelContainer, Bool) async -> Void = { container, protected in
+        await WidgetSnapshotPublisher.update(container: container, protected: protected)
     }
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var phase
     @Environment(AppLock.self) private var lock
     @AppStorage(WidgetSnapshotPublisher.preferenceKey) private var showsData = false
+    @State private var refreshRevision = 0
     var body: some View {
         Color.clear.frame(width: 0, height: 0)
-            .task { update() }
-            .onChange(of: showsData) { _, _ in update() }
-            .onChange(of: lock.isEnabled) { _, _ in update() }
+            .task(id: refreshRevision) {
+                do { try await Task.sleep(for: .milliseconds(350)) }
+                catch { return }
+                await refreshSnapshot(context.container, lock.isEnabled)
+            }
+            .onChange(of: showsData) { _, value in
+                if !value { WidgetSnapshotPublisher.redact() }
+                update()
+            }
+            .onChange(of: lock.isEnabled) { _, value in
+                if value { WidgetSnapshotPublisher.redact() }
+                update()
+            }
             .onChange(of: phase) { _, phase in if phase == .active { update() } }
-            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave).receive(on: RunLoop.main)) { notification in
-                guard let savedContext = notification.object as? ModelContext,
-                      savedContext.container === context.container else { return }
+            .onReceive(NotificationCenter.default.publisher(for: FinanceDataChangeCenter.notificationName).receive(on: RunLoop.main)) { notification in
+                guard let change = FinanceDataChange.from(notification),
+                      change.affects(container: context.container, contoIDs: nil) else { return }
                 update()
             }
             .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in update() }
     }
     private func update() {
-        refreshSnapshot(context.container, lock.isEnabled)
+        refreshRevision &+= 1
     }
 }
 

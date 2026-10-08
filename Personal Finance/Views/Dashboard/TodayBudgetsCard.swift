@@ -9,29 +9,20 @@ import SwiftUI
 import FinanceCore
 
 struct TodayBudgetsCard: View {
-    let budgets: [FinanceBudget]
+    let budgets: [TodayBudgetSnapshot]
     let onOpen: () -> Void
-
-    /// Most at risk first: over the limit, then by share of the limit already spent.
-    private var ranked: [(budget: FinanceBudget, snapshot: BudgetSnapshot)] {
-        budgets.map { ($0, BudgetSnapshot($0)) }.sorted { lhs, rhs in
-            let left = lhs.snapshot.status == .over ? 1 : 0
-            let right = rhs.snapshot.status == .over ? 1 : 0
-            return left != right ? left > right : lhs.snapshot.share > rhs.snapshot.share
-        }
-    }
 
     var body: some View {
         Button(action: onOpen) {
-            if budgets.isEmpty { invitation } else { summary(ranked) }
+            if budgets.isEmpty { invitation } else { summary(budgets) }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("today-budgets")
     }
 
-    private func summary(_ ranked: [(budget: FinanceBudget, snapshot: BudgetSnapshot)]) -> some View {
-        let over = ranked.filter { $0.snapshot.status == .over }.count
-        let warning = ranked.filter { $0.snapshot.status == .warning }.count
+    private func summary(_ ranked: [TodayBudgetSnapshot]) -> some View {
+        let over = ranked.filter { $0.status == .over }.count
+        let warning = ranked.filter { $0.status == .warning }.count
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text("I TUOI BUDGET")
@@ -52,8 +43,8 @@ struct TodayBudgetsCard: View {
                 .font(.system(.title3, design: .serif, weight: .semibold))
 
             VStack(spacing: 12) {
-                ForEach(ranked.prefix(2), id: \.budget.id) { item in
-                    row(item.budget, item.snapshot)
+                ForEach(ranked.prefix(2), id: \.id) { item in
+                    row(item)
                 }
             }
         }
@@ -61,13 +52,17 @@ struct TodayBudgetsCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 22))
     }
 
-    private func row(_ budget: FinanceBudget, _ snapshot: BudgetSnapshot) -> some View {
-        let lead = FinanceCategory.displayOrdered(budget.categories ?? []).first
+    private func row(_ snapshot: TodayBudgetSnapshot) -> some View {
+        let color = Color(hex: snapshot.colorHex)
         return HStack(spacing: 12) {
-            BudgetIcon(category: lead, size: 38)
+            Image(systemName: snapshot.icon)
+                .font(.system(size: 15.2, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 38, height: 38)
+                .background(color.opacity(0.14), in: Circle())
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(budget.name ?? "Budget")
+                    Text(snapshot.name)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     Spacer(minLength: 8)
@@ -79,7 +74,7 @@ struct TodayBudgetsCard: View {
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(snapshot.status == .over ? Color.red : ForgiaPalette.mutedText)
                 }
-                BudgetMeter(snapshot: snapshot, height: 6)
+                BudgetMeter(share: snapshot.share, threshold: snapshot.threshold, color: snapshot.color, height: 6)
             }
         }
         .accessibilityElement(children: .combine)
@@ -108,4 +103,17 @@ struct TodayBudgetsCard: View {
         .unifiedCard()
         .contentShape(RoundedRectangle(cornerRadius: 22))
     }
+}
+
+private extension TodayBudgetSnapshot {
+    enum Status { case onTrack, warning, over }
+    var status: Status { spent > limit ? .over : share >= threshold ? .warning : .onTrack }
+    var color: Color {
+        switch status {
+        case .onTrack: ForgiaPalette.accent
+        case .warning: .orange
+        case .over: .red
+        }
+    }
+    func money(_ value: Decimal) -> String { value.formatted(.currency(code: currency)) }
 }

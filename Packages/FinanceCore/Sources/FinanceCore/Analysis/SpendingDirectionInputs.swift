@@ -9,9 +9,10 @@ public struct SpendingDirectionInputs: Sendable {
     public let creditDebt: Decimal
     public let balancesVerified: Bool
 
-    @MainActor
+    /// Call on the executor that owns the supplied models; no model escapes this method.
     public static func build(conti: [Conto], transactions: [Transaction], resolutions: [RecurrenceResolution],
-                             now: Date, horizon: Date) -> SpendingDirectionInputs {
+                             now: Date, horizon: Date,
+                             recordedBalances: [UUID: Decimal]? = nil) -> SpendingDirectionInputs {
         let ids = Set(conti.map(\.id))
         var seen: Set<UUID> = []
         let relevant = transactions.filter {
@@ -57,14 +58,29 @@ public struct SpendingDirectionInputs: Sendable {
                                                    type: transaction.type, title: title, isRecurring: true))
             }
         }
-        let recorded = relevant.filter { $0.date <= now }.map { TransactionSnapshot(from: $0) }
         var liquid: Decimal = 0
         var debt: Decimal = 0
         let balanceConti = conti.filter { [.checking, .savings, .cash, .credit].contains($0.type) }
-        for conto in balanceConti {
-            let balance = recorded.reduce(conto.initialBalance ?? 0) {
-                $0 + BalanceCalculator.netChange(for: $1, contiIDs: [conto.id])
+        let needsBalanceCalculation = balanceConti.contains { recordedBalances?[$0.id] == nil }
+        let recorded = needsBalanceCalculation ? relevant.filter { $0.date <= now }.map { TransactionSnapshot(from: $0) } : []
+        // Accumulate each endpoint once, rather than scanning the whole register per conto.
+        var changes: [UUID: Decimal] = [:]
+        for transaction in recorded {
+            switch transaction.type {
+            case .income:
+                if let id = transaction.toContoId { changes[id, default: 0] += transaction.amount }
+            case .expense:
+                if let id = transaction.fromContoId { changes[id, default: 0] -= transaction.amount }
+            case .transfer:
+                guard transaction.fromContoId != transaction.toContoId else { continue }
+                if let id = transaction.fromContoId { changes[id, default: 0] -= transaction.amount }
+                if let id = transaction.toContoId {
+                    changes[id, default: 0] += transaction.destinationAmount ?? transaction.amount
+                }
             }
+        }
+        for conto in balanceConti {
+            let balance = recordedBalances?[conto.id] ?? ((conto.initialBalance ?? 0) + changes[conto.id, default: 0])
             if conto.type == .credit { debt += max(0, -balance) }
             else { liquid += balance }
         }

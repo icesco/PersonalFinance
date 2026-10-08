@@ -8,7 +8,7 @@
 import Foundation
 
 extension Notification.Name {
-    /// Posted when a CloudKit sync operation begins.
+    /// Posted once a grouped CloudKit session takes long enough to announce.
     static let cloudSyncDidBegin = Notification.Name("cloudSyncDidBegin")
 
     /// Posted when a CloudKit sync operation completes successfully.
@@ -17,6 +17,9 @@ extension Notification.Name {
     /// Posted when a CloudKit sync operation fails.
     /// The notification's `userInfo` may contain an `"error"` key with the `Error`.
     static let cloudSyncDidFail = Notification.Name("cloudSyncDidFail")
+
+    /// Posted when an unfinished session falls silent; does not indicate sync success.
+    static let cloudSyncSessionDidEnd = Notification.Name("cloudSyncSessionDidEnd")
 
     /// Posted when the ModelContainer is recreated (e.g. after toggling iCloud sync).
     static let containerDidChange = Notification.Name("containerDidChange")

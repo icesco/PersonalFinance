@@ -24,19 +24,25 @@ public struct AccountBalanceSeries: Identifiable, Codable, Equatable, Sendable {
         return history.last { $0.date <= date }?.balance ?? history.first?.balance ?? 0
     }
 
-    @MainActor public static func make(conti: [Conto], selectedIDs: Set<UUID>,
-                     transactions: [Transaction], resolutions: [RecurrenceResolution], interval: DateInterval, now: Date = Date()) -> [Self] {
+    /// The caller must own all supplied models on its executor.
+    public static func make(conti: [Conto], selectedIDs: Set<UUID>,
+                     transactions: [Transaction], resolutions: [RecurrenceResolution], interval: DateInterval, now: Date = Date(),
+                     ledgerSnapshots: [UUID: LedgerCacheSnapshot]? = nil, calendar: Calendar = .current) -> [Self] {
         let snapshots = transactions.map {
             TransactionSnapshot(id: $0.id, amount: $0.amount ?? 0, type: $0.type, date: $0.date,
                                 fromContoId: $0.fromContoId ?? $0.fromConto?.id,
-                                toContoId: $0.toContoId ?? $0.toConto?.id, destinationAmount: $0.destinationAmount)
+                                toContoId: $0.toContoId ?? $0.toConto?.id, destinationAmount: $0.destinationAmount,
+                                categoryID: $0.categoryId ?? $0.category?.id)
         }
         let planned = ProjectedBalanceHistory.plannedTransactions(transactions: transactions, resolutions: resolutions,
                                                                   now: now, through: interval.end)
         let selected = conti.filter { selectedIDs.contains($0.id) }
-        let histories = RecordedBalanceHistory.series(transactions: snapshots,
-            initialBalances: Dictionary(uniqueKeysWithValues: selected.map { ($0.id, $0.initialBalance ?? 0) }),
-            interval: interval, now: now)
+        let ledger = ledgerSnapshots ?? (try? LedgerCache.prepare(conti: selected, transactions: snapshots, now: now).snapshots)
+        let histories = Dictionary(uniqueKeysWithValues: selected.map { conto in
+            (conto.id, ledger?[conto.id]?.points(interval: interval, now: now, transactions: snapshots, calendar: calendar)
+                ?? RecordedBalanceHistory.points(transactions: snapshots, contiIDs: [conto.id],
+                    initialBalance: conto.initialBalance ?? 0, interval: interval, now: now))
+        })
         // Account identity colours remain the same in the app and widget snapshots.
         let ordered = conti.sorted { $0.id.uuidString < $1.id.uuidString }
         return ordered.compactMap { conto in

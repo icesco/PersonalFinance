@@ -60,6 +60,8 @@ public final class Conto {
     /// Optional additive fields remain compatible with existing CloudKit stores.
     public var savingsRatesJSON: String?
     public var savingsGoalID: UUID?
+    /// Rebuildable derived ledger data. Optional for additive CloudKit/store migration.
+    public var ledgerCacheJSON: String?
 
     public var account: Account?
 

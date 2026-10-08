@@ -324,20 +324,33 @@ struct BudgetCard: View {
 
 /// Spending against the limit, with a tick where the alert fires.
 struct BudgetMeter: View {
-    let snapshot: BudgetSnapshot
+    let share: Double
+    let threshold: Double
+    let color: Color
     var height: CGFloat = 8
+
+    init(snapshot: BudgetSnapshot, height: CGFloat = 8) {
+        self.init(share: snapshot.share, threshold: snapshot.threshold, color: snapshot.color, height: height)
+    }
+
+    init(share: Double, threshold: Double, color: Color, height: CGFloat = 8) {
+        self.share = share
+        self.threshold = threshold
+        self.color = color
+        self.height = height
+    }
 
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Capsule().fill(ForgiaPalette.canvas)
                 Capsule()
-                    .fill(snapshot.color)
-                    .frame(width: max(height, proxy.size.width * min(snapshot.share, 1)))
+                    .fill(color)
+                    .frame(width: max(height, proxy.size.width * min(share, 1)))
                 Rectangle()
                     .fill(ForgiaPalette.mutedText.opacity(0.5))
                     .frame(width: 2, height: height + 6)
-                    .offset(x: proxy.size.width * snapshot.threshold - 1)
+                    .offset(x: proxy.size.width * threshold - 1)
             }
         }
         .frame(height: height)

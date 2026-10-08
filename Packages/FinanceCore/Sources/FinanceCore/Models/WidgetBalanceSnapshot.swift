@@ -20,12 +20,14 @@ public struct WidgetBalanceSnapshot: Codable, Equatable, Sendable {
     public var recordedTotal: Decimal { series.reduce(0) { $0 + $1.balance(at: recordedAt) } }
     public var projectedTotal: Decimal { series.reduce(0) { $0 + $1.balance(at: interval.end) } }
 
-    @MainActor
+    /// The caller must own all supplied models on its executor.
     public static func make(period: WidgetBalancePeriod, conti: [Conto], transactions: [Transaction],
-                            resolutions: [RecurrenceResolution], now: Date, calendar: Calendar = .current) -> Self {
+                            resolutions: [RecurrenceResolution], now: Date, calendar: Calendar = .current,
+                            ledgerSnapshots: [UUID: LedgerCacheSnapshot]? = nil) -> Self {
         let interval = period.interval(containing: now, calendar: calendar)
         let values = AccountBalanceSeries.make(conti: conti, selectedIDs: Set(conti.map(\.id)), transactions: transactions,
-                                               resolutions: resolutions, interval: interval, now: now)
+                                               resolutions: resolutions, interval: interval, now: now,
+                                               ledgerSnapshots: ledgerSnapshots, calendar: calendar)
         let compact = values.map { value in
             AccountBalanceSeries(id: value.id, name: value.name, colorHex: value.colorHex,
                                  points: dailyClosing(value.points, calendar: calendar),

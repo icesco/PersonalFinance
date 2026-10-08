@@ -41,15 +41,23 @@ public enum FinanceWidgetBuilder {
         return NSDecimalNumber(decimal: budget.spent / budget.limit).doubleValue
     }
 
-    @MainActor
+    /// The caller must own all supplied models on its executor.
     public static func build(accounts: [Account], budgets: [Budget], transactions: [Transaction],
                              resolutions: [RecurrenceResolution], now: Date = Date(),
-                             calendar: Calendar = .current) -> FinanceWidgetSnapshot {
+                             calendar: Calendar = .current,
+                             ledgerSnapshots: [UUID: LedgerCacheSnapshot]? = nil) -> FinanceWidgetSnapshot {
         guard let month = calendar.dateInterval(of: .month, for: now),
               let coverageEnd = calendar.date(byAdding: .day, value: 30, to: now) else {
             return .empty(.unavailable, now: now)
         }
         var validUntil = min(month.end, coverageEnd)
+        let ledger = ledgerSnapshots ?? (try? LedgerCache.prepare(conti: accounts.flatMap { $0.conti ?? [] },
+            transactions: transactions.map { transaction in
+                TransactionSnapshot(id: transaction.id, amount: transaction.amount ?? 0, type: transaction.type,
+                    date: transaction.date, fromContoId: transaction.fromContoId ?? transaction.fromConto?.id,
+                    toContoId: transaction.toContoId ?? transaction.toConto?.id, destinationAmount: transaction.destinationAmount,
+                    categoryID: transaction.categoryId ?? transaction.category?.id)
+            }, now: now, calendar: calendar).snapshots)
         let resolved = Set(resolutions.map(\.key))
         var books: [WidgetBookSnapshot] = []
         for account in accounts where account.isActive == true {
@@ -62,7 +70,14 @@ public enum FinanceWidgetBuilder {
                     expenses.append(transaction)
                 }
             }
-            let monthSpent = expenses.filter { $0.date >= month.start }.reduce(Decimal.zero) { $0 + ($1.amount ?? 0) }
+            let monthSpent: Decimal
+            if let ledger, contoIDs.allSatisfy({ ledger[$0] != nil }) {
+                monthSpent = contoIDs.reduce(0) { total, id in
+                    total + (ledger[id]?.months.first { $0.start == month.start }?.expenses ?? 0)
+                }
+            } else {
+                monthSpent = expenses.filter { $0.date >= month.start }.reduce(Decimal.zero) { $0 + ($1.amount ?? 0) }
+            }
             var bookBudgets: [WidgetBudgetSnapshot] = []
             for budget in budgets {
                 guard budget.isActive == true, budget.account?.id == account.id,
@@ -99,7 +114,7 @@ public enum FinanceWidgetBuilder {
             dates.sort()
             let histories = WidgetBalancePeriod.allCases.map { period in
                 WidgetBalanceSnapshot.make(period: period, conti: account.conti ?? [], transactions: transactions,
-                                           resolutions: resolutions, now: now, calendar: calendar)
+                                           resolutions: resolutions, now: now, calendar: calendar, ledgerSnapshots: ledger)
             }
             validUntil = min(validUntil, histories.map(\.interval.end).min() ?? validUntil)
             books.append(WidgetBookSnapshot(id: account.id, name: account.name ?? "Libro", currency: account.currency ?? "EUR",

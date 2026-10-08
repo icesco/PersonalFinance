@@ -34,6 +34,8 @@ struct Personal_FinanceApp: App {
     @State private var initializationError: Error?
 
     init() {
+        // Subscribe before opening the store so early CloudKit events reach the banner.
+        _ = BackgroundOperationManager.shared
         ReminderNotificationRouter.shared.install()
         FinanceShortcuts.updateAppShortcutParameters()
         #if os(iOS)
@@ -63,8 +65,9 @@ struct Personal_FinanceApp: App {
                         .environment(dataStorageManager)
                         .modelContainer(container)
                         .background { SharedBookRefreshObserver().environment(dataStorageManager) }
-                        .overlay(alignment: .bottom) {
+                        .overlay(alignment: .top) {
                             BackgroundOperationBanner()
+                                .environment(dataStorageManager)
                         }
                 } else {
                     LoadingView()

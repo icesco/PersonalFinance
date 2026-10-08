@@ -2,7 +2,7 @@ import Foundation
 
 /// Forward ledger estimate based only on explicitly scheduled movements and recurrences.
 public enum ProjectedBalanceHistory {
-    @MainActor
+    /// The caller must own all supplied models on its executor.
     public static func plannedTransactions(transactions: [Transaction], resolutions: [RecurrenceResolution],
                                            now: Date, through end: Date) -> [TransactionSnapshot] {
         var seen: Set<UUID> = []

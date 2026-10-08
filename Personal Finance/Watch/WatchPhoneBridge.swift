@@ -10,6 +10,8 @@ final class WatchPhoneBridge: NSObject, WCSessionDelegate {
     static let preferenceKey = "watch.showFinancialData"
     private var overview = WatchOverview.redacted
     private var started = false
+    private let reader = WatchOverviewReader()
+    private var refreshTask: Task<Void, Never>?
 
     func start() {
         guard !started, WCSession.isSupported() else { return }
@@ -24,27 +26,30 @@ final class WatchPhoneBridge: NSObject, WCSessionDelegate {
     }
     func refresh(container: ModelContainer, protected: Bool) {
         guard !protected, UserDefaults.standard.bool(forKey: Self.preferenceKey) else { redact(); return }
-        do {
-            let context = ModelContext(container)
-            let accounts = try context.fetch(FetchDescriptor<Account>())
-            let snapshot = try FinanceWidgetBuilder.build(
-                accounts: accounts, budgets: context.fetch(FetchDescriptor<Budget>()),
-                transactions: context.fetch(FetchDescriptor<FinanceTransaction>()),
-                resolutions: context.fetch(FetchDescriptor<RecurrenceResolution>()))
-            let week = Date().addingTimeInterval(7 * 86400)
-            overview = WatchOverview(generatedAt: snapshot.generatedAt, validUntil: min(snapshot.validUntil, Date().addingTimeInterval(3600)),
-                books: snapshot.books.map { book in
-                    WatchBook(id: book.id, name: book.name, currency: book.currency,
-                              monthSpent: book.monthSpent, budgetName: book.budget?.name,
-                              budgetRemaining: book.budget?.remaining,
-                              upcomingCount: book.occurrenceDates.filter { $0 <= week }.count,
-                              conti: accounts.first(where: { $0.id == book.id })?.activeConti.map { WatchOption(id: $0.id, name: $0.name ?? "Conto") },
-                              categories: accounts.first(where: { $0.id == book.id }).map(Self.expenseCategories))
-                }, hidden: snapshot.state != .ready)
-        } catch { overview = .redacted }
+        refreshTask?.cancel()
+        refreshTask = Task { [weak self, reader] in
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+                let value = try await reader.load(container: container)
+                try Task.checkCancellation()
+                guard let self else { return }
+                guard !UserDefaults.standard.bool(forKey: AppLock.preferenceKey),
+                      UserDefaults.standard.bool(forKey: Self.preferenceKey) else { self.redact(); return }
+                self.overview = value
+                self.publish()
+            } catch is CancellationError {
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.overview = .redacted
+                self?.publish()
+            }
+        }
+    }
+    func redact() {
+        refreshTask?.cancel()
+        overview = .redacted
         publish()
     }
-    func redact() { overview = .redacted; publish() }
     private func publish() {
         guard WCSession.isSupported(), WCSession.default.activationState == .activated,
               WCSession.default.isPaired, WCSession.default.isWatchAppInstalled,
@@ -109,7 +114,40 @@ final class WatchPhoneBridge: NSObject, WCSessionDelegate {
     }
 }
 
-private extension WatchPhoneBridge {
+private actor WatchOverviewReader {
+    func load(container: ModelContainer) async throws -> WatchOverview {
+        try Task.checkCancellation()
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+        let transactions = try context.fetch(FetchDescriptor<FinanceTransaction>())
+        let now = Date()
+        let conti = accounts.flatMap { $0.conti ?? [] }
+        FinanceDataChangeCenter.shared.rememberCategories(container: container, categories: transactions.compactMap(\.category))
+        let ledger = try await LedgerCalculationCoordinator.shared.prepare(container: container,
+            accounts: conti.map(LedgerCacheAccount.init), transactions: transactions.map(TransactionSnapshot.init(from:)), now: now)
+        let snapshot = try FinanceWidgetBuilder.build(
+            accounts: accounts, budgets: context.fetch(FetchDescriptor<Budget>()),
+            transactions: transactions,
+            resolutions: context.fetch(FetchDescriptor<RecurrenceResolution>()), now: now,
+            ledgerSnapshots: ledger.snapshots)
+        let week = Date().addingTimeInterval(7 * 86400)
+        let overview = WatchOverview(generatedAt: snapshot.generatedAt, validUntil: min(snapshot.validUntil, Date().addingTimeInterval(3600)),
+            books: snapshot.books.map { book in
+                WatchBook(id: book.id, name: book.name, currency: book.currency,
+                          monthSpent: book.monthSpent, budgetName: book.budget?.name,
+                          budgetRemaining: book.budget?.remaining,
+                          upcomingCount: book.occurrenceDates.filter { $0 <= week }.count,
+                          conti: accounts.first(where: { $0.id == book.id })?.activeConti.map { WatchOption(id: $0.id, name: $0.name ?? "Conto") },
+                          categories: accounts.first(where: { $0.id == book.id }).map(Self.expenseCategories))
+            }, hidden: snapshot.state != .ready)
+        try Task.checkCancellation()
+        LedgerCache.apply(ledger, to: conti)
+        do { try FinanceDataChangeCenter.shared.saveCache(context: context) }
+        catch { context.rollback() }
+        return overview
+    }
+
     /// Expense categories in tree order; subcategories carry their macro category's name.
     static func expenseCategories(of book: Account) -> [WatchOption] {
         let hierarchy = CategoryHierarchy(categories: book.categories ?? [], kind: .expense)

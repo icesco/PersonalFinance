@@ -10,6 +10,8 @@ public struct CloudSyncProgress {
 
     public init() {}
 
+    public func isTracking(_ id: UUID) -> Bool { activeEvents.contains(id) }
+
     /// Returns true only when a new cycle starts.
     @discardableResult
     public mutating func begin(_ id: UUID) -> Bool {

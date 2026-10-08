@@ -1,15 +1,20 @@
 import SwiftUI
 import SwiftData
 import FinanceCore
+import CoreData
 
 /// The daily entry point: one estimate, its inputs, and the changes worth checking.
 struct TodayView: View {
     enum Screen { case home, analysis }
 
     @Environment(AppStateManager.self) private var appState
-    @Query private var accounts: [Account]
-    @Query private var resolutions: [RecurrenceResolution]
-    @Query private var transactions: [FinanceTransaction]
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var reader = TodaySnapshotReader()
+    @State private var snapshot: TodaySnapshot?
+    @State private var loadedScope: Scope?
+    @State private var refreshRevision = 0
+    @State private var loadFailed = false
 
     var screen: Screen = .home
     var bookSelectionNamespace: Namespace.ID? = nil
@@ -18,95 +23,85 @@ struct TodayView: View {
     @State private var showingBudgets = false
     @State private var showingBalances = false
 
-    private var snapshot: TodaySnapshot {
-        let selectedAccounts: [Account]
-        if appState.showAllAccounts {
-            selectedAccounts = accounts.filter { $0.isActive == true }
-        } else {
-            selectedAccounts = appState.selectedAccount.map { [$0] } ?? []
-        }
-        let conti = selectedAccounts.flatMap(\.activeConti)
-        let contoIDs = Set(conti.map(\.id))
-        let currency = selectedAccounts.first?.currency ?? "EUR"
-        let now = Date()
-        let horizon = Calendar.current.date(byAdding: .day, value: 45, to: now) ?? now
+    private struct Scope: Equatable {
+        let accountID: UUID?
+        let showAll: Bool
+    }
 
-        let inputs = SpendingDirectionInputs.build(conti: conti, transactions: transactions,
-                                                   resolutions: resolutions, now: now, horizon: horizon)
-        let direction = SpendingDirectionCalculator.calculate(
-            transactions: inputs.transactions,
-            planned: inputs.planned,
-            liquidBalance: inputs.liquidBalance,
-            creditDebt: inputs.creditDebt,
-            balancesVerified: inputs.balancesVerified,
-            now: now
-        )
-        return TodaySnapshot(
-            entries: inputs.transactions,
-            contoIDs: contoIDs,
-            accountName: appState.showAllAccounts ? "Tutti i libri" : selectedAccounts.first?.name ?? "Il tuo libro",
-            currency: currency,
-            hasMixedCurrencies: Set(selectedAccounts.compactMap(\.currency)).count > 1,
-            direction: direction,
-            planned: inputs.planned.filter { $0.type == .expense && $0.date > now }.sorted { $0.date < $1.date }
-        )
+    private struct Refresh: Equatable {
+        let scope: Scope
+        let revision: Int
+    }
+
+    private var scope: Scope {
+        Scope(accountID: appState.selectedAccount?.id, showAll: appState.showAllAccounts)
     }
 
     var body: some View {
-        let snapshot = snapshot
         NavigationStack {
             Group {
-                if screen == .analysis {
-                    if snapshot.hasMixedCurrencies {
-                        ContentUnavailableView {
-                            Label("Seleziona un solo libro", systemImage: "chart.pie")
-                        } description: {
-                            Text("L'analisi richiede movimenti nella stessa valuta.")
-                        } actions: {
-                            Button("Scegli libro") { appState.presentAccountSelection() }
-                                .buttonStyle(.borderedProminent)
-                            NavigationLink("Saldo storico per libro") { BalanceHistoryView() }
+                if let snapshot, loadedScope == scope {
+                    if screen == .analysis {
+                        if snapshot.hasMixedCurrencies {
+                            ContentUnavailableView {
+                                Label("Seleziona un solo libro", systemImage: "chart.pie")
+                            } description: {
+                                Text("L'analisi richiede movimenti nella stessa valuta.")
+                            } actions: {
+                                Button("Scegli libro") { appState.presentAccountSelection() }
+                                    .buttonStyle(.borderedProminent)
+                                NavigationLink("Saldo storico per libro") { BalanceHistoryView() }
+                            }
+                            .themedBackground()
+                        } else {
+                            SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs,
+                                                 initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
                         }
-                        .themedBackground()
                     } else {
-                        SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs,
-                                             initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
-                    }
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
-                            header(snapshot: snapshot)
-                            CaptureInboxEntry(compactHomeStyle: true)
-                                .buttonStyle(.plain)
-                            TodayMarginCard(
-                                snapshot: snapshot,
-                                onVerify: { showingBalances = true },
-                                onImport: { showingImport = true },
-                                onAddIncome: { appState.presentQuickTransaction(type: .income, planned: true) }
-                            )
-                            if appState.selectedAccount != nil {
-                                TodayBudgetsCard(budgets: appState.selectedAccount?.budgets?.filter { $0.isActive == true } ?? []) {
-                                    showingBudgets = true
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 24) {
+                                header(snapshot: snapshot)
+                                CaptureInboxEntry(compactHomeStyle: true)
+                                    .buttonStyle(.plain)
+                                TodayMarginCard(
+                                    snapshot: snapshot,
+                                    onVerify: { showingBalances = true },
+                                    onImport: { showingImport = true },
+                                    onAddIncome: { appState.presentQuickTransaction(type: .income, planned: true) }
+                                )
+                                if appState.selectedAccount != nil {
+                                    TodayBudgetsCard(budgets: snapshot.budgets) {
+                                        showingBudgets = true
+                                    }
+                                }
+                                if !snapshot.hasMixedCurrencies {
+                                    FinanceCalendarPreview(contoIDs: snapshot.contoIDs, currency: snapshot.currency)
+                                    SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
+                                    TodayActivityLayout(snapshot: snapshot)
                                 }
                             }
-                            if !snapshot.hasMixedCurrencies {
-                                FinanceCalendarPreview(contoIDs: snapshot.contoIDs, currency: snapshot.currency)
-                                SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
-                                TodayActivityLayout(snapshot: snapshot)
-                            }
+                            #if os(macOS)
+                            .frame(maxWidth: 1040)
+                            .frame(maxWidth: .infinity)
+                            #endif
+                            .padding(.horizontal, 22)
+                            .padding(.top, 14)
+                            .padding(.bottom, 32)
                         }
-                        #if os(macOS)
-                        .frame(maxWidth: 1040)
-                        .frame(maxWidth: .infinity)
+                        .themedBackground()
+                        #if os(iOS)
+                        .toolbar(.hidden, for: .navigationBar)
                         #endif
-                        .padding(.horizontal, 22)
-                        .padding(.top, 14)
-                        .padding(.bottom, 32)
                     }
-                    .themedBackground()
-                    #if os(iOS)
-                    .toolbar(.hidden, for: .navigationBar)
-                    #endif
+                } else if loadFailed {
+                    ContentUnavailableView {
+                        Label("Riepilogo non disponibile", systemImage: "exclamationmark.triangle")
+                    } actions: {
+                        Button("Riprova") { refreshRevision &+= 1 }
+                    }
+                } else {
+                    ProgressView("Caricamento riepilogo…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .transactionButtonRoot(screen == .analysis ? .analysis : .dashboard, isActive: screen != .analysis)
@@ -117,6 +112,51 @@ struct TodayView: View {
                     BalanceReconciliationView(account: account)
                 }
             }
+        }
+        .task(id: Refresh(scope: scope, revision: refreshRevision)) {
+            let requestedScope = scope
+            do {
+                // Coalesce bursts of imports/saves; cancellation discards obsolete results.
+                try await Task.sleep(for: .milliseconds(200))
+                let value = try await reader.load(container: context.container,
+                    accountID: requestedScope.accountID, showAllAccounts: requestedScope.showAll)
+                try Task.checkCancellation()
+                var transaction = SwiftUI.Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    snapshot = value
+                    loadedScope = requestedScope
+                    loadFailed = false
+                }
+            } catch is CancellationError {
+                // A newer refresh or disappearance owns the next result.
+            } catch {
+                loadFailed = true // Keep the last successful snapshot during a failed refresh.
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: FinanceDataChangeCenter.notificationName).receive(on: RunLoop.main)) { notification in
+            guard let change = FinanceDataChange.from(notification),
+                  change.affects(container: context.container, contoIDs: loadedScope == scope ? snapshot?.refreshContoIDs : nil) else { return }
+            refreshRevision &+= 1
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
+            refreshRevision &+= 1
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cloudSyncDidComplete).receive(on: RunLoop.main)) { _ in
+            refreshRevision &+= 1
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshRevision &+= 1 }
+        }
+        .task {
+            // Time-dependent estimates must also advance without a save or foreground transition.
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(60))
+                    if scenePhase == .active { refreshRevision &+= 1 }
+                }
+            } catch is CancellationError {}
+            catch {}
         }
     }
 
@@ -165,16 +205,6 @@ struct TodayView: View {
         button
         #endif
     }
-}
-
-private struct TodaySnapshot {
-    let entries: [DirectionTransaction]
-    let contoIDs: Set<UUID>
-    let accountName: String
-    let currency: String
-    let hasMixedCurrencies: Bool
-    let direction: SpendingDirection
-    let planned: [PlannedCashMovement]
 }
 
 private struct TodayMarginCard: View {

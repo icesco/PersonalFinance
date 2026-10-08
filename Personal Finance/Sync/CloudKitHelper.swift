@@ -20,9 +20,12 @@ final class CloudKitHelper {
     // MARK: - Published State
 
     private var progress = CloudSyncProgress()
-    var isSyncing: Bool { progress.isSyncing }
+    private var session = CloudSyncSession()
+    @ObservationIgnored private var sessionTask: Task<Void, Never>?
+    private var sessionError: Error?
+    var isSyncing: Bool { session.isActive }
     var lastSyncDate: Date? { progress.lastSyncDate }
-    var syncError: Error? { progress.error }
+    var syncError: Error? { sessionError ?? progress.error }
     private(set) var isCloudKitAvailable = false
     private(set) var isAccountConnected = false
 
@@ -82,21 +85,45 @@ final class CloudKitHelper {
             as? NSPersistentCloudKitContainer.Event else { return }
 
         if let endDate = event.endDate {
+            guard progress.isTracking(event.identifier) else { return }
             let failure: Error? = event.error ?? (event.succeeded ? nil : CloudEventFailure())
-            let completedCycle = progress.finish(
-                event.identifier, at: endDate,
-                isDataSync: event.type != .setup, error: failure
-            )
-            guard completedCycle else { return }
-            if let error = progress.error {
-                NotificationCenter.default.post(
-                    name: .cloudSyncDidFail, object: nil, userInfo: ["error": error]
-                )
-            } else {
-                NotificationCenter.default.post(name: .cloudSyncDidComplete, object: nil)
-            }
-        } else if progress.begin(event.identifier) {
+            progress.finish(event.identifier, at: endDate, isDataSync: event.type != .setup, error: failure)
+            if let failure { sessionError = failure }
+            publish(session.activity(at: Date(), hasActiveEvents: progress.isSyncing, failed: failure != nil))
+        } else {
+            guard !progress.isTracking(event.identifier) else { return }
+            if !session.isActive { sessionError = nil }
+            progress.begin(event.identifier)
+            session.activity(at: Date(), hasActiveEvents: true)
+        }
+        scheduleSessionAdvance()
+    }
+
+    private func scheduleSessionAdvance() {
+        sessionTask?.cancel()
+        guard let deadline = session.nextDeadline else { sessionTask = nil; return }
+        sessionTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) }
+            catch { return }
+            guard let self, !Task.isCancelled else { return }
+            publish(session.advance(to: Date()))
+            scheduleSessionAdvance()
+        }
+    }
+
+    private func publish(_ step: CloudSyncSessionStep) {
+        switch step {
+        case .announce:
             NotificationCenter.default.post(name: .cloudSyncDidBegin, object: nil)
+        case .completed:
+            NotificationCenter.default.post(name: .cloudSyncDidComplete, object: nil)
+        case .failed:
+            NotificationCenter.default.post(name: .cloudSyncDidFail, object: nil,
+                                            userInfo: sessionError.map { ["error": $0] })
+        case .stale:
+            // Missing end events do not prove a successful import/export.
+            NotificationCenter.default.post(name: .cloudSyncSessionDidEnd, object: nil)
+        case .none: break
         }
     }
 
@@ -105,6 +132,10 @@ final class CloudKitHelper {
     }
 
     private func resetStatus() {
+        sessionTask?.cancel()
+        sessionTask = nil
+        session = CloudSyncSession()
+        sessionError = nil
         progress = CloudSyncProgress()
         isCloudKitAvailable = false
         isAccountConnected = false

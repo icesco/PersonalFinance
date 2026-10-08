@@ -2,7 +2,7 @@ import Foundation
 
 /// Lightweight, immutable snapshot of a Transaction for pure calculations.
 /// Decouples business logic from SwiftData model objects.
-public struct TransactionSnapshot: Sendable {
+public struct TransactionSnapshot: Sendable, Codable, Equatable {
     public let id: UUID
     public let amount: Decimal
     public let destinationAmount: Decimal?
@@ -10,6 +10,7 @@ public struct TransactionSnapshot: Sendable {
     public let date: Date
     public let fromContoId: UUID?
     public let toContoId: UUID?
+    public let categoryID: UUID?
 
     public init(
         id: UUID = UUID(),
@@ -18,7 +19,8 @@ public struct TransactionSnapshot: Sendable {
         date: Date,
         fromContoId: UUID? = nil,
         toContoId: UUID? = nil,
-        destinationAmount: Decimal? = nil
+        destinationAmount: Decimal? = nil,
+        categoryID: UUID? = nil
     ) {
         self.id = id
         self.amount = amount
@@ -27,6 +29,7 @@ public struct TransactionSnapshot: Sendable {
         self.date = date
         self.fromContoId = fromContoId
         self.toContoId = toContoId
+        self.categoryID = categoryID
     }
 }
 
@@ -38,7 +41,8 @@ extension TransactionSnapshot {
         self.destinationAmount = transaction.destinationAmount
         self.type = transaction.type
         self.date = transaction.date
-        self.fromContoId = transaction.fromContoId
-        self.toContoId = transaction.toContoId
+        self.fromContoId = transaction.fromContoId ?? transaction.fromConto?.id
+        self.toContoId = transaction.toContoId ?? transaction.toConto?.id
+        self.categoryID = transaction.categoryId ?? transaction.category?.id
     }
 }
