@@ -67,7 +67,8 @@ struct FinanceWidgetProvider: AppIntentTimelineProvider {
 struct FinanceWidgetView: View {
     let entry: FinanceWidgetEntry
     @Environment(\.widgetFamily) private var family
-    private let accent = Color("FormiAccent")
+    @Environment(\.financeWidgetTheme) private var theme
+    private var accent: Color { theme.color }
 
     var body: some View {
         Group {
@@ -90,7 +91,7 @@ struct FinanceWidgetView: View {
             homeSummary
             #endif
         }
-        .containerBackground(.background, for: .widget)
+        .containerBackground(for: .widget) { FinanceWidgetBackground() }
         .widgetURL(FinanceWidgetRoute(destination: destination, bookID: entry.book?.id ?? entry.bookID).url)
     }
 
@@ -104,7 +105,7 @@ struct FinanceWidgetView: View {
     private var homeSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label { Text("Formi") } icon: { Image("FormiMark").resizable().scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold)).foregroundStyle(accent)
+                Label { Text("Formi") } icon: { Image("FormiMark").resizable().widgetAccentedRenderingMode(.desaturated).scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold)).financeWidgetForeground(accent)
                 Spacer()
                 if family != .systemSmall {
                     Link(destination: FinanceWidgetRoute(destination: .expense, bookID: entry.book?.id ?? entry.bookID).url) {
@@ -121,7 +122,7 @@ struct FinanceWidgetView: View {
                 Text(entry.snapshot.state == .hidden ? (family == .systemSmall ? "Gestisci in Formi" : "Gestisci la visibilità nelle impostazioni.") : "Aggiorna nell’app.")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text(entry.snapshot.state == .hidden ? "Nuova spesa" : "Apri il riepilogo").font(.caption2).foregroundStyle(accent)
+                Text(entry.snapshot.state == .hidden ? "Nuova spesa" : "Apri il riepilogo").font(.caption2).financeWidgetForeground(accent)
             }
         }
     }
@@ -164,7 +165,7 @@ private struct FinanceLockScreenSummary: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Label { Text("Formi") } icon: { Image("FormiMark").resizable().scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold))
+            Label { Text("Formi") } icon: { Image("FormiMark").resizable().widgetAccentedRenderingMode(.desaturated).scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold))
             if let book = entry.book {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(book.budget?.remaining ?? book.monthSpent, format: .currency(code: book.currency))
@@ -189,6 +190,7 @@ struct ForgiaWidgets: WidgetBundle {
     var body: some Widget {
         ForgiaOverviewWidget()
         FinanceBalanceWidget()
+        FinanceUpcomingWidget()
     }
 }
 
@@ -196,6 +198,7 @@ struct ForgiaOverviewWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: FinanceWidgetStorage.kind, intent: FinanceWidgetConfiguration.self, provider: FinanceWidgetProvider()) {
             FinanceWidgetView(entry: $0)
+                .environment(\.financeWidgetTheme, FinanceWidgetAppearance.theme)
         }
         .configurationDisplayName("Riepilogo Formi")
         .description("Budget residuo, spese del mese e scadenze per un libro.")

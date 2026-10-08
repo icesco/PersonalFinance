@@ -98,7 +98,7 @@ struct FinanceBalanceWidgetView: View {
                 }
             }
         }
-        .containerBackground(.background, for: .widget)
+        .containerBackground(for: .widget) { FinanceWidgetBackground() }
         .widgetURL(FinanceWidgetRoute(destination: .analysis, bookID: entry.book?.id ?? entry.bookID).url)
     }
 }
@@ -112,7 +112,10 @@ struct FinanceBalanceWidget: Widget {
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: FinanceWidgetStorage.balanceKind, intent: FinanceBalanceConfiguration.self,
-                               provider: FinanceBalanceProvider()) { FinanceBalanceWidgetView(entry: $0) }
+                               provider: FinanceBalanceProvider()) {
+            FinanceBalanceWidgetView(entry: $0)
+                .environment(\.financeWidgetTheme, FinanceWidgetAppearance.theme)
+        }
             .configurationDisplayName("Saldo per conto")
             .description("L’andamento dei tuoi conti e la previsione basata sui movimenti programmati.")
             .supportedFamilies(families)

@@ -10,6 +10,7 @@ final class SpendingVisualUITests: XCTestCase {
         let timeline = app.segmentedControls["finance-calendar-mode"].buttons["Timeline"]
         XCTAssertTrue(timeline.waitForExistence(timeout: 10))
         timeline.tap()
+        app.buttons["Mese successivo"].tap()
         scrollTo(app.staticTexts["Movimento illustrativo 6"], in: app)
         let header = app.descendants(matching: .any).matching(identifier: "finance-timeline-pinned-header-3").firstMatch
         XCTAssertTrue(header.exists)
@@ -123,9 +124,14 @@ final class SpendingVisualUITests: XCTestCase {
         app.segmentedControls["finance-calendar-mode"].buttons["Timeline"].tap()
         let future = app.staticTexts["Scadenza illustrativa"]
         scrollTo(future, in: app)
+        XCTAssertFalse(expense.exists)
+        XCTAssertFalse(app.staticTexts["Registrate"].exists)
         capture(app, "formi-calendar-timeline")
         app.scrollViews.firstMatch.swipeDown()
         app.scrollViews.firstMatch.swipeDown()
+        app.buttons["Mese precedente"].tap()
+        XCTAssertTrue(app.staticTexts["Nessuna spesa futura nel mese"].waitForExistence(timeout: 5))
+        app.buttons["finance-calendar-today"].tap()
         app.buttons["Mese successivo"].tap()
         XCTAssertTrue(app.buttons["finance-calendar-today"].exists)
         app.buttons["finance-calendar-today"].tap()

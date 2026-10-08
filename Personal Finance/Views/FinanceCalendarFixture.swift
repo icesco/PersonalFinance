@@ -31,7 +31,8 @@ struct FinanceCalendarFixture: View {
         }
         add(calendar.date(byAdding: .day, value: 2, to: start)!, "Spesa illustrativa", 45, category: groceries)
         if ProcessInfo.processInfo.arguments.contains("UITEST_TIMELINE_PINNING") {
-            let day = calendar.date(byAdding: .day, value: 2, to: start)!
+            let nextMonth = calendar.date(byAdding: .month, value: 1, to: start)!
+            let day = calendar.date(byAdding: .day, value: 2, to: nextMonth)!
             for index in 1...6 {
                 add(calendar.date(byAdding: .hour, value: index, to: day)!,
                     "Movimento illustrativo \(index)", Decimal(index * 10), category: groceries)

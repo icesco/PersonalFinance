@@ -70,7 +70,7 @@ struct Personal_FinanceApp: App {
                                 .environment(dataStorageManager)
                         }
                 } else {
-                    LoadingView()
+                    StartupPlaceholderView()
                 }
             }
             .background { AppPrivacyGuard(lock: appLock, concealed: appLock.shouldConceal) }
@@ -201,20 +201,6 @@ struct Personal_FinanceApp: App {
 }
 
 // MARK: - Supporting Views
-
-struct LoadingView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.5)
-            Text("Initializing Personal Finance...")
-                .font(.headline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-    }
-}
 
 struct ErrorView: View {
     let error: Error

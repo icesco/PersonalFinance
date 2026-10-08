@@ -34,9 +34,11 @@ struct FinanceCalendarView: View {
     }
 
     var body: some View {
+        let now = Date()
         let interval = Calendar.current.dateInterval(of: .month, for: month)!
-        let events = FinanceCalendarEvents.build(transactions: transactions, resolutions: resolutions,
-            contoIDs: contoIDs, interval: interval).filter { !expensesOnly || $0.type == .expense }
+        let calendarEvents = FinanceCalendarEvents.build(transactions: transactions, resolutions: resolutions,
+            contoIDs: contoIDs, interval: interval, now: now).filter { !expensesOnly || $0.type == .expense }
+        let events = timeline ? FinanceCalendarEvents.upcoming(calendarEvents, now: now) : calendarEvents
         let byDay = Dictionary(grouping: events) { Calendar.current.startOfDay(for: $0.date) }
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -58,15 +60,17 @@ struct FinanceCalendarView: View {
                     }.unifiedCard()
                 }
                 HStack(spacing: 18) {
-                    Label("Registrato", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.spending)
-                    Label("Previsto / da registrare", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.calendar)
+                    if !timeline {
+                        Label("Registrato", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.spending)
+                    }
+                    Label(timeline ? "Previsto" : "Previsto / da registrare", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.calendar)
                 }.font(.caption)
                 Button("Torna a oggi") { month = Date(); selectedDate = Calendar.current.startOfDay(for: Date()) }
                     .accessibilityIdentifier("finance-calendar-today")
-                FinanceCalendarSummary(events: events, currency: currency)
+                FinanceCalendarSummary(events: events, currency: currency, upcomingOnly: timeline)
                 if timeline {
                     if events.isEmpty {
-                        ContentUnavailableView("Nessun movimento nel mese", systemImage: "calendar")
+                        ContentUnavailableView(expensesOnly ? "Nessuna spesa futura nel mese" : "Nessun movimento futuro nel mese", systemImage: "calendar")
                     } else {
                         FinanceSpendingTimeline(events: events, transactions: transactions, currency: currency,
                             interval: interval, locale: financeCalendarLocale, pinnedDate: pinnedTimelineDate)
@@ -74,7 +78,9 @@ struct FinanceCalendarView: View {
                 } else {
                     FinanceCalendarDaySection(date: selectedDate, events: byDay[selectedDate] ?? [], transactions: transactions, currency: currency)
                 }
-                Text("Le previsioni comprendono solo movimenti futuri e ricorrenze ancora da registrare. Non includono spese non programmate. I trasferimenti tra conti sono esclusi.")
+                Text(timeline
+                    ? "La timeline mostra solo movimenti programmati e ricorrenze con una data futura. Non include spese non programmate. I trasferimenti tra conti sono esclusi."
+                    : "Le previsioni comprendono solo movimenti futuri e ricorrenze ancora da registrare. Non includono spese non programmate. I trasferimenti tra conti sono esclusi.")
                     .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
             }.frame(maxWidth: 760).frame(maxWidth: .infinity).padding(22)
         }
@@ -100,10 +106,12 @@ struct FinanceCalendarView: View {
         #endif
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: selectedDate)
         .onChange(of: month) {
+            pinnedTimelineDate = nil
             if !Calendar.current.isDate(selectedDate, equalTo: month, toGranularity: .month) {
                 selectedDate = Calendar.current.dateInterval(of: .month, for: month)!.start
             }
         }
+        .onChange(of: timeline) { pinnedTimelineDate = nil }
     }
 }
 
@@ -125,16 +133,19 @@ private struct FinanceTimelineMonthHeader: View {
 private struct FinanceCalendarSummary: View {
     let events: [FinanceCalendarEvent]
     let currency: String
+    var upcomingOnly = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Spese del mese").font(.headline).foregroundStyle(ForgiaPalette.calendar)
+            Text(upcomingOnly ? "Spese future del mese" : "Spese del mese").font(.headline).foregroundStyle(ForgiaPalette.calendar)
             let expenses = events.filter { $0.type == .expense }
             let recorded = expenses.filter { $0.kind == .recorded }
             let future = expenses.filter { $0.kind != .recorded && $0.date > Date() }
-            FinanceCalendarTotal(title: "Registrate", events: recorded, currency: currency)
+            if !upcomingOnly {
+                FinanceCalendarTotal(title: "Registrate", events: recorded, currency: currency)
+            }
             FinanceCalendarTotal(title: "In arrivo", events: future, currency: currency)
             let pending = expenses.filter { $0.kind == .recurrence && $0.date <= Date() }
-            if !pending.isEmpty {
+            if !upcomingOnly && !pending.isEmpty {
                 FinanceCalendarTotal(title: "Scadenze da registrare", events: pending, currency: currency)
             }
         }.unifiedCard()
@@ -216,7 +227,7 @@ struct FinanceCalendarPreview: View {
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 AnalysisPreviewHeading(title: "Calendario e timeline", icon: "calendar", tint: ForgiaPalette.calendar)
-                Text("Quando hai speso e cosa arriva nei prossimi giorni")
+                Text("Consulta le spese nel calendario e le prossime scadenze nella timeline")
                     .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
             }.unifiedCard(tint: ForgiaPalette.calendar).foregroundStyle(.primary)
         }.buttonStyle(.plain).financeCardEntrance().accessibilityIdentifier("finance-calendar-preview")

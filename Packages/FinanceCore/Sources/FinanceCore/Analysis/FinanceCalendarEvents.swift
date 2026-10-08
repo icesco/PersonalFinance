@@ -14,6 +14,12 @@ public struct FinanceCalendarEvent: Identifiable, Sendable {
 /// Calendar browsing never creates transactions. Materialized and skipped occurrences are suppressed.
 @MainActor
 public enum FinanceCalendarEvents {
+    /// The timeline shows only upcoming events, including occurrences later today.
+    /// Overdue recurrences remain available in the calendar's history.
+    public static func upcoming(_ events: [FinanceCalendarEvent], now: Date = Date()) -> [FinanceCalendarEvent] {
+        events.filter { $0.kind != .recorded && $0.date > now }
+    }
+
     public static func build(transactions: [Transaction], resolutions: [RecurrenceResolution],
                              contoIDs: Set<UUID>, interval: DateInterval, now: Date = Date()) -> [FinanceCalendarEvent] {
         var seen: Set<UUID> = []

@@ -41,6 +41,7 @@ enum WidgetSnapshotPublisher {
         }
         WidgetCenter.shared.reloadTimelines(ofKind: FinanceWidgetStorage.kind)
         WidgetCenter.shared.reloadTimelines(ofKind: FinanceWidgetStorage.balanceKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: FinanceWidgetStorage.upcomingKind)
     }
 }
 
@@ -91,7 +92,7 @@ struct WidgetSettingsSection: View {
                 .onChange(of: showsData) { _, value in if !value { WidgetSnapshotPublisher.redact() } }
             if lock.isEnabled { Text("I dati nei widget sono nascosti perché il blocco di Formi è attivo.").font(.caption) }
         } header: { Text("Widget") } footer: {
-            Text("Aggiungi Riepilogo Formi o Saldo per conto dalla galleria widget e scegli un libro. Per il saldo puoi scegliere anche il periodo. I dati si aggiornano quando apri o modifichi l’app; l’orario indica l’ultimo aggiornamento. Il sistema gestisce quando ridisegnare il widget. L’accesso Nuova spesa resta disponibile anche con i dati nascosti.")
+            Text("Aggiungi Riepilogo Formi, Saldo per conto o Prossime transazioni dalla galleria widget e scegli un libro. Per il saldo puoi scegliere anche il periodo. Prossime transazioni mostra i movimenti futuri e le ricorrenze dei prossimi 90 giorni, includendo anche la prossima scadenza più lontana; sulla schermata di blocco mostra la prossima spesa. I dati si aggiornano quando apri o modifichi l’app; l’orario indica l’ultimo aggiornamento. Il sistema gestisce quando ridisegnare il widget. L’accesso Nuova spesa resta disponibile anche con i dati nascosti.")
         }
     }
 }

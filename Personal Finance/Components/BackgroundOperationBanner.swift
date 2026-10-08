@@ -197,3 +197,55 @@ struct CloudSyncBannerContent: View {
         }
     }
 }
+
+/// A data-free first frame while SwiftData opens the local store.
+struct StartupPlaceholderView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(spacing: 10) {
+                    FormiLogo(size: 36)
+                    Text("Formi")
+                        .font(.system(size: 34, weight: .semibold, design: .serif))
+                        .tracking(-1)
+                }
+                VStack(alignment: .leading, spacing: 24) {
+                    StartupPlaceholderCard(height: 190)
+                    StartupPlaceholderCard(height: 150)
+                    StartupPlaceholderCard(height: 160)
+                }
+                .redacted(reason: .placeholder)
+                .accessibilityHidden(true)
+            }
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.horizontal, 22)
+            .padding(.top, 14)
+        }
+        .scrollDisabled(true)
+        .background(Color(.systemBackground))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Apertura di Formi")
+    }
+}
+
+private struct StartupPlaceholderCard: View {
+    let height: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Il tuo riepilogo")
+                .font(.headline)
+            Text("Disponibilità del libro")
+                .font(.title2)
+            Spacer(minLength: 0)
+            Text("I tuoi dati")
+                .font(.subheadline)
+        }
+        .foregroundStyle(.secondary)
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: height)
+        .background(.quaternary.opacity(0.45), in: .rect(cornerRadius: 24))
+    }
+}

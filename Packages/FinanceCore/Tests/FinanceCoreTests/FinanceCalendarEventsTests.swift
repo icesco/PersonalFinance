@@ -60,4 +60,25 @@ struct FinanceCalendarEventsTests {
         #expect(events.contains { $0.kind == .recurrence && $0.date < date(10, 27) })
         #expect(events.first { $0.transactionID == invalid.id }?.amount == nil)
     }
+
+    @Test func timelineExcludesHistoryAndOverdueRecurrencesButIncludesLaterToday() {
+        let now = date(10, 8)
+        func event(_ id: String, _ date: Date, _ kind: FinanceCalendarEvent.Kind,
+                   type: TransactionType = .expense) -> FinanceCalendarEvent {
+            .init(id: id, transactionID: UUID(), date: date, amount: 20,
+                  type: type, title: id, kind: kind)
+        }
+        let events = [
+            event("recorded", date(10, 3), .recorded),
+            event("overdue", date(10, 7), .recurrence),
+            event("due-now", now, .recurrence),
+            event("earlier-today", date(10, 8, 9), .recurrence),
+            event("later-today", date(10, 8, 18), .planned),
+            event("future-recurrence", date(10, 15), .recurrence),
+            event("future-income", date(10, 20), .planned, type: .income)
+        ]
+        #expect(FinanceCalendarEvents.upcoming(events, now: now).map(\.id)
+                == ["later-today", "future-recurrence", "future-income"])
+        #expect(FinanceCalendarEvents.upcoming(Array(events.prefix(4)), now: now).isEmpty)
+    }
 }

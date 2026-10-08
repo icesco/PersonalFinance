@@ -17,6 +17,8 @@ public struct WidgetBookSnapshot: Codable, Equatable, Identifiable, Sendable {
     public let occurrenceDates: [Date]
     /// Optional for compatibility with snapshots published by earlier app versions.
     public let balanceHistories: [WidgetBalanceSnapshot]?
+    /// Missing in snapshots published before the upcoming-transactions widget.
+    public let upcomingSchedule: WidgetUpcomingSnapshot?
 }
 
 public struct FinanceWidgetSnapshot: Codable, Equatable, Sendable {
@@ -118,7 +120,9 @@ public enum FinanceWidgetBuilder {
             }
             validUntil = min(validUntil, histories.map(\.interval.end).min() ?? validUntil)
             books.append(WidgetBookSnapshot(id: account.id, name: account.name ?? "Libro", currency: account.currency ?? "EUR",
-                                      monthSpent: monthSpent, budget: bookBudgets.first, occurrenceDates: dates, balanceHistories: histories))
+                                      monthSpent: monthSpent, budget: bookBudgets.first, occurrenceDates: dates, balanceHistories: histories,
+                                      upcomingSchedule: .build(transactions: transactions, resolutions: resolutions,
+                                                               contoIDs: activeContoIDs, now: now, calendar: calendar)))
         }
         books.sort { $0.name == $1.name ? $0.id.uuidString < $1.id.uuidString : $0.name < $1.name }
         return FinanceWidgetSnapshot(version: 1, generatedAt: now, validUntil: validUntil, state: .ready, books: books)
@@ -128,6 +132,7 @@ public enum FinanceWidgetBuilder {
 public enum FinanceWidgetStorage {
     public static let kind = "ForgiaOverview"
     public static let balanceKind = "FormiBalanceHistory"
+    public static let upcomingKind = "FormiUpcomingTransactions"
     public static let filename = "forgia-widget-v1.json"
     public static var sharedURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: FinanceCoreModule.defaultAppGroupIdentifier)?
