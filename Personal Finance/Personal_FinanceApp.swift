@@ -77,6 +77,12 @@ struct Personal_FinanceApp: App {
             .environment(recurrenceReminders)
             .environment(appLock)
             .onOpenURL { url in
+                #if os(macOS)
+                if FormiCLIBridge.accepts(url) {
+                    Task { await FormiCLIBridge.handle(url, storage: dataStorageManager, lock: appLock) }
+                    return
+                }
+                #endif
                 guard let route = FinanceWidgetRoute(url: url) else { return }
                 do { try FinanceShortcutInbox.shared.submit(.widget(route)) }
                 catch { FinanceShortcutInbox.shared.reportError("Completa la richiesta già aperta in Formi.") }

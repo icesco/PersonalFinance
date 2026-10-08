@@ -311,6 +311,7 @@
 				6D6508C42E5B400F0033992E /* Sources */,
 				6D6508C52E5B400F0033992E /* Frameworks */,
 				6D6508C62E5B400F0033992E /* Resources */,
+				F04C11000000000000000001 /* Build Formi CLI */,
 				F0471A00000000000000000D /* Embed App Extensions */,
 				F047CA00000000000000000D /* Embed Watch Content */,
 			);
@@ -577,6 +578,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+        F04C11000000000000000001 /* Build Formi CLI */ = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = (
+                "$(SRCROOT)/Tools/FormiCLI/build.sh",
+                "$(SRCROOT)/Tools/FormiCLI/FormiCLI.swift",
+                "$(SRCROOT)/Packages/FinanceCore/Sources/FinanceCore/Services/FormiCLIProtocol.swift",
+                "$(SRCROOT)/Packages/FinanceCore/Sources/FinanceCore/Services/FormiCLIArguments.swift",
+            );
+            name = "Build Formi CLI";
+            outputPaths = (
+                "$(TARGET_BUILD_DIR)/$(EXECUTABLE_FOLDER_PATH)/formi",
+                "$(DERIVED_FILE_DIR)/formi-cli",
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh;
+            shellScript = "/bin/sh \"$SRCROOT/Tools/FormiCLI/build.sh\"";
+        };
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		6D6508C42E5B400F0033992E /* Sources */ = {

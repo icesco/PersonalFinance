@@ -5,7 +5,7 @@ import FinanceCore
 import AppKit
 
 enum MacSettingsPane: String, CaseIterable, Identifiable {
-    case appearance, reminders, privacy, books, accounts, categories, widgets, shortcuts, cloud, files, erase, about
+    case appearance, reminders, privacy, books, accounts, categories, widgets, shortcuts, cli, cloud, files, erase, about
     var id: Self { self }
     var title: String {
         switch self {
@@ -17,6 +17,7 @@ enum MacSettingsPane: String, CaseIterable, Identifiable {
         case .categories: "Categorie"
         case .widgets: "Widget"
         case .shortcuts: "Comandi Rapidi e Siri"
+        case .cli: "CLI per AI"
         case .cloud: "iCloud"
         case .files: "Importa ed esporta"
         case .erase: "Cancella dati"
@@ -33,6 +34,7 @@ enum MacSettingsPane: String, CaseIterable, Identifiable {
         case .categories: "tag"
         case .widgets: "square.grid.2x2"
         case .shortcuts: "square.stack.3d.up"
+        case .cli: "terminal"
         case .cloud: "icloud"
         case .files: "arrow.up.arrow.down"
         case .erase: "trash"
@@ -57,7 +59,7 @@ private enum MacSettingsGroup: String, CaseIterable, Identifiable {
         switch self {
         case .general: [.appearance, .reminders, .privacy]
         case .books: [.books, .accounts, .categories]
-        case .integrations: [.widgets, .shortcuts]
+        case .integrations: [.widgets, .shortcuts, .cli]
         case .data: [.cloud, .files, .erase]
         case .about: [.about]
         }
@@ -213,6 +215,7 @@ struct MacSettingsWorkspace: View {
             else { chooseBook }
         case .widgets: settingsForm { WidgetSettingsSection() }
         case .shortcuts: FinanceShortcutsView()
+        case .cli: FormiCLISettingsView()
         case .cloud: CloudSettingsView()
         case .files: files
         case .erase: EraseDataView()
