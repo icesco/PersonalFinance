@@ -15,6 +15,11 @@ struct TodayView: View {
     @State private var loadedScope: Scope?
     @State private var refreshRevision = 0
     @State private var loadFailed = false
+    @State private var lastSuccessfulLoad: Date?
+
+    #if DEBUG
+    var loadSnapshotForTesting: ((ModelContainer, UUID?, Bool) async throws -> TodaySnapshot)? = nil
+    #endif
 
     var screen: Screen = .home
     var bookSelectionNamespace: Namespace.ID? = nil
@@ -104,6 +109,13 @@ struct TodayView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if loadFailed, snapshot != nil, loadedScope == scope {
+                    TodayRefreshFailureBanner(lastSuccessfulLoad: lastSuccessfulLoad) {
+                        refreshRevision &+= 1
+                    }
+                }
+            }
             .transactionButtonRoot(screen == .analysis ? .analysis : .dashboard, isActive: screen != .analysis)
             .financePresentation(isPresented: $showingImport, title: "Importa CSV", width: 800) { CSVImportView() }
             .financePresentation(isPresented: $showingBudgets, title: "Budget", width: 800) { BudgetView() }
@@ -118,8 +130,16 @@ struct TodayView: View {
             do {
                 // Coalesce bursts of imports/saves; cancellation discards obsolete results.
                 try await Task.sleep(for: .milliseconds(200))
-                let value = try await reader.load(container: context.container,
-                    accountID: requestedScope.accountID, showAllAccounts: requestedScope.showAll)
+                #if DEBUG
+                let value: TodaySnapshot
+                if let loadSnapshotForTesting {
+                    value = try await loadSnapshotForTesting(context.container, requestedScope.accountID, requestedScope.showAll)
+                } else {
+                    value = try await reader.load(container: context.container, accountID: requestedScope.accountID, showAllAccounts: requestedScope.showAll)
+                }
+                #else
+                let value = try await reader.load(container: context.container, accountID: requestedScope.accountID, showAllAccounts: requestedScope.showAll)
+                #endif
                 try Task.checkCancellation()
                 var transaction = SwiftUI.Transaction()
                 transaction.disablesAnimations = true
@@ -127,6 +147,7 @@ struct TodayView: View {
                     snapshot = value
                     loadedScope = requestedScope
                     loadFailed = false
+                    lastSuccessfulLoad = Date()
                 }
             } catch is CancellationError {
                 // A newer refresh or disappearance owns the next result.
@@ -204,6 +225,33 @@ struct TodayView: View {
         #else
         button
         #endif
+    }
+}
+
+private struct TodayRefreshFailureBanner: View {
+    let lastSuccessfulLoad: Date?
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Riepilogo non aggiornato", systemImage: "exclamationmark.triangle")
+                .font(.subheadline.weight(.semibold))
+            Text("L'ultimo aggiornamento non è riuscito. I dati mostrati sono quelli caricati in precedenza.")
+                .font(.caption)
+            if let lastSuccessfulLoad {
+                Text("Ultimo caricamento riuscito: \(lastSuccessfulLoad, format: .dateTime.hour().minute())")
+                    .font(.caption)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+            Button("Riprova", action: retry)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("today-refresh-retry")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .foregroundStyle(.primary)
+        .background(ForgiaPalette.apricotSurface)
+        .accessibilityIdentifier("today-refresh-failed")
     }
 }
 

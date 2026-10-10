@@ -13,17 +13,23 @@ import FinanceCore
 @MainActor
 final class DemoDataService {
     private let modelContext: ModelContext
+    private let save: (ModelContext) throws -> Void
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    init(modelContext: ModelContext, save: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.modelContext = ModelContext(modelContext.container)
+        self.modelContext.autosaveEnabled = false
+        self.save = save
     }
 
     /// Generate demo data: a "Demo" libro with one conto corrente and 2 months of transactions
-    func generateDemoData() async throws {
+    @discardableResult
+    func generateDemoData() async throws -> UUID {
+        var saved = false
+        defer { if !saved { modelContext.rollback() } }
         let account = Account(name: "Demo", currency: "EUR")
         modelContext.insert(account)
 
-        let categories = try createCategories(for: account)
+        let categories = createCategories(for: account)
 
         let conto = Conto(name: "Conto Corrente", type: .checking, initialBalance: 2500)
         conto.account = account
@@ -42,14 +48,25 @@ final class DemoDataService {
         let currentMonthDate = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         generateMonth(monthDate: currentMonthDate, conto: conto, categories: categories, calendar: calendar)
 
-        try modelContext.save()
+        try save(modelContext)
+        saved = true
+        return account.id
     }
 
     // MARK: - Categories
 
     /// The same suggested macro categories and subcategories a new book gets.
-    private func createCategories(for account: Account) throws -> [String: FinanceCategory] {
-        try CategoryDefaults(context: modelContext).upgrade(account)
+    private func createCategories(for account: Account) -> [String: FinanceCategory] {
+        // Seed the new book without an intermediate save, so a failed demo can roll back in full.
+        var byKey: [String: FinanceCategory] = [:]
+        for definition in FinanceCategory.defaultCategoryDefinitions {
+            let category = FinanceCategory(name: definition.name, color: definition.color, icon: definition.icon,
+                                           parentCategoryId: definition.parentKey.flatMap { byKey[$0]?.id }, kind: definition.kind)
+            category.externalID = CategoryDefaults.externalID(for: definition.stableKey, in: account)
+            category.account = account
+            modelContext.insert(category)
+            byKey[definition.stableKey] = category
+        }
         return Dictionary((account.categories ?? []).map { ($0.name ?? "", $0) }, uniquingKeysWith: { first, _ in first })
     }
 

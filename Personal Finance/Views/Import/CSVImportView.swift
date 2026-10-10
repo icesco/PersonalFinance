@@ -22,6 +22,10 @@ struct CSVImportView: View {
     @State private var showingAccountFilter = false
     @State private var showingFieldMapping = false
 
+    #if DEBUG
+    var initialFileForTesting: URL? = nil
+    #endif
+
     private let csvService = CSVService()
 
     var body: some View {
@@ -69,6 +73,9 @@ struct CSVImportView: View {
                     }
                 }
         }
+        #if DEBUG
+        .task { if let initialFileForTesting { handleFileSelection(.success([initialFileForTesting])) } }
+        #endif
     }
 
     // MARK: - File Selection View
@@ -171,8 +178,8 @@ struct CSVImportView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.accentColor)
-                        .foregroundColor(.white)
+                        .background(ForgiaPalette.accent)
+                        .foregroundStyle(ForgiaPalette.onAccent)
                         .cornerRadius(12)
                     }
                 }
@@ -187,8 +194,8 @@ struct CSVImportView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(parseResult == nil ? Color.accentColor : Color(.systemGray5))
-                    .foregroundColor(parseResult == nil ? .white : .primary)
+                    .background(parseResult == nil ? ForgiaPalette.accent : Color(.systemGray5))
+                    .foregroundStyle(parseResult == nil ? ForgiaPalette.onAccent : Color.primary)
                     .cornerRadius(12)
                 }
             }

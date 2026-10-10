@@ -34,6 +34,9 @@ private struct ContoSetupData: Identifiable {
 // MARK: - OnboardingView
 
 struct OnboardingView: View {
+    #if DEBUG
+    var demoSaveForTesting: ((ModelContext) throws -> Void)? = nil
+    #endif
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
 
@@ -44,6 +47,7 @@ struct OnboardingView: View {
     @State private var showingAddConto = false
     @State private var isCreatingDemo = false
     @State private var showingSetupError = false
+    @State private var demoError: String?
 
     private let currencies = ["EUR", "USD", "GBP", "CHF"]
 
@@ -63,6 +67,14 @@ struct OnboardingView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("I dati non sono stati salvati. Le informazioni inserite sono ancora disponibili: riprova.")
+        }
+        .alert("Demo non disponibile", isPresented: Binding(
+            get: { demoError != nil },
+            set: { if !$0 { demoError = nil } }
+        )) {
+            Button("Chiudi", role: .cancel) { demoError = nil }
+        } message: {
+            Text(demoError ?? "")
         }
     }
 
@@ -275,19 +287,22 @@ struct OnboardingView: View {
 
     private func createDemoData() {
         isCreatingDemo = true
+        demoError = nil
+        #if DEBUG
+        let service = DemoDataService(modelContext: modelContext, save: demoSaveForTesting ?? { try $0.save() })
+        #else
         let service = DemoDataService(modelContext: modelContext)
+        #endif
         Task {
             do {
-                try await service.generateDemoData()
-                // Select the created demo account
-                let descriptor = FetchDescriptor<Account>()
-                if let accounts = try? modelContext.fetch(descriptor),
-                   let demoAccount = accounts.first {
+                let demoID = try await service.generateDemoData()
+                let descriptor = FetchDescriptor<Account>(predicate: #Predicate { $0.id == demoID })
+                if let demoAccount = try modelContext.fetch(descriptor).first {
                     appState.selectAccount(demoAccount)
                 }
                 appState.completeOnboarding()
             } catch {
-                print("Error creating demo data: \(error)")
+                demoError = String(localized: "Non è stato possibile preparare i dati demo: \(error.localizedDescription)")
                 isCreatingDemo = false
             }
         }

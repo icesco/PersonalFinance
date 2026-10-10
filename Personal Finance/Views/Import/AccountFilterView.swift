@@ -197,8 +197,8 @@ struct AccountFilterStepView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.accentColor)
-                    .foregroundColor(.white)
+                    .background(ForgiaPalette.accent)
+                    .foregroundStyle(ForgiaPalette.onAccent)
                     .cornerRadius(12)
                 }
                 .padding(.horizontal)
@@ -289,8 +289,8 @@ struct AccountFilterStepView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.accentColor)
-                    .foregroundColor(.white)
+                    .background(ForgiaPalette.accent)
+                    .foregroundStyle(ForgiaPalette.onAccent)
                     .cornerRadius(12)
                 }
                 .padding(.horizontal)

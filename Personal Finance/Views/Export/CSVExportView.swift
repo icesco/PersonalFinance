@@ -31,6 +31,11 @@ struct CSVExportView: View {
     @State private var errorMessage: String?
     @State private var showingFieldSelection = false
     @State private var transactionCount: Int = 0
+    @State private var countLoadFailed = false
+
+    #if DEBUG
+    var fetchTransactionsForTesting: (() throws -> [FinanceTransaction])? = nil
+    #endif
 
     private let csvService = CSVService()
 
@@ -65,7 +70,7 @@ struct CSVExportView: View {
                     Button("Esporta") {
                         performExport()
                     }
-                    .disabled(isExporting || transactionCount == 0)
+                    .disabled(isExporting || countLoadFailed || transactionCount == 0)
                 }
             }
             .sheet(isPresented: $showingDateFormatPicker) {
@@ -101,6 +106,14 @@ struct CSVExportView: View {
             }
             .onChange(of: options.dateTo) { _, _ in
                 updateTransactionCount()
+            }
+            .alert("Esportazione non riuscita", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("Chiudi", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
             }
         }
     }
@@ -267,12 +280,22 @@ struct CSVExportView: View {
 
                 Spacer()
 
-                Text("\(transactionCount)")
-                    .fontWeight(.semibold)
-                    .foregroundColor(transactionCount > 0 ? .primary : .secondary)
+                if countLoadFailed {
+                    Text("Non disponibile")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("\(transactionCount)")
+                        .fontWeight(.semibold)
+                        .foregroundColor(transactionCount > 0 ? .primary : .secondary)
+                }
+            }
+            if countLoadFailed {
+                Button("Riprova a caricare i movimenti") { updateTransactionCount() }
             }
         } footer: {
-            if transactionCount == 0 {
+            if countLoadFailed {
+                Text("Non è stato possibile leggere i movimenti. Riprova prima di esportare.")
+            } else if transactionCount == 0 {
                 Text("Nessuna transazione corrisponde ai criteri selezionati")
             }
         }
@@ -283,15 +306,19 @@ struct CSVExportView: View {
     private func updateTransactionCount() {
         options.contoIds = selectedConti
 
-        Task {
-            let transactions = await fetchTransactions()
-            await MainActor.run {
-                transactionCount = transactions.count
-            }
+        do {
+            transactionCount = try fetchTransactions().count
+            countLoadFailed = false
+        } catch {
+            countLoadFailed = true
+            errorMessage = String(localized: "Non è stato possibile leggere i movimenti: \(error.localizedDescription)")
         }
     }
 
-    private func fetchTransactions() async -> [FinanceTransaction] {
+    private func fetchTransactions() throws -> [FinanceTransaction] {
+        #if DEBUG
+        if let fetchTransactionsForTesting { return try fetchTransactionsForTesting() }
+        #endif
         var descriptor = FetchDescriptor<FinanceTransaction>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
@@ -320,27 +347,19 @@ struct CSVExportView: View {
             }
         }
 
-        do {
-            var transactions = try modelContext.fetch(descriptor)
-
-            // Filter by conto if needed
-            if !selectedConti.isEmpty {
-                transactions = transactions.filter { transaction in
-                    if let fromContoId = transaction.fromContoId, selectedConti.contains(fromContoId) {
-                        return true
-                    }
-                    if let toContoId = transaction.toContoId, selectedConti.contains(toContoId) {
-                        return true
-                    }
-                    return false
+        var transactions = try modelContext.fetch(descriptor)
+        if !selectedConti.isEmpty {
+            transactions = transactions.filter { transaction in
+                if let fromContoId = transaction.fromContoId, selectedConti.contains(fromContoId) {
+                    return true
                 }
+                if let toContoId = transaction.toContoId, selectedConti.contains(toContoId) {
+                    return true
+                }
+                return false
             }
-
-            return transactions
-        } catch {
-            print("Error fetching transactions: \(error)")
-            return []
         }
+        return transactions
     }
 
     private func performExport() {
@@ -348,44 +367,34 @@ struct CSVExportView: View {
         errorMessage = nil
 
         Task {
-            let transactions = await fetchTransactions()
-
-            let csvContent = await csvService.exportTransactions(transactions, options: options)
-
-            // Create temporary file
-            let fileName = generateFileName()
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-
+            defer { isExporting = false }
             do {
-                try csvContent.write(to: tempURL, atomically: true, encoding: .utf8)
-
-                await MainActor.run {
-                    exportedFileURL = tempURL
-                    isExporting = false
-                    #if os(iOS)
-                    showingShareSheet = true
-                    #elseif os(macOS)
-                    showMacOSSavePanel(sourceURL: tempURL, fileName: fileName)
-                    #endif
-                }
+                let transactions = try fetchTransactions()
+                let csvContent = await csvService.exportTransactions(transactions, options: options)
+                let fileName = generateFileName()
+                #if os(iOS)
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+                try CSVExportFileWriter.write(csvContent, to: tempURL)
+                exportedFileURL = tempURL
+                showingShareSheet = true
+                #elseif os(macOS)
+                try showMacOSSavePanel(csvContent: csvContent, fileName: fileName)
+                #endif
             } catch {
-                await MainActor.run {
-                    isExporting = false
-                    errorMessage = "Errore durante l'esportazione: \(error.localizedDescription)"
-                }
+                errorMessage = String(localized: "Non è stato possibile esportare il CSV: \(error.localizedDescription)")
             }
         }
     }
 
     #if os(macOS)
-    private func showMacOSSavePanel(sourceURL: URL, fileName: String) {
+    private func showMacOSSavePanel(csvContent: String, fileName: String) throws {
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.commaSeparatedText]
         savePanel.nameFieldStringValue = fileName
         savePanel.canCreateDirectories = true
 
         if savePanel.runModal() == .OK, let destinationURL = savePanel.url {
-            try? FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            try CSVExportFileWriter.write(csvContent, to: destinationURL)
         }
     }
     #endif
@@ -398,6 +407,12 @@ struct CSVExportView: View {
         let accountName = appState.selectedAccount?.name?.replacingOccurrences(of: " ", with: "-") ?? "Export"
 
         return "\(accountName)-\(dateString).csv"
+    }
+}
+
+enum CSVExportFileWriter {
+    static func write(_ content: String, to destination: URL) throws {
+        try content.write(to: destination, atomically: true, encoding: .utf8)
     }
 }
 
