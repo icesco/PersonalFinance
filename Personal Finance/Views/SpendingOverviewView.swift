@@ -69,6 +69,26 @@ struct SpendingOverviewView: View {
                         report: RecordedSavingsReport.calculate(transactions: transactions, interval: interval),
                         currency: currency, isInProgress: interval.end > Date(), plan: applicableSavingsPlan, periodTitle: periodTitle
                     )
+                    NavigationLink {
+                        MoneyFlowView(transactions: transactions, currency: currency,
+                                      interval: interval, periodTitle: periodTitle,
+                                      scopeContoIDs: scopeContoIDs)
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "arrow.triangle.branch")
+                                .font(.title2).foregroundStyle(ForgiaPalette.accent)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Flusso del denaro").font(.headline)
+                                Text("Dalle entrate alle categorie, fino a ogni dettaglio")
+                                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").foregroundStyle(ForgiaPalette.mutedText)
+                        }
+                        .unifiedCard()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("analysis-money-flow")
                     FinanceCalendarPreview(contoIDs: scopeContoIDs, currency: currency, initialDate: anchor)
                     InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency, periodTitle: periodTitle)
 

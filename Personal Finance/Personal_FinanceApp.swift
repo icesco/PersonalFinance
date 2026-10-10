@@ -114,7 +114,9 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_MONEY_FLOW") {
+            MoneyFlowVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE") {
             CaptureFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_QUICK_TRANSFER") {
             QuickTransferFixture()
