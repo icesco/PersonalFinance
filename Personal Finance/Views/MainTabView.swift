@@ -16,6 +16,7 @@ struct MainTabView: View {
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var shortcutInbox = FinanceShortcutInbox.shared
+    @State private var showingVoice = false
     @Environment(AppLock.self) private var appLock
     @Query private var widgetAccounts: [Account]
     #if os(macOS)
@@ -61,6 +62,9 @@ struct MainTabView: View {
         } message: { Text(shortcutInbox.errorMessage ?? "") }
         .environment(\.cardTint, themeColor)
         .environment(\.tintedBackgrounds, appState.tintedBackgrounds)
+        .financePresentation(isPresented: $showingVoice, title: "Aggiungi con la voce", width: 600, height: 720) {
+            VoiceTransactionView()
+        }
         .financePresentation(isPresented: Binding(
             get: { appState.showingQuickTransaction },
             set: { _ in appState.dismissQuickTransaction() }
@@ -256,6 +260,7 @@ struct MainTabView: View {
                             .help("Nuova spesa (⌘N)")
                             .disabled(appState.showingQuickTransaction)
                         Menu {
+                            Button("Aggiungi con la voce", systemImage: "mic.fill") { showingVoice = true }
                             Button("Nuova entrata", systemImage: "arrow.down.left") { appState.presentQuickTransaction(type: .income) }
                             Button("Nuovo trasferimento", systemImage: "arrow.left.arrow.right") { appState.presentQuickTransaction(type: .transfer) }
                                 .disabled(appState.activeConti(for: appState.selectedAccount).count < 2)
@@ -444,6 +449,9 @@ struct QuickTransactionModal: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if transactionType != .transfer {
+                        VoiceTransactionEntryButton(onComplete: { dismiss() }, onOpen: { amountFocused = false })
+                    }
                     typeSelector
                     amountCard
                     if transactionType == .expense, let proposedAmount = parsedAmount {

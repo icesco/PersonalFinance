@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Detta i movimenti da controllare prima di aggiungerli. La trascrizione avviene sul dispositivo.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Trascrivi i movimenti dettati per preparare un elenco da approvare.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>cc.fbianco.personalfinance.exampletask</string>

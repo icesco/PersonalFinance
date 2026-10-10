@@ -1,0 +1,906 @@
+{
+  "availability" : "available",
+  "failures" : 10,
+  "results" : [
+    {
+      "case" : "stipendio",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-10",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio di 1800 euro sul conto Banca",
+      "issues" : [
+        "missing date did not preserve exact now"
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "1800",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.6703720092773438
+    },
+    {
+      "case" : "elenco senza conto",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar e 5 euro al supermercato",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.2925840616226196
+    },
+    {
+      "case" : "ieri e conto condiviso",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e 5 euro al supermercato, entrambi dal conto Banca",
+      "issues" : [
+        "day 2026-10-10, expected 2026-10-09",
+        "day 2026-10-10, expected 2026-10-09"
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "Banca",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.4814070463180542
+    },
+    {
+      "case" : "ripetuti",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-10",
+          "dateWasSpecified" : true
+        },
+        {
+          "date" : "2026-10-10",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar stamattina e altri 3 euro allo stesso bar nel pomeriggio",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.9142769575119019
+    },
+    {
+      "case" : "decimali",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho pagato dodici euro e cinquanta al supermercato dal conto Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "12.50",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "pagato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.1924290657043457
+    },
+    {
+      "case" : "data esplicita",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-05",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Il 5 ottobre 2026 ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "Stipendio",
+          "date" : "2026-10-05",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.0425840616226196
+    },
+    {
+      "case" : "conto sconosciuto",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Vacanze",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "speso",
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.7099559307098389
+    },
+    {
+      "case" : "importo mancante",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-10",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio sul conto Banca",
+      "issues" : [
+        "missing date did not preserve exact now"
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "lo stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.7725529670715332
+    },
+    {
+      "case" : "negazione",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Non ho pagato i 50 euro al ristorante",
+      "issues" : [
+        "type Optional(FinanceCore.TransactionType.expense), expected nil"
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al ristorante",
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.4447619915008545
+    },
+    {
+      "case" : "trasferimento",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho trasferito 100 euro da Banca a Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "100",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "da Banca a Contanti",
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.6941510438919067
+    },
+    {
+      "case" : "stipendio",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio di 1800 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "1800",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7040929794311523
+    },
+    {
+      "case" : "elenco senza conto",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar e 5 euro al supermercato",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.4204200506210327
+    },
+    {
+      "case" : "ieri e conto condiviso",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e 5 euro al supermercato, entrambi dal conto Banca",
+      "issues" : [
+        "day 2026-10-10, expected 2026-10-09",
+        "day 2026-10-10, expected 2026-10-09"
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "Banca",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.5648130178451538
+    },
+    {
+      "case" : "ripetuti",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar stamattina e altri 3 euro allo stesso bar nel pomeriggio",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.3953260183334351
+    },
+    {
+      "case" : "decimali",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho pagato dodici euro e cinquanta al supermercato dal conto Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "12.50",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "pagato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.6842650175094604
+    },
+    {
+      "case" : "data esplicita",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-05",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Il 5 ottobre 2026 ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "Stipendio",
+          "date" : "2026-10-05",
+          "dateNeedsReview" : false,
+          "note" : "salario",
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.8577560186386108
+    },
+    {
+      "case" : "conto sconosciuto",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Vacanze",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "speso",
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.6865990161895752
+    },
+    {
+      "case" : "importo mancante",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-10",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio sul conto Banca",
+      "issues" : [
+        "missing date did not preserve exact now"
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "lo stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7438740730285645
+    },
+    {
+      "case" : "negazione",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Non ho pagato i 50 euro al ristorante",
+      "issues" : [
+        "type Optional(FinanceCore.TransactionType.expense), expected nil"
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al ristorante",
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.4227340221405029
+    },
+    {
+      "case" : "trasferimento",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho trasferito 100 euro da Banca a Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "100",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "da Banca a Contanti",
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7113310098648071
+    },
+    {
+      "case" : "stipendio",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio di 1800 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "1800",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.5758869647979736
+    },
+    {
+      "case" : "elenco senza conto",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar e 5 euro al supermercato",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.2579299211502075
+    },
+    {
+      "case" : "ieri e conto condiviso",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e 5 euro al supermercato, entrambi dal conto Banca",
+      "issues" : [
+        "day 2026-10-10, expected 2026-10-09",
+        "day 2026-10-10, expected 2026-10-09"
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "Banca",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al supermercato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.7541350126266479
+    },
+    {
+      "case" : "ripetuti",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        },
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar stamattina e altri 3 euro allo stesso bar nel pomeriggio",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al bar",
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.6594060659408569
+    },
+    {
+      "case" : "decimali",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho pagato dodici euro e cinquanta al supermercato dal conto Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "12.50",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "pagato",
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.7185299396514893
+    },
+    {
+      "case" : "data esplicita",
+      "dateEvidence" : [
+        {
+          "date" : "2026-10-05",
+          "dateWasSpecified" : true
+        }
+      ],
+      "input" : "Il 5 ottobre 2026 ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "Stipendio",
+          "date" : "2026-10-05",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.8532960414886475
+    },
+    {
+      "case" : "conto sconosciuto",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Vacanze",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "speso",
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.7254630327224731
+    },
+    {
+      "case" : "importo mancante",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "lo stipendio",
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.3235930204391479
+    },
+    {
+      "case" : "negazione",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Non ho pagato i 50 euro al ristorante",
+      "issues" : [
+        "type Optional(FinanceCore.TransactionType.expense), expected nil"
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "al ristorante",
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.5450230836868286
+    },
+    {
+      "case" : "trasferimento",
+      "dateEvidence" : [
+        {
+          "date" : "",
+          "dateWasSpecified" : false
+        }
+      ],
+      "input" : "Ho trasferito 100 euro da Banca a Contanti",
+      "issues" : [
+        "account Contanti, expected Banca"
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "100",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "da Banca a Contanti",
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.6570620536804199
+    }
+  ]
+}

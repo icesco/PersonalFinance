@@ -121,6 +121,9 @@ struct CreateTransactionView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if transactionType != .transfer {
+                        VoiceTransactionEntryButton(onComplete: { dismiss() })
+                    }
                     amountCard
 
                     if transactionType == .transfer && hasDifferentCurrencies {

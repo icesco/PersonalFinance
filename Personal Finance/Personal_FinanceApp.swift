@@ -114,7 +114,9 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_ANTISLOP") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_VOICE_REVIEW") {
+            VoiceReviewVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_ANTISLOP") {
             AntislopVisualFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_MONEY_FLOW") {
             MoneyFlowVisualFixture()

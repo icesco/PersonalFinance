@@ -1,0 +1,1886 @@
+{
+  "availability" : "available",
+  "evidenceChecks" : 21,
+  "failures" : 0,
+  "referenceNow" : 1791626400,
+  "replayChecks" : 4,
+  "results" : [
+    {
+      "case" : "stipendio",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "",
+          "note" : "Stipendio",
+          "sourceText" : "ho ricevuto lo stipendio di 1800 euro sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio di 1800 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "1800",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.9535170793533325
+    },
+    {
+      "case" : "elenco senza conto",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Contanti",
+          "category" : "Supermercato",
+          "dateExpression" : "",
+          "note" : "supermercato",
+          "sourceText" : "e 5 euro al supermercato"
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar e 5 euro al supermercato",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.7503379583358765
+    },
+    {
+      "case" : "ieri e conto condiviso",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Bar",
+          "dateExpression" : "ieri",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Banca",
+          "category" : "Supermercato",
+          "dateExpression" : "ieri",
+          "note" : "supermercato",
+          "sourceText" : "e 5 euro al supermercato"
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e 5 euro al supermercato, entrambi dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        },
+        {
+          "account" : "Banca",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.7748810052871704
+    },
+    {
+      "case" : "ripetuti",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar stamattina"
+        },
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "altri 3 euro allo stesso bar nel pomeriggio"
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar stamattina e altri 3 euro allo stesso bar nel pomeriggio",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791583200,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791583200,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.7779510021209717
+    },
+    {
+      "case" : "decimali",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Supermercato",
+          "dateExpression" : "",
+          "note" : "Supermercato",
+          "sourceText" : "ho pagato dodici euro e cinquanta al supermercato dal conto Contanti"
+        }
+      ],
+      "input" : "Ho pagato dodici euro e cinquanta al supermercato dal conto Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "12.50",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Supermercato",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.0480599403381348
+    },
+    {
+      "case" : "data esplicita",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "5 ottobre 2026",
+          "note" : "",
+          "sourceText" : "ho ricevuto 250 euro sul conto Banca"
+        }
+      ],
+      "input" : "Il 5 ottobre 2026 ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "",
+          "date" : "2026-10-05",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791151200,
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.8136569261550903
+    },
+    {
+      "case" : "conto sconosciuto",
+      "dateEvidence" : [
+        {
+          "account" : "Vacanze",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "Vacanze",
+          "sourceText" : "ho speso 20 euro dal conto Vacanze"
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Vacanze",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Vacanze",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.8439509868621826
+    },
+    {
+      "case" : "importo mancante",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "ho ricevuto lo stipendio sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.7189810276031494
+    },
+    {
+      "case" : "negazione",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "ristorante",
+          "sourceText" : "Non ho pagato i 50 euro al ristorante"
+        }
+      ],
+      "input" : "Non ho pagato i 50 euro al ristorante",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "ristorante",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.8419989347457886
+    },
+    {
+      "case" : "trasferimento",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Ho trasferito 100 euro da Banca a Contanti"
+        }
+      ],
+      "input" : "Ho trasferito 100 euro da Banca a Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "100",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.8141310214996338
+    },
+    {
+      "case" : "decimali in cifre",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho pagato 12.50 euro al bar"
+        }
+      ],
+      "input" : "Ho pagato 12.50 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "12.50",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.8719519376754761
+    },
+    {
+      "case" : "due date diverse",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "",
+          "dateExpression" : "ieri",
+          "note" : "Bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "",
+          "category" : "",
+          "dateExpression" : "oggi",
+          "note" : "",
+          "sourceText" : "ho ricevuto 20 euro"
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e oggi ho ricevuto 20 euro",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "Bar",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791583200,
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.5678170919418335
+    },
+    {
+      "case" : "negazione e spesa reale",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "non ho pagato 50 euro al ristorante"
+        },
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "Bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        }
+      ],
+      "input" : "Non ho pagato 50 euro al ristorante, ma ho speso 3 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 2.5427089929580688
+    },
+    {
+      "case" : "domani",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Supermercato",
+          "dateExpression" : "domani",
+          "note" : "supermercato",
+          "sourceText" : "domani pagherò 20 euro al supermercato"
+        }
+      ],
+      "input" : "Domani pagherò 20 euro al supermercato dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "20",
+          "category" : "Supermercato",
+          "date" : "2026-10-11",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "timestamp" : 1791669600,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.9323210716247559
+    },
+    {
+      "case" : "data impossibile",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "30 febbraio 2026",
+          "note" : "bar",
+          "sourceText" : "ho pagato 10 euro al bar"
+        }
+      ],
+      "input" : "Il 30 febbraio 2026 ho pagato 10 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "10",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : true,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.8286910057067871
+    },
+    {
+      "case" : "data vaga",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "Bar",
+          "sourceText" : "ho speso 10 euro al bar"
+        }
+      ],
+      "input" : "La settimana scorsa ho speso 10 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "10",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : true,
+          "note" : "Bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.799109935760498
+    },
+    {
+      "case" : "accredito senza causale",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Ho ricevuto 250 euro sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.6828769445419312
+    },
+    {
+      "case" : "spesa senza causale",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "speso 20 euro dal conto Banca"
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 1,
+      "seconds" : 1.7469758987426758
+    },
+    {
+      "case" : "stipendio",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "ho ricevuto lo stipendio di 1800 euro sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio di 1800 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "1800",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.9842480421066284
+    },
+    {
+      "case" : "elenco senza conto",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Contanti",
+          "category" : "Supermercato",
+          "dateExpression" : "",
+          "note" : "supermercato",
+          "sourceText" : "ho speso 5 euro al supermercato"
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar e 5 euro al supermercato",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.8232179880142212
+    },
+    {
+      "case" : "ieri e conto condiviso",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Bar",
+          "dateExpression" : "ieri",
+          "note" : "Bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Banca",
+          "category" : "Supermercato",
+          "dateExpression" : "ieri",
+          "note" : "Supermercato",
+          "sourceText" : "ho speso 5 euro al supermercato"
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e 5 euro al supermercato, entrambi dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "Bar",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        },
+        {
+          "account" : "Banca",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "Supermercato",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.787519097328186
+    },
+    {
+      "case" : "ripetuti",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar stamattina"
+        },
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "altri 3 euro allo stesso bar nel pomeriggio"
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar stamattina e altri 3 euro allo stesso bar nel pomeriggio",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791583200,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791583200,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.6883289813995361
+    },
+    {
+      "case" : "decimali",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Supermercato",
+          "dateExpression" : "",
+          "note" : "Supermercato",
+          "sourceText" : "ho pagato dodici euro e cinquanta al supermercato dal conto Contanti"
+        }
+      ],
+      "input" : "Ho pagato dodici euro e cinquanta al supermercato dal conto Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "12.50",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Supermercato",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.0598640441894531
+    },
+    {
+      "case" : "data esplicita",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "5 ottobre 2026",
+          "note" : "",
+          "sourceText" : "ho ricevuto 250 euro sul conto Banca"
+        }
+      ],
+      "input" : "Il 5 ottobre 2026 ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "",
+          "date" : "2026-10-05",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791151200,
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.8108750581741333
+    },
+    {
+      "case" : "conto sconosciuto",
+      "dateEvidence" : [
+        {
+          "account" : "Vacanze",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "Vacanze",
+          "sourceText" : "Ho speso 20 euro dal conto Vacanze"
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Vacanze",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Vacanze",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.8188300132751465
+    },
+    {
+      "case" : "importo mancante",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "",
+          "note" : "Stipendio",
+          "sourceText" : "ho ricevuto lo stipendio sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.8034130334854126
+    },
+    {
+      "case" : "negazione",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "ristorante",
+          "sourceText" : "Non ho pagato i 50 euro al ristorante"
+        }
+      ],
+      "input" : "Non ho pagato i 50 euro al ristorante",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "ristorante",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7944890260696411
+    },
+    {
+      "case" : "trasferimento",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Ho trasferito 100 euro da Banca a Contanti"
+        }
+      ],
+      "input" : "Ho trasferito 100 euro da Banca a Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "100",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7965569496154785
+    },
+    {
+      "case" : "decimali in cifre",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho pagato 12.50 euro al bar"
+        }
+      ],
+      "input" : "Ho pagato 12.50 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "12.50",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.8655910491943359
+    },
+    {
+      "case" : "due date diverse",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "ieri",
+          "note" : "Bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Contanti",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "ho ricevuto 20 euro"
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e oggi ho ricevuto 20 euro",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "Bar",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791583200,
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.6794869899749756
+    },
+    {
+      "case" : "negazione e spesa reale",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "non ho pagato"
+        },
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso"
+        }
+      ],
+      "input" : "Non ho pagato 50 euro al ristorante, ma ho speso 3 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 2.4881240129470825
+    },
+    {
+      "case" : "domani",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Supermercato",
+          "dateExpression" : "domani",
+          "note" : "supermercato",
+          "sourceText" : "domani pagherò 20 euro al supermercato"
+        }
+      ],
+      "input" : "Domani pagherò 20 euro al supermercato dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "20",
+          "category" : "Supermercato",
+          "date" : "2026-10-11",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "timestamp" : 1791669600,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.9173669815063477
+    },
+    {
+      "case" : "data impossibile",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "30 febbraio 2026",
+          "note" : "bar",
+          "sourceText" : "ho pagato 10 euro al bar"
+        }
+      ],
+      "input" : "Il 30 febbraio 2026 ho pagato 10 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "10",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : true,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.8191299438476562
+    },
+    {
+      "case" : "data vaga",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "la settimana scorsa",
+          "note" : "Bar",
+          "sourceText" : "ho speso 10 euro al bar"
+        }
+      ],
+      "input" : "La settimana scorsa ho speso 10 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "10",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : true,
+          "note" : "Bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7862730026245117
+    },
+    {
+      "case" : "accredito senza causale",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Ho ricevuto 250 euro sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.6833920478820801
+    },
+    {
+      "case" : "spesa senza causale",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "speso 20 euro dal conto Banca"
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 2,
+      "seconds" : 1.7506650686264038
+    },
+    {
+      "case" : "stipendio",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "",
+          "note" : "Stipendio",
+          "sourceText" : "ho ricevuto lo stipendio di 1800 euro sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio di 1800 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "1800",
+          "category" : "Stipendio",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Stipendio",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.9590460062026978
+    },
+    {
+      "case" : "elenco senza conto",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Contanti",
+          "category" : "Supermercato",
+          "dateExpression" : "",
+          "note" : "supermercato",
+          "sourceText" : "e 5 euro al supermercato"
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar e 5 euro al supermercato",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "supermercato",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.7108850479125977
+    },
+    {
+      "case" : "ieri e conto condiviso",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Bar",
+          "dateExpression" : "ieri",
+          "note" : "Bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Banca",
+          "category" : "Supermercato",
+          "dateExpression" : "ieri",
+          "note" : "Supermercato",
+          "sourceText" : "ho speso 5 euro al supermercato"
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e 5 euro al supermercato, entrambi dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "Bar",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        },
+        {
+          "account" : "Banca",
+          "amount" : "5",
+          "category" : "Supermercato",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "Supermercato",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.7719069719314575
+    },
+    {
+      "case" : "ripetuti",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar stamattina"
+        },
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "e altri 3 euro allo stesso bar nel pomeriggio"
+        }
+      ],
+      "input" : "Ho speso 3 euro al bar stamattina e altri 3 euro allo stesso bar nel pomeriggio",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791583200,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791583200,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.7248479127883911
+    },
+    {
+      "case" : "decimali",
+      "dateEvidence" : [
+        {
+          "account" : "Contanti",
+          "category" : "Supermercato",
+          "dateExpression" : "",
+          "note" : "Supermercato",
+          "sourceText" : "ho pagato dodici euro e cinquanta al supermercato dal conto Contanti"
+        }
+      ],
+      "input" : "Ho pagato dodici euro e cinquanta al supermercato dal conto Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Contanti",
+          "amount" : "12.50",
+          "category" : "Supermercato",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Supermercato",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.040194034576416
+    },
+    {
+      "case" : "data esplicita",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "5 ottobre 2026",
+          "note" : "",
+          "sourceText" : "ho ricevuto 250 euro sul conto Banca"
+        }
+      ],
+      "input" : "Il 5 ottobre 2026 ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "",
+          "date" : "2026-10-05",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791151200,
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.9037539958953857
+    },
+    {
+      "case" : "conto sconosciuto",
+      "dateEvidence" : [
+        {
+          "account" : "Vacanze",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "Vacanze",
+          "sourceText" : "Ho speso 20 euro dal conto Vacanze"
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Vacanze",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Vacanze",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.8344700336456299
+    },
+    {
+      "case" : "importo mancante",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Stipendio",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "ho ricevuto lo stipendio sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto lo stipendio sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.7591769695281982
+    },
+    {
+      "case" : "negazione",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "ristorante",
+          "sourceText" : "Non ho pagato i 50 euro al ristorante"
+        }
+      ],
+      "input" : "Non ho pagato i 50 euro al ristorante",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "ristorante",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.8578159809112549
+    },
+    {
+      "case" : "trasferimento",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Ho trasferito 100 euro da Banca a Contanti"
+        }
+      ],
+      "input" : "Ho trasferito 100 euro da Banca a Contanti",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "100",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.8800010681152344
+    },
+    {
+      "case" : "decimali in cifre",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "bar",
+          "sourceText" : "Ho pagato 12.50 euro al bar"
+        }
+      ],
+      "input" : "Ho pagato 12.50 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "12.50",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.9207700490951538
+    },
+    {
+      "case" : "due date diverse",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "",
+          "dateExpression" : "ieri",
+          "note" : "bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        },
+        {
+          "account" : "Contanti",
+          "category" : "",
+          "dateExpression" : "oggi",
+          "note" : "",
+          "sourceText" : "ho ricevuto 20 euro"
+        }
+      ],
+      "input" : "Ieri ho speso 3 euro al bar e oggi ho ricevuto 20 euro",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "",
+          "date" : "2026-10-09",
+          "dateNeedsReview" : false,
+          "note" : "bar",
+          "timestamp" : 1791496800,
+          "type" : "expense"
+        },
+        {
+          "account" : "",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791583200,
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.9152070283889771
+    },
+    {
+      "case" : "negazione e spesa reale",
+      "dateEvidence" : [
+        {
+          "account" : "",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Non ho pagato 50 euro al ristorante"
+        },
+        {
+          "account" : "",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "Bar",
+          "sourceText" : "ho speso 3 euro al bar"
+        }
+      ],
+      "input" : "Non ho pagato 50 euro al ristorante, ma ho speso 3 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "50",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "unresolved"
+        },
+        {
+          "account" : "",
+          "amount" : "3",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "Bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.6453790664672852
+    },
+    {
+      "case" : "domani",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Supermercato",
+          "dateExpression" : "domani",
+          "note" : "Supermercato",
+          "sourceText" : "domani pagherò 20 euro al supermercato dal conto Banca"
+        }
+      ],
+      "input" : "Domani pagherò 20 euro al supermercato dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "20",
+          "category" : "Supermercato",
+          "date" : "2026-10-11",
+          "dateNeedsReview" : false,
+          "note" : "Supermercato",
+          "timestamp" : 1791669600,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 2.0113259553909302
+    },
+    {
+      "case" : "data impossibile",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "30 febbraio 2026",
+          "note" : "bar",
+          "sourceText" : "ho pagato 10 euro al bar"
+        }
+      ],
+      "input" : "Il 30 febbraio 2026 ho pagato 10 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "10",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : true,
+          "note" : "bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.8211890459060669
+    },
+    {
+      "case" : "data vaga",
+      "dateEvidence" : [
+        {
+          "account" : "Bar",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "Bar",
+          "sourceText" : "ho speso 10 euro al bar"
+        }
+      ],
+      "input" : "La settimana scorsa ho speso 10 euro al bar",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "",
+          "amount" : "10",
+          "category" : "Bar",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : true,
+          "note" : "Bar",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.6926039457321167
+    },
+    {
+      "case" : "accredito senza causale",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "Ho ricevuto 250 euro sul conto Banca"
+        }
+      ],
+      "input" : "Ho ricevuto 250 euro sul conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "250",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "income"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.6713190078735352
+    },
+    {
+      "case" : "spesa senza causale",
+      "dateEvidence" : [
+        {
+          "account" : "Banca",
+          "category" : "Bar",
+          "dateExpression" : "",
+          "note" : "",
+          "sourceText" : "speso 20 euro dal conto Banca"
+        }
+      ],
+      "input" : "Ho speso 20 euro dal conto Banca",
+      "issues" : [
+
+      ],
+      "output" : [
+        {
+          "account" : "Banca",
+          "amount" : "20",
+          "category" : "",
+          "date" : "2026-10-10",
+          "dateNeedsReview" : false,
+          "note" : "",
+          "timestamp" : 1791626400,
+          "type" : "expense"
+        }
+      ],
+      "run" : 3,
+      "seconds" : 1.7383660078048706
+    }
+  ],
+  "system" : "Version 27.0.1 (Build 26A434)",
+  "timeZone" : "Europe\/Rome"
+}
