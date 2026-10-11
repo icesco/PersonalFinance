@@ -32,6 +32,19 @@ final class AppStateManager {
         }
     }
 
+    @discardableResult
+    func placeOptionalTab(_ tab: AppTab, before destination: AppTab? = nil) -> Bool {
+        guard AppTab.optionalChoices.contains(tab),
+              optionalTabs.contains(tab) || optionalTabs.count < 3 else { return false }
+        if let destination, !optionalTabs.contains(destination) { return false }
+        if tab == destination { return true }
+        var tabs = optionalTabs.filter { $0 != tab }
+        let index = destination.flatMap { tabs.firstIndex(of: $0) } ?? tabs.endIndex
+        tabs.insert(tab, at: index)
+        setOptionalTabs(tabs)
+        return true
+    }
+
     static func validOptionalTabs(_ tabs: [AppTab]) -> [AppTab] {
         var result: [AppTab] = []
         for tab in tabs where AppTab.optionalChoices.contains(tab) && !result.contains(tab) {

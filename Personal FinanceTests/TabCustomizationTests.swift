@@ -33,4 +33,22 @@ struct TabCustomizationTests {
         AppStateManager(persistsSelection: false, defaults: defaults).setOptionalTabs([.analysis])
         #expect(AppStateManager(defaults: defaults).optionalTabs == [.planning])
     }
+
+    @Test func droppedTabsKeepOrderCapacityAndPersist() throws {
+        let name = "tab-drag-tests-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let state = AppStateManager(defaults: defaults)
+        #expect(state.placeOptionalTab(.budgets, before: .planning))
+        #expect(state.optionalTabs == [.budgets, .planning])
+        #expect(state.placeOptionalTab(.calendar))
+        #expect(!state.placeOptionalTab(.analysis))
+        #expect(!state.placeOptionalTab(.dashboard))
+        #expect(state.placeOptionalTab(.calendar, before: .budgets))
+        #expect(state.optionalTabs == [.calendar, .budgets, .planning])
+        #expect(state.placeOptionalTab(.calendar))
+        #expect(state.optionalTabs == [.budgets, .planning, .calendar])
+        #expect(!state.placeOptionalTab(.planning, before: .accounts))
+        #expect(AppStateManager(defaults: defaults).optionalTabs == [.budgets, .planning, .calendar])
+    }
 }

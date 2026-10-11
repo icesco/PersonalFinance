@@ -74,6 +74,9 @@ struct TodayView: View {
                                     onImport: { showingImport = true },
                                     onAddIncome: { appState.presentQuickTransaction(type: .income, planned: true) }
                                 )
+                                if horizontalSizeClass == .compact {
+                                    TodaySectionCards()
+                                }
                                 if appState.selectedAccount != nil {
                                     TodayBudgetsCard(budgets: snapshot.budgets) {
                                         showingBudgets = true
@@ -94,11 +97,6 @@ struct TodayView: View {
                             .padding(.bottom, 32)
                         }
                         .themedBackground(tint: ForgiaPalette.margin)
-                        #if os(iOS)
-                        .navigationTitle("Oggi")
-                        .toolbar(horizontalSizeClass == .regular ? .hidden : .visible, for: .navigationBar)
-                        .compactSettingsAccess()
-                        #endif
                     }
                 } else if loadFailed {
                     ContentUnavailableView {
@@ -111,7 +109,23 @@ struct TodayView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .compactSettingsAccess(isActive: screen == .analysis)
+            #if os(iOS)
+            .toolbar(screen == .home ? .hidden : .automatic, for: .navigationBar)
+            .safeAreaBar(edge: .top, spacing: 0) {
+                if screen == .home {
+                    HStack(spacing: 10) {
+                        FormiLogo(size: 28)
+                            .accessibilityHidden(true)
+                        Text("Oggi")
+                            .font(.system(.title2, design: .serif, weight: .semibold))
+                        Spacer()
+                        CompactSettingsButton()
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 4)
+                }
+            }
+            #endif
             .safeAreaInset(edge: .top, spacing: 0) {
                 if loadFailed, snapshot != nil, loadedScope == scope {
                     TodayRefreshFailureBanner(lastSuccessfulLoad: lastSuccessfulLoad) {
@@ -186,6 +200,7 @@ struct TodayView: View {
 
     private func header(snapshot: TodaySnapshot) -> some View {
         VStack(alignment: .leading, spacing: 4) {
+            #if os(macOS)
             HStack(alignment: .center, spacing: 12) {
                 HStack(spacing: 10) {
                     FormiLogo(size: 36)
@@ -213,6 +228,7 @@ struct TodayView: View {
                 .accessibilityLabel("Sezioni e impostazioni")
                 .accessibilityIdentifier("today-sections")
             }
+            #endif
             Label(snapshot.accountName, systemImage: "books.vertical")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(ForgiaPalette.mutedText)
@@ -225,6 +241,44 @@ struct TodayView: View {
         .foregroundStyle(.primary)
     }
 
+}
+
+private struct TodaySectionCards: View {
+    @Environment(AppStateManager.self) private var appState
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var sections: [AppTab] {
+        AppTab.optionalChoices.filter { !appState.compactTabs.contains($0) }
+    }
+
+    var body: some View {
+        if !sections.isEmpty {
+            LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize
+                      ? [GridItem(.flexible())]
+                      : [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                ForEach(sections, id: \.rawValue) { tab in
+                    Button {
+                        appState.selectTab(tab)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 18) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 26, weight: .medium))
+                                .frame(height: 30, alignment: .leading)
+                                .foregroundStyle(ForgiaPalette.accent)
+                            Text(tab.navigationTitle)
+                                .font(.headline)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
+                        .unifiedCard()
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("today-section-\(tab.rawValue)")
+                }
+            }
+        }
+    }
 }
 
 private struct TodayRefreshFailureBanner: View {

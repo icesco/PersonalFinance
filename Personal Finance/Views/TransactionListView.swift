@@ -145,7 +145,6 @@ struct TransactionListView: View {
             .toolbarTitleDisplayMode(.inline)
             .toolbar(isPushed || initialConto != nil ? .visible : .hidden, for: .navigationBar)
             #endif
-            .compactSettingsAccess(isActive: !isPushed && initialConto == nil)
             .financePresentation(isPresented: $showingRecurring, title: "Ricorrenze", width: 800) {
                 NavigationStack {
                     RecurringManagementView(contoIDs: contoIDsForQuery)
@@ -303,6 +302,10 @@ struct TransactionListView: View {
                 .frame(width: 44, height: 44)
                 .disabled(isAtCurrentPeriod)
                 .opacity(isAtCurrentPeriod ? 0.4 : 1)
+
+                if !isPushed && initialConto == nil {
+                    CompactSettingsButton()
+                }
 
             }
         }
