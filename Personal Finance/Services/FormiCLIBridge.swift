@@ -28,7 +28,7 @@ enum FormiCLIBridge {
         func reply(_ payload: [String: Any]) {
             var response = payload
             response["requestID"] = id.uuidString
-            response["version"] = 1
+            response["version"] = response["version"] ?? 1
             if let data = try? JSONSerialization.data(withJSONObject: response, options: [.sortedKeys]) {
                 pasteboard.clearContents()
                 pasteboard.setData(data, forType: .init(FormiCLIWire.responseType))
@@ -47,7 +47,7 @@ enum FormiCLIBridge {
         guard let data = pasteboard.data(forType: .init(FormiCLIWire.requestType)),
               data.count <= FormiCLIWire.maxBytes,
               let request = try? FormiCLIWire.decoder().decode(FormiCLIRequest.self, from: data),
-              request.id == id, request.version == 1 else {
+              request.id == id, [1, 2].contains(request.version) else {
             fail("invalid_request", "Richiesta CLI non valida."); return
         }
         guard request.targetAppPath == Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL.path,
@@ -100,6 +100,10 @@ enum FormiCLIBridge {
                     reply(["ok": true, "revisions": revisions, "categories":
                         try JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(rows))])
                 }
+            case "recurrences":
+                let rows = try FormiCLIService.recurrences(request, container: container)
+                reply(["ok": true, "version": 2, "timeZone": TimeZone.current.identifier,
+                       "recurrences": try JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(rows))])
             case "category-create", "category-update":
                 if let icon = request.categoryMutation?.icon,
                    NSImage(systemSymbolName: icon, accessibilityDescription: nil) == nil {
@@ -110,7 +114,7 @@ enum FormiCLIBridge {
             default:
                 let result = try FormiCLIService.execute(request, container: container)
                 let encoded = try FormiCLIWire.encoder().encode(result)
-                reply(["ok": true, "result": try JSONSerialization.jsonObject(with: encoded)])
+                reply(["ok": true, "version": request.version, "result": try JSONSerialization.jsonObject(with: encoded)])
             }
         } catch { fail("invalid_request", error.localizedDescription) }
     }

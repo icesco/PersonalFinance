@@ -180,7 +180,7 @@ una nuova operazione genera un nuovo UUID. Vale anche il blocco dei libri condiv
 - Stesso conto, giorno, tipo, importo e descrizione vengono segnalati come possibile
   duplicato, anche all'interno del lotto. `--allow-duplicates --yes` permette
   inserimenti identici intenzionali con requestID diversi.
-- Sono supportate spese ed entrate nei libri personali. Trasferimenti, ricorrenze,
+- Sono supportate spese ed entrate nei libri personali. Trasferimenti,
   allegati e scritture nei libri condivisi non sono inclusi in questa versione.
 
 ## Collegamento locale
@@ -206,3 +206,43 @@ il successo del comando attesta il salvataggio locale, non la consegna cloud.
 La build Mac include un eseguibile per le architetture richieste da Xcode,
 firmato con l'identità dell'app quando la firma è abilitata. La distribuzione
 App Store e la notarizzazione richiedono una verifica separata sul prodotto firmato.
+
+## Ricorrenze (CLI 1.3 / protocollo 2)
+
+La copia di Formi deve supportare il protocollo 2: aggiornare soltanto l'eseguibile
+CLI non basta. Le richieste ricorrenti sono rifiutate dalle vecchie app prima di
+scrivere qualsiasi movimento. I movimenti senza ricorrenza conservano il protocollo 1.
+Non occorre cambiare lo schema SwiftData o CloudKit.
+
+```sh
+formi recurrences --book UUID_LIBRO
+formi add --account UUID_CONTO --category UUID_CATEGORIA --amount 75.72 \
+  --currency EUR --date 2026-10-15 --description 'Prestito' \
+  --recurrence monthly --recurrence-end 2032-07-15 --request-id UUID_STABILE
+# Dopo aver controllato l'anteprima, ripeti gli stessi argomenti con --yes.
+```
+
+Per `preview` e `import` il movimento JSON può contenere:
+
+```json
+"recurrence": { "frequency": "monthly", "endDate": "2032-07-15" }
+```
+
+`date` è la prima occorrenza della serie: per una migrazione usa la prossima
+scadenza da trasferire, evitando di ricreare lo storico. La serie segue le regole
+dell'app per fine mese e anni bisestili. La data finale include l'intera giornata
+nel fuso di Formi; ometti `endDate` per una serie senza termine. Frequenze:
+`daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `semiannually`, `yearly`.
+Una frequenza errata o una fine precedente alla data iniziale invalida tutto il lotto.
+
+`recurrences` legge tutte le serie, comprese quelle terminate, con `transactionID`,
+`accountID`, `categoryID`, importo, tipo, descrizione, data iniziale, `recurrence`
+e `nextDate` quando presente. Non modifica i dati.
+
+L'anteprima e il salvataggio confrontano anche le serie già presenti nello stesso
+conto con importo, tipo e cadenza uguali e date allineate, anche se descrizione,
+categoria o data iniziale differiscono. Questi casi sono segnalati come possibili
+duplicati e il salvataggio è bloccato: verifica e rimuovi dal lotto le serie già
+presenti. Non vengono unite o modificate automaticamente. Il controllo è locale;
+attendi che iCloud abbia scaricato i dati prima di importare. Le ricevute persistenti
+rendono i retry con gli stessi requestID idempotenti anche per le ricorrenze.

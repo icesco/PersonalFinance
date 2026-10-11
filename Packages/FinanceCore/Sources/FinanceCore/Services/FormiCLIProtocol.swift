@@ -1,6 +1,35 @@
 import Foundation
 
 /// Foundation-only wire format, also compiled into the bundled command-line client.
+public struct FormiCLIRecurrence: Codable, Sendable, Equatable {
+    public var frequency: String
+    public var endDate: String?
+
+    private enum CodingKeys: String, CodingKey { case frequency, endDate }
+    private struct AnyKey: CodingKey {
+        let stringValue: String
+        let intValue: Int? = nil
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { return nil }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let keys = try decoder.container(keyedBy: AnyKey.self)
+        if let unknown = keys.allKeys.first(where: { CodingKeys(rawValue: $0.stringValue) == nil }) {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                debugDescription: "Campo ricorrenza sconosciuto: \(unknown.stringValue)"))
+        }
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        frequency = try values.decode(String.self, forKey: .frequency)
+        endDate = try values.decodeIfPresent(String.self, forKey: .endDate)
+    }
+
+    public init(frequency: String, endDate: String? = nil) {
+        self.frequency = frequency
+        self.endDate = endDate
+    }
+}
+
 public struct FormiCLIMovement: Codable, Sendable, Equatable {
     public var requestID: UUID
     public var accountID: UUID
@@ -11,13 +40,14 @@ public struct FormiCLIMovement: Codable, Sendable, Equatable {
     public var currency: String
     public var date: String
     public var description: String?
+    public var recurrence: FormiCLIRecurrence?
 
     public init(requestID: UUID, accountID: UUID, categoryID: UUID? = nil,
                 type: String = "expense", amount: String, currency: String,
-                date: String, description: String? = nil) {
+                date: String, description: String? = nil, recurrence: FormiCLIRecurrence? = nil) {
         self.requestID = requestID; self.accountID = accountID; self.categoryID = categoryID
         self.type = type; self.amount = amount; self.currency = currency
-        self.date = date; self.description = description
+        self.date = date; self.description = description; self.recurrence = recurrence
     }
 }
 

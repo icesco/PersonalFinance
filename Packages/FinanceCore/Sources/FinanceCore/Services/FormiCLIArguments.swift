@@ -9,7 +9,7 @@ public enum FormiCLIArguments {
     public static func parse(_ arguments: [String], read: (String) throws -> Data,
                              today: String) throws -> FormiCLIRequest {
         guard let command = arguments.first,
-              ["accounts", "categories", "add", "import", "preview", "category-create", "category-update"].contains(command) else {
+              ["accounts", "categories", "recurrences", "add", "import", "preview", "category-create", "category-update"].contains(command) else {
             throw Failure("Comando sconosciuto. Usa formi --help.")
         }
         var options: [String: String] = [:]
@@ -20,7 +20,7 @@ public enum FormiCLIArguments {
         let valueOptions: Set<String> = categoryCommand
             ? ["--book", "--category", "--name", "--color", "--icon", "--parent", "--type", "--active", "--request-id", "--revision"]
             : command == "add"
-            ? ["--account", "--category", "--amount", "--currency", "--date", "--description", "--request-id", "--type", "--book"]
+            ? ["--account", "--category", "--amount", "--currency", "--date", "--description", "--request-id", "--type", "--book", "--recurrence", "--recurrence-end"]
             : ["--book"]
         let flagOptions: Set<String> = categoryCommand ? ["--yes", "--json"]
             : command == "categories" ? ["--include-archived", "--json"]
@@ -53,10 +53,15 @@ public enum FormiCLIArguments {
             guard let amount = options["--amount"], let currency = options["--currency"] else {
                 throw Failure("add richiede --account, --amount e --currency.")
             }
+            guard options["--recurrence-end"] == nil || options["--recurrence"] != nil else {
+                throw Failure("--recurrence-end richiede --recurrence.")
+            }
             movements = [FormiCLIMovement(requestID: try uuid("--request-id") ?? UUID(),
                 accountID: try uuid("--account", required: true)!, categoryID: try uuid("--category"),
                 type: options["--type"] ?? "expense", amount: amount, currency: currency,
-                date: options["--date"] ?? today, description: options["--description"])]
+                date: options["--date"] ?? today, description: options["--description"], recurrence: options["--recurrence"].map {
+                    FormiCLIRecurrence(frequency: $0, endDate: options["--recurrence-end"])
+                })]
         } else if ["import", "preview"].contains(command) {
             guard let file else { throw Failure("Specifica un file JSON oppure - per stdin.") }
             let data = try read(file)
@@ -68,6 +73,9 @@ public enum FormiCLIArguments {
         }
         var request = FormiCLIRequest(command: command, movements: movements, commit: flags.contains("--yes"),
             allowDuplicates: flags.contains("--allow-duplicates"), bookID: try uuid("--book", required: categoryCommand))
+        if command == "recurrences" || movements.contains(where: { $0.recurrence != nil }) {
+            request.version = 2
+        }
         request.includeArchived = flags.contains("--include-archived")
         if categoryCommand {
             if let type = options["--type"], !["expense", "income", "both"].contains(type) {

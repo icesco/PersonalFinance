@@ -41,7 +41,7 @@ struct FormiCLI {
        non ricreare movimenti successivamente modificati o eliminati.
     7. Il lotto è atomico (1–500 movimenti, massimo 2 MB). La CLI supporta solo
        spese ed entrate nei libri personali, senza conversioni implicite, trasferimenti,
-       allegati o ricorrenze. saved prova il salvataggio locale, non la sincronizzazione cloud.
+       allegati. Le ricorrenze richiedono CLI 1.3 e un’app con protocollo 2. saved prova il salvataggio locale, non la sincronizzazione cloud.
     8. Per categorie usa category-create o category-update con --book e un nuovo
        --request-id stabile per ciascuna operazione. categories --include-archived
        mostra anche gli archiviati, parentID, type, active, color e icon.
@@ -57,7 +57,16 @@ struct FormiCLI {
        non li riattiva. Sposta prima tutti i figli per rendere una principale figlia.
        Nomi uguali fra fratelli sono rifiutati anche se archiviati. Colori #RRGGBB,
        icone SF Symbols disponibili sul Mac. Nessuna eliminazione definitiva.
-    9. Non aggirare CLI disabilitata, blocco privacy, wrong_app o altre validazioni.
+    9. Per migrare ricorrenze leggi prima recurrences --book UUID e confronta le serie
+       esistenti. In add usa --recurrence FREQUENZA e, se serve, --recurrence-end YYYY-MM-DD.
+       In JSON usa recurrence: {"frequency":"monthly","endDate":"2032-07-15"}.
+       date è la prima occorrenza da importare; endDate include tutta l'ultima giornata.
+       Non ricreare lo storico se l'utente chiede solo le prossime scadenze.
+       L'anteprima mostra recurrence. Serie con importo, conto, tipo e cadenza uguali
+       e date allineate sono possibili duplicati anche con descrizioni diverse.
+       Rimuovi dal lotto le serie confermate già presenti; non unirle automaticamente.
+       Un vecchio ricevitore rifiuta il protocollo 2: aggiorna anche l'app, non solo la CLI.
+    10. Non aggirare CLI disabilitata, blocco privacy, wrong_app o altre validazioni.
        Chiedi all'utente di aprire la copia corretta di Formi e risolvere il problema.
     """
     static let help = """
@@ -65,9 +74,12 @@ struct FormiCLI {
 
     formi accounts [--book UUID]
     formi categories [--book UUID] [--include-archived]
+    formi recurrences [--book UUID]
     formi add --account UUID --amount 25.50 --currency EUR
               [--category UUID] [--description "Spesa"] [--date YYYY-MM-DD]
               [--request-id UUID] [--type expense|income] [--yes] [--allow-duplicates]
+              [--recurrence daily|weekly|biweekly|monthly|quarterly|semiannually|yearly]
+              [--recurrence-end YYYY-MM-DD]
     formi preview movimenti.json
     formi import movimenti.json [--yes] [--allow-duplicates]
     formi import - < movimenti.json
@@ -92,6 +104,10 @@ struct FormiCLI {
     Le risposte sono JSON. --json è accettato per compatibilità.
     Ogni movimento JSON richiede requestID, accountID, type, amount (stringa),
     currency e date (YYYY-MM-DD); categoryID e description sono facoltativi.
+    recurrence è facoltativo: {"frequency":"monthly","endDate":"2032-07-15"}.
+    date è la prima occorrenza; endDate è inclusiva e, se omessa, la serie non termina.
+    recurrences legge anche le serie terminate con UUID, cadenza, fine e prossima data.
+    L’anteprima mostra recurrence e possibleDuplicate, anche per serie con note diverse.
     Riusa lo stesso requestID e gli stessi dati nei tentativi successivi.
     Abilita la CLI in Formi > Impostazioni > Integrazioni > CLI per AI.
     Apri Formi prima dei comandi sui dati. La CLI non avvia l'app e non apre finestre.
@@ -119,7 +135,7 @@ struct FormiCLI {
                 let executable = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
                 let appURL = executable.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().standardizedFileURL
                 let info = try appInfo(at: appURL)
-                let metadata: [String: Any] = ["cliVersion": "1.2", "protocolVersion": 1,
+                let metadata: [String: Any] = ["cliVersion": "1.3", "protocolVersion": 2,
                     "command": commandName, "configuration": channel, "appPath": appURL.path,
                     "appVersion": info["CFBundleShortVersionString"] as? String ?? "unknown",
                     "appBuild": info["CFBundleVersion"] as? String ?? "unknown",
@@ -127,7 +143,7 @@ struct FormiCLI {
                 print(String(decoding: try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]), as: UTF8.self)); return
             }
             if arguments == ["schema"] {
-                print(##"{"version":1,"maxBatchSize":500,"commands":["info","ai-help","accounts","categories","add","preview","import","category-create","category-update"],"categoryMutation":{"required":["bookID","requestID"],"create":"name required; categoryID assigned from requestID","update":"categoryID required; omitted fields preserved","fields":{"name":"1-200 characters","color":"#RRGGBB","icon":"SF Symbol","parent":"UUID or none","type":"expense|income|both (children inherit)","active":"true|false"},"commit":"preview first, then same arguments with --revision TOKEN --yes","hierarchyLevels":2,"archive":"root also archives children; reactivate individually","retry":"same requestID, fields and revision; alreadyRecorded never reapplies","list":"categories --include-archived includes parentID, type, active, icon, color"},"movement":{"requestID":"UUID (stable on retries)","accountID":"UUID from accounts","categoryID":"optional UUID from categories","type":"expense|income","amount":"positive decimal string, e.g. 25.50","currency":"account currency, e.g. EUR","date":"YYYY-MM-DD in Formi's local time zone","description":"optional string"},"writes":"add/import require --yes","transfers":false}"##)
+                print(##"{"version":2,"maxBatchSize":500,"commands":["info","ai-help","accounts","categories","recurrences","add","preview","import","category-create","category-update"],"categoryMutation":{"required":["bookID","requestID"],"create":"name required; categoryID assigned from requestID","update":"categoryID required; omitted fields preserved","fields":{"name":"1-200 characters","color":"#RRGGBB","icon":"SF Symbol","parent":"UUID or none","type":"expense|income|both (children inherit)","active":"true|false"},"commit":"preview first, then same arguments with --revision TOKEN --yes","hierarchyLevels":2,"archive":"root also archives children; reactivate individually","retry":"same requestID, fields and revision; alreadyRecorded never reapplies","list":"categories --include-archived includes parentID, type, active, icon, color"},"movement":{"requestID":"UUID (stable on retries)","accountID":"UUID from accounts","categoryID":"optional UUID from categories","type":"expense|income","amount":"positive decimal string, e.g. 25.50","currency":"account currency, e.g. EUR","date":"YYYY-MM-DD in Formi's local time zone","description":"optional string","recurrence":{"frequency":"daily|weekly|biweekly|monthly|quarterly|semiannually|yearly","endDate":"optional inclusive YYYY-MM-DD; must be on/after date","date":"movement date is first occurrence","requiresProtocolVersion":2}},"writes":"add/import require --yes","transfers":false}"##)
                 return
             }
             let formatter = DateFormatter()

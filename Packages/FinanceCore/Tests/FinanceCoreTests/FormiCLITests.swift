@@ -175,3 +175,136 @@ struct FormiCLIArgumentTests {
         }
     }
 }
+
+@MainActor
+struct FormiCLIRecurrenceTests {
+    private func fixture() throws -> (ModelContainer, FormiCLIMovement, Calendar) {
+        let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        let book = Account(name: "Personale", currency: "EUR")
+        let account = Conto(name: "Banca", type: .checking, initialBalance: 100)
+        account.account = book; book.conti = [account]
+        container.mainContext.insert(book)
+        try container.mainContext.save()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Europe/Rome"))
+        return (container, .init(requestID: UUID(), accountID: account.id, amount: "75.72", currency: "EUR",
+            date: "2026-10-15", description: "Prestito", recurrence: .init(frequency: "monthly", endDate: "2032-07-15")), calendar)
+    }
+    private func request(_ movements: [FormiCLIMovement], commit: Bool = false) -> FormiCLIRequest {
+        var request = FormiCLIRequest(command: "import", movements: movements, commit: commit)
+        request.version = 2
+        return request
+    }
+
+    @Test func previewSaveRetryAndReadPreserveTheFinalOccurrence() throws {
+        let (container, movement, calendar) = try fixture()
+        let preview = try FormiCLIService.execute(request([movement]), container: container, calendar: calendar)
+        #expect(preview.movements[0].recurrence == movement.recurrence)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Transaction>()) == 0)
+        let saved = try FormiCLIService.execute(request([movement], commit: true), container: container, calendar: calendar)
+        let retry = try FormiCLIService.execute(request([movement], commit: true), container: container, calendar: calendar)
+        #expect(retry.movements[0].alreadyRecorded)
+        #expect(saved.movements[0].transactionID == retry.movements[0].transactionID)
+        let rows = try ModelContext(container).fetch(FetchDescriptor<Transaction>())
+        let transaction = try #require(rows.first)
+        #expect(rows.count == 1)
+        #expect(transaction.isRecurring == true)
+        #expect(transaction.recurrenceFrequency == .monthly)
+        let end = try #require(transaction.recurrenceEndDate)
+        #expect(calendar.component(.hour, from: end) == 23)
+        let finalDay = try #require(calendar.date(from: DateComponents(year: 2032, month: 7, day: 15)))
+        #expect(RecurrenceSchedule.dates(anchor: transaction.date, frequency: .monthly, after: transaction.date,
+            through: end, ending: end, calendar: calendar).contains(finalDay))
+        var read = FormiCLIRequest(command: "recurrences"); read.version = 2
+        let listing = try FormiCLIService.recurrences(read, container: container, calendar: calendar,
+            now: transaction.date.addingTimeInterval(-1))
+        #expect(listing.count == 1)
+        #expect(listing[0].recurrence == movement.recurrence)
+        #expect(listing[0].nextDate == movement.date)
+        #expect(listing[0].accountID == movement.accountID)
+    }
+
+    @Test func invalidRecurrenceRollsBackTheEntireBatchAndOldProtocolCannotWrite() throws {
+        let (container, movement, calendar) = try fixture()
+        for recurrence in [FormiCLIRecurrence(frequency: "month"), .init(frequency: "monthly", endDate: "2026-10-14"),
+                           .init(frequency: "monthly", endDate: "2026-02-30")] {
+            var invalid = movement; invalid.requestID = UUID(); invalid.recurrence = recurrence
+            #expect(throws: FormiCLIService.Failure.self) {
+                try FormiCLIService.execute(request([movement, invalid], commit: true), container: container, calendar: calendar)
+            }
+        }
+        #expect(throws: FormiCLIService.Failure.self) {
+            try FormiCLIService.execute(.init(command: "add", movements: [movement], commit: true), container: container)
+        }
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Transaction>()) == 0)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<RemoteExpenseReceipt>()) == 0)
+    }
+
+    @Test func existingScheduleBlocksMigrationWithDifferentAnchorDescriptionAndCategory() throws {
+        let (container, movement, calendar) = try fixture()
+        var original = movement; original.date = "2026-09-15"; original.description = "Vecchia nota"
+        _ = try FormiCLIService.execute(request([original], commit: true), container: container, calendar: calendar)
+        var migration = movement; migration.requestID = UUID()
+        let preview = try FormiCLIService.execute(request([migration]), container: container, calendar: calendar)
+        #expect(preview.movements[0].possibleDuplicate)
+        #expect(throws: FormiCLIService.Failure.self) {
+            try FormiCLIService.execute(request([migration], commit: true), container: container, calendar: calendar)
+        }
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Transaction>()) == 1)
+        var changed = original; changed.recurrence?.endDate = "2031-07-15"
+        #expect(throws: FormiCLIService.Failure.self) {
+            try FormiCLIService.execute(request([changed], commit: true), container: container, calendar: calendar)
+        }
+    }
+
+    @Test func batchDuplicateAndEndedSeriesAreDistinguished() throws {
+        let (container, movement, calendar) = try fixture()
+        var duplicate = movement; duplicate.requestID = UUID(); duplicate.date = "2026-11-15"; duplicate.description = "Altro nome"
+        let preview = try FormiCLIService.execute(request([movement, duplicate]), container: container, calendar: calendar)
+        #expect(preview.movements[1].possibleDuplicate)
+        #expect(throws: FormiCLIService.Failure.self) {
+            try FormiCLIService.execute(request([movement, duplicate], commit: true), container: container, calendar: calendar)
+        }
+        var ended = movement; ended.date = "2026-09-15"; ended.recurrence?.endDate = "2026-09-15"
+        _ = try FormiCLIService.execute(request([ended], commit: true), container: container, calendar: calendar)
+        var fresh = movement; fresh.requestID = UUID()
+        let result = try FormiCLIService.execute(request([fresh], commit: true), container: container, calendar: calendar)
+        #expect(!result.movements[0].possibleDuplicate)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Transaction>()) == 2)
+    }
+
+    @Test func recurrenceJSONRejectsMisspelledEndAndAllCadencesSave() throws {
+        let invalid = Data(#"{"frequency":"monthly","enddate":"2027-10-15"}"#.utf8)
+        #expect(throws: DecodingError.self) { try FormiCLIWire.decoder().decode(FormiCLIRecurrence.self, from: invalid) }
+        for frequency in RecurrenceFrequency.allCases {
+            let (container, input, calendar) = try fixture()
+            var movement = input
+            movement.recurrence = .init(frequency: frequency.rawValue)
+            _ = try FormiCLIService.execute(request([movement], commit: true), container: container, calendar: calendar)
+            let transaction = try #require(ModelContext(container).fetch(FetchDescriptor<Transaction>()).first)
+            #expect(transaction.recurrenceFrequency == frequency)
+            #expect(transaction.recurrenceEndDate == nil)
+        }
+    }
+
+    @Test func parserNegotiatesProtocolAndOldPayloadEncodingStaysCompatible() throws {
+        let id = UUID().uuidString
+        let args = ["add", "--account", id, "--amount", "10", "--currency", "EUR", "--recurrence", "yearly"]
+        let recurring = try FormiCLIArguments.parse(args, read: { _ in Data() }, today: "2026-10-11")
+        #expect(recurring.version == 2)
+        #expect(recurring.movements[0].recurrence?.frequency == "yearly")
+        let reading = try FormiCLIArguments.parse(["recurrences"], read: { _ in Data() }, today: "2026-10-11")
+        #expect(reading.version == 2 && !reading.commit)
+        #expect(throws: FormiCLIArguments.Failure.self) {
+            try FormiCLIArguments.parse(["add", "--account", id, "--amount", "10", "--currency", "EUR",
+                "--recurrence-end", "2027-10-11"], read: { _ in Data() }, today: "2026-10-11")
+        }
+        let legacy = try FormiCLIArguments.parse(Array(args.dropLast(2)), read: { _ in Data() }, today: "2026-10-11")
+        #expect(legacy.version == 1)
+        let json = try #require(JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(legacy.movements[0])) as? [String: Any])
+        #expect(json["recurrence"] == nil)
+        let data = try FormiCLIWire.encoder().encode(recurring.movements)
+        let imported = try FormiCLIArguments.parse(["preview", "-"], read: { _ in data }, today: "2026-10-11")
+        #expect(imported.version == 2 && imported.movements == recurring.movements)
+    }
+}
