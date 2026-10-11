@@ -12,12 +12,47 @@ final class SpendingVisualUITests: XCTestCase {
     }
 
     @MainActor
-    private func verifyMoneyFlowDrillDown(dark: Bool) throws {
+    func testMoneyFlowReducedMotion() throws {
+        try verifyMoneyFlowDrillDown(dark: false, reduceMotion: true)
+    }
+
+    @MainActor
+    func testMoneyFlowCategoryIsolationFromList() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_MONEY_FLOW", "-CloudSyncEnabled", "NO",
+                               "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        app.launch()
+        let homeRow = app.buttons["money-flow-category-Casa"]
+        XCTAssertTrue(homeRow.waitForExistence(timeout: 10))
+        scrollTo(homeRow, in: app)
+        homeRow.tap()
+        let title = app.staticTexts["money-flow-focus-name"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.label, "Casa")
+        XCTAssertFalse(app.buttons["money-flow-node-Cibo"].exists)
+        XCTAssertFalse(app.buttons["money-flow-node-Da classificare"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Affitto"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Utenze"].exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.8))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.4)))
+        XCTAssertTrue(app.buttons["money-flow-back"].isHittable)
+        XCTAssertTrue(app.buttons["Panoramica"].isHittable)
+        app.buttons["Panoramica"].tap()
+        XCTAssertFalse(title.exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Casa"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Cibo"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Da classificare"].exists)
+    }
+
+    @MainActor
+    private func verifyMoneyFlowDrillDown(dark: Bool, reduceMotion: Bool = false) throws {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["UITEST_MONEY_FLOW", "-CloudSyncEnabled", "NO",
                                "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
         if dark { app.launchArguments.append("UITEST_VISUAL_DARK") }
+        if reduceMotion { app.launchArguments.append("UITEST_MONEY_FLOW_REDUCE_MOTION") }
         app.launch()
         let home = app.buttons["money-flow-node-Casa"]
         XCTAssertTrue(home.waitForExistence(timeout: 10))
@@ -30,19 +65,22 @@ final class SpendingVisualUITests: XCTestCase {
         let title = app.staticTexts["money-flow-focus-name"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertEqual(title.label, "Casa")
+        XCTAssertTrue(title.isHittable)
         XCTAssertFalse(app.buttons["Aumenta zoom"].exists)
         XCTAssertTrue(app.buttons["money-flow-node-Affitto"].exists)
         capture(app, "formi-money-flow-casa-\(dark ? "dark" : "light")")
+        XCTAssertGreaterThanOrEqual(title.frame.minY, app.buttons["money-flow-back"].frame.maxY)
         let rent = app.buttons["money-flow-node-Affitto"]
         scrollTo(rent, in: app)
         rent.tap()
         XCTAssertEqual(title.label, "Affitto")
+        XCTAssertEqual(app.buttons["money-flow-back"].label, "Torna a Casa")
         XCTAssertTrue(app.buttons["Vedi movimenti"].exists)
         app.buttons["Vedi movimenti"].tap()
         XCTAssertTrue(app.navigationBars["Affitto"].waitForExistence(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertEqual(title.label, "Affitto")
-        app.buttons["Categoria precedente"].tap()
+        app.buttons["money-flow-back"].tap()
         XCTAssertEqual(title.label, "Casa")
         app.buttons["Panoramica"].tap()
         XCTAssertFalse(title.exists)
@@ -68,8 +106,10 @@ final class SpendingVisualUITests: XCTestCase {
         scrollTo(coffee, in: app)
         coffee.tap()
         XCTAssertEqual(title.label, "Bar e caffè")
+        XCTAssertTrue(app.buttons["money-flow-back"].isHittable)
+        XCTAssertTrue(app.buttons["Panoramica"].isHittable)
         capture(app, "formi-money-flow-leaf-\(dark ? "dark" : "light")")
-        app.buttons["Categoria precedente"].tap()
+        app.buttons["money-flow-back"].tap()
         XCTAssertEqual(title.label, "Cibo")
         app.buttons["Panoramica"].tap()
         XCTAssertFalse(title.exists)
