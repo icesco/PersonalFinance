@@ -10,6 +10,7 @@ struct TodayView: View {
     @Environment(AppStateManager.self) private var appState
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var reader = TodaySnapshotReader()
     @State private var snapshot: TodaySnapshot?
     @State private var loadedScope: Scope?
@@ -95,7 +96,9 @@ struct TodayView: View {
                         }
                         .themedBackground(tint: ForgiaPalette.margin)
                         #if os(iOS)
-                        .toolbar(.hidden, for: .navigationBar)
+                        .navigationTitle("Oggi")
+                        .toolbar(horizontalSizeClass == .regular ? .hidden : .visible, for: .navigationBar)
+                        .compactSettingsAccess()
                         #endif
                     }
                 } else if loadFailed {
@@ -109,6 +112,7 @@ struct TodayView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .compactSettingsAccess(isActive: screen == .analysis)
             .safeAreaInset(edge: .top, spacing: 0) {
                 if loadFailed, snapshot != nil, loadedScope == scope {
                     TodayRefreshFailureBanner(lastSuccessfulLoad: lastSuccessfulLoad) {

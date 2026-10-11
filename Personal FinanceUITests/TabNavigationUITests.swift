@@ -4,6 +4,49 @@ final class TabNavigationUITests: XCTestCase {
     @MainActor func testCustomizationLight() { verifyCustomization(dark: false) }
     @MainActor func testCustomizationDark() { verifyCustomization(dark: true) }
 
+    @MainActor func testSettingsAccessibleFromEveryTab() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_NAVIGATION", "-CloudSyncEnabled", "NO", "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        app.launch()
+        XCTAssertTrue(app.buttons["navigation-settings"].waitForExistence(timeout: 20))
+        for title in ["Oggi", "Movimenti", "Pianifica"] {
+            app.tabBars.buttons[title].tap()
+            verifySettingsReturn(to: title, app: app)
+        }
+        app.tabBars.buttons["Oggi"].tap()
+        app.buttons["navigation-settings"].tap()
+        tap("Personalizza tab", app: app)
+        tap("Rimuovi Pianifica dalla barra", app: app)
+        for title in ["Calendario", "Budget", "Conti"] { tap("Aggiungi \(title) alla barra", app: app) }
+        app.buttons["Fine"].tap()
+        app.buttons["Chiudi"].tap()
+        for title in ["Calendario", "Budget", "Conti"] {
+            app.tabBars.buttons[title].tap()
+            verifySettingsReturn(to: title, app: app)
+        }
+        app.tabBars.buttons["Oggi"].tap()
+        app.buttons["navigation-settings"].tap()
+        tap("Personalizza tab", app: app)
+        tap("Rimuovi Calendario dalla barra", app: app)
+        tap("Aggiungi Analisi alla barra", app: app)
+        app.buttons["Fine"].tap()
+        app.buttons["Chiudi"].tap()
+        app.tabBars.buttons["Analisi"].tap()
+        verifySettingsReturn(to: "Analisi", app: app)
+        capture(app, "settings-access-analysis")
+    }
+
+    @MainActor private func verifySettingsReturn(to title: String, app: XCUIApplication) {
+        let settings = app.buttons["navigation-settings"]
+        XCTAssertTrue(settings.isHittable)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Impostazioni"].waitForExistence(timeout: 5))
+        app.buttons["Chiudi"].tap()
+        XCTAssertTrue(app.tabBars.buttons[title].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons[title].isSelected)
+    }
+
     @MainActor func testOptionalSectionsOpenAsIndependentTabs() {
         continueAfterFailure = false
         let app = XCUIApplication()

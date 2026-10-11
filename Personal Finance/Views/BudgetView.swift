@@ -99,6 +99,7 @@ struct BudgetView: View {
             .themedBackground()
             .financeEmptyOverlay(isPresented: budgets.isEmpty && archived.isEmpty) { emptyState }
             .navigationTitle("Budget")
+            .compactSettingsAccess(isActive: !showsCloseButton)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if showsCloseButton { Button("Fine") { dismiss() } }

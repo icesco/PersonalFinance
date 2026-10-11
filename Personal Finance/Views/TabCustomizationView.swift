@@ -13,21 +13,7 @@ struct TabCustomizationView: View {
                         .font(.system(.title2, design: .serif, weight: .semibold))
                     Text("Oggi e Movimenti restano sempre nella barra. Puoi aggiungere fino a tre sezioni e scegliere il loro ordine.")
                         .foregroundStyle(ForgiaPalette.mutedText)
-                    HStack(alignment: .top, spacing: 4) {
-                        ForEach(appState.compactTabs, id: \.rawValue) { tab in
-                            VStack(spacing: 6) {
-                                Image(systemName: tab.icon).font(.body)
-                                Text(tab.navigationTitle).font(.caption2)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .foregroundStyle(ForgiaPalette.accent)
-                    .padding(.vertical, 14)
-                    .background(ForgiaPalette.sageSurface, in: RoundedRectangle(cornerRadius: 16))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Anteprima della barra: \(appState.compactTabs.map(\.navigationTitle).joined(separator: ", "))")
+                    nativeTabPreview
                 }.padding(.vertical, 8)
             }
             Section {
@@ -107,6 +93,25 @@ struct TabCustomizationView: View {
         #endif
     }
 
+    private var nativeTabPreview: some View {
+        TabView(selection: .constant(AppTab.dashboard)) {
+            ForEach(appState.compactTabs, id: \.rawValue) { tab in
+                Color.clear
+                    .tabItem { Label(tab.navigationTitle, systemImage: tab.icon) }
+                    .tag(tab)
+            }
+        }
+        #if os(iOS)
+        .environment(\.horizontalSizeClass, .compact)
+        .frame(height: 110)
+        #else
+        .frame(height: 80)
+        #endif
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Anteprima non interattiva della barra: \(appState.compactTabs.map(\.navigationTitle).joined(separator: ", "))")
+    }
+
     private var orderingHelp: some View {
         Text("Le frecce cambiano l’ordine dei tab opzionali. Le modifiche vengono salvate subito su questo dispositivo.")
             .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
@@ -161,8 +166,10 @@ struct CalendarTabView: View {
         NavigationStack {
             if !selectedBooks.isEmpty, Set(selectedBooks.map { $0.currency ?? "EUR" }).count == 1 {
                 FinanceCalendarView(contoIDs: Set(selectedBooks.flatMap(\.activeConti).map(\.id)), currency: selectedBooks.first?.currency ?? "EUR")
+                    .compactSettingsAccess()
             } else {
                 BookSelectionRequiredView(message: "Scegli un libro per consultare il calendario nella sua valuta.")
+                    .compactSettingsAccess()
             }
         }
     }
@@ -177,11 +184,12 @@ struct BookScopedTabView: View {
             NavigationStack {
                 BookSelectionRequiredView(message: "Scegli un libro per gestire \(section == .budgets ? "i budget" : "i conti").")
                     .navigationTitle(section.navigationTitle)
+                    .compactSettingsAccess()
             }
         } else if section == .budgets {
             BudgetView(showsCloseButton: false)
         } else {
-            NavigationStack { ContiSettingsView() }
+            NavigationStack { ContiSettingsView().compactSettingsAccess() }
         }
     }
 }
