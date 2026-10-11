@@ -275,8 +275,10 @@ private struct TodayMarginCard: View {
                     TodayMarginHero(margin: margin,
                                     available: snapshot.direction.liquidBalance - snapshot.direction.creditDebt,
                                     currency: snapshot.currency)
+                    Label("Simula un imprevisto", systemImage: "arrow.up.right")
+                        .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.margin)
                     if let nextIncome = snapshot.direction.nextIncome {
-                        Text("Fino al \(nextIncome.date, format: .dateTime.day().month(.abbreviated))")
+                        Text("Fino al \(nextIncome.date, format: .dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT")))")
                             .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                             .frame(maxWidth: .infinity)
                     }
@@ -335,6 +337,10 @@ private struct TodayMarginDetailContent: View {
                      : "Le uscite previste superano la disponibilità: rivedi le spese prima della prossima entrata.")
                     .font(.subheadline)
                     .foregroundStyle(margin >= 0 ? ForgiaPalette.mutedText : .red)
+                MarginScenarioSection(margin: margin,
+                                      available: snapshot.direction.liquidBalance - snapshot.direction.creditDebt,
+                                      currency: snapshot.currency)
+                MarginEstimateBasis(latestMovement: snapshot.direction.latestMovement)
                 Button("Posso fare una spesa?") { showsPurchaseCheck = true }
                     .buttonStyle(.glassProminent)
                     .tint(ForgiaPalette.accent)

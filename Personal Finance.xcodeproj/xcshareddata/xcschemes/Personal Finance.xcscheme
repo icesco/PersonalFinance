@@ -3,7 +3,7 @@
   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
     <BuildActionEntries>
       <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
-        <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Personal Finance.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
+        <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Formi.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
       </BuildActionEntry>
       <BuildActionEntry buildForTesting="YES" buildForRunning="NO" buildForProfiling="NO" buildForArchiving="NO" buildForAnalyzing="YES">
         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508D82E5B40100033992E" BuildableName="Personal FinanceTests.xctest" BlueprintName="Personal FinanceTests" ReferencedContainer="container:Personal Finance.xcodeproj" />
@@ -23,17 +23,17 @@
       </TestableReference>
     </Testables>
     <MacroExpansion>
-      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Personal Finance.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Formi.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
     </MacroExpansion>
   </TestAction>
   <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="YES">
     <BuildableProductRunnable runnableDebuggingMode="0">
-      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Personal Finance.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Formi.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
     </BuildableProductRunnable>
   </LaunchAction>
   <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES">
     <BuildableProductRunnable runnableDebuggingMode="0">
-      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Personal Finance.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="6D6508C72E5B400F0033992E" BuildableName="Formi.app" BlueprintName="Personal Finance" ReferencedContainer="container:Personal Finance.xcodeproj" />
     </BuildableProductRunnable>
   </ProfileAction>
   <AnalyzeAction buildConfiguration="Debug" />

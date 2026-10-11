@@ -97,6 +97,8 @@ struct Personal_FinanceApp: App {
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 700)
+        // Launch with a fresh workspace instead of reopening every window from the previous session.
+        .restorationBehavior(.disabled)
         .commands { FinanceMacCommands() }
         #endif
 

@@ -57,15 +57,7 @@ struct PurchaseCheckView: View {
     @State private var amountText = ""
 
     private var amount: Decimal? {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "it_IT")
-        formatter.numberStyle = .decimal
-        formatter.generatesDecimalNumbers = true
-        guard !amountText.isEmpty,
-              amountText.allSatisfy({ $0.isNumber || $0 == "," }),
-              amountText.filter({ $0 == "," }).count <= 1,
-              let value = formatter.number(from: amountText)?.decimalValue,
-              value > 0 else { return nil }
+        guard let value = MarginScenario.expense(from: amountText), value > 0 else { return nil }
         return value
     }
 

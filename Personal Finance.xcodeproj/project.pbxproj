@@ -103,7 +103,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		6D6508C82E5B400F0033992E /* Personal Finance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Personal Finance.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D6508C82E5B400F0033992E /* Formi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Formi.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D6508D92E5B40100033992E /* Personal FinanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Personal FinanceTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D6508E32E5B40100033992E /* Personal FinanceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Personal FinanceUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0471A000000000000000002 /* ForgiaWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForgiaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -290,7 +290,7 @@
 		6D6508C92E5B400F0033992E /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6D6508C82E5B400F0033992E /* Personal Finance.app */,
+				6D6508C82E5B400F0033992E /* Formi.app */,
 				F0471A000000000000000002 /* ForgiaWidgets.appex */,
 				F0481B000000000000000002 /* FormiShare.appex */,
 				F047CA000000000000000002 /* ForgiaWatch.app */,
@@ -332,7 +332,7 @@
 				F1CA1E000000000000000002 /* FinanceUICalendar */,
 			);
 			productName = "Personal Finance";
-			productReference = 6D6508C82E5B400F0033992E /* Personal Finance.app */;
+			productReference = 6D6508C82E5B400F0033992E /* Formi.app */;
 			productType = "com.apple.product-type.application";
 		};
 		6D6508D82E5B40100033992E /* Personal FinanceTests */ = {
@@ -728,7 +728,9 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				EXECUTABLE_NAME = FormiApp;
+				PRODUCT_MODULE_NAME = Personal_Finance;
+				PRODUCT_NAME = Formi;
 				REGISTER_APP_GROUPS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
@@ -775,7 +777,9 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "cc.fbianco.finance.Personal-Finance";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				EXECUTABLE_NAME = FormiApp;
+				PRODUCT_MODULE_NAME = Personal_Finance;
+				PRODUCT_NAME = Formi;
 				REGISTER_APP_GROUPS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
@@ -926,7 +930,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Personal Finance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Personal Finance";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Formi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FormiApp";
 			};
 			name = Debug;
 		};
@@ -948,7 +952,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Personal Finance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Personal Finance";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Formi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FormiApp";
 			};
 			name = Release;
 		};
