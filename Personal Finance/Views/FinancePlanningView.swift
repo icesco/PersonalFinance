@@ -74,9 +74,8 @@ struct FinancePlanningView: View {
                             .font(.system(size: 32, weight: .semibold, design: .serif))
                         Text("Conti, limiti e prossimi impegni, in un unico posto.")
                             .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
-                        Button { appState.presentAccountSelection() } label: {
-                            Label(appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Scegli libro", systemImage: "books.vertical")
-                        }.buttonStyle(.glass)
+                        Label(appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Nessun libro selezionato", systemImage: "books.vertical")
+                            .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                     }
                     if !appState.showAllAccounts, let account = appState.selectedAccount {
                         SavingsPlanningPanel(account: account)
@@ -90,7 +89,7 @@ struct FinancePlanningView: View {
                             }.buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
                                 .accessibilityIdentifier("planning-budgets")
                         } else {
-                            Button("Scegli un libro per gestire i budget") { appState.presentAccountSelection() }
+                            Button("Scegli libro nelle Impostazioni") { appState.openBookSettings() }
                                 .buttonStyle(.bordered)
                         }
                     }

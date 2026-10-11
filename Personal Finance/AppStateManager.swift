@@ -270,6 +270,14 @@ final class AppStateManager {
     func presentAccountSelection() {
         showingAccountSelection = true
     }
+
+    func openBookSettings() {
+        #if os(macOS)
+        showingSettingsWindow = true
+        #else
+        selectTab(.settings)
+        #endif
+    }
     
     func dismissAccountSelection() {
         showingAccountSelection = false

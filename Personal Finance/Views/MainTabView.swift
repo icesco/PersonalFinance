@@ -11,8 +11,6 @@ import FinanceCore
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var bookSelectionNamespace
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var shortcutInbox = FinanceShortcutInbox.shared
@@ -145,16 +143,7 @@ struct MainTabView: View {
 
     @ViewBuilder
     private var bookSelectionSheet: some View {
-        #if os(iOS)
-        if appState.selectedTab == .dashboard && !reduceMotion {
-            AccountSelectionModal()
-                .navigationTransition(.zoom(sourceID: "home-book-picker", in: bookSelectionNamespace))
-        } else {
-            AccountSelectionModal()
-        }
-        #else
         AccountSelectionModal()
-        #endif
     }
 
     private func deliverShortcut() {
@@ -249,18 +238,8 @@ struct MainTabView: View {
             .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 280)
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Menu {
-                        Button("Tutti i libri") { appState.selectAllAccounts() }
-                        Divider()
-                        ForEach(widgetAccounts.filter { $0.isActive == true }, id: \.id) { account in
-                            Button(account.name ?? "Libro") { appState.selectAccount(account) }
-                        }
-                        Divider()
-                        Button("Gestisci libri…") { appState.showingSettingsWindow = true }
-                    } label: {
-                        Label(appState.showAllAccounts ? "Tutti i libri" : appState.selectedAccount?.name ?? "Scegli libro", systemImage: "books.vertical")
-                            .lineLimit(1)
-                    }
+                    Label(appState.showAllAccounts ? "Tutti i libri" : appState.selectedAccount?.name ?? "Nessun libro selezionato", systemImage: "books.vertical")
+                        .lineLimit(1)
                     Button("Impostazioni…", systemImage: "gearshape") { appState.showingSettingsWindow = true }
                     Button("Personalizza tab iPhone…", systemImage: "rectangle.bottomthird.inset.filled") { appState.showingTabCustomization = true }
                 }
@@ -367,7 +346,7 @@ struct MainTabView: View {
     private func sectionContent(_ tab: AppTab) -> some View {
             switch tab {
             case .dashboard:
-                TodayView(bookSelectionNamespace: bookSelectionNamespace)
+                TodayView()
             case .analysis:
                 TodayView(screen: .analysis)
             case .transactions:
@@ -381,7 +360,7 @@ struct MainTabView: View {
             case .settings:
                 SettingsView()
             case .addTransaction:
-                TodayView(bookSelectionNamespace: bookSelectionNamespace)
+                TodayView()
             case .calendar:
                 CalendarTabView()
             case .budgets:

@@ -203,7 +203,7 @@ private struct BookSelectionRequiredView: View {
         } description: {
             Text(message)
         } actions: {
-            Button("Scegli libro") { appState.presentAccountSelection() }
+            Button("Scegli libro nelle Impostazioni") { appState.openBookSettings() }
                 .buttonStyle(.borderedProminent)
         }
     }

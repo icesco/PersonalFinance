@@ -23,7 +23,6 @@ struct TodayView: View {
     #endif
 
     var screen: Screen = .home
-    var bookSelectionNamespace: Namespace.ID? = nil
 
     @State private var showingImport = false
     @State private var showingBudgets = false
@@ -54,7 +53,7 @@ struct TodayView: View {
                             } description: {
                                 Text("L'analisi richiede movimenti nella stessa valuta.")
                             } actions: {
-                                Button("Scegli libro") { appState.presentAccountSelection() }
+                                Button("Scegli libro nelle Impostazioni") { appState.openBookSettings() }
                                     .buttonStyle(.borderedProminent)
                                 NavigationLink("Saldo storico per libro") { BalanceHistoryView() }
                             }
@@ -196,7 +195,6 @@ struct TodayView: View {
                 }
                 .accessibilityElement(children: .combine)
                 Spacer()
-                bookPickerButton(name: snapshot.accountName)
                 Menu {
                     Section("Sezioni") {
                         ForEach(AppTab.optionalChoices, id: \.rawValue) { tab in
@@ -215,6 +213,9 @@ struct TodayView: View {
                 .accessibilityLabel("Sezioni e impostazioni")
                 .accessibilityIdentifier("today-sections")
             }
+            Label(snapshot.accountName, systemImage: "books.vertical")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ForgiaPalette.mutedText)
             Text(Date(), format: .dateTime.weekday(.wide).day().month(.wide))
                 .font(.caption.weight(.medium))
                 .textCase(.uppercase)
@@ -224,29 +225,6 @@ struct TodayView: View {
         .foregroundStyle(.primary)
     }
 
-    @ViewBuilder
-    private func bookPickerButton(name: String) -> some View {
-        let button = Button { appState.presentAccountSelection() } label: {
-            HStack(spacing: 6) {
-                Text(name).lineLimit(1)
-                Image(systemName: "chevron.down").font(.caption2.weight(.bold))
-            }
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .glassEffect(.regular.interactive(), in: Capsule())
-        }
-        .accessibilityLabel("Scegli libro: \(name)")
-        #if os(iOS)
-        if let bookSelectionNamespace {
-            button.matchedTransitionSource(id: "home-book-picker", in: bookSelectionNamespace)
-        } else {
-            button
-        }
-        #else
-        button
-        #endif
-    }
 }
 
 private struct TodayRefreshFailureBanner: View {

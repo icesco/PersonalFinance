@@ -120,10 +120,17 @@ struct SettingsView: View {
 
     private var bookSection: some View {
         Section {
+            Button {
+                appState.presentAccountSelection()
+            } label: {
+                SettingsRow("Libro contabile", systemImage: "books.vertical",
+                            value: appState.showAllAccounts ? "Tutti i libri" : account?.name ?? "Nessuno")
+            }
+            .accessibilityIdentifier("settings-book-selection")
             NavigationLink {
                 BooksSettingsView()
             } label: {
-                SettingsRow("Libri", systemImage: "books.vertical", value: account?.name ?? "Nessuno")
+                SettingsRow("Gestisci libri", systemImage: "books.vertical")
             }
             NavigationLink {
                 ContiSettingsView()

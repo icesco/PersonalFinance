@@ -141,14 +141,16 @@ struct MacSettingsWorkspace: View {
                 HStack {
                     Text("Libro:").foregroundStyle(.secondary)
                     Picker("Libro", selection: Binding(
-                        get: { state.selectedAccount?.id },
+                        get: { state.showAllAccounts ? "all" : state.selectedAccount?.id.uuidString ?? "" },
                         set: { id in
-                            if let book = books.first(where: { $0.id == id }) { state.selectAccount(book) }
+                            if id == "all" { state.selectAllAccounts() }
+                            else if let book = books.first(where: { $0.id.uuidString == id }) { state.selectAccount(book) }
                         }
                     )) {
-                        Text("Scegli libro").tag(nil as UUID?)
+                        Text("Scegli libro").tag("")
+                        Text("Tutti i libri").tag("all")
                         ForEach(books.filter { $0.isActive == true }) { book in
-                            Text(book.name ?? "Libro").tag(Optional(book.id))
+                            Text(book.name ?? "Libro").tag(book.id.uuidString)
                         }
                     }
                     .labelsHidden()

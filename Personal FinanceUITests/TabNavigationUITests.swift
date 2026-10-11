@@ -4,6 +4,30 @@ final class TabNavigationUITests: XCTestCase {
     @MainActor func testCustomizationLight() { verifyCustomization(dark: false) }
     @MainActor func testCustomizationDark() { verifyCustomization(dark: true) }
 
+    @MainActor func testBookSelectionLivesInSettings() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_NAVIGATION", "-CloudSyncEnabled", "NO", "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        app.launch()
+        XCTAssertTrue(app.buttons["navigation-settings"].waitForExistence(timeout: 20))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Scegli libro:")).count, 0)
+        capture(app, "book-readonly-home")
+        app.tabBars.buttons["Pianifica"].tap()
+        XCTAssertFalse(app.buttons["Demo"].exists)
+        app.buttons["navigation-settings"].tap()
+        let chooseBook = app.buttons["settings-book-selection"]
+        XCTAssertTrue(chooseBook.waitForExistence(timeout: 5))
+        capture(app, "book-selection-settings")
+        chooseBook.tap()
+        XCTAssertTrue(app.staticTexts["I tuoi libri"].waitForExistence(timeout: 5))
+        let book = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Demo")).firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 5))
+        book.tap()
+        XCTAssertTrue(app.navigationBars["Impostazioni"].waitForExistence(timeout: 5))
+        app.buttons["Chiudi"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Pianifica"].isSelected)
+    }
+
     @MainActor func testSettingsAccessibleFromEveryTab() {
         continueAfterFailure = false
         let app = XCUIApplication()
