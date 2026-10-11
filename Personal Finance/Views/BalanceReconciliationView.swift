@@ -91,7 +91,7 @@ private struct BalanceEntryView: View {
             } header: {
                 Text("Saldo verificato")
             } footer: {
-                Text("Inserisci il saldo che vedi oggi nella banca o nella carta. Formi allinea il registro senza aggiungere un movimento fittizio.")
+                Text("Inserisci il saldo che vedi oggi nella banca o nella carta. Formi allinea il registro senza aggiungere un movimento fittizio. Se in seguito aggiungi o modifichi movimenti precedenti a oggi, il saldo cambia: verifica nuovamente il saldo dopo aver completato lo storico.")
             }
             if !movementsAreRecent {
                 Section {

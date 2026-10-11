@@ -20,6 +20,7 @@ struct SettingsView: View {
     // MARK: - State
     @State private var showingCSVImport = false
     @State private var showingCSVExport = false
+    @State private var showingBalances = false
     @State private var showingDemoAlert = false
     @State private var isGeneratingDemo = false
     @State private var showingDemoSuccess = false
@@ -53,6 +54,11 @@ struct SettingsView: View {
             }
             .financePresentation(isPresented: $showingCSVExport, title: "Esporta CSV", width: 800) {
                 CSVExportView()
+            }
+            .financePresentation(isPresented: $showingBalances, title: "Verifica saldi") {
+                if let account {
+                    BalanceReconciliationView(account: account)
+                }
             }
             .alert("Dati Demo", isPresented: $showingDemoAlert) {
                 Button("Annulla", role: .cancel) { }
@@ -137,6 +143,13 @@ struct SettingsView: View {
             } label: {
                 SettingsRow("Conti", systemImage: "creditcard", value: "\(contiCount)")
             }
+            .disabled(account == nil)
+            Button {
+                showingBalances = true
+            } label: {
+                SettingsRow("Verifica saldi", systemImage: "checkmark.circle")
+            }
+            .accessibilityIdentifier("settings-verify-balances")
             .disabled(account == nil)
             NavigationLink {
                 CategoryManagementView()
@@ -422,6 +435,7 @@ struct ContiSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
     @State private var showingAddConto = false
+    @State private var showingBalances = false
     @State private var showingSaveError = false
 
     private var visibleConti: [Conto] {
@@ -482,6 +496,15 @@ struct ContiSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
+                    showingBalances = true
+                } label: {
+                    Label("Verifica saldi", systemImage: "checkmark.circle")
+                }
+                .accessibilityIdentifier("accounts-verify-balances")
+                .disabled(appState.selectedAccount == nil || visibleConti.isEmpty)
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
                     showingAddConto = true
                 } label: {
                     Label("Aggiungi conto", systemImage: "plus")
@@ -490,6 +513,11 @@ struct ContiSettingsView: View {
         }
         .financePresentation(isPresented: $showingAddConto, title: "Nuovo conto") {
             AddContoSheet()
+        }
+        .financePresentation(isPresented: $showingBalances, title: "Verifica saldi") {
+            if let account = appState.selectedAccount {
+                BalanceReconciliationView(account: account)
+            }
         }
         .alert("Impossibile salvare", isPresented: $showingSaveError) {
             Button("OK", role: .cancel) { }
