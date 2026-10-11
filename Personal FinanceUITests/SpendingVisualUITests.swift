@@ -2,6 +2,80 @@ import XCTest
 
 final class SpendingVisualUITests: XCTestCase {
     @MainActor
+    func testMoneyFlowRibbonDrillDown() throws {
+        try verifyMoneyFlowDrillDown(dark: false)
+    }
+
+    @MainActor
+    func testMoneyFlowRibbonDrillDownDark() throws {
+        try verifyMoneyFlowDrillDown(dark: true)
+    }
+
+    @MainActor
+    private func verifyMoneyFlowDrillDown(dark: Bool) throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_MONEY_FLOW", "-CloudSyncEnabled", "NO",
+                               "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        if dark { app.launchArguments.append("UITEST_VISUAL_DARK") }
+        app.launch()
+        let home = app.buttons["money-flow-node-Casa"]
+        XCTAssertTrue(home.waitForExistence(timeout: 10))
+        scrollTo(home, in: app)
+        capture(app, "formi-money-flow-overview-\(dark ? "dark" : "light")")
+        // Tap the actual ribbon just before its destination, outside the label.
+        home.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
+            .withOffset(CGVector(dx: -42, dy: 0)).tap()
+        capture(app, "formi-money-flow-after-ribbon-tap-\(dark ? "dark" : "light")")
+        let title = app.staticTexts["money-flow-focus-name"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.label, "Casa")
+        XCTAssertFalse(app.buttons["Aumenta zoom"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Affitto"].exists)
+        capture(app, "formi-money-flow-casa-\(dark ? "dark" : "light")")
+        let rent = app.buttons["money-flow-node-Affitto"]
+        scrollTo(rent, in: app)
+        rent.tap()
+        XCTAssertEqual(title.label, "Affitto")
+        XCTAssertTrue(app.buttons["Vedi movimenti"].exists)
+        app.buttons["Vedi movimenti"].tap()
+        XCTAssertTrue(app.navigationBars["Affitto"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertEqual(title.label, "Affitto")
+        app.buttons["Categoria precedente"].tap()
+        XCTAssertEqual(title.label, "Casa")
+        app.buttons["Panoramica"].tap()
+        XCTAssertFalse(title.exists)
+        scrollTo(home, in: app)
+        home.tap()
+        let direct = app.buttons["money-flow-node-Direttamente nella categoria"]
+        scrollTo(direct, in: app)
+        direct.tap()
+        XCTAssertEqual(title.label, "Direttamente nella categoria")
+        XCTAssertFalse(app.buttons["Vedi movimenti"].exists)
+        app.buttons["Panoramica"].tap()
+        let uncategorized = app.buttons["money-flow-node-Da classificare"]
+        scrollTo(uncategorized, in: app)
+        uncategorized.tap()
+        XCTAssertEqual(title.label, "Da classificare")
+        XCTAssertFalse(app.buttons["Vedi movimenti"].exists)
+        app.buttons["Panoramica"].tap()
+        let food = app.buttons["money-flow-node-Cibo"]
+        scrollTo(food, in: app)
+        food.tap()
+        XCTAssertEqual(title.label, "Cibo")
+        let coffee = app.buttons["money-flow-node-Bar e caffè"]
+        scrollTo(coffee, in: app)
+        coffee.tap()
+        XCTAssertEqual(title.label, "Bar e caffè")
+        capture(app, "formi-money-flow-leaf-\(dark ? "dark" : "light")")
+        app.buttons["Categoria precedente"].tap()
+        XCTAssertEqual(title.label, "Cibo")
+        app.buttons["Panoramica"].tap()
+        XCTAssertFalse(title.exists)
+    }
+
+    @MainActor
     func testTimelineDayHeaderStaysPinned() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

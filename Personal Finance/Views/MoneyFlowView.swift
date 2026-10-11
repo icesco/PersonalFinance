@@ -36,6 +36,7 @@ private struct MoneyFlowExplorer: View {
     @State private var zoom: CGFloat = 1
     @GestureState private var magnification: CGFloat = 1
     @State private var path: [String] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var focus: RecordedFlowNode? {
         var nodes = report.categories
@@ -49,7 +50,31 @@ private struct MoneyFlowExplorer: View {
     }
     private var effectiveZoom: CGFloat { min(3, max(1, zoom * magnification)) }
 
+    private func select(_ node: RecordedFlowNode) {
+        func route(in nodes: [RecordedFlowNode]) -> [String]? {
+            for candidate in nodes {
+                if candidate.id == node.id { return [candidate.id] }
+                if let nested = route(in: candidate.children) { return [candidate.id] + nested }
+            }
+            return nil
+        }
+        guard let route = route(in: report.categories), route != path else { return }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+            path = route
+            zoom = 1
+        }
+    }
+
+    private func goBack(toOverview: Bool = false) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+            if toOverview { path = [] }
+            else if !path.isEmpty { path.removeLast() }
+            zoom = 1
+        }
+    }
+
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 MoneyFlowSummary(report: report, currency: currency, periodTitle: periodTitle)
@@ -62,34 +87,29 @@ private struct MoneyFlowExplorer: View {
                     ContentUnavailableView("Nessun movimento nel periodo", systemImage: "arrow.triangle.branch",
                         description: Text("Registra un'entrata o un'uscita per vedere il percorso del denaro."))
                 } else {
-                    MoneyFlowControls(zoom: $zoom, isFocused: focus != nil,
-                                      back: { if !path.isEmpty { path.removeLast() }; zoom = 1 },
-                                      reset: { path = []; zoom = 1 })
+                    VStack(alignment: .leading, spacing: 14) {
+                    MoneyFlowControls(isFocused: focus != nil,
+                                      back: { goBack() }, reset: { goBack(toOverview: true) })
                     if let focus {
-                        Text(focus.name).font(.title3.weight(.semibold))
+                        MoneyFlowFocusDetails(node: focus, expenseTotal: report.expenses,
+                            currency: currency, interval: interval, scopeContoIDs: scopeContoIDs)
                     }
-                    Text("Allarga con due dita o usa + per mostrare le sottocategorie. Trascina per esplorare; tocca una categoria per concentrarti sul suo flusso.")
+                    Text("Tocca una fascia o una categoria per ingrandire il suo flusso e vedere i dettagli. Trascina per esplorare.")
                         .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                    .id("money-flow-selection")
                     GeometryReader { geometry in
                         let layout = MoneyFlowLayout(report: report, focus: focus,
                             expanded: effectiveZoom >= 1.4, width: max(320, geometry.size.width - 32))
                         ScrollView([.horizontal, .vertical]) {
-                            MoneyFlowDiagram(layout: layout, currency: currency) { node in
-                                // Expanded grandchildren must retain their ancestry for Back.
-                                func route(in nodes: [RecordedFlowNode]) -> [String]? {
-                                    for candidate in nodes {
-                                        if candidate.id == node.id { return [candidate.id] }
-                                        if let nested = route(in: candidate.children) { return [candidate.id] + nested }
-                                    }
-                                    return nil
-                                }
-                                path = route(in: report.categories) ?? []
-                                zoom = 1
-                            }
+                            MoneyFlowDiagram(layout: layout, currency: currency,
+                                             focusedID: focus?.id, select: select)
                             .scaleEffect(effectiveZoom, anchor: .topLeading)
                             .frame(width: layout.width * effectiveZoom, height: layout.height * effectiveZoom, alignment: .topLeading)
                             .padding(16)
                         }
+                        .id(focus?.id ?? "overview")
+                        .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.96)))
                         .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 22))
                         .simultaneousGesture(MagnifyGesture()
                             .updating($magnification) { value, state, _ in state = value.magnification }
@@ -97,12 +117,10 @@ private struct MoneyFlowExplorer: View {
                     }
                     .frame(height: 470)
                     .accessibilityIdentifier("money-flow-diagram")
-                    MoneyFlowCategoryList(nodes: focus.map { $0.children.isEmpty ? [$0] : $0.children } ?? report.categories,
-                        total: focus?.amount ?? report.expenses, currency: currency,
-                        interval: interval, scopeContoIDs: scopeContoIDs) { node in
-                            path.append(node.id)
-                            zoom = 1
-                        }
+                    if focus?.children.isEmpty != true {
+                        MoneyFlowCategoryList(nodes: focus?.children ?? report.categories,
+                            total: focus?.amount ?? report.expenses, currency: currency, select: select)
+                    }
                 }
                 Text("Lo spessore delle fasce rappresenta l'importo. Il margine è la differenza tra entrate e uscite registrate, non il risparmio accantonato. Trasferimenti e movimenti futuri sono esclusi.")
                     .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
@@ -110,6 +128,12 @@ private struct MoneyFlowExplorer: View {
             .padding(22)
         }
         .themedBackground()
+        .onChange(of: path) { _, _ in
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                proxy.scrollTo("money-flow-selection", anchor: .top)
+            }
+        }
+        }
     }
 }
 
@@ -160,27 +184,58 @@ private struct MoneyFlowMetric: View {
 }
 
 private struct MoneyFlowControls: View {
-    @Binding var zoom: CGFloat
     let isFocused: Bool
     let back: () -> Void
     let reset: () -> Void
     var body: some View {
-        HStack(spacing: 12) {
-            if isFocused {
-                Button(action: back) { Image(systemName: "arrow.turn.up.left") }
+        if isFocused {
+            HStack(spacing: 12) {
+                Button(action: back) { Label("Indietro", systemImage: "arrow.turn.up.left") }
                     .accessibilityLabel("Categoria precedente")
+                Spacer(minLength: 0)
+                Button("Panoramica", action: reset)
             }
-            Button("Panoramica", action: reset)
-            Spacer(minLength: 0)
-            Button { zoom = max(1, zoom - 0.5) } label: { Image(systemName: "minus.magnifyingglass") }
-                .disabled(zoom <= 1).accessibilityLabel("Riduci zoom")
-            Text(zoom, format: .percent.precision(.fractionLength(0)))
-                .font(.caption).monospacedDigit().accessibilityLabel("Livello di zoom")
-            Button { zoom = min(3, zoom + 0.5) } label: { Image(systemName: "plus.magnifyingglass") }
-                .disabled(zoom >= 3).accessibilityLabel("Aumenta zoom")
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
+    }
+}
+
+private struct MoneyFlowFocusDetails: View {
+    let node: RecordedFlowNode
+    let expenseTotal: Decimal
+    let currency: String
+    let interval: DateInterval
+    let scopeContoIDs: Set<UUID>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(node.name).font(.title3.weight(.semibold))
+                .accessibilityIdentifier("money-flow-focus-name")
+            Text(node.amount, format: .currency(code: currency))
+                .font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit()
+            if expenseTotal > 0 {
+                let share = NSDecimalNumber(decimal: node.amount / expenseTotal).doubleValue
+                Text("\(share, format: .percent.precision(.fractionLength(1))) delle uscite del periodo")
+                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+            }
+            if node.children.isEmpty {
+                Text("Questo è il dettaglio finale del flusso.")
+                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            }
+            if let id = node.categoryID, !node.id.hasSuffix(":direct") {
+                NavigationLink {
+                    TransactionListView(initialCategoryID: id,
+                        initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())),
+                        expensesOnly: true, scopeContoIDs: scopeContoIDs,
+                        isPushed: true, pushedTitle: node.name)
+                } label: {
+                    Label("Vedi movimenti", systemImage: "list.bullet")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -188,29 +243,14 @@ private struct MoneyFlowCategoryList: View {
     let nodes: [RecordedFlowNode]
     let total: Decimal
     let currency: String
-    let interval: DateInterval
-    let scopeContoIDs: Set<UUID>
     let select: (RecordedFlowNode) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Distribuzione").font(.headline)
             ForEach(nodes) { node in
-                if !node.children.isEmpty {
-                    Button { select(node) } label: {
-                        MoneyFlowCategoryRow(node: node, total: total, currency: currency)
-                    }.buttonStyle(.plain)
-                } else if let id = node.categoryID, !node.id.hasSuffix(":direct") {
-                    NavigationLink {
-                        TransactionListView(initialCategoryID: id,
-                                            initialInterval: DateInterval(start: interval.start, end: min(interval.end, Date())),
-                                            expensesOnly: true, scopeContoIDs: scopeContoIDs,
-                                            isPushed: true, pushedTitle: node.name)
-                    } label: {
-                        MoneyFlowCategoryRow(node: node, total: total, currency: currency)
-                    }.buttonStyle(.plain)
-                } else {
+                Button { select(node) } label: {
                     MoneyFlowCategoryRow(node: node, total: total, currency: currency)
-                }
+                }.buttonStyle(.plain)
             }
         }
     }
@@ -256,6 +296,25 @@ private struct MoneyFlowLayout {
     struct Ribbon {
         let x1: CGFloat, y1: CGFloat, x2: CGFloat, y2: CGFloat, thickness: CGFloat
         let color: Color
+        var category: RecordedFlowNode? = nil
+
+        func path(minimumThickness: CGFloat = 0) -> Path {
+            let height = max(thickness, minimumThickness)
+            let startY = y1 - (height - thickness) / 2
+            let endY = y2 - (height - thickness) / 2
+            let bend = (x2 - x1) * 0.5
+            var path = Path()
+            path.move(to: CGPoint(x: x1, y: startY))
+            path.addCurve(to: CGPoint(x: x2, y: endY),
+                          control1: CGPoint(x: x1 + bend, y: startY),
+                          control2: CGPoint(x: x2 - bend, y: endY))
+            path.addLine(to: CGPoint(x: x2, y: endY + height))
+            path.addCurve(to: CGPoint(x: x1, y: startY + height),
+                          control1: CGPoint(x: x2 - bend, y: endY + height),
+                          control2: CGPoint(x: x1 + bend, y: startY + height))
+            path.closeSubpath()
+            return path
+        }
     }
     var nodes: [Node] = []
     var ribbons: [Ribbon] = []
@@ -264,9 +323,9 @@ private struct MoneyFlowLayout {
     var height: CGFloat = 0
 
     init(report: RecordedFlowReport, focus: RecordedFlowNode?, expanded: Bool, width: CGFloat) {
-        let levels = expanded ? 4 : 3
+        let levels = focus == nil ? (expanded ? 4 : 3) : (expanded ? 4 : 2)
         self.width = max(width, expanded ? 624 : 320)
-        let trailingSpace: CGFloat = self.width >= 392 ? 144 : 108
+        let trailingSpace: CGFloat = focus != nil || self.width >= 392 ? 144 : 108
         let step = (self.width - trailingSpace) / CGFloat(levels - 1)
         self.labelWidth = min(124, max(80, step - 22))
         let denominator = focus?.amount ?? max(report.income, report.expenses)
@@ -291,7 +350,7 @@ private struct MoneyFlowLayout {
                     let target = place(child, column: column + 1, start: cursor, depth: depth - 1)
                     ribbons.append(.init(x1: placed.x + 8, y1: slot, x2: target.x,
                                          y2: target.y - target.thickness / 2,
-                                         thickness: target.thickness, color: target.color))
+                                         thickness: target.thickness, color: target.color, category: child))
                     slot += target.thickness
                     cursor += extent(child, depth: depth - 1)
                 }
@@ -314,7 +373,8 @@ private struct MoneyFlowLayout {
         for category in report.categories {
             let target = place(category, column: 2, start: cursor, depth: depth)
             ribbons.append(.init(x1: expense.x + 8, y1: slot, x2: target.x,
-                                 y2: target.y - target.thickness / 2, thickness: target.thickness, color: target.color))
+                                 y2: target.y - target.thickness / 2, thickness: target.thickness,
+                                 color: target.color, category: category))
             slot += target.thickness
             cursor += extent(category, depth: depth)
         }
@@ -353,7 +413,9 @@ private struct MoneyFlowLayout {
 #if DEBUG
 /// Deterministic visual fixture; does not create or alter financial records.
 struct MoneyFlowVisualFixture: View {
-    private let report: RecordedFlowReport = {
+    @State private var state = AppStateManager(persistsSelection: false)
+    private static let container = try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+    private static let report: RecordedFlowReport = {
         let home = UUID(), rent = UUID(), utilities = UUID(), food = UUID(), groceries = UUID(), coffee = UUID()
         let date = Date()
         let categories = [
@@ -364,6 +426,13 @@ struct MoneyFlowVisualFixture: View {
             FlowCategory(id: groceries, parentID: food, name: "Alimentari", color: CategoryPalette.terracotta),
             FlowCategory(id: coffee, parentID: food, name: "Bar e caffè", color: CategoryPalette.terracotta)
         ]
+        for category in categories {
+            let model = FinanceCore.Category(name: category.name, color: category.color,
+                                             parentCategoryId: category.parentID)
+            model.id = category.id
+            container.mainContext.insert(model)
+        }
+        try! container.mainContext.save()
         var entries = [DirectionTransaction(date: date, amount: 2850, type: .income,
                                            categoryID: nil, categoryName: "Stipendio", isRecurring: false)]
         let expenses: [(UUID?, Decimal)] = [(rent, 890), (utilities, 128), (home, 102.72),
@@ -377,11 +446,14 @@ struct MoneyFlowVisualFixture: View {
     }()
     var body: some View {
         NavigationStack {
-            MoneyFlowExplorer(report: report, currency: "EUR", periodTitle: "Ottobre 2026",
+            MoneyFlowExplorer(report: Self.report, currency: "EUR", periodTitle: "Ottobre 2026",
                               interval: Calendar.current.dateInterval(of: .month, for: Date())!, scopeContoIDs: [])
                 .navigationTitle("Flusso del denaro")
                 .toolbarTitleDisplayMode(.inline)
         }
+        .modelContainer(Self.container)
+        .environment(state)
+        .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("UITEST_VISUAL_DARK") ? .dark : .light)
     }
 }
 #Preview("Flusso") { MoneyFlowVisualFixture() }
@@ -390,23 +462,13 @@ struct MoneyFlowVisualFixture: View {
 private struct MoneyFlowDiagram: View {
     let layout: MoneyFlowLayout
     let currency: String
+    let focusedID: String?
     let select: (RecordedFlowNode) -> Void
     var body: some View {
         ZStack(alignment: .topLeading) {
             Canvas { context, _ in
                 for ribbon in layout.ribbons {
-                    let bend = (ribbon.x2 - ribbon.x1) * 0.5
-                    var path = Path()
-                    path.move(to: CGPoint(x: ribbon.x1, y: ribbon.y1))
-                    path.addCurve(to: CGPoint(x: ribbon.x2, y: ribbon.y2),
-                                  control1: CGPoint(x: ribbon.x1 + bend, y: ribbon.y1),
-                                  control2: CGPoint(x: ribbon.x2 - bend, y: ribbon.y2))
-                    path.addLine(to: CGPoint(x: ribbon.x2, y: ribbon.y2 + ribbon.thickness))
-                    path.addCurve(to: CGPoint(x: ribbon.x1, y: ribbon.y1 + ribbon.thickness),
-                                  control1: CGPoint(x: ribbon.x2 - bend, y: ribbon.y2 + ribbon.thickness),
-                                  control2: CGPoint(x: ribbon.x1 + bend, y: ribbon.y1 + ribbon.thickness))
-                    path.closeSubpath()
-                    context.fill(path, with: .color(ribbon.color.opacity(0.38)))
+                    context.fill(ribbon.path(), with: .color(ribbon.color.opacity(0.38)))
                 }
                 for node in layout.nodes {
                     context.fill(Path(roundedRect: CGRect(x: node.x, y: node.y - node.thickness / 2,
@@ -414,29 +476,57 @@ private struct MoneyFlowDiagram: View {
                                  with: .color(node.color))
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { location in
+                if let category = layout.nodes.first(where: {
+                    $0.category != nil && CGRect(x: $0.x - 12,
+                        y: $0.y - max(44, $0.thickness) / 2,
+                        width: 32, height: max(44, $0.thickness)).contains(location)
+                })?.category {
+                    select(category)
+                } else if let category = layout.ribbons.reversed().first(where: {
+                    $0.category != nil && $0.path(minimumThickness: 22).contains(location)
+                })?.category {
+                    select(category)
+                }
+            }
             .accessibilityHidden(true)
             ForEach(layout.nodes) { node in
-                Button { if let category = node.category { select(category) } } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(node.id.hasSuffix(":direct") ? String(localized: "Direttamente nella categoria") : node.title)
-                            .font(.caption.weight(.semibold)).lineLimit(2)
-                        Text(node.amount, format: .currency(code: currency)).font(.caption2).monospacedDigit()
-                        if let category = node.category, !category.children.isEmpty {
-                            Image(systemName: "plus.magnifyingglass").font(.caption2)
+                Group {
+                    if let category = node.category, category.id != focusedID {
+                        Button { select(category) } label: {
+                            MoneyFlowNodeLabel(node: node, currency: currency, width: layout.labelWidth)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Ingrandisci il flusso e mostra i dettagli")
+                        .accessibilityIdentifier("money-flow-node-\(category.name)")
+                    } else {
+                        MoneyFlowNodeLabel(node: node, currency: currency, width: layout.labelWidth)
                     }
-                    .foregroundStyle(.primary)
-                    .padding(5)
-                    .frame(width: layout.labelWidth, alignment: .leading)
-                    .background(ForgiaPalette.surface.opacity(0.88), in: RoundedRectangle(cornerRadius: 7))
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityHint(node.category?.children.isEmpty == false ? "Mostra sottocategorie" : "")
                 .position(x: node.x + 12 + layout.labelWidth / 2, y: node.y)
             }
         }
         .frame(width: layout.width, height: layout.height)
+    }
+}
+
+private struct MoneyFlowNodeLabel: View {
+    let node: MoneyFlowLayout.Node
+    let currency: String
+    let width: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(node.title).font(.caption.weight(.semibold)).lineLimit(2)
+            Text(node.amount, format: .currency(code: currency)).font(.caption2).monospacedDigit()
+        }
+        .foregroundStyle(.primary)
+        .padding(5)
+        .frame(width: width, alignment: .leading)
+        .background(ForgiaPalette.surface.opacity(0.88), in: RoundedRectangle(cornerRadius: 7))
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
