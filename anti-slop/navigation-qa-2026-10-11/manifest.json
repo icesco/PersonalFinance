@@ -1,0 +1,50 @@
+[
+  {
+    "attachments": [
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "34C18BF1-5106-4BD2-AB24-8D7E026E7AE7",
+        "deviceName": "Formi Navigation QA 20261011",
+        "exportedFileName": "navigation-dark.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "navigation-dark_0_379F1829-D137-487C-8D5D-46B3A4273877.png",
+        "timestamp": 1791728669.888
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "34C18BF1-5106-4BD2-AB24-8D7E026E7AE7",
+        "deviceName": "Formi Navigation QA 20261011",
+        "exportedFileName": "customization-dark.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "customization-dark_0_94B52E9C-2A30-427D-9B29-D02E016AB301.png",
+        "timestamp": 1791728613.999
+      }
+    ],
+    "testIdentifier": "TabNavigationUITests/testCustomizationDark()",
+    "testIdentifierURL": "test://com.apple.xcode/Personal%20Finance/Personal%20FinanceUITests/TabNavigationUITests/testCustomizationDark"
+  },
+  {
+    "attachments": [
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "34C18BF1-5106-4BD2-AB24-8D7E026E7AE7",
+        "deviceName": "Formi Navigation QA 20261011",
+        "exportedFileName": "navigation-light.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "navigation-light_0_D4A9D842-35E2-4177-80DF-0A8399DD9480.png",
+        "timestamp": 1791728746.904
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "34C18BF1-5106-4BD2-AB24-8D7E026E7AE7",
+        "deviceName": "Formi Navigation QA 20261011",
+        "exportedFileName": "customization-light.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "customization-light_0_5EE29ED9-3C78-4C7D-B7BA-7560ABEFB737.png",
+        "timestamp": 1791728689.3
+      }
+    ],
+    "testIdentifier": "TabNavigationUITests/testCustomizationLight()",
+    "testIdentifierURL": "test://com.apple.xcode/Personal%20Finance/Personal%20FinanceUITests/TabNavigationUITests/testCustomizationLight"
+  }
+]

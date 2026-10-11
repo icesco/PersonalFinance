@@ -53,6 +53,7 @@ struct BudgetSnapshot {
 }
 
 struct BudgetView: View {
+    var showsCloseButton = true
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
@@ -100,7 +101,7 @@ struct BudgetView: View {
             .navigationTitle("Budget")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fine") { dismiss() }
+                    if showsCloseButton { Button("Fine") { dismiss() } }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {

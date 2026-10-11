@@ -21,6 +21,24 @@ final class AppStateManager {
 
     // MARK: - Tab Navigation
     var selectedTab: AppTab = .dashboard
+    var showingTabCustomization = false
+    private(set) var optionalTabs: [AppTab] = [.planning]
+    var compactTabs: [AppTab] { [.dashboard, .transactions] + optionalTabs }
+
+    func setOptionalTabs(_ tabs: [AppTab]) {
+        optionalTabs = Self.validOptionalTabs(tabs)
+        if persistsSelection {
+            defaults.set(optionalTabs.map(\.rawValue), forKey: "navigation.optionalTabs.v1")
+        }
+    }
+
+    static func validOptionalTabs(_ tabs: [AppTab]) -> [AppTab] {
+        var result: [AppTab] = []
+        for tab in tabs where AppTab.optionalChoices.contains(tab) && !result.contains(tab) {
+            if result.count < 3 { result.append(tab) }
+        }
+        return result
+    }
 
     /// Tab roots currently on screen that want the new-transaction button; pushed screens drop out.
     var transactionButtonRoots: Set<AppTab> = []
@@ -126,6 +144,9 @@ final class AppStateManager {
     init(persistsSelection: Bool = true, defaults: UserDefaults = .standard) {
         self.persistsSelection = persistsSelection
         self.defaults = defaults
+        if let saved = defaults.array(forKey: "navigation.optionalTabs.v1") as? [Int] {
+            optionalTabs = Self.validOptionalTabs(saved.compactMap(AppTab.init(rawValue:)))
+        }
         pendingAccountID = defaults.string(forKey: "selectedAccountID").flatMap(UUID.init(uuidString:))
         loadTintedBackgrounds()
         loadShowAllAccounts()
@@ -326,6 +347,19 @@ enum AppTab: Int, CaseIterable {
     case analysis = 4
     case planning = 5
     case search = 6 // Dedicated tab on iPad and Mac; lives inside Movimenti on iPhone
+    case calendar = 7
+    case budgets = 8
+    case accounts = 9
+
+    static let optionalChoices: [AppTab] = [.planning, .analysis, .calendar, .budgets, .accounts]
+
+    var navigationTitle: String {
+        switch self {
+        case .dashboard: "Oggi"
+        case .transactions: "Movimenti"
+        default: title
+        }
+    }
 
     var title: String {
         switch self {
@@ -336,6 +370,9 @@ enum AppTab: Int, CaseIterable {
         case .search: return "Cerca"
         case .settings: return "Impostazioni"
         case .addTransaction: return "Aggiungi"
+        case .calendar: return "Calendario"
+        case .budgets: return "Budget"
+        case .accounts: return "Conti"
         }
     }
 
@@ -348,6 +385,9 @@ enum AppTab: Int, CaseIterable {
         case .search: return "magnifyingglass"
         case .settings: return "gearshape"
         case .addTransaction: return "plus.circle.fill"
+        case .calendar: return "calendar"
+        case .budgets: return "chart.bar.xaxis"
+        case .accounts: return "creditcard"
         }
     }
 
@@ -360,6 +400,9 @@ enum AppTab: Int, CaseIterable {
         case .search: return "magnifyingglass"
         case .settings: return "gearshape.fill"
         case .addTransaction: return "plus.circle.fill"
+        case .calendar: return "calendar"
+        case .budgets: return "chart.bar.xaxis"
+        case .accounts: return "creditcard.fill"
         }
     }
 }

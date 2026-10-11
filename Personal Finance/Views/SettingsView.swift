@@ -148,6 +148,11 @@ struct SettingsView: View {
 
     private var preferencesSection: some View {
         Section("Preferenze") {
+            Button {
+                appState.showingTabCustomization = true
+            } label: {
+                SettingsRow("Personalizza tab", systemImage: "rectangle.bottomthird.inset.filled")
+            }
             NavigationLink {
                 ThemeSelectionView()
             } label: {

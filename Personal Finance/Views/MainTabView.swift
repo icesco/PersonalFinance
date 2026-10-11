@@ -17,6 +17,7 @@ struct MainTabView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var shortcutInbox = FinanceShortcutInbox.shared
     @State private var showingVoice = false
+    @State private var presentedSection: AppTab?
     @Environment(AppLock.self) private var appLock
     @Query private var widgetAccounts: [Account]
     #if os(macOS)
@@ -57,6 +58,52 @@ struct MainTabView: View {
         .onChange(of: appState.showingTransferSheet) { _, showing in if !showing { deliverShortcut() } }
         .onChange(of: appState.showingAccountSelection) { _, showing in if !showing { deliverShortcut() } }
         .onChange(of: appState.showingAccountCreation) { _, showing in if !showing { deliverShortcut() } }
+        .onChange(of: appState.selectedTab, initial: true) { old, new in
+            if !usesSidebar && new == .search {
+                appState.selectedTab = .transactions
+                return
+            }
+            if !usesSidebar && !appState.compactTabs.contains(new) {
+                presentedSection = new
+                appState.selectedTab = appState.compactTabs.contains(old) ? old : .dashboard
+            }
+        }
+        .onChange(of: appState.optionalTabs) { _, _ in
+            if !usesSidebar && !appState.compactTabs.contains(appState.selectedTab) {
+                appState.selectedTab = .dashboard
+            }
+        }
+        .onChange(of: usesSidebar) { _, sidebar in
+            if !sidebar && appState.selectedTab == .search {
+                appState.selectedTab = .transactions
+                return
+            }
+            if !sidebar && !appState.compactTabs.contains(appState.selectedTab) {
+                presentedSection = appState.selectedTab
+                appState.selectedTab = .dashboard
+            }
+        }
+        .sheet(isPresented: Binding(get: { presentedSection != nil }, set: { if !$0 { presentedSection = nil } })) {
+            if let section = presentedSection {
+                sectionContent(section)
+                    .safeAreaInset(edge: .top) {
+                        HStack {
+                            Text(section.navigationTitle).font(.headline)
+                            Spacer()
+                            Button("Chiudi") { presentedSection = nil }
+                        }.padding().background(.bar)
+                    }
+                    .sheet(isPresented: Binding(get: { appState.showingTabCustomization }, set: { appState.showingTabCustomization = $0 })) {
+                        customizationSheet
+                    }
+                    .sheet(isPresented: Binding(get: { appState.showingAccountSelection }, set: { appState.showingAccountSelection = $0 })) {
+                        AccountSelectionModal()
+                    }
+            }
+        }
+        .sheet(isPresented: Binding(get: { appState.showingTabCustomization && presentedSection == nil }, set: { appState.showingTabCustomization = $0 })) {
+            customizationSheet
+        }
         .alert("Richiesta di Formi", isPresented: Binding(get: { shortcutInbox.errorMessage != nil }, set: { if !$0 { shortcutInbox.errorMessage = nil } })) {
             Button("OK") { shortcutInbox.errorMessage = nil }
         } message: { Text(shortcutInbox.errorMessage ?? "") }
@@ -78,10 +125,21 @@ struct MainTabView: View {
             CreateTransactionView(conto: nil, transactionType: .transfer)
         }
         .sheet(isPresented: Binding(
-            get: { appState.showingAccountSelection },
+            get: { appState.showingAccountSelection && presentedSection == nil },
             set: { _ in appState.dismissAccountSelection() }
         )) {
             bookSelectionSheet
+        }
+    }
+
+    private var customizationSheet: some View {
+        NavigationStack {
+            TabCustomizationView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fine") { appState.showingTabCustomization = false }
+                    }
+                }
         }
     }
 
@@ -134,7 +192,7 @@ struct MainTabView: View {
     /// iPhone has no search tab: a search selected on iPad falls back to Movimenti when the width shrinks.
     private var compactTabSelection: Binding<AppTab> {
         Binding(
-            get: { appState.selectedTab == .search ? .transactions : appState.selectedTab },
+            get: { appState.compactTabs.contains(appState.selectedTab) ? appState.selectedTab : .dashboard },
             set: { appState.selectTab($0) }
         )
     }
@@ -144,34 +202,12 @@ struct MainTabView: View {
     @available(iOS 26, macOS 26, *)
     private var iOS26TabView: some View {
         TabView(selection: compactTabSelection) {
-            Tab(value: AppTab.dashboard) {
-                TodayView(bookSelectionNamespace: bookSelectionNamespace)
-            } label: {
-                Label("Oggi", systemImage: "house")
-            }
-
-            Tab(value: AppTab.analysis) {
-                TodayView(screen: .analysis)
-            } label: {
-                Label("Analisi", systemImage: "chart.pie")
-            }
-
-            Tab(value: AppTab.transactions) {
-                TransactionListView()
-            } label: {
-                Label("Movimenti", systemImage: "list.bullet.rectangle")
-            }
-
-            Tab(value: AppTab.planning) {
-                FinancePlanningView()
-            } label: {
-                Label("Pianifica", systemImage: "calendar")
-            }
-
-            Tab(value: AppTab.settings) {
-                SettingsView()
-            } label: {
-                Label("Altro", systemImage: "ellipsis")
+            ForEach(appState.compactTabs, id: \.rawValue) { tab in
+                Tab(value: tab) {
+                    sectionContent(tab)
+                } label: {
+                    Label(tab.navigationTitle, systemImage: tab.icon)
+                }
             }
         }
     }
@@ -180,33 +216,11 @@ struct MainTabView: View {
 
     private var legacyTabView: some View {
         TabView(selection: compactTabSelection) {
-            TodayView(bookSelectionNamespace: bookSelectionNamespace)
-                .tabItem {
-                    Label("Oggi", systemImage: "house")
-                }
-                .tag(AppTab.dashboard)
-
-            TodayView(screen: .analysis)
-                .tabItem {
-                    Label("Analisi", systemImage: "chart.pie")
-                }
-                .tag(AppTab.analysis)
-
-            TransactionListView()
-                .tabItem {
-                    Label("Movimenti", systemImage: "list.bullet.rectangle")
-                }
-                .tag(AppTab.transactions)
-
-            FinancePlanningView()
-                .tabItem { Label("Pianifica", systemImage: "calendar") }
-                .tag(AppTab.planning)
-
-            SettingsView()
-                .tabItem {
-                    Label("Altro", systemImage: "ellipsis")
-                }
-                .tag(AppTab.settings)
+            ForEach(appState.compactTabs, id: \.rawValue) { tab in
+                sectionContent(tab)
+                    .tabItem { Label(tab.navigationTitle, systemImage: tab.icon) }
+                    .tag(tab)
+            }
         }
     }
 
@@ -225,6 +239,9 @@ struct MainTabView: View {
                     Label("Movimenti", systemImage: "list.bullet.rectangle").tag(AppTab.transactions)
                     Label("Cerca", systemImage: "magnifyingglass").tag(AppTab.search)
                     Label("Pianifica", systemImage: "calendar").tag(AppTab.planning)
+                    Label("Calendario", systemImage: "calendar").tag(AppTab.calendar)
+                    Label("Budget", systemImage: "chart.bar.xaxis").tag(AppTab.budgets)
+                    Label("Conti", systemImage: "creditcard").tag(AppTab.accounts)
                 }
             }
             .listStyle(.sidebar)
@@ -245,6 +262,7 @@ struct MainTabView: View {
                             .lineLimit(1)
                     }
                     Button("Impostazioni…", systemImage: "gearshape") { appState.showingSettingsWindow = true }
+                    Button("Personalizza tab iPhone…", systemImage: "rectangle.bottomthird.inset.filled") { appState.showingTabCustomization = true }
                 }
                 .buttonStyle(.borderless)
                 .padding(16)
@@ -290,13 +308,14 @@ struct MainTabView: View {
                 get: { appState.selectedTab },
                 set: { if let tab = $0 { appState.selectTab(tab) } }
             )) {
-                Section("Menu") {
+                Section("Panoramica") {
                     Label("Oggi", systemImage: "house")
                         .tag(AppTab.dashboard)
 
                     Label("Analisi", systemImage: "chart.pie")
                         .tag(AppTab.analysis)
-
+                }
+                Section("Gestisci") {
                     Label("Movimenti", systemImage: "list.bullet.rectangle")
                         .tag(AppTab.transactions)
 
@@ -305,9 +324,16 @@ struct MainTabView: View {
 
                     Label("Pianifica", systemImage: "calendar")
                         .tag(AppTab.planning)
-
+                    Label("Calendario", systemImage: "calendar").tag(AppTab.calendar)
+                    Label("Budget", systemImage: "chart.bar.xaxis").tag(AppTab.budgets)
+                    Label("Conti", systemImage: "creditcard").tag(AppTab.accounts)
+                }
+                Section {
                     Label("Impostazioni", systemImage: "gearshape")
                         .tag(AppTab.settings)
+                    Button("Personalizza tab iPhone", systemImage: "rectangle.bottomthird.inset.filled") {
+                        appState.showingTabCustomization = true
+                    }
                 }
             }
             .navigationTitle("Formi")
@@ -334,7 +360,12 @@ struct MainTabView: View {
 
     @ViewBuilder
     private var detailContent: some View {
-            switch appState.selectedTab {
+        sectionContent(appState.selectedTab)
+    }
+
+    @ViewBuilder
+    private func sectionContent(_ tab: AppTab) -> some View {
+            switch tab {
             case .dashboard:
                 TodayView(bookSelectionNamespace: bookSelectionNamespace)
             case .analysis:
@@ -351,6 +382,12 @@ struct MainTabView: View {
                 SettingsView()
             case .addTransaction:
                 TodayView(bookSelectionNamespace: bookSelectionNamespace)
+            case .calendar:
+                CalendarTabView()
+            case .budgets:
+                BookScopedTabView(section: .budgets)
+            case .accounts:
+                BookScopedTabView(section: .accounts)
             }
     }
 }

@@ -193,6 +193,23 @@ struct TodayView: View {
                 .accessibilityElement(children: .combine)
                 Spacer()
                 bookPickerButton(name: snapshot.accountName)
+                Menu {
+                    Section("Sezioni") {
+                        ForEach(AppTab.optionalChoices, id: \.rawValue) { tab in
+                            Button(tab.navigationTitle, systemImage: tab.icon) { appState.selectTab(tab) }
+                        }
+                    }
+                    Button("Personalizza tab", systemImage: "rectangle.bottomthird.inset.filled") {
+                        appState.showingTabCustomization = true
+                    }
+                    Button("Impostazioni", systemImage: "gearshape") { appState.selectTab(.settings) }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Sezioni e impostazioni")
+                .accessibilityIdentifier("today-sections")
             }
             Text(Date(), format: .dateTime.weekday(.wide).day().month(.wide))
                 .font(.caption.weight(.medium))
@@ -435,7 +452,10 @@ private struct TodayRecentActivityCard: View {
     @Environment(AppStateManager.self) private var appState
 
     var body: some View {
-        Button { appState.selectTab(.analysis) } label: {
+        NavigationLink {
+            SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency,
+                                 scopeContoIDs: snapshot.contoIDs, initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
+        } label: {
             VStack(alignment: .leading, spacing: 15) {
                 HStack {
                     Text("NEGLI ULTIMI 30 GIORNI")
