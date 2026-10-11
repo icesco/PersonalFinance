@@ -130,7 +130,7 @@ struct OnboardingView: View {
                         .padding(.horizontal, 20)
                         .frame(height: 54)
                         .frame(maxWidth: .infinity)
-                        .background(ForgiaPalette.accent, in: RoundedRectangle(cornerRadius: 16))
+                        .background(ForgiaPalette.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
 

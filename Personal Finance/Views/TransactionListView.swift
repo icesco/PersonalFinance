@@ -126,7 +126,7 @@ struct TransactionListView: View {
                     }
                 }
             }
-            .themedBackground()
+            .themedBackground(tint: allCategories.first(where: { $0.id == initialCategoryID })?.tint)
             .safeAreaBar(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     if let initialInterval {

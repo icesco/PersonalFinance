@@ -213,6 +213,7 @@ struct FinanceTaskContent<Presented: View>: View {
             .environment(\.cardTint, state.themeManager.currentTheme.color)
             .environment(\.tintedBackgrounds, state.tintedBackgrounds)
             .tint(state.themeManager.currentTheme.color)
+            .buttonBorderShape(.capsule)
     }
 }
 

@@ -31,7 +31,7 @@ extension EnvironmentValues {
 
 // MARK: - Tinted Card Background
 
-/// Solid, quiet card surface. The optional tint stays below the content layer.
+/// The tint identifies the card at its heading and fades beneath the details.
 private struct TintedCardBackground: View {
     let cornerRadius: CGFloat
     var identityTint: Color? = nil
@@ -45,7 +45,10 @@ private struct TintedCardBackground: View {
             .overlay {
                 if tintedBackgrounds {
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill((identityTint ?? cardTint).opacity(identityTint == nil ? (colorScheme == .dark ? 0.025 : 0.018) : (colorScheme == .dark ? 0.10 : 0.065)))
+                        .fill(LinearGradient(
+                            colors: [(identityTint ?? cardTint).opacity(colorScheme == .dark ? 0.18 : 0.11), .clear],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ))
                 }
             }
     }
@@ -61,7 +64,6 @@ private struct UnifiedCardModifier: ViewModifier {
             .padding(18)
             .background { TintedCardBackground(cornerRadius: 22, identityTint: identityTint) }
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(ForgiaPalette.border.opacity(0.8), lineWidth: 0.5).allowsHitTesting(false) }
     }
 }
 
@@ -71,30 +73,32 @@ extension View {
     }
 
     /// Applies the calm surface used across the main screens.
-    func themedBackground() -> some View {
-        modifier(ThemedBackgroundModifier())
+    func themedBackground(tint: Color? = nil) -> some View {
+        modifier(ThemedBackgroundModifier(identityTint: tint))
     }
 }
 
 // MARK: - Themed Background Modifier
 
 private struct ThemedBackgroundModifier: ViewModifier {
+    var identityTint: Color? = nil
     @Environment(\.cardTint) private var cardTint
     @Environment(\.tintedBackgrounds) private var tintedBackgrounds
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
+            .buttonBorderShape(.capsule)
             .background {
                 ForgiaPalette.canvas
                     .ignoresSafeArea()
-                    .overlay(alignment: .topLeading) {
+                    .overlay(alignment: .top) {
                         if tintedBackgrounds {
-                            RadialGradient(
-                                colors: [cardTint.opacity(0.035), .clear],
-                                center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 350
+                            LinearGradient(
+                                colors: [(identityTint ?? cardTint).opacity(colorScheme == .dark ? 0.20 : 0.12), .clear],
+                                startPoint: .top, endPoint: .bottom
                             )
+                            .frame(height: 360)
                             .ignoresSafeArea()
                         }
                     }

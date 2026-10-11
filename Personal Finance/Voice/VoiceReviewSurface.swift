@@ -101,7 +101,7 @@ struct VoiceReviewSurface: View {
                             .font(.body.weight(.semibold))
                             .frame(maxWidth: .infinity).frame(minHeight: 56)
                     }
-                    .buttonStyle(VoicePrimaryButtonStyle(cornerRadius: 18))
+                    .buttonStyle(VoicePrimaryButtonStyle())
                     .disabled(!canSave).accessibilityIdentifier("voice-approve")
                 }
                 .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 12)
@@ -168,7 +168,7 @@ private struct VoiceReviewCard: View {
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity).frame(minHeight: 52)
             }
-            .buttonStyle(VoicePrimaryButtonStyle(cornerRadius: 16))
+            .buttonStyle(VoicePrimaryButtonStyle())
             .disabled(issue != nil)
             .accessibilityIdentifier("voice-approve-\(draft.id)")
             ViewThatFits(in: .horizontal) {

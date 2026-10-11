@@ -149,7 +149,7 @@ struct SpendingOverviewView: View {
                 .padding(.bottom, 28)
             }
         }
-        .themedBackground()
+        .themedBackground(tint: ForgiaPalette.spending)
         .safeAreaBar(edge: .top, spacing: 0) {
             SpendingPeriodBar(
                 period: $period,

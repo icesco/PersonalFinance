@@ -172,7 +172,7 @@ struct VoiceDictationSurface: View {
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .frame(maxWidth: .infinity).frame(minHeight: 56)
                 }
-                .buttonStyle(VoicePrimaryButtonStyle(cornerRadius: recording ? 28 : 18))
+                .buttonStyle(VoicePrimaryButtonStyle())
                 .disabled(busy || unavailableReason != nil || (!recording && hasText && !canPrepare))
                 .accessibilityLabel(recording ? "Metti in pausa la dettatura" : primaryTitle)
                 .accessibilityIdentifier(recording || !hasText ? "voice-record" : "voice-interpret")
@@ -261,15 +261,14 @@ private struct VoicePrimaryControlLayout: Layout {
 }
 
 struct VoicePrimaryButtonStyle: ButtonStyle {
-    let cornerRadius: CGFloat
     @Environment(\.isEnabled) private var enabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(ForgiaPalette.onAccent)
-            .background(ForgiaPalette.accent, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(ForgiaPalette.accent, in: Capsule())
+            .contentShape(Capsule())
             .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)

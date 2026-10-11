@@ -5,6 +5,7 @@ import FinanceCore
 struct AnalysisDetailScreen<Content: View>: View {
     let title: LocalizedStringKey
     let periodTitle: String
+    var tint: Color = ForgiaPalette.accent
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -17,7 +18,7 @@ struct AnalysisDetailScreen<Content: View>: View {
             .frame(maxWidth: .infinity)
             .padding(22)
         }
-        .themedBackground()
+        .themedBackground(tint: tint)
         .navigationTitle(title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -53,7 +54,7 @@ struct MonthlySpendingTrendCard: View {
 
     var body: some View {
         NavigationLink {
-            AnalysisDetailScreen(title: "Andamento delle spese", periodTitle: periodTitle) {
+            AnalysisDetailScreen(title: "Andamento delle spese", periodTitle: periodTitle, tint: ForgiaPalette.spending) {
                 MonthlySpendingTrendDetailContent(trend: trend, currency: currency)
             }
         } label: {
@@ -95,7 +96,7 @@ struct RecordedSavingsCard: View {
 
     var body: some View {
         NavigationLink {
-            AnalysisDetailScreen(title: "Tasso di risparmio", periodTitle: periodTitle) {
+            AnalysisDetailScreen(title: "Tasso di risparmio", periodTitle: periodTitle, tint: ForgiaPalette.savings) {
                 RecordedSavingsDetailContent(report: report, currency: currency, isInProgress: isInProgress, plan: plan)
             }
         } label: {
@@ -136,10 +137,12 @@ struct FinancialSharePreview: View {
     @State private var appeared = false
     var body: some View {
         ZStack {
-            Circle().stroke(tint.opacity(0.12), lineWidth: 6)
-            Circle().trim(from: 0, to: appeared || reduceMotion ? share : 0)
+            Circle().trim(from: 0, to: 0.75)
+                .stroke(tint.opacity(0.15), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .rotationEffect(.degrees(135))
+            Circle().trim(from: 0, to: appeared || reduceMotion ? min(1, max(0, share)) * 0.75 : 0)
                 .stroke(tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                .rotationEffect(.degrees(-90))
+                .rotationEffect(.degrees(135))
             Image(systemName: icon).foregroundStyle(tint)
         }.frame(width: 58, height: 58).padding(5)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: share)

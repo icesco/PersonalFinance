@@ -57,7 +57,7 @@ struct TodayView: View {
                                     .buttonStyle(.borderedProminent)
                                 NavigationLink("Saldo storico per libro") { BalanceHistoryView() }
                             }
-                            .themedBackground()
+                            .themedBackground(tint: ForgiaPalette.margin)
                         } else {
                             SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs,
                                                  initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
@@ -93,7 +93,7 @@ struct TodayView: View {
                             .padding(.top, 14)
                             .padding(.bottom, 32)
                         }
-                        .themedBackground()
+                        .themedBackground(tint: ForgiaPalette.margin)
                         #if os(iOS)
                         .toolbar(.hidden, for: .navigationBar)
                         #endif
@@ -263,37 +263,27 @@ private struct TodayMarginCard: View {
 
     var body: some View {
         NavigationLink {
-            AnalysisDetailScreen(title: "Il tuo margine", periodTitle: snapshot.accountName) {
+            AnalysisDetailScreen(title: "Il tuo margine", periodTitle: snapshot.accountName, tint: ForgiaPalette.margin) {
                 TodayMarginDetailContent(snapshot: snapshot, onVerify: onVerify, onImport: onImport, onAddIncome: onAddIncome)
             }
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 AnalysisPreviewHeading(title: "Quanto puoi ancora spendere", icon: "circle.dotted", tint: ForgiaPalette.margin)
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        if snapshot.hasMixedCurrencies {
-                            Text("Seleziona un solo libro").font(.title3.weight(.semibold))
-                            Text("Il margine richiede una sola valuta").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                        } else if let margin = snapshot.direction.estimatedMargin {
-                            Text(margin, format: .currency(code: snapshot.currency))
-                                .font(.system(.title, design: .rounded, weight: .semibold))
-                                .foregroundStyle(margin >= 0 ? ForgiaPalette.margin : ForgiaPalette.deficit).monospacedDigit().financeNumericMotion(margin)
-                            Text("Margine stimato").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                            if let nextIncome = snapshot.direction.nextIncome {
-                                Text("Fino al \(nextIncome.date, format: .dateTime.day().month(.abbreviated))")
-                                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                            }
-                        } else {
-                            Text("Stima da completare").font(.title3.weight(.semibold))
-                            Text("Apri per vedere cosa manca").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                    let available = snapshot.direction.liquidBalance - snapshot.direction.creditDebt
-                    if !snapshot.hasMixedCurrencies, let margin = snapshot.direction.estimatedMargin,
-                       available > 0, margin >= 0, margin <= available {
-                        FinancialSharePreview(share: NSDecimalNumber(decimal: margin / available).doubleValue, icon: "wallet.bifold")
-                            .accessibilityHidden(true)
+                if snapshot.hasMixedCurrencies {
+                    Text("Seleziona un solo libro").font(.title3.weight(.semibold))
+                    Text("Il margine richiede una sola valuta").font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                } else if let margin = snapshot.direction.estimatedMargin {
+                    TodayMarginHero(margin: margin,
+                                    available: snapshot.direction.liquidBalance - snapshot.direction.creditDebt,
+                                    currency: snapshot.currency)
+                    if let nextIncome = snapshot.direction.nextIncome {
+                        Text("Fino al \(nextIncome.date, format: .dateTime.day().month(.abbreviated))")
+                            .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                            .frame(maxWidth: .infinity)
                     }
+                } else {
+                    Text("Stima da completare").font(.title3.weight(.semibold))
+                    Text("Apri per vedere cosa manca").font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                 }
             }.unifiedCard(tint: ForgiaPalette.margin).foregroundStyle(.primary)
         }
@@ -386,9 +376,7 @@ private struct TodayMarginDetailContent: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
-        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 28))
-        .overlay { RoundedRectangle(cornerRadius: 28).strokeBorder(ForgiaPalette.border, lineWidth: 0.7) }
+        .unifiedCard(tint: ForgiaPalette.margin)
         .accessibilityElement(children: .contain)
         .sheet(isPresented: $showsMarginInfo) {
             NavigationStack {
@@ -630,10 +618,12 @@ struct TodayMarginVisualFixture: View {
                     TodayMarginCard(snapshot: snapshot, onVerify: {}, onImport: {}, onAddIncome: {})
                 }.padding(22)
             }
-            .themedBackground()
+            .themedBackground(tint: ForgiaPalette.margin)
             .navigationTitle("Il tuo margine")
             .toolbarTitleDisplayMode(.inline)
         }
+        .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("UITEST_VISUAL_DARK") ? .dark : nil)
+        .dynamicTypeSize(ProcessInfo.processInfo.arguments.contains("UITEST_VISUAL_LARGE_TEXT") ? .accessibility3 : .large)
     }
 }
 #endif

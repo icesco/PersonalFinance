@@ -59,9 +59,26 @@ struct MonthlySpendingLines: View {
     let trend: MonthlySpendingTrend
     let currency: String
     var compact = false
+    @State private var selectedDay: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if compact {
+                plot
+            } else {
+                plot.chartXSelection(value: $selectedDay)
+                SpendingTrendDaySelection(points: trend.current, selectedDay: $selectedDay, currency: currency)
+            }
+        }
+    }
+
+    private var selectedPoint: MonthlySpendingTrend.Point? {
+        guard let selectedDay else { return nil }
+        return trend.current.min { abs($0.day - selectedDay) < abs($1.day - selectedDay) }
+    }
+
+    private var plot: some View {
         Chart {
             ForEach(trend.current) { point in
                 LineMark(x: .value("Giorno", point.day), y: .value("Spese", number(point.amount)), series: .value("Periodo", "current"))
@@ -77,6 +94,13 @@ struct MonthlySpendingLines: View {
                 PointMark(x: .value("Giorno", last.day), y: .value("Spese", number(last.amount)))
                     .foregroundStyle(ForgiaPalette.spending).symbolSize(45)
             }
+            if !compact, let point = selectedPoint {
+                RuleMark(x: .value("Giorno selezionato", point.day))
+                    .foregroundStyle(ForgiaPalette.spending.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                PointMark(x: .value("Giorno", point.day), y: .value("Spese", number(point.amount)))
+                    .foregroundStyle(ForgiaPalette.spending).symbolSize(70)
+            }
         }
         .chartXScale(domain: 1...max(trend.daysInMonth, trend.previous.count))
         .chartXAxis { AxisMarks(values: [1, 5, 10, 15, 20, 25, trend.daysInMonth]) }
@@ -85,6 +109,7 @@ struct MonthlySpendingLines: View {
         .chartYAxis(compact ? .hidden : .automatic)
         .chartLegend(.hidden)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: trend.current.map(\.amount))
+        .padding(.vertical, compact ? 0 : 8)
         .financeChartReveal()
         .frame(height: compact ? 64 : 200)
         .accessibilityElement(children: .ignore)
@@ -93,4 +118,64 @@ struct MonthlySpendingLines: View {
     }
 
     private func number(_ value: Decimal) -> Double { NSDecimalNumber(decimal: value).doubleValue }
+}
+
+private struct SpendingTrendDaySelection: View {
+    let points: [MonthlySpendingTrend.Point]
+    @Binding var selectedDay: Int?
+    let currency: String
+
+    private var point: MonthlySpendingTrend.Point? {
+        guard let selectedDay else { return points.last }
+        return points.min { abs($0.day - selectedDay) < abs($1.day - selectedDay) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        ForEach(points) { item in
+                            Button { selectedDay = item.day } label: {
+                                Text(item.day, format: .number)
+                                    .font(.subheadline.weight(.semibold)).monospacedDigit()
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .foregroundStyle(point?.day == item.day ? ForgiaPalette.onAccent : .primary)
+                                    .background(point?.day == item.day ? ForgiaPalette.spending : ForgiaPalette.surface, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Giorno \(item.day)")
+                            .accessibilityAddTraits(point?.day == item.day ? .isSelected : [])
+                            .accessibilityIdentifier("spending-trend-day-\(item.day)")
+                            .id(item.day)
+                        }
+                    }
+                }
+                .scrollIndicators(.hidden)
+                .onAppear { if let point { proxy.scrollTo(point.day, anchor: .center) } }
+                .onChange(of: point?.day) { _, day in
+                    if let day { proxy.scrollTo(day, anchor: .center) }
+                }
+            }
+            if let point {
+                let prior = points.first { $0.day == point.day - 1 }?.amount ?? 0
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Giorno \(point.day)").font(.subheadline.weight(.semibold))
+                    HStack {
+                        Text("Spesa del giorno").foregroundStyle(ForgiaPalette.mutedText)
+                        Spacer(minLength: 8)
+                        Text(point.amount - prior, format: .currency(code: currency)).monospacedDigit()
+                    }
+                    HStack {
+                        Text("Totale fino a questo giorno").foregroundStyle(ForgiaPalette.mutedText)
+                        Spacer(minLength: 8)
+                        Text(point.amount, format: .currency(code: currency)).monospacedDigit()
+                    }
+                }
+                .font(.subheadline)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("spending-trend-day-detail")
+            }
+        }
+    }
 }

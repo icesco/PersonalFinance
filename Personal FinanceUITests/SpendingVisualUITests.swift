@@ -136,6 +136,17 @@ final class SpendingVisualUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Andamento delle spese"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["ottobre 2026"].exists)
         capture(app, "formi-analysis-trend-detail")
+        let dayDetail = app.descendants(matching: .any)["spending-trend-day-detail"]
+        scrollTo(dayDetail, in: app)
+        let day = Calendar.current.component(.day, from: Date())
+        let selectedDay = app.buttons["spending-trend-day-\(day)"]
+        XCTAssertTrue(selectedDay.exists)
+        selectedDay.tap()
+        XCTAssertTrue(dayDetail.label.contains("Giorno \(day)"))
+        let previousDay = app.buttons["spending-trend-day-\(max(1, day - 1))"]
+        previousDay.tap()
+        XCTAssertTrue(dayDetail.label.contains("Giorno \(max(1, day - 1))"))
+        capture(app, "formi-analysis-selected-day")
         let explanation = app.buttons["Come leggere il grafico"]
         scrollTo(explanation, in: app)
         explanation.tap()
@@ -178,6 +189,21 @@ final class SpendingVisualUITests: XCTestCase {
         capture(app, "formi-brim-margin-example")
         app.buttons["Come è calcolato quanto puoi ancora spendere"].tap()
         XCTAssertTrue(app.staticTexts["Un margine, non una promessa"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testMarginDarkWithLargeText() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_MARGIN_VISUAL", "UITEST_VISUAL_DARK", "UITEST_VISUAL_LARGE_TEXT",
+                               "-CloudSyncEnabled", "NO", "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        app.launch()
+        let preview = app.buttons["today-margin-preview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        XCTAssertLessThanOrEqual(preview.frame.maxX, app.frame.maxX)
+        capture(app, "formi-home-margin-dark-large-text")
+        preview.tap()
+        XCTAssertTrue(app.staticTexts["Margine stimato"].waitForExistence(timeout: 10))
+        capture(app, "formi-margin-dark-large-text")
     }
 
     @MainActor

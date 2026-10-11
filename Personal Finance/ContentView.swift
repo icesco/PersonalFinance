@@ -45,6 +45,7 @@ struct ContentView: View {
         .background { WatchSnapshotObserver() }
         #endif
         .tint(appState.themeManager.currentTheme.color)
+        .buttonBorderShape(.capsule)
         .environment(\.locale, Locale(identifier: "it_IT"))
         .onAppear {
             initializeAppState()

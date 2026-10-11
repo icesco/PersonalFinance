@@ -640,7 +640,7 @@ struct QuickTransactionModal: View {
             typeButton(.transfer, title: "Trasferimento", icon: "arrow.left.arrow.right")
         }
         .padding(4)
-        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .background(ForgiaPalette.surface, in: Capsule())
     }
 
     private func typeButton(_ type: TransactionType, title: String, icon: String) -> some View {
@@ -659,7 +659,7 @@ struct QuickTransactionModal: View {
                 .foregroundStyle(selected ? ForgiaPalette.accent : ForgiaPalette.mutedText)
                 .background {
                     if selected {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        Capsule()
                             .fill(type == .expense ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface)
                     }
                 }

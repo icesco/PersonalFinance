@@ -11,6 +11,7 @@ import FinanceCore
 struct TodayBudgetsCard: View {
     let budgets: [TodayBudgetSnapshot]
     let onOpen: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         Button(action: onOpen) {
@@ -42,42 +43,16 @@ struct TodayBudgetsCard: View {
                  : "Tutti i budget sono in linea")
                 .font(.system(.title3, design: .serif, weight: .semibold))
 
-            VStack(spacing: 12) {
+            LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize
+                      ? [GridItem(.flexible())]
+                      : [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 12) {
                 ForEach(ranked.prefix(2), id: \.id) { item in
-                    row(item)
+                    TodayBudgetTile(snapshot: item)
                 }
             }
         }
-        .unifiedCard()
+        .unifiedCard(tint: ForgiaPalette.accent)
         .contentShape(RoundedRectangle(cornerRadius: 22))
-    }
-
-    private func row(_ snapshot: TodayBudgetSnapshot) -> some View {
-        let color = Color(hex: snapshot.colorHex)
-        return HStack(spacing: 12) {
-            Image(systemName: snapshot.icon)
-                .font(.system(size: 15.2, weight: .semibold))
-                .foregroundStyle(color)
-                .frame(width: 38, height: 38)
-                .background(color.opacity(0.14), in: Circle())
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(snapshot.name)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(snapshot.status == .over ? "Oltre di \(snapshot.money(-snapshot.remaining))"
-                         : "Restano \(snapshot.money(snapshot.remaining))")
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(snapshot.status == .over ? Color.red : ForgiaPalette.mutedText)
-                }
-                BudgetMeter(share: snapshot.share, threshold: snapshot.threshold, color: snapshot.color, height: 6)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private var invitation: some View {
@@ -102,6 +77,38 @@ struct TodayBudgetsCard: View {
         }
         .unifiedCard()
         .contentShape(RoundedRectangle(cornerRadius: 22))
+    }
+}
+
+private struct TodayBudgetTile: View {
+    let snapshot: TodayBudgetSnapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Text(snapshot.name).font(.subheadline.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Image(systemName: snapshot.icon)
+                    .foregroundStyle(Color(hex: snapshot.colorHex))
+                    .accessibilityHidden(true)
+            }
+            Text(snapshot.spent, format: .currency(code: snapshot.currency))
+                .font(.system(.title3, design: .rounded, weight: .semibold))
+                .monospacedDigit().foregroundStyle(snapshot.color)
+                .lineLimit(1).minimumScaleFactor(0.75)
+            BudgetMeter(share: snapshot.share, threshold: snapshot.threshold, color: snapshot.color, height: 6)
+                .accessibilityHidden(true)
+            Text(snapshot.status == .over ? "Oltre di \(snapshot.money(-snapshot.remaining))"
+                 : "Restano \(snapshot.money(snapshot.remaining))")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(snapshot.status == .over ? ForgiaPalette.deficit : ForgiaPalette.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(14)
+        .background(ForgiaPalette.surface.opacity(0.8), in: RoundedRectangle(cornerRadius: 18))
+        .accessibilityElement(children: .combine)
     }
 }
 

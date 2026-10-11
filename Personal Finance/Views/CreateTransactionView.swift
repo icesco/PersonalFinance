@@ -397,7 +397,7 @@ struct CreateTransactionView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background(isFormInvalid ? ForgiaPalette.border : ForgiaPalette.accent,
-                            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            in: Capsule())
                 .foregroundStyle(isFormInvalid ? ForgiaPalette.mutedText : ForgiaPalette.onAccent)
         }
         .disabled(isFormInvalid)

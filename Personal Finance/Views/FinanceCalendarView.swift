@@ -57,7 +57,7 @@ struct FinanceCalendarView: View {
                                 categoryLabel: event.kind == .recorded ? "Registrato" : "Previsto", categoryIcon: "circle",
                                 categoryColor: event.kind == .recorded ? ForgiaPalette.spending : ForgiaPalette.calendar, title: event.title)
                         }
-                    }.unifiedCard()
+                    }.unifiedCard(tint: ForgiaPalette.calendar)
                 }
                 HStack(spacing: 18) {
                     if !timeline {
@@ -66,6 +66,8 @@ struct FinanceCalendarView: View {
                     Label(timeline ? "Previsto" : "Previsto / da registrare", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.calendar)
                 }.font(.caption)
                 Button("Torna a oggi") { month = Date(); selectedDate = Calendar.current.startOfDay(for: Date()) }
+                    .buttonStyle(.bordered)
+                    .tint(ForgiaPalette.calendar)
                     .accessibilityIdentifier("finance-calendar-today")
                 FinanceCalendarSummary(events: events, currency: currency, upcomingOnly: timeline)
                 if timeline {
@@ -98,7 +100,7 @@ struct FinanceCalendarView: View {
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .themedBackground()
+        .themedBackground(tint: ForgiaPalette.calendar)
         .navigationTitle("Calendario e timeline")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
