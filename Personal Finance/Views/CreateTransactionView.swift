@@ -126,9 +126,6 @@ struct CreateTransactionView: View {
             #else
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if transactionType != .transfer {
-                        VoiceTransactionEntryButton(onComplete: { dismiss() })
-                    }
                     amountCard
 
                     if transactionType == .transfer && hasDifferentCurrencies {
@@ -499,16 +496,21 @@ struct CreateTransactionView: View {
     }
 
     private var saveBar: some View {
-        Button(action: createTransaction) {
-            Text(transactionType == .transfer ? "Salva trasferimento" : transactionType == .income ? "Salva entrata" : "Salva spesa")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .background(isFormInvalid ? ForgiaPalette.border : ForgiaPalette.accent,
-                            in: Capsule())
-                .foregroundStyle(isFormInvalid ? ForgiaPalette.mutedText : ForgiaPalette.onAccent)
+        HStack(spacing: 10) {
+            Button(action: createTransaction) {
+                Text(transactionType == .transfer ? "Salva trasferimento" : transactionType == .income ? "Salva entrata" : "Salva spesa")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(isFormInvalid ? ForgiaPalette.border : ForgiaPalette.accent,
+                                in: Capsule())
+                    .foregroundStyle(isFormInvalid ? ForgiaPalette.mutedText : ForgiaPalette.onAccent)
+            }
+            .disabled(isFormInvalid)
+            if transactionType != .transfer {
+                VoiceTransactionEntryButton(onComplete: { dismiss() }, style: .compact)
+            }
         }
-        .disabled(isFormInvalid)
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 8)

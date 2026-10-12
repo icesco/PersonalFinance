@@ -1,8 +1,11 @@
 import SwiftUI
 
 struct VoiceTransactionEntryButton: View {
+    enum Style { case card, compact }
     let onComplete: () -> Void
     var onOpen: () -> Void = {}
+    /// `compact` is the round microphone beside the save button, within thumb reach.
+    var style: Style = .card
     @State private var showingVoice = false
     @State private var savedMovements = false
 
@@ -12,6 +15,16 @@ struct VoiceTransactionEntryButton: View {
             savedMovements = false
             showingVoice = true
         } label: {
+            if style == .compact {
+                Image(systemName: "mic.fill")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(ForgiaPalette.accent)
+                    .frame(width: 54, height: 54)
+                    .background(ForgiaPalette.accent.opacity(0.14), in: Circle())
+                    .contentShape(Circle())
+                    .accessibilityLabel("Aggiungi con la voce")
+                    .accessibilityHint("Detta uno o più movimenti e poi controllali.")
+            } else {
             HStack(spacing: 14) {
                 Image(systemName: "mic.fill")
                     .font(.title3)
@@ -31,6 +44,7 @@ struct VoiceTransactionEntryButton: View {
             .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 22))
             .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(ForgiaPalette.border) }
             .contentShape(RoundedRectangle(cornerRadius: 22))
+            }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("transaction-voice-entry")

@@ -481,9 +481,6 @@ struct QuickTransactionModal: View {
             #else
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if transactionType != .transfer {
-                        VoiceTransactionEntryButton(onComplete: { dismiss() }, onOpen: { amountFocused = false })
-                    }
                     typeSelector
                     amountCard
                     if transactionType == .expense, let proposedAmount = parsedAmount {
@@ -580,7 +577,7 @@ struct QuickTransactionModal: View {
             }
             #if !os(macOS)
             .safeAreaBar(edge: .bottom, spacing: 0) {
-                VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 10) {
                     Button(action: saveTransaction) {
                         Text(saveTitle)
                             .font(.headline)
@@ -591,10 +588,13 @@ struct QuickTransactionModal: View {
                             .foregroundStyle(isFormValid ? ForgiaPalette.onAccent : ForgiaPalette.mutedText)
                     }
                     .disabled(!isFormValid)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
+                    if transactionType != .transfer {
+                        VoiceTransactionEntryButton(onComplete: { dismiss() }, onOpen: { amountFocused = false }, style: .compact)
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
             }
             #endif
             .sheet(isPresented: $showingConversion) {

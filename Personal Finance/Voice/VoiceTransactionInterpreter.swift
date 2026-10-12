@@ -17,7 +17,7 @@ import FinanceCore
     var type: SpokenMovementType
     @Guide(description: "Merchant or purpose copied from the input. Empty if no merchant or purpose was given. Do not invent salary, shopping or restaurant.")
     var note: String
-    @Guide(description: "Exact date words copied from the input for this movement, such as ieri or 5 ottobre 2026. Empty if no date words were spoken.")
+    @Guide(description: "Exact date and time words copied from the input for this movement, such as ieri sera, sabato alle 13 or 5 ottobre alle 8 e mezza. Empty if no date or time words were spoken.")
     var dateExpression: String
     @Guide(description: "Name of the account explicitly spoken. Empty if absent; never guess.")
     var account: String
@@ -57,8 +57,9 @@ import FinanceCore
             Missing or ambiguous amounts stay empty. Never invent an amount or account.
             Preserve amounts stated in negated movements too; only their type is unresolved.
             Apply a shared explicit date/account to movements only when the text clearly says so.
-            Copy each movement's clause into sourceText, including negations. Copy date words into dateExpression.
-            Without a date in the input, dateExpression is empty. Never turn today's context into a spoken date.
+            Copy each movement's clause into sourceText, including negations. Copy date and time words into dateExpression,
+            including relative days (ieri, sabato scorso, tre giorni fa), times (alle 20:30, a pranzo, stasera) and day numbers (il 5).
+            Without date or time words in the input, dateExpression is empty. Never turn today's context into a spoken date.
             Generic received money has no merchant or purpose: leave note and category empty.
             Preserve all individual movements, even when amounts and merchants repeat.
             Existing category names: \(names.joined(separator: ", ")).
