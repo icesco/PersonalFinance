@@ -22,19 +22,18 @@ struct FinanceBalanceWidgetContent: View {
         } else if size == .medium {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Saldo per conto").font(.caption.weight(.semibold))
+                    BalanceWidgetHeader(compact: true)
                     HStack(spacing: 3) {
                         Text(bookName)
                         Text("·")
                         BalanceWidgetPeriodLabel(period: history.period)
                     }.font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     Text(history.recordedTotal, format: .currency(code: currency))
-                        .font(.title3.bold()).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+                        .font(.system(.title3, design: .rounded, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
                     Text("Previsto: \(history.projectedTotal.formatted(.currency(code: currency)))")
                         .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
                     Spacer(minLength: 0)
-                    Text(history.recordedAt, format: .dateTime.day().month().hour().minute())
-                        .font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+                    FinanceWidgetFreshness(generatedAt: history.recordedAt, now: Date())
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .leading, spacing: 7) {
@@ -42,23 +41,22 @@ struct FinanceBalanceWidgetContent: View {
                                        selectedDate: .constant(nil), compact: true, interactive: false, snapshotLabel: true)
                         .frame(maxHeight: .infinity)
                     HStack(spacing: 6) {
-                        ForEach(Array(history.series.prefix(3))) { account in
+                        ForEach(Array(history.series.prefix(2))) { account in
                             HStack(spacing: 3) {
-                                Circle().fill(account.color).frame(width: 4, height: 4)
+                                Circle().fill(account.color).frame(width: 5, height: 5)
                                 Text(account.name).lineLimit(1)
                             }
                         }
-                        if history.series.count > 3 { Text("+\(history.series.count - 3)") }
-                    }.font(.system(size: 9)).foregroundStyle(.secondary)
-                    Text("Tratteggio: previsto").font(.system(size: 9)).foregroundStyle(.secondary)
+                        if history.series.count > 2 { Text("+\(history.series.count - 2)") }
+                    }.font(.caption2).foregroundStyle(.secondary)
                 }
+                // The plot draws its "Registrato" label above its own frame.
+                .padding(.top, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Saldo per conto").font(.subheadline.weight(.semibold))
-                    Spacer(minLength: 4)
+                BalanceWidgetHeader {
                     HStack(spacing: 3) {
                         Text(bookName)
                         Text("·")
@@ -67,7 +65,7 @@ struct FinanceBalanceWidgetContent: View {
                 }
                 HStack(alignment: .firstTextBaseline) {
                     Text(history.recordedTotal, format: .currency(code: currency))
-                        .font(.title2.bold()).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+                        .font(.system(.title2, design: .rounded, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
                     Spacer(minLength: 6)
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("Previsto").font(.caption2).foregroundStyle(.secondary)
@@ -98,10 +96,29 @@ struct FinanceBalanceWidgetContent: View {
                     Text("Tratteggio: previsto")
                     Spacer(minLength: 4)
                     Text(history.recordedAt, format: .dateTime.day().month().hour().minute())
-                }.font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+                }.font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }
+}
+
+/// The balance widget's identity colour, shared by its header and background.
+struct BalanceWidgetTint {
+    static func color(_ theme: AppTheme) -> Color { theme.palette.indicators.balance }
+}
+
+private struct BalanceWidgetHeader<Trailing: View>: View {
+    var compact = false
+    @ViewBuilder var trailing: Trailing
+    @Environment(\.financeWidgetTheme) private var theme
+    var body: some View {
+        FinanceWidgetHeader(title: "Saldo per conto", icon: "chart.xyaxis.line",
+                            tint: BalanceWidgetTint.color(theme), compact: compact) { trailing }
+    }
+}
+
+extension BalanceWidgetHeader where Trailing == EmptyView {
+    init(compact: Bool = false) { self.init(compact: compact) { EmptyView() } }
 }
 
 private struct BalanceWidgetPeriodLabel: View {
@@ -123,20 +140,20 @@ private struct FinanceBalanceSmallContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Saldo per conto").font(.caption.weight(.semibold)).lineLimit(1)
+            BalanceWidgetHeader(compact: true)
             HStack(spacing: 3) {
                 Text(bookName)
                 Text("·")
                 BalanceWidgetPeriodLabel(period: history.period)
-            }.font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+            }.font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             Text(history.recordedTotal, format: .currency(code: currency))
-                .font(.title3.bold()).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                .font(.system(.title3, design: .rounded, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
             BalanceHistoryPlot(series: history.series, interval: history.interval, currency: currency,
                                selectedDate: .constant(nil), compact: true, interactive: false,
                                snapshotLabel: true, minimal: true)
                 .frame(maxHeight: .infinity)
             Text("Previsto: \(history.projectedTotal.formatted(.currency(code: currency)))")
-                .font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.65)
+                .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.65)
         }
     }
 }
@@ -148,9 +165,7 @@ private struct FinanceBalanceExtraLargeContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Saldo per conto").font(.headline)
-                Spacer(minLength: 8)
+            BalanceWidgetHeader {
                 HStack(spacing: 4) {
                     Text(bookName)
                     Text("·")
@@ -162,7 +177,7 @@ private struct FinanceBalanceExtraLargeContent: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline) {
                             Text(history.recordedTotal, format: .currency(code: currency))
-                                .font(.largeTitle.bold()).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                                .font(.system(.largeTitle, design: .rounded, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                             Spacer(minLength: 8)
                             VStack(alignment: .trailing, spacing: 2) {
                                 Text("Previsto a fine periodo").font(.caption).foregroundStyle(.secondary)
@@ -228,16 +243,14 @@ private struct FinanceBalancePortraitContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Saldo per conto").font(.headline)
-                Spacer(minLength: 4)
+            BalanceWidgetHeader {
                 BalanceWidgetPeriodLabel(period: history.period)
                     .font(.caption).foregroundStyle(.secondary)
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(bookName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Text(history.recordedTotal, format: .currency(code: currency))
-                    .font(.largeTitle.bold()).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                 HStack {
                     Text("Previsto a fine periodo").foregroundStyle(.secondary)
                     Spacer(minLength: 4)

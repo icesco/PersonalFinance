@@ -47,7 +47,9 @@ struct FinanceWidgetProvider: AppIntentTimelineProvider {
         FinanceWidgetEntry(date: Date(), snapshot: .empty(.hidden), bookID: nil)
     }
     func snapshot(for configuration: FinanceWidgetConfiguration, in context: Context) async -> FinanceWidgetEntry {
-        entry(for: configuration)
+        context.isPreview
+            ? FinanceWidgetEntry(date: Date(), snapshot: FinanceWidgetSample.snapshot, bookID: FinanceWidgetSample.bookID)
+            : entry(for: configuration)
     }
     func timeline(for configuration: FinanceWidgetConfiguration, in context: Context) async -> Timeline<FinanceWidgetEntry> {
         let entry = entry(for: configuration)
@@ -91,7 +93,7 @@ struct FinanceWidgetView: View {
             homeSummary
             #endif
         }
-        .containerBackground(for: .widget) { FinanceWidgetBackground() }
+        .containerBackground(for: .widget) { FinanceWidgetBackground(tint: accent) }
         .widgetURL(FinanceWidgetRoute(destination: destination, bookID: entry.book?.id ?? entry.bookID).url)
     }
 
@@ -103,59 +105,137 @@ struct FinanceWidgetView: View {
     }
 
     private var homeSummary: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label { Text("Formi") } icon: { Image("FormiMark").resizable().widgetAccentedRenderingMode(.desaturated).scaledToFit().frame(width: 14, height: 14) }.font(.caption.weight(.semibold)).financeWidgetForeground(accent)
-                Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            FinanceWidgetHeader(title: entry.book?.budget != nil ? "Budget" : "Questo mese",
+                                icon: entry.book?.budget != nil ? "target" : "chart.bar.fill",
+                                tint: accent, compact: family == .systemSmall) {
                 if family != .systemSmall {
                     Link(destination: FinanceWidgetRoute(destination: .expense, bookID: entry.book?.id ?? entry.bookID).url) {
-                        Label("Spesa", systemImage: "plus.circle.fill").font(.caption.weight(.semibold))
+                        Label("Spesa", systemImage: "plus")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .foregroundStyle(theme.palette.onAccent)
+                            .background(accent, in: Capsule())
                     }
+                    .widgetAccentable()
                 }
             }
             if let book = entry.book {
                 summary(book).privacySensitive()
             } else {
-                Spacer(minLength: 0)
-                Label(entry.snapshot.state == .hidden ? "Dati nascosti" : "Apri Formi", systemImage: entry.snapshot.state == .hidden ? "lock.fill" : "arrow.clockwise")
-                    .font(.headline)
-                Text(entry.snapshot.state == .hidden ? (family == .systemSmall ? "Gestisci in Formi" : "Gestisci la visibilità nelle impostazioni.") : "Aggiorna nell’app.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Text(entry.snapshot.state == .hidden ? "Nuova spesa" : "Apri il riepilogo").font(.caption2).financeWidgetForeground(accent)
+                FinanceWidgetStateView(hidden: entry.snapshot.state == .hidden, tint: accent,
+                                       compact: family == .systemSmall)
             }
         }
     }
 
+    @ViewBuilder
     private func summary(_ book: WidgetBookSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(book.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            if let budget = book.budget {
-                Text(budget.name).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(budget.remaining, format: .currency(code: book.currency))
-                    .font(.title2.bold()).minimumScaleFactor(0.6).lineLimit(1)
-                    .foregroundStyle(budget.remaining < 0 ? .red : .primary)
-                Text(budget.remaining < 0 ? "Oltre il budget" : (family == .systemSmall ? "Residuo registrato" : "Residuo budget registrato")).font(.caption2)
-            } else {
-                Text(book.monthSpent, format: .currency(code: book.currency))
-                    .font(.title2.bold()).minimumScaleFactor(0.6).lineLimit(1)
-                Text("Spese registrate nel mese").font(.caption2)
+        if family == .systemSmall {
+            VStack(alignment: .leading, spacing: 4) {
+                Spacer(minLength: 6)
+                hero(book)
+                Spacer(minLength: 6)
+                if let budget = book.budget { BudgetBar(budget: budget, tint: tint(for: budget)) }
+                caption(book)
             }
-            if family != .systemSmall {
-                let end = Calendar.current.date(byAdding: .day, value: 7, to: entry.date) ?? entry.date
-                let count = book.occurrenceDates.filter { $0 >= entry.date && $0 < end }.count
-                HStack {
+        } else {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Spacer(minLength: 6)
+                    hero(book)
+                    Spacer(minLength: 6)
+                    if let budget = book.budget { BudgetBar(budget: budget, tint: tint(for: budget)) }
+                    caption(book)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 8) {
+                    Spacer(minLength: 6)
                     if book.budget != nil {
-                        Text("Mese: \(book.monthSpent.formatted(.currency(code: book.currency)))")
+                        WidgetStat(title: "Spese del mese", value: book.monthSpent.formatted(.currency(code: book.currency)),
+                                   icon: "calendar", tint: accent)
                     }
-                    Spacer(minLength: 4)
-                    Text("\(count) scadenze · 7 giorni")
-                }.font(.caption2).foregroundStyle(.secondary)
+                    WidgetStat(title: "Scadenze in 7 giorni", value: "\(weekDueCount(book))",
+                               icon: "calendar.badge.clock", tint: accent)
+                    Spacer(minLength: 0)
+                    FinanceWidgetFreshness(generatedAt: entry.snapshot.generatedAt, now: entry.date)
+                }
+                .frame(width: 128, alignment: .leading)
             }
-            Spacer(minLength: 0)
-            Text("Al \(entry.snapshot.generatedAt.formatted(.dateTime.day().month().hour().minute()))")
-                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
+    }
+
+    private func hero(_ book: WidgetBookSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(book.budget.map { $0.remaining < 0 ? "Oltre il budget" : "Restano" } ?? "Spese registrate")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(book.budget.map { abs($0.remaining) } ?? book.monthSpent, format: .currency(code: book.currency))
+                .font(.system(family == .systemSmall ? .title2 : .title, design: .rounded, weight: .bold))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                .financeWidgetForeground(book.budget.map(tint(for:)) ?? .primary)
+                .widgetAccentable()
+        }
+    }
+
+    private func caption(_ book: WidgetBookSnapshot) -> some View {
+        Group {
+            if let budget = book.budget {
+                Text("\(budget.name) · \(budget.spent.formatted(.currency(code: book.currency))) di \(budget.limit.formatted(.currency(code: book.currency)))")
+            } else {
+                Text(book.name)
+            }
+        }
+        .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+    }
+
+    private func weekDueCount(_ book: WidgetBookSnapshot) -> Int {
+        let end = Calendar.current.date(byAdding: .day, value: 7, to: entry.date) ?? entry.date
+        return book.occurrenceDates.filter { $0 >= entry.date && $0 < end }.count
+    }
+
+    private func tint(for budget: WidgetBudgetSnapshot) -> Color {
+        budget.remaining < 0 ? theme.palette.indicators.deficit : theme.palette.indicators.margin
+    }
+}
+
+/// Spent share of the budget, with the overrun shown as a full deficit bar.
+private struct BudgetBar: View {
+    let budget: WidgetBudgetSnapshot
+    let tint: Color
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    private var share: Double {
+        budget.limit > 0 ? min(1, NSDecimalNumber(decimal: budget.spent / budget.limit).doubleValue) : 1
+    }
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(renderingMode == .fullColor ? 0.08 : 0.2))
+                Capsule().fill(renderingMode == .fullColor ? tint : .primary)
+                    .frame(width: max(6, proxy.size.width * share))
+                    .widgetAccentable()
+            }
+        }
+        .frame(height: 6)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct WidgetStat: View {
+    let title: LocalizedStringKey
+    let value: String
+    let icon: String
+    let tint: Color
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).font(.caption.weight(.semibold))
+                .financeWidgetForeground(tint).frame(width: 16)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value).font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                Text(title).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -199,6 +279,7 @@ struct ForgiaOverviewWidget: Widget {
         AppIntentConfiguration(kind: FinanceWidgetStorage.kind, intent: FinanceWidgetConfiguration.self, provider: FinanceWidgetProvider()) {
             FinanceWidgetView(entry: $0)
                 .environment(\.financeWidgetTheme, FinanceWidgetAppearance.theme)
+                .environment(\.locale, FinanceWidgetAppearance.locale)
         }
         .configurationDisplayName("Riepilogo Formi")
         .description("Budget residuo, spese del mese e scadenze per un libro.")

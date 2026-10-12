@@ -45,7 +45,10 @@ struct FinanceBalanceProvider: AppIntentTimelineProvider {
         FinanceBalanceEntry(date: Date(), snapshot: .empty(.hidden), bookID: nil, period: .month)
     }
     func snapshot(for configuration: FinanceBalanceConfiguration, in context: Context) async -> FinanceBalanceEntry {
-        entry(for: configuration)
+        context.isPreview
+            ? FinanceBalanceEntry(date: Date(), snapshot: FinanceWidgetSample.snapshot, bookID: FinanceWidgetSample.bookID,
+                                  period: configuration.period.snapshotPeriod)
+            : entry(for: configuration)
     }
     func timeline(for configuration: FinanceBalanceConfiguration, in context: Context) async -> Timeline<FinanceBalanceEntry> {
         let entry = entry(for: configuration)
@@ -66,6 +69,8 @@ struct FinanceBalanceProvider: AppIntentTimelineProvider {
 struct FinanceBalanceWidgetView: View {
     let entry: FinanceBalanceEntry
     @Environment(\.widgetFamily) private var family
+    @Environment(\.financeWidgetTheme) private var theme
+    private var tint: Color { BalanceWidgetTint.color(theme) }
 
     private var contentSize: FinanceBalanceWidgetSize {
         if #available(iOS 27.0, macOS 27.0, *), family == .systemExtraLargePortrait { return .extraLargePortrait }
@@ -84,21 +89,15 @@ struct FinanceBalanceWidgetView: View {
                                             size: contentSize)
                     .privacySensitive()
             } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("Saldo per conto", systemImage: "chart.xyaxis.line").font(family == .systemSmall ? .caption : .headline)
-                    Spacer(minLength: 0)
-                    Label(entry.snapshot.state == .hidden ? "Dati nascosti" : "Apri Formi per aggiornare",
-                          systemImage: entry.snapshot.state == .hidden ? "lock.fill" : "arrow.clockwise")
-                        .font(family == .systemSmall ? .caption : .subheadline)
-                    Text(entry.snapshot.state == .hidden
-                         ? "Abilita i dati finanziari nei widget dalle impostazioni di Formi."
-                         : "Scegli un libro disponibile e aggiorna i dati nell’app.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 0) {
+                    FinanceWidgetHeader(title: "Saldo per conto", icon: "chart.xyaxis.line", tint: tint,
+                                        compact: family == .systemSmall)
+                    FinanceWidgetStateView(hidden: entry.snapshot.state == .hidden, tint: tint,
+                                           compact: family == .systemSmall)
                 }
             }
         }
-        .containerBackground(for: .widget) { FinanceWidgetBackground() }
+        .containerBackground(for: .widget) { FinanceWidgetBackground(tint: tint) }
         .widgetURL(FinanceWidgetRoute(destination: .analysis, bookID: entry.book?.id ?? entry.bookID).url)
     }
 }
@@ -115,6 +114,7 @@ struct FinanceBalanceWidget: Widget {
                                provider: FinanceBalanceProvider()) {
             FinanceBalanceWidgetView(entry: $0)
                 .environment(\.financeWidgetTheme, FinanceWidgetAppearance.theme)
+                .environment(\.locale, FinanceWidgetAppearance.locale)
         }
             .configurationDisplayName("Saldo per conto")
             .description("L’andamento dei tuoi conti e la previsione basata sui movimenti programmati.")
