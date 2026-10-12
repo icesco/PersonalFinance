@@ -13,6 +13,9 @@ public enum FormiCLIService {
     public struct Row: Codable, Sendable {
         public let requestID: UUID
         public let transactionID: UUID?
+        public let accountID: UUID
+        public let toAccountID: UUID?
+        public let toAccount: String?
         public let account: String
         public let category: String?
         public let amount: String
@@ -31,6 +34,7 @@ public enum FormiCLIService {
     private struct Validated {
         let input: FormiCLIMovement
         let conto: Conto
+        let destination: Conto?
         let category: Category?
         let amount: Decimal
         let date: Date
@@ -44,8 +48,9 @@ public enum FormiCLIService {
 
     public static func execute(_ request: FormiCLIRequest, container: ModelContainer,
                                calendar: Calendar = .current) throws -> Result {
-        guard [1, 2].contains(request.version),
-              request.version == 2 || request.movements.allSatisfy({ $0.recurrence == nil }), request.categoryMutation == nil, ["add", "import", "preview"].contains(request.command),
+        guard request.transactionQuery == nil, [1, 2, 4].contains(request.version),
+              request.version == 4 || request.movements.allSatisfy({ $0.type != "transfer" && $0.toAccountID == nil }),
+              request.version != 1 || request.movements.allSatisfy({ $0.recurrence == nil }), request.categoryMutation == nil, ["add", "import", "preview"].contains(request.command),
               !request.movements.isEmpty, request.movements.count <= 500,
               request.command != "add" || request.movements.count == 1,
               request.command != "preview" || !request.commit else {
@@ -65,8 +70,8 @@ public enum FormiCLIService {
         for (index, input) in request.movements.enumerated() {
             do {
                 guard ids.insert(input.requestID).inserted else { throw Failure("requestID ripetuto nel lotto.") }
-                guard let type = TransactionType(rawValue: input.type), type != .transfer else {
-                    throw Failure("Il tipo deve essere expense o income.")
+                guard let type = TransactionType(rawValue: input.type) else {
+                    throw Failure("Il tipo deve essere expense, income o transfer.")
                 }
                 guard let conto = conti.first(where: { $0.id == input.accountID && $0.isActive == true }),
                       let book = conto.account, book.isActive == true,
@@ -75,6 +80,24 @@ public enum FormiCLIService {
                 }
                 guard !shared.contains(book.id) else { throw Failure("La CLI supporta per ora solo libri personali.") }
                 guard book.currency == input.currency else { throw Failure("La valuta non corrisponde al libro.") }
+                var destination: Conto?
+                if type == .transfer {
+                    guard request.version == 4, input.recurrence == nil,
+                          let destinationID = input.toAccountID, destinationID != conto.id,
+                          let found = conti.first(where: { $0.id == destinationID && $0.isActive == true }),
+                          let destinationBook = found.account, destinationBook.isActive == true else {
+                        throw Failure("Trasferimento non valido: scegli due conti diversi e attivi, senza ricorrenza.")
+                    }
+                    guard !shared.contains(destinationBook.id) else {
+                        throw Failure("Il conto di arrivo deve appartenere a un libro personale.")
+                    }
+                    guard destinationBook.currency == input.currency else {
+                        throw Failure("I trasferimenti CLI richiedono la stessa valuta nei due libri.")
+                    }
+                    destination = found
+                } else if input.toAccountID != nil {
+                    throw Failure("toAccountID è consentito soltanto per i trasferimenti.")
+                }
                 guard input.amount.range(of: #"^[0-9]+(?:\.[0-9]+)?$"#, options: .regularExpression) != nil,
                       input.amount.filter(\.isNumber).count <= 38,
                       let amount = Decimal(string: input.amount, locale: Locale(identifier: "en_US_POSIX")),
@@ -101,7 +124,7 @@ public enum FormiCLIService {
                 var category: Category?
                 if let id = input.categoryID {
                     guard let found = categories.first(where: { $0.id == id && $0.isActive == true }),
-                          found.account?.id == book.id, found.fits(type) else {
+                          found.account?.id == book.id, (type == .transfer || found.fits(type)) else {
                         throw Failure("Categoria non disponibile o incompatibile con il conto e il tipo.")
                     }
                     category = found
@@ -135,19 +158,25 @@ public enum FormiCLIService {
                                          date, ending: endDate, frequency: cadence, calendar: calendar)
                     }
                 } ?? false
-                let duplicate = receipt == nil && (recurringDuplicate || candidates.contains {
-                    $0.type == type && $0.amount == amount &&
-                    (type == .expense ? ($0.fromContoId ?? $0.fromConto?.id) : ($0.toContoId ?? $0.toConto?.id)) == conto.id &&
-                    ($0.transactionDescription ?? "") == (input.description ?? "")
-                } || validated.contains {
-                    $0.receipt == nil && $0.conto.id == conto.id && $0.type == type && $0.amount == amount &&
-                    calendar.isDate($0.date, inSameDayAs: date) &&
-                    ($0.input.description ?? "") == (input.description ?? "")
+                let duplicate = receipt == nil && (recurringDuplicate || candidates.contains { candidate in
+                    guard candidate.type == type, candidate.amount == amount else { return false }
+                    if type == .transfer {
+                        return (candidate.fromContoId ?? candidate.fromConto?.id) == conto.id
+                            && (candidate.toContoId ?? candidate.toConto?.id) == destination?.id
+                    }
+                    return (type == .expense ? (candidate.fromContoId ?? candidate.fromConto?.id) :
+                        (candidate.toContoId ?? candidate.toConto?.id)) == conto.id
+                        && (candidate.transactionDescription ?? "") == (input.description ?? "")
+                } || validated.contains { candidate in
+                    guard candidate.receipt == nil, candidate.conto.id == conto.id, candidate.type == type,
+                          candidate.amount == amount, calendar.isDate(candidate.date, inSameDayAs: date) else { return false }
+                    if type == .transfer { return candidate.destination?.id == destination?.id }
+                    return (candidate.input.description ?? "") == (input.description ?? "")
                 })
                 if request.commit && duplicate && !request.allowDuplicates {
                     throw Failure("Possibile duplicato. Verifica l'anteprima; usa --allow-duplicates solo se voluto.")
                 }
-                validated.append(Validated(input: input, conto: conto, category: category, amount: amount,
+                validated.append(Validated(input: input, conto: conto, destination: destination, category: category, amount: amount,
                     date: date, type: type, frequency: frequency, endDate: endDate, digest: digest, receipt: receipt, duplicate: duplicate))
             } catch {
                 throw Failure("Movimento \(index + 1): \(error.localizedDescription)")
@@ -162,7 +191,10 @@ public enum FormiCLIService {
                                               isRecurring: item.frequency != nil,
                                               recurrenceFrequency: item.frequency, recurrenceEndDate: item.endDate)
                 transaction.externalID = "formi-cli:\(item.input.requestID.uuidString)"
-                if item.type == .expense { transaction.setFromConto(item.conto) }
+                if item.type == .transfer {
+                    transaction.setFromConto(item.conto)
+                    transaction.setToConto(item.destination)
+                } else if item.type == .expense { transaction.setFromConto(item.conto) }
                 else { transaction.setToConto(item.conto) }
                 transaction.setCategory(item.category)
                 context.insert(transaction)
@@ -171,6 +203,7 @@ public enum FormiCLIService {
                 transactionID = transaction.id
             }
             rows.append(Row(requestID: item.input.requestID, transactionID: transactionID,
+                accountID: item.conto.id, toAccountID: item.destination?.id, toAccount: item.destination?.name,
                 account: item.conto.name ?? "Conto", category: item.category?.name,
                 amount: item.input.amount, currency: item.input.currency, date: item.input.date,
                 type: item.input.type, description: item.input.description,
@@ -210,7 +243,7 @@ public enum FormiCLIService {
     public static func recurrences(_ request: FormiCLIRequest, container: ModelContainer,
                                    calendar: Calendar = .current, now: Date = Date()) throws -> [RecurringRow] {
         guard request.version == 2, request.command == "recurrences", !request.commit,
-              request.movements.isEmpty, request.categoryMutation == nil else {
+              request.movements.isEmpty, request.categoryMutation == nil, request.transactionQuery == nil else {
             throw Failure("Richiesta di lettura ricorrenze non valida.")
         }
         let context = ModelContext(container)

@@ -54,7 +54,7 @@ public enum FormiCLICategoryService {
 
     public static func execute(_ request: FormiCLIRequest, container: ModelContainer) throws -> Result {
         typealias Failure = FormiCLIService.Failure
-        guard request.version == 1, ["category-create", "category-update"].contains(request.command),
+        guard request.transactionQuery == nil, request.version == 1, ["category-create", "category-update"].contains(request.command),
               request.movements.isEmpty, !request.allowDuplicates,
               let input = request.categoryMutation, let bookID = request.bookID else {
             throw Failure("Richiesta categoria non valida.")

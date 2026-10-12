@@ -39,9 +39,12 @@ struct FormiCLI {
        requestID e dati. Non generare nuovi UUID per ritentare un movimento.
        alreadyRecorded significa che la richiesta era già stata registrata:
        non ricreare movimenti successivamente modificati o eliminati.
-    7. Il lotto è atomico (1–500 movimenti, massimo 2 MB). La CLI supporta solo
-       spese ed entrate nei libri personali, senza conversioni implicite, trasferimenti,
-       allegati. Le ricorrenze richiedono CLI 1.3 e un’app con protocollo 2. saved prova il salvataggio locale, non la sincronizzazione cloud.
+    7. Il lotto è atomico (1–500 movimenti, massimo 2 MB). La CLI supporta
+       spese, entrate e trasferimenti nei libri personali, senza conversioni implicite
+       o allegati. Per i trasferimenti usa type transfer, accountID di partenza e
+       toAccountID di arrivo: due conti diversi nella stessa valuta. CLI 1.5/protocollo 4
+       scrive una sola transazione; confronta entrambi i lati e non importare due copie.
+       I trasferimenti non accettano ricorrenze; i duplicati ignorano la descrizione. Le ricorrenze richiedono CLI 1.3 e un’app con protocollo 2. saved prova il salvataggio locale, non la sincronizzazione cloud.
     8. Per categorie usa category-create o category-update con --book e un nuovo
        --request-id stabile per ciascuna operazione. categories --include-archived
        mostra anche gli archiviati, parentID, type, active, color e icon.
@@ -57,7 +60,11 @@ struct FormiCLI {
        non li riattiva. Sposta prima tutti i figli per rendere una principale figlia.
        Nomi uguali fra fratelli sono rifiutati anche se archiviati. Colori #RRGGBB,
        icone SF Symbols disponibili sul Mac. Nessuna eliminazione definitiva.
-    9. Per migrare ricorrenze leggi prima recurrences --book UUID e confronta le serie
+    9. transactions legge lo storico, inclusi trasferimenti e conti archiviati, senza scrivere.
+       --from/--to sono inclusivi nel fuso di Formi. Le date future richiedono --include-planned.
+       Leggi tutte le pagine con nextOffset e --revision; se lo storico cambia riparti da zero.
+       La lettura richiede CLI 1.4 e un’app con protocollo 3; non prova completezza bancaria o sync iCloud.
+    10. Per migrare ricorrenze leggi prima recurrences --book UUID e confronta le serie
        esistenti. In add usa --recurrence FREQUENZA e, se serve, --recurrence-end YYYY-MM-DD.
        In JSON usa recurrence: {"frequency":"monthly","endDate":"2032-07-15"}.
        date è la prima occorrenza da importare; endDate include tutta l'ultima giornata.
@@ -66,7 +73,7 @@ struct FormiCLI {
        e date allineate sono possibili duplicati anche con descrizioni diverse.
        Rimuovi dal lotto le serie confermate già presenti; non unirle automaticamente.
        Un vecchio ricevitore rifiuta il protocollo 2: aggiorna anche l'app, non solo la CLI.
-    10. Non aggirare CLI disabilitata, blocco privacy, wrong_app o altre validazioni.
+    11. Non aggirare CLI disabilitata, blocco privacy, wrong_app o altre validazioni.
        Chiedi all'utente di aprire la copia corretta di Formi e risolvere il problema.
     """
     static let help = """
@@ -74,10 +81,12 @@ struct FormiCLI {
 
     formi accounts [--book UUID]
     formi categories [--book UUID] [--include-archived]
+    formi transactions [--book UUID] [--account UUID] [--from YYYY-MM-DD] [--to YYYY-MM-DD]
+                       [--limit 1–500] [--offset N] [--revision TOKEN] [--include-planned]
     formi recurrences [--book UUID]
     formi add --account UUID --amount 25.50 --currency EUR
               [--category UUID] [--description "Spesa"] [--date YYYY-MM-DD]
-              [--request-id UUID] [--type expense|income] [--yes] [--allow-duplicates]
+              [--request-id UUID] [--type expense|income|transfer] [--to-account UUID] [--yes] [--allow-duplicates]
               [--recurrence daily|weekly|biweekly|monthly|quarterly|semiannually|yearly]
               [--recurrence-end YYYY-MM-DD]
     formi preview movimenti.json
@@ -102,6 +111,9 @@ struct FormiCLI {
     Archivio (--active false) di una principale archivia i figli; riattivarla
     non riattiva automaticamente i figli. La gerarchia ha due livelli.
     Le risposte sono JSON. --json è accettato per compatibilità.
+    I trasferimenti richiedono --type transfer e --to-account UUID (toAccountID nel JSON).
+    accountID/--account è il conto di partenza. Entrambi i libri devono essere personali
+    e nella stessa valuta; i trasferimenti non accettano ricorrenze.
     Ogni movimento JSON richiede requestID, accountID, type, amount (stringa),
     currency e date (YYYY-MM-DD); categoryID e description sono facoltativi.
     recurrence è facoltativo: {"frequency":"monthly","endDate":"2032-07-15"}.
@@ -135,7 +147,7 @@ struct FormiCLI {
                 let executable = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
                 let appURL = executable.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().standardizedFileURL
                 let info = try appInfo(at: appURL)
-                let metadata: [String: Any] = ["cliVersion": "1.3", "protocolVersion": 2,
+                let metadata: [String: Any] = ["cliVersion": "1.5", "protocolVersion": 4,
                     "command": commandName, "configuration": channel, "appPath": appURL.path,
                     "appVersion": info["CFBundleShortVersionString"] as? String ?? "unknown",
                     "appBuild": info["CFBundleVersion"] as? String ?? "unknown",
@@ -143,7 +155,7 @@ struct FormiCLI {
                 print(String(decoding: try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]), as: UTF8.self)); return
             }
             if arguments == ["schema"] {
-                print(##"{"version":2,"maxBatchSize":500,"commands":["info","ai-help","accounts","categories","recurrences","add","preview","import","category-create","category-update"],"categoryMutation":{"required":["bookID","requestID"],"create":"name required; categoryID assigned from requestID","update":"categoryID required; omitted fields preserved","fields":{"name":"1-200 characters","color":"#RRGGBB","icon":"SF Symbol","parent":"UUID or none","type":"expense|income|both (children inherit)","active":"true|false"},"commit":"preview first, then same arguments with --revision TOKEN --yes","hierarchyLevels":2,"archive":"root also archives children; reactivate individually","retry":"same requestID, fields and revision; alreadyRecorded never reapplies","list":"categories --include-archived includes parentID, type, active, icon, color"},"movement":{"requestID":"UUID (stable on retries)","accountID":"UUID from accounts","categoryID":"optional UUID from categories","type":"expense|income","amount":"positive decimal string, e.g. 25.50","currency":"account currency, e.g. EUR","date":"YYYY-MM-DD in Formi's local time zone","description":"optional string","recurrence":{"frequency":"daily|weekly|biweekly|monthly|quarterly|semiannually|yearly","endDate":"optional inclusive YYYY-MM-DD; must be on/after date","date":"movement date is first occurrence","requiresProtocolVersion":2}},"writes":"add/import require --yes","transfers":false}"##)
+                print(##"{"version":4,"maxBatchSize":500,"commands":["info","ai-help","accounts","categories","recurrences","transactions","add","preview","import","category-create","category-update"],"transactionRead":{"requiresProtocolVersion":3,"filters":["book","account","from","to"],"dates":"YYYY-MM-DD inclusive in app timezone","default":"stored transactions through now, including transfers and archived accounts","includePlanned":"--include-planned includes future stored rows, never expands recurrences","pagination":"limit 1-500 (default 200), offset, nextOffset, revision; restart if revision changes"},"categoryMutation":{"required":["bookID","requestID"],"create":"name required; categoryID assigned from requestID","update":"categoryID required; omitted fields preserved","fields":{"name":"1-200 characters","color":"#RRGGBB","icon":"SF Symbol","parent":"UUID or none","type":"expense|income|both (children inherit)","active":"true|false"},"commit":"preview first, then same arguments with --revision TOKEN --yes","hierarchyLevels":2,"archive":"root also archives children; reactivate individually","retry":"same requestID, fields and revision; alreadyRecorded never reapplies","list":"categories --include-archived includes parentID, type, active, icon, color"},"movement":{"requestID":"UUID (stable on retries)","accountID":"UUID from accounts","categoryID":"optional UUID from categories","type":"expense|income|transfer","toAccountID":"required for transfer: destination UUID from accounts; accountID is source","amount":"positive decimal string, e.g. 25.50","currency":"account currency, e.g. EUR","date":"YYYY-MM-DD in Formi's local time zone","description":"optional string","recurrence":{"frequency":"daily|weekly|biweekly|monthly|quarterly|semiannually|yearly","endDate":"optional inclusive YYYY-MM-DD; must be on/after date","date":"movement date is first occurrence","requiresProtocolVersion":2}},"writes":"add/import require --yes","transfers":{"requiresProtocolVersion":4,"sameCurrencyOnly":true,"personalBooksOnly":true,"recurring":false,"category":"optional active category from source book","duplicate":"same day, amount, source and destination regardless of description"}}"##)
                 return
             }
             let formatter = DateFormatter()

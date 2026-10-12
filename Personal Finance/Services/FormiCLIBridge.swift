@@ -47,7 +47,7 @@ enum FormiCLIBridge {
         guard let data = pasteboard.data(forType: .init(FormiCLIWire.requestType)),
               data.count <= FormiCLIWire.maxBytes,
               let request = try? FormiCLIWire.decoder().decode(FormiCLIRequest.self, from: data),
-              request.id == id, [1, 2].contains(request.version) else {
+              request.id == id, [1, 2, 3, 4].contains(request.version) else {
             fail("invalid_request", "Richiesta CLI non valida."); return
         }
         guard request.targetAppPath == Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL.path,
@@ -73,7 +73,7 @@ enum FormiCLIBridge {
             let context = ModelContext(container)
             switch request.command {
             case "accounts", "categories":
-                guard !request.commit, request.movements.isEmpty, request.categoryMutation == nil else {
+                guard !request.commit, request.movements.isEmpty, request.categoryMutation == nil, request.transactionQuery == nil else {
                     throw FormiCLIService.Failure("La lettura non accetta movimenti o commit.")
                 }
                 let shared = Set(try context.fetch(FetchDescriptor<SharedBookMembership>()).map(\.localBookID))
@@ -100,6 +100,10 @@ enum FormiCLIBridge {
                     reply(["ok": true, "revisions": revisions, "categories":
                         try JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(rows))])
                 }
+            case "transactions":
+                let result = try FormiCLITransactionService.read(request, container: container)
+                reply(["ok": true, "version": 3, "result":
+                    try JSONSerialization.jsonObject(with: FormiCLIWire.encoder().encode(result))])
             case "recurrences":
                 let rows = try FormiCLIService.recurrences(request, container: container)
                 reply(["ok": true, "version": 2, "timeZone": TimeZone.current.identifier,

@@ -180,8 +180,8 @@ una nuova operazione genera un nuovo UUID. Vale anche il blocco dei libri condiv
 - Stesso conto, giorno, tipo, importo e descrizione vengono segnalati come possibile
   duplicato, anche all'interno del lotto. `--allow-duplicates --yes` permette
   inserimenti identici intenzionali con requestID diversi.
-- Sono supportate spese ed entrate nei libri personali. Trasferimenti,
-  allegati e scritture nei libri condivisi non sono inclusi in questa versione.
+- Sono supportate spese, entrate e trasferimenti nella stessa valuta fra conti personali.
+  Allegati, trasferimenti ricorrenti o tra valute diverse e scritture nei libri condivisi non sono inclusi.
 
 ## Collegamento locale
 
@@ -246,3 +246,61 @@ duplicati e il salvataggio è bloccato: verifica e rimuovi dal lotto le serie gi
 presenti. Non vengono unite o modificate automaticamente. Il controllo è locale;
 attendi che iCloud abbia scaricato i dati prima di importare. Le ricevute persistenti
 rendono i retry con gli stessi requestID idempotenti anche per le ricorrenze.
+
+## Storico delle transazioni (CLI 1.4 / protocollo 3)
+
+```sh
+formi transactions --book UUID_LIBRO --from 2026-01-01 --to 2026-10-12
+formi transactions --account UUID_CONTO --limit 500
+formi transactions --account UUID_CONTO --limit 500 --offset 500 --revision TOKEN
+```
+
+Lettura senza scritture, con JSON in `result.transactions`. `total` indica il totale
+che corrisponde ai filtri, `nextOffset` la prossima pagina; se omesso, la lettura è completa.
+L'ordine è data crescente e UUID per le date identiche. Per le pagine successive conserva
+filtri e `revision`: se i dati cambiano, la richiesta fallisce e devi ripartire da zero.
+`--limit` accetta 1–500 (default 200), `--offset` parte da zero. I limiti sulle dimensioni
+non tagliano i dati: una risposta troppo grande richiede un limite o periodo più piccolo.
+
+`--from` e `--to` includono l'intera giornata nel fuso restituito in `timeZone`.
+Senza `--include-planned` si leggono solo movimenti con data non successiva all'istante
+attuale. La lettura include conti e libri archiviati e trasferimenti, una sola riga per
+transazione; non genera occorrenze virtuali delle ricorrenze. Per un trasferimento,
+`fromAccountID`/`toAccountID` identificano i lati; `amount`/`currency` il lato di partenza,
+`destinationAmount`/`destinationCurrency` quello di arrivo. Un importo di arrivo assente
+conserva il comportamento storico nella stessa valuta. Importi decimali come stringhe;
+i dati mancanti restano assenti, senza inventare valori. Sono restituiti anche UUID,
+externalID, categoria, descrizione, note, valuta originale e ricorrenza.
+
+Usa `accounts` per associare i conti attivi ai nomi. Il nuovo comando richiede anche
+l'app aggiornata: la sola CLI non aggiunge la lettura a un'app precedente. Il risultato
+attesta i dati locali disponibili, non la completezza rispetto alla banca o a iCloud.
+
+## Trasferimenti (CLI 1.5 / protocollo 4)
+
+```sh
+formi add --type transfer --account UUID_PARTENZA --to-account UUID_ARRIVO \
+  --amount 350.00 --currency EUR --date 2026-09-18 \
+  --description 'Versamento PAC' --request-id UUID_STABILE
+# Dopo l'anteprima, ripeti gli stessi argomenti con --yes.
+```
+
+Per `preview`/`import` usa `type: "transfer"`, `accountID` per il conto di partenza
+e `toAccountID` per quello di arrivo. Categoria facoltativa e appartenente al libro
+di partenza. La risposta mostra UUID e nomi di entrambi i conti. I conti devono essere
+diversi, attivi, in libri personali attivi con la stessa valuta dichiarata: non si
+eseguono conversioni. I libri possono essere diversi; `--book` vincola il libro di
+partenza. `toAccountID` non è accettato per spese/entrate, né ricorrenze per trasferimenti.
+
+Ogni trasferimento produce una sola transazione con entrambi i collegamenti: il saldo
+scende nel conto di partenza e sale in quello di arrivo, senza creare spese o entrate.
+Un lotto può mescolare trasferimenti, spese ed entrate; tutti i movimenti sono validati
+prima di un unico salvataggio. Un ricevitore precedente al protocollo 4 rifiuta l'intero
+lotto prima di scrivere. I normali comandi precedenti mantengono il loro protocollo.
+
+Il confronto dei duplicati usa giorno, importo e coppia ordinata partenza/arrivo,
+indipendentemente da descrizione o categoria, anche fra righe dello stesso lotto.
+L'estratto del conto di partenza e quello di arrivo descrivono lo stesso movimento:
+importalo una sola volta. Mantieni UUID `requestID` e dati invariati nei retry;
+le ricevute persistenti impediscono reinserimenti anche dopo la cancellazione.
+Non usare `--allow-duplicates` per aggirare un conflitto di riconciliazione.

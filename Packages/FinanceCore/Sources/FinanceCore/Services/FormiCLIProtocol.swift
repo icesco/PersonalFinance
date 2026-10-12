@@ -34,6 +34,7 @@ public struct FormiCLIMovement: Codable, Sendable, Equatable {
     public var requestID: UUID
     public var accountID: UUID
     public var categoryID: UUID?
+    public var toAccountID: UUID?
     public var type: String
     /// Decimal string, never a floating-point JSON number.
     public var amount: String
@@ -44,10 +45,12 @@ public struct FormiCLIMovement: Codable, Sendable, Equatable {
 
     public init(requestID: UUID, accountID: UUID, categoryID: UUID? = nil,
                 type: String = "expense", amount: String, currency: String,
-                date: String, description: String? = nil, recurrence: FormiCLIRecurrence? = nil) {
+                date: String, description: String? = nil, recurrence: FormiCLIRecurrence? = nil,
+                toAccountID: UUID? = nil) {
         self.requestID = requestID; self.accountID = accountID; self.categoryID = categoryID
         self.type = type; self.amount = amount; self.currency = currency
         self.date = date; self.description = description; self.recurrence = recurrence
+        self.toAccountID = toAccountID
     }
 }
 
@@ -72,6 +75,23 @@ public struct FormiCLICategoryMutation: Codable, Sendable, Equatable {
     }
 }
 
+public struct FormiCLITransactionQuery: Codable, Sendable {
+    public var accountID: UUID?
+    public var from: String?
+    public var to: String?
+    public var limit: Int = 200
+    public var offset: Int = 0
+    public var includePlanned: Bool = false
+    public var revision: String?
+
+    public init(accountID: UUID? = nil, from: String? = nil, to: String? = nil,
+                limit: Int = 200, offset: Int = 0, includePlanned: Bool = false, revision: String? = nil) {
+        self.accountID = accountID; self.from = from; self.to = to
+        self.limit = limit; self.offset = offset; self.includePlanned = includePlanned
+        self.revision = revision
+    }
+}
+
 public struct FormiCLIRequest: Codable, Sendable {
     public var version: Int = 1
     public var id: UUID = UUID()
@@ -81,6 +101,7 @@ public struct FormiCLIRequest: Codable, Sendable {
     public var commit: Bool = false
     public var allowDuplicates: Bool = false
     public var categoryMutation: FormiCLICategoryMutation?
+    public var transactionQuery: FormiCLITransactionQuery?
     public var includeArchived: Bool?
     public var bookID: UUID?
     /// The app must reject delivery to a different installed copy before any write.

@@ -9,7 +9,7 @@ public enum FormiCLIArguments {
     public static func parse(_ arguments: [String], read: (String) throws -> Data,
                              today: String) throws -> FormiCLIRequest {
         guard let command = arguments.first,
-              ["accounts", "categories", "recurrences", "add", "import", "preview", "category-create", "category-update"].contains(command) else {
+              ["accounts", "categories", "recurrences", "transactions", "add", "import", "preview", "category-create", "category-update"].contains(command) else {
             throw Failure("Comando sconosciuto. Usa formi --help.")
         }
         var options: [String: String] = [:]
@@ -20,9 +20,11 @@ public enum FormiCLIArguments {
         let valueOptions: Set<String> = categoryCommand
             ? ["--book", "--category", "--name", "--color", "--icon", "--parent", "--type", "--active", "--request-id", "--revision"]
             : command == "add"
-            ? ["--account", "--category", "--amount", "--currency", "--date", "--description", "--request-id", "--type", "--book", "--recurrence", "--recurrence-end"]
+            ? ["--account", "--category", "--amount", "--currency", "--date", "--description", "--request-id", "--type", "--book", "--recurrence", "--recurrence-end", "--to-account"]
+            : command == "transactions" ? ["--book", "--account", "--from", "--to", "--limit", "--offset", "--revision"]
             : ["--book"]
         let flagOptions: Set<String> = categoryCommand ? ["--yes", "--json"]
+            : command == "transactions" ? ["--include-planned", "--json"]
             : command == "categories" ? ["--include-archived", "--json"]
             : ["add", "import"].contains(command)
             ? ["--yes", "--allow-duplicates", "--json"] : ["--json"]
@@ -61,7 +63,7 @@ public enum FormiCLIArguments {
                 type: options["--type"] ?? "expense", amount: amount, currency: currency,
                 date: options["--date"] ?? today, description: options["--description"], recurrence: options["--recurrence"].map {
                     FormiCLIRecurrence(frequency: $0, endDate: options["--recurrence-end"])
-                })]
+                }, toAccountID: try uuid("--to-account"))]
         } else if ["import", "preview"].contains(command) {
             guard let file else { throw Failure("Specifica un file JSON oppure - per stdin.") }
             let data = try read(file)
@@ -75,6 +77,34 @@ public enum FormiCLIArguments {
             allowDuplicates: flags.contains("--allow-duplicates"), bookID: try uuid("--book", required: categoryCommand))
         if command == "recurrences" || movements.contains(where: { $0.recurrence != nil }) {
             request.version = 2
+        }
+        if movements.contains(where: { $0.type == "transfer" || $0.toAccountID != nil }) {
+            request.version = 4
+            for movement in movements {
+                if movement.type == "transfer" {
+                    guard let destination = movement.toAccountID, destination != movement.accountID,
+                          movement.recurrence == nil else {
+                        throw Failure("Un trasferimento richiede un conto di arrivo diverso e non accetta ricorrenze.")
+                    }
+                } else if movement.toAccountID != nil {
+                    throw Failure("--to-account / toAccountID si usa solo con type transfer.")
+                }
+            }
+        }
+        if command == "transactions" {
+            func integer(_ key: String, default fallback: Int, range: ClosedRange<Int>) throws -> Int {
+                guard let value = options[key] else { return fallback }
+                guard let number = Int(value), range.contains(number) else {
+                    throw Failure("\(key) deve essere compreso tra \(range.lowerBound) e \(range.upperBound).")
+                }
+                return number
+            }
+            request.version = 3
+            request.transactionQuery = FormiCLITransactionQuery(accountID: try uuid("--account"),
+                from: options["--from"], to: options["--to"],
+                limit: try integer("--limit", default: 200, range: 1...500),
+                offset: try integer("--offset", default: 0, range: 0...Int.max),
+                includePlanned: flags.contains("--include-planned"), revision: options["--revision"])
         }
         request.includeArchived = flags.contains("--include-archived")
         if categoryCommand {
