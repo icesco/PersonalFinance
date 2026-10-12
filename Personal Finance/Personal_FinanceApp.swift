@@ -118,7 +118,9 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_NAVIGATION") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_BUDGET_DETAIL") {
+            BudgetDetailFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_NAVIGATION") {
             NavigationVisualFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_VOICE_REVIEW") {
             VoiceReviewVisualFixture()

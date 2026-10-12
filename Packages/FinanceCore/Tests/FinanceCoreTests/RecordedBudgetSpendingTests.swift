@@ -55,6 +55,10 @@ struct RecordedBudgetSpendingTests {
         first.categoryId = nil; first.fromContoId = nil
         try context.save()
         let transactions = [first, last, next, before, foreign, income, transfer]
+        let expenses = budget.recordedExpenses(for: range, transactions: transactions + [first, last])
+        #expect(expenses.map(\.id) == [last.id, first.id])
+        #expect(expenses.reduce(Decimal.zero) { $0 + ($1.amount ?? 0) }
+                == (try BudgetService.currentSpent(for: budget, in: context)))
         #expect(try BudgetService.currentSpent(for: budget, in: context) == 30)
         #expect(budget.currentSpent == 30)
         let preview = try #require(BudgetService.previewExpense(
@@ -67,5 +71,33 @@ struct RecordedBudgetSpendingTests {
                                            start: range.start, end: range.end) == 30)
         #expect(try BudgetService.previousPeriodSpent(for: budget, in: context) == 100)
         #expect(budget.previousPeriodSpent == 100)
+    }
+
+    @Test func expenseListIncludesChildrenAndRecordedRecurrencesButRespectsExactMembership() throws {
+        let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        let context = container.mainContext
+        let book = Account(name: "Book")
+        context.insert(book)
+        let conto = Conto(name: "Current", type: .checking)
+        conto.account = book; context.insert(conto)
+        let parent = FinanceCore.Category(name: "Food")
+        parent.account = book; context.insert(parent)
+        let child = FinanceCore.Category(name: "Groceries")
+        child.account = book; child.parentCategoryId = parent.id; context.insert(child)
+        let budget = Budget(name: "Food", amount: 100, period: .monthly)
+        budget.account = book; budget.categories = [parent]; context.insert(budget)
+        let range = budget.currentPeriodRange
+        let recurring = Transaction(amount: 120, type: .expense, date: range.end.addingTimeInterval(-1))
+        recurring.setFromConto(conto); recurring.setCategory(child)
+        recurring.isRecurring = true
+        context.insert(recurring)
+        try context.save()
+
+        #expect(budget.recordedExpenses(for: range, transactions: [recurring]).map(\.id) == [recurring.id])
+        #expect(try BudgetService.currentSpent(for: budget, in: context) == 120)
+        budget.usesExactCategories = true
+        #expect(budget.recordedExpenses(for: range, transactions: [recurring]).isEmpty)
+        budget.categories = [child]
+        #expect(budget.recordedExpenses(for: range, transactions: [recurring]).count == 1)
     }
 }

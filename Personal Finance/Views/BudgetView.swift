@@ -20,12 +20,21 @@ struct BudgetSnapshot {
     let currency: String
     let periodRange: (start: Date, end: Date)
 
-    init(_ budget: FinanceBudget) {
+    init(_ budget: FinanceBudget, transactions: [FinanceTransaction]? = nil) {
         limit = budget.amount ?? 0
         periodRange = budget.currentPeriodRange
-        spent = budget.getSpent(for: periodRange)
+        let ledger: [FinanceTransaction]
+        if let transactions {
+            ledger = transactions
+        } else {
+            let contoEntries: [FinanceTransaction] = (budget.account?.conti ?? []).flatMap { $0.outgoingTransactions ?? [] }
+            let categoryEntries: [FinanceTransaction] = (budget.categories ?? []).flatMap { $0.transactions ?? [] }
+            ledger = contoEntries + categoryEntries
+        }
+        spent = budget.recordedExpenses(for: periodRange, transactions: ledger)
+            .reduce(Decimal.zero) { $0 + ($1.amount ?? 0) }
         threshold = budget.alertThreshold ?? 0.8
-        outlook = budget.spendingOutlook()
+        outlook = BudgetOutlook.calculate(for: budget, transactions: ledger)
         currency = budget.account?.currency ?? "EUR"
     }
 
@@ -86,6 +95,7 @@ struct BudgetView: View {
                                 BudgetCard(budget: budget, snapshot: snapshot)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("budget-card-\(budget.id)")
                         }
                     }
                     if !archived.isEmpty {
@@ -416,17 +426,38 @@ struct BudgetDetailView: View {
     @State private var showingEdit = false
     @State private var confirmingArchive = false
     @State private var showingSaveError = false
+    @Query private var periodTransactions: [FinanceTransaction]
+    @State private var expenseOrder = ExpenseOrder.newest
+
+    private enum ExpenseOrder: String, CaseIterable {
+        case newest = "Più recenti"
+        case largest = "Importi maggiori"
+    }
+
+    init(budget: FinanceBudget) {
+        self.budget = budget
+        let range = budget.currentPeriodRange
+        let start = range.start
+        let end = range.end
+        let expenseType = TransactionType.expense.rawValue
+        _periodTransactions = Query(filter: #Predicate<FinanceTransaction> {
+            $0.date >= start && $0.date < end && $0.typeRaw == expenseType
+        })
+    }
 
     private var categories: [FinanceCategory] {
         FinanceCategory.displayOrdered(budget.categories ?? [])
     }
 
     var body: some View {
-        let snapshot = BudgetSnapshot(budget)
+        let snapshot = BudgetSnapshot(budget, transactions: periodTransactions)
+        let expenses = budget.recordedExpenses(for: snapshot.periodRange, transactions: periodTransactions)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     hero(snapshot)
+
+                    expenseSection(expenses, snapshot: snapshot)
 
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                         MetricTile(title: snapshot.status == .over ? "Oltre il limite" : "Rimanente",
@@ -504,6 +535,61 @@ struct BudgetDetailView: View {
         }
     }
 
+    private func expenseSection(_ expenses: [FinanceTransaction], snapshot: BudgetSnapshot) -> some View {
+        let ordered = expenseOrder == .newest ? expenses : expenses.sorted {
+            if $0.amount != $1.amount { return ($0.amount ?? 0) > ($1.amount ?? 0) }
+            if $0.date != $1.date { return $0.date > $1.date }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+        return VStack(alignment: .leading, spacing: 10) {
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Text("Transazioni del budget").font(.headline)
+                    Spacer(minLength: 8)
+                    if !expenses.isEmpty { expenseOrderPicker }
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Transazioni del budget").font(.headline)
+                    if !expenses.isEmpty { expenseOrderPicker }
+                }
+            }
+            Text(expenses.isEmpty ? "Nessuna spesa registrata per queste categorie nel periodo del budget."
+                 : "\(expenses.count) transazioni · \(snapshot.money(snapshot.spent))")
+                .font(.subheadline)
+                .foregroundStyle(ForgiaPalette.mutedText)
+
+            if !expenses.isEmpty {
+                Text("Queste spese compongono il totale, comprese quelle future già registrate. Tocca una transazione per vedere i dettagli.")
+                    .font(.caption)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+                LazyVStack(spacing: 0) {
+                    ForEach(ordered) { transaction in
+                        NavigationLink {
+                            TransactionDetailView(transaction: transaction)
+                        } label: {
+                            BudgetExpenseRow(transaction: transaction, currency: snapshot.currency)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("budget-expense-\(transaction.id)")
+                        if transaction.id != ordered.last?.id { Divider().padding(.horizontal, 16) }
+                    }
+                }
+                .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+        }
+    }
+
+    private var expenseOrderPicker: some View {
+        Picker("Ordina transazioni", selection: $expenseOrder) {
+            ForEach(ExpenseOrder.allCases, id: \.self) { order in
+                Text(order.rawValue).tag(order)
+            }
+        }
+        .pickerStyle(.menu)
+        .frame(minHeight: 44)
+        .accessibilityIdentifier("budget-expense-order")
+    }
+
     private func hero(_ snapshot: BudgetSnapshot) -> some View {
         let tint = snapshot.status == .over ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface
         let locale = Locale(identifier: "it_IT")
@@ -543,6 +629,80 @@ struct BudgetDetailView: View {
                            startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 25, style: .continuous)
         )
+    }
+}
+
+private struct BudgetExpenseRow: View {
+    let transaction: FinanceTransaction
+    let currency: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        HStack(spacing: 12) {
+            BudgetIcon(category: transaction.category, size: 34)
+                .accessibilityHidden(true)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    details
+                    amount
+                }
+            } else {
+                details
+                Spacer(minLength: 8)
+                amount
+            }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ForgiaPalette.mutedText)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Apre i dettagli della transazione")
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.primary)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(ForgiaPalette.mutedText)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+        }
+    }
+
+    private var subtitle: String {
+        let date = transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT")))
+        guard let conto = transaction.fromConto?.name, !conto.isEmpty else { return date }
+        return "\(date) · \(conto)"
+    }
+
+    private var title: String {
+        if let description = transaction.transactionDescription, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return description
+        }
+        return transaction.category?.displayPath ?? "Spesa"
+    }
+
+    private var amount: some View {
+        VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
+            Text("−\((transaction.amount ?? 0).formatted(.currency(code: currency)))")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.primary)
+                .monospacedDigit()
+                .fixedSize(horizontal: true, vertical: false)
+            if transaction.date > Date() {
+                Text("Futura")
+                    .font(.caption2)
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+        }
     }
 }
 

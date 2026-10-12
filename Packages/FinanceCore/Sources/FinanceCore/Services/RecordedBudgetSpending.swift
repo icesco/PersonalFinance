@@ -28,3 +28,16 @@ enum RecordedBudgetSpending {
         }
     }
 }
+
+extension Budget {
+    /// The ledger expenses contributing to the period total, including recorded future entries.
+    public func recordedExpenses(for period: (start: Date, end: Date),
+                                 transactions: [Transaction]) -> [Transaction] {
+        RecordedBudgetSpending.entries(for: self, transactions: transactions,
+                                       start: period.start, end: period.end)
+            .sorted {
+                if $0.date != $1.date { return $0.date > $1.date }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+    }
+}
