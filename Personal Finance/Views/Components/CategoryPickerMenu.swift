@@ -59,11 +59,15 @@ struct CategoryPickerSheet: View {
     let categories: [FinanceCategory]
     let type: TransactionType
     @Binding var selection: FinanceCategory?
+    var allowsNone = false
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
 
     var body: some View {
         let hierarchy = CategoryHierarchy(categories: categories, kind: CategoryKind(type))
+        #if os(macOS)
+        MacCategorySelection(categories: categories, type: type, selection: $selection, allowsNone: allowsNone)
+        #else
         NavigationStack {
             List {
                 Section {
@@ -105,6 +109,7 @@ struct CategoryPickerSheet: View {
                 }
             }
         }
+        #endif
     }
 
     private func matches(_ category: FinanceCategory) -> Bool {
@@ -137,3 +142,131 @@ struct CategoryPickerSheet: View {
         }
     }
 }
+
+#if os(macOS)
+private struct MacCategorySelection: View {
+    @FocusState private var sidebarFocused: Bool
+    let categories: [FinanceCategory]
+    let type: TransactionType
+    @Binding var selection: FinanceCategory?
+    let allowsNone: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var search = ""
+    @State private var rootID: UUID?
+
+    private var hierarchy: CategoryHierarchy {
+        CategoryHierarchy(categories: categories, kind: CategoryKind(type))
+    }
+    private var roots: [FinanceCategory] {
+        hierarchy.roots.filter { root in
+            search.isEmpty || matches(root) || hierarchy.children(of: root).contains(where: matches)
+        }
+    }
+    private var currentRoot: FinanceCategory? {
+        roots.first { $0.id == rootID } ?? roots.first
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Scegli una categoria").font(.headline)
+                Spacer()
+                TextField("Cerca una categoria", text: $search)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 240)
+            }
+            .padding(16)
+            Divider()
+            HStack(spacing: 0) {
+                List {
+                    ForEach(roots, id: \.id) { root in
+                        MacThemedSidebarRow(title: root.name ?? "Categoria", symbol: root.icon ?? "tag",
+                                            isSelected: currentRoot?.id == root.id) {
+                            rootID = root.id
+                            sidebarFocused = true
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+                .focusable()
+                .focusEffectDisabled()
+                .focused($sidebarFocused)
+                .onMoveCommand { direction in
+                    guard let index = roots.firstIndex(where: { $0.id == currentRoot?.id }) else { return }
+                    if direction == .up, index > 0 { rootID = roots[index - 1].id }
+                    if direction == .down, index + 1 < roots.count { rootID = roots[index + 1].id }
+                }
+                .frame(width: 205)
+                Divider()
+                if let root = currentRoot {
+                    List {
+                        Section(root.name ?? "Categoria") {
+                            categoryButton(root)
+                        }
+                        let children = hierarchy.children(of: root).filter {
+                            search.isEmpty || matches(root) || matches($0)
+                        }
+                        if !children.isEmpty {
+                            Section("Sottocategorie") {
+                                ForEach(children, id: \.id) { categoryButton($0) }
+                            }
+                        }
+                    }
+                    .listStyle(.inset)
+                } else {
+                    ContentUnavailableView.search(text: search)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            Divider()
+            HStack {
+                Text("Scegli la categoria principale o una sottocategoria.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if allowsNone {
+                    Button("Nessuna") { selection = nil; dismiss() }
+                }
+                Button("Annulla") { dismiss() }.keyboardShortcut(.cancelAction)
+            }
+            .padding(16)
+        }
+        .frame(width: 600, height: 460)
+        .onAppear {
+            rootID = hierarchy.roots.first { root in
+                root.id == selection?.id || hierarchy.children(of: root).contains { $0.id == selection?.id }
+            }?.id ?? hierarchy.roots.first?.id
+        }
+        .onChange(of: search) { _, _ in
+            if !roots.contains(where: { $0.id == rootID }) { rootID = roots.first?.id }
+        }
+    }
+
+    private func matches(_ category: FinanceCategory) -> Bool {
+        (category.name ?? "").localizedStandardContains(search)
+    }
+
+    private func categoryButton(_ category: FinanceCategory) -> some View {
+        Button {
+            selection = category
+            dismiss()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: category.icon ?? "tag")
+                    .foregroundStyle(category.tint)
+                    .frame(width: 24)
+                Text(category.name ?? "Categoria")
+                Spacer()
+                if selection?.id == category.id {
+                    Image(systemName: "checkmark").foregroundStyle(category.tint)
+                }
+            }
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(category.displayPath)
+        .accessibilityAddTraits(selection?.id == category.id ? .isSelected : [])
+    }
+}
+#endif

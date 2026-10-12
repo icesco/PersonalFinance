@@ -10,6 +10,9 @@ import SwiftData
 import FinanceCore
 
 struct MainTabView: View {
+    #if os(macOS)
+    @FocusState private var sidebarFocused: Bool
+    #endif
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -113,7 +116,7 @@ struct MainTabView: View {
         .financePresentation(isPresented: Binding(
             get: { appState.showingQuickTransaction },
             set: { _ in appState.dismissQuickTransaction() }
-        ), title: "Nuovo movimento") {
+        ), title: "Nuovo movimento", activationID: appState.quickTransactionActivationID) {
             QuickTransactionModal()
         }
         .financePresentation(isPresented: Binding(
@@ -216,24 +219,30 @@ struct MainTabView: View {
     #if os(macOS)
     private var macLayout: some View {
         NavigationSplitView {
-            List(selection: Binding(
-                get: { appState.selectedTab },
-                set: { if let tab = $0 { appState.selectTab(tab) } }
-            )) {
+            List {
                 Section("Panoramica") {
-                    Label("Oggi", systemImage: "house").tag(AppTab.dashboard)
-                    Label("Analisi", systemImage: "chart.pie").tag(AppTab.analysis)
+                    macSidebarRow(.dashboard, title: "Oggi", icon: "house")
+                    macSidebarRow(.analysis, title: "Analisi", icon: "chart.pie")
                 }
                 Section("Gestisci") {
-                    Label("Movimenti", systemImage: "list.bullet.rectangle").tag(AppTab.transactions)
-                    Label("Cerca", systemImage: "magnifyingglass").tag(AppTab.search)
-                    Label("Pianifica", systemImage: "calendar").tag(AppTab.planning)
-                    Label("Calendario", systemImage: "calendar").tag(AppTab.calendar)
-                    Label("Budget", systemImage: "chart.bar.xaxis").tag(AppTab.budgets)
-                    Label("Conti", systemImage: "creditcard").tag(AppTab.accounts)
+                    macSidebarRow(.transactions, title: "Movimenti", icon: "list.bullet.rectangle")
+                    macSidebarRow(.search, title: "Cerca", icon: "magnifyingglass")
+                    macSidebarRow(.planning, title: "Pianifica", icon: "calendar")
+                    macSidebarRow(.calendar, title: "Calendario", icon: "calendar")
+                    macSidebarRow(.budgets, title: "Budget", icon: "chart.bar.xaxis")
+                    macSidebarRow(.accounts, title: "Conti", icon: "creditcard")
                 }
             }
             .listStyle(.sidebar)
+            .focusable()
+            .focusEffectDisabled()
+            .focused($sidebarFocused)
+            .onMoveCommand { direction in
+                let tabs: [AppTab] = [.dashboard, .analysis, .transactions, .search, .planning, .calendar, .budgets, .accounts]
+                guard let index = tabs.firstIndex(of: appState.selectedTab) else { return }
+                if direction == .up, index > 0 { appState.selectTab(tabs[index - 1]) }
+                if direction == .down, index + 1 < tabs.count { appState.selectTab(tabs[index + 1]) }
+            }
             .navigationTitle("Formi")
             .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 280)
             .safeAreaInset(edge: .bottom) {
@@ -241,7 +250,6 @@ struct MainTabView: View {
                     Label(appState.showAllAccounts ? "Tutti i libri" : appState.selectedAccount?.name ?? "Nessun libro selezionato", systemImage: "books.vertical")
                         .lineLimit(1)
                     Button("Impostazioni…", systemImage: "gearshape") { appState.showingSettingsWindow = true }
-                    Button("Personalizza tab iPhone…", systemImage: "rectangle.bottomthird.inset.filled") { appState.showingTabCustomization = true }
                 }
                 .buttonStyle(.borderless)
                 .padding(16)
@@ -254,8 +262,10 @@ struct MainTabView: View {
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button("Nuova spesa", systemImage: "plus") { appState.presentQuickTransaction() }
                             .buttonStyle(.glassProminent)
+                            .tint(themeColor)
+                            .foregroundStyle(ForgiaPalette.onAccent)
+                            .fontWeight(.semibold)
                             .help("Nuova spesa (⌘N)")
-                            .disabled(appState.showingQuickTransaction)
                         Menu {
                             Button("Aggiungi con la voce", systemImage: "mic.fill") { showingVoice = true }
                             Button("Nuova entrata", systemImage: "arrow.down.left") { appState.presentQuickTransaction(type: .income) }
@@ -276,6 +286,13 @@ struct MainTabView: View {
         ), title: "Impostazioni", width: 960, height: 740, pinsBook: false) { SettingsView() }
         .financePresentation(isPresented: $showingMacImport, title: "Importa CSV", width: 800) { CSVImportView() }
         .financePresentation(isPresented: $showingMacExport, title: "Esporta CSV", width: 800) { CSVExportView() }
+    }
+
+    private func macSidebarRow(_ tab: AppTab, title: String, icon: String) -> some View {
+        MacThemedSidebarRow(title: title, symbol: icon, isSelected: appState.selectedTab == tab) {
+            appState.selectTab(tab)
+            sidebarFocused = true
+        }
     }
     #endif
 
@@ -463,6 +480,10 @@ struct QuickTransactionModal: View {
 
     var body: some View {
         NavigationStack {
+            Group {
+            #if os(macOS)
+            macTransactionForm
+            #else
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if transactionType != .transfer {
@@ -545,11 +566,14 @@ struct QuickTransactionModal: View {
             }
             .background(ForgiaPalette.canvas)
             .scrollDismissesKeyboard(.interactively)
+            #endif
+            }
             .navigationTitle(movementTitle)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annulla") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
                 }
                 #if os(macOS)
                 ToolbarItem(placement: .confirmationAction) {
@@ -648,6 +672,117 @@ struct QuickTransactionModal: View {
             }
         }
     }
+
+    #if os(macOS)
+    private var macTransactionForm: some View {
+        Form {
+            Section {
+                Picker("Tipo", selection: $transactionType) {
+                    Text("Spesa").tag(TransactionType.expense)
+                    Text("Entrata").tag(TransactionType.income)
+                    Text("Trasferimento").tag(TransactionType.transfer)
+                }
+                .pickerStyle(.segmented)
+                HStack(alignment: .firstTextBaseline) {
+                    TextField("Importo", text: $amount, prompt: Text("0,00"))
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                        .textFieldStyle(.plain)
+                        .focused($amountFocused)
+                        .accessibilityLabel("Importo")
+                    Text(selectedConto?.account?.currency ?? "EUR")
+                        .foregroundStyle(.secondary)
+                    Button { showingCalculator = true } label: {
+                        Image(systemName: "plus.forwardslash.minus")
+                    }
+                    .help("Calcolatrice")
+                    .accessibilityLabel("Calcolatrice")
+                }
+                if !amount.isEmpty, parsedAmount == nil || (parsedAmount ?? 0) <= 0 {
+                    Text("Inserisci un importo positivo valido.").font(.caption).foregroundStyle(.red)
+                }
+                if transactionType == .expense, let proposedAmount = parsedAmount {
+                    SpendingRiskBanner(amount: proposedAmount, categoryID: selectedCategory?.id,
+                                       accountID: selectedConto?.account?.id, conto: selectedConto,
+                                       date: selectedDate, currency: selectedConto?.account?.currency ?? "EUR") {
+                        riskLevel = $0
+                    }
+                }
+            }
+            Section("Dettagli") {
+                Picker(transactionType == .transfer ? "Dal conto" : "Conto", selection: $selectedConto) {
+                    Text("Seleziona un conto").tag(nil as Conto?)
+                    ForEach(availableConti, id: \.id) { conto in
+                        Text(conto.name ?? "Conto").tag(Optional(conto))
+                    }
+                }
+                if transactionType == .transfer {
+                    Picker("Al conto", selection: $destinationConto) {
+                        Text("Seleziona un conto").tag(nil as Conto?)
+                        ForEach(availableConti.filter { $0.id != selectedConto?.id }, id: \.id) { conto in
+                            Text(conto.name ?? "Conto").tag(Optional(conto))
+                        }
+                    }
+                    if hasDifferentCurrencies {
+                        TextField("Importo ricevuto", text: $destinationAmount)
+                    }
+                    if availableConti.count < 2 {
+                        Text("Per un trasferimento servono almeno due conti attivi.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } else {
+                    LabeledContent("Categoria") {
+                        Button {
+                            amountFocused = false
+                            showingCategoryPicker = true
+                        } label: {
+                            HStack {
+                                Label(selectedCategory?.displayPath ?? "Seleziona una categoria",
+                                      systemImage: selectedCategory?.icon ?? "tag")
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.up.chevron.down").font(.caption)
+                            }
+                        }
+                        .disabled(availableCategories.isEmpty)
+                        .accessibilityLabel("Categoria")
+                        .accessibilityValue(selectedCategory?.displayPath ?? "Nessuna categoria")
+                    }
+                }
+                TextField("Descrizione", text: $description, prompt: Text("Nota facoltativa"))
+                DatePicker("Data", selection: $selectedDate, displayedComponents: .date)
+            }
+            if transactionType == .expense, let proposedAmount = parsedAmount, proposedAmount > 0,
+               let category = selectedCategory, let conto = selectedConto, let account = conto.account {
+                Section("Budget") {
+                    ExpenseBudgetCheckView(amount: proposedAmount, categoryID: category.id,
+                                           accountID: account.id, date: selectedDate,
+                                           currency: account.currency ?? "EUR", isRecurring: isRecurring)
+                }
+            }
+            Section {
+                MacRecurrenceEditor(isRecurring: $isRecurring, frequency: $recurrenceFrequency,
+                                    hasEndDate: $hasRecurrenceEndDate, endDate: $recurrenceEndDate,
+                                    startDate: selectedDate)
+            }
+            Section("Altre opzioni") {
+                if transactionType != .transfer {
+                    Button("Importo in valuta estera…") { showingConversion = true }
+                    if let foreignAmount {
+                        Text(foreignAmount.originalAmount.formatted(.currency(code: foreignAmount.originalCurrency)))
+                            .foregroundStyle(.secondary)
+                    }
+                    VoiceTransactionEntryButton(onComplete: { dismiss() }, onOpen: { amountFocused = false })
+                }
+                DisclosureGroup("Luogo e allegati") {
+                    TransactionPlaceEditor(place: $place, isLocating: $loadingLocation)
+                    DraftAttachmentsView(attachments: $attachmentDrafts, onSelectAmount: {
+                        amount = NSDecimalNumber(decimal: $0).stringValue.replacingOccurrences(of: ".", with: ",")
+                    }, loading: $loadingAttachment)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+    #endif
 
     private var typeSelector: some View {
         HStack(spacing: 4) {

@@ -1,6 +1,36 @@
 import SwiftUI
 import FinanceCore
 
+#if os(macOS)
+struct MacRecurrenceEditor: View {
+    @Binding var isRecurring: Bool
+    @Binding var frequency: RecurrenceFrequency
+    @Binding var hasEndDate: Bool
+    @Binding var endDate: Date
+    let startDate: Date
+
+    var body: some View {
+        Toggle("Ripeti il movimento", isOn: $isRecurring)
+        if isRecurring {
+            Picker("Cadenza", selection: $frequency) {
+                ForEach(RecurrenceFrequency.allCases, id: \.self) {
+                    Text($0.displayName).tag($0)
+                }
+            }
+            Toggle("Data di fine", isOn: $hasEndDate)
+            if hasEndDate {
+                DatePicker("Ultimo giorno", selection: $endDate,
+                           in: Calendar.current.startOfDay(for: startDate)..., displayedComponents: .date)
+                if RecurrenceSchedule.inclusiveEnd(anchor: startDate, lastDay: endDate) == nil {
+                    Text("La fine della ricorrenza non può precedere la data iniziale.")
+                        .font(.caption).foregroundStyle(.red)
+                }
+            }
+        }
+    }
+}
+#endif
+
 /// Shared by quick entry, creation and editing so every series has the same controls.
 struct RecurrenceEditorRows: View {
     @Binding var isRecurring: Bool

@@ -8,6 +8,22 @@ import Testing
 
 @MainActor
 struct MacWorkspaceTests {
+    @Test func reopeningQuickEntryPreservesTheExistingDraft() {
+        let state = AppStateManager(persistsSelection: false)
+        state.presentQuickTransaction(type: .income, planned: true)
+        state.quickTransactionPrefill = ("42,50", "Rimborso")
+        let activationID = state.quickTransactionActivationID
+
+        state.presentQuickTransaction(type: .expense)
+
+        #expect(state.showingQuickTransaction)
+        #expect(state.quickTransactionActivationID != activationID)
+        #expect(state.quickTransactionType == .income)
+        #expect(state.quickTransactionIsPlanned)
+        #expect(state.quickTransactionPrefill?.amount == "42,50")
+        #expect(state.quickTransactionPrefill?.description == "Rimborso")
+    }
+
     @Test(arguments: MacSettingsPane.allCases)
     func desktopSettingsPanesRenderWithTheirDependencies(pane: MacSettingsPane) async throws {
         let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)

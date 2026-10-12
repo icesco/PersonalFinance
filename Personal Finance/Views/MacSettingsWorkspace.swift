@@ -4,6 +4,38 @@ import SwiftData
 import FinanceCore
 import AppKit
 
+struct MacThemedSidebarRow: View {
+    let title: String
+    let symbol: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: symbol)
+                    .frame(width: 18)
+                    .foregroundStyle(isSelected ? ForgiaPalette.onAccent : ForgiaPalette.accent)
+                Text(title)
+                    .foregroundStyle(isSelected ? ForgiaPalette.onAccent : Color.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 32)
+            .contentShape(Rectangle())
+            .background(isSelected ? ForgiaPalette.accent : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .selectionDisabled()
+        .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityValue(isSelected ? "Selezionata" : "")
+    }
+}
+
 enum MacSettingsPane: String, CaseIterable, Identifiable {
     case appearance, reminders, privacy, books, accounts, categories, widgets, shortcuts, cli, cloud, files, erase, about
     var id: Self { self }
@@ -76,6 +108,7 @@ private enum MacSettingsGroup: String, CaseIterable, Identifiable {
 }
 
 struct MacSettingsWorkspace: View {
+    @FocusState private var sidebarFocused: Bool
     @Environment(AppStateManager.self) private var state
     @Query(sort: \Account.name) private var books: [Account]
     @State private var selection: MacSettingsPane
@@ -100,19 +133,26 @@ struct MacSettingsWorkspace: View {
         Group {
             if group.panes.count > 1 {
                 NavigationSplitView {
-                    List(selection: Binding<MacSettingsPane?>(
-                        get: { selection },
-                        set: { if let pane = $0 { selection = pane } }
-                    )) {
+                    List {
                         Section(group.title) {
                             ForEach(group.panes) { pane in
-                                Label(pane.title, systemImage: pane.symbol)
-                                    .tag(pane)
+                                MacThemedSidebarRow(title: pane.title, symbol: pane.symbol, isSelected: selection == pane) {
+                                    selection = pane
+                                    sidebarFocused = true
+                                }
                                     .accessibilityIdentifier("mac-settings-pane-\(pane.rawValue)")
                             }
                         }
                     }
                     .listStyle(.sidebar)
+                    .focusable()
+                    .focusEffectDisabled()
+                    .focused($sidebarFocused)
+                    .onMoveCommand { direction in
+                        guard let index = group.panes.firstIndex(of: selection) else { return }
+                        if direction == .up, index > 0 { selection = group.panes[index - 1] }
+                        if direction == .down, index + 1 < group.panes.count { selection = group.panes[index + 1] }
+                    }
                     .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 260)
                 } detail: {
                     settingsDetail

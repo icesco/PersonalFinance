@@ -7,11 +7,13 @@ extension View {
     func financePresentation<Presented: View>(
         isPresented: Binding<Bool>, title: String,
         width: CGFloat = 640, height: CGFloat = 720, pinsBook: Bool = true,
+        activationID: UUID? = nil,
         @ViewBuilder content: @escaping () -> Presented
     ) -> some View {
         #if os(macOS)
         modifier(FinanceWindowPresentation(isPresented: isPresented, title: title,
-                                          width: width, height: height, pinsBook: pinsBook, presented: content))
+                                          width: width, height: height, pinsBook: pinsBook,
+                                          activationID: activationID, presented: content))
         #else
         sheet(isPresented: isPresented, content: content)
         #endif
@@ -112,6 +114,7 @@ private struct FinanceWindowPresentation<Presented: View>: ViewModifier {
     let width: CGFloat
     let height: CGFloat
     let pinsBook: Bool
+    let activationID: UUID?
     @ViewBuilder let presented: () -> Presented
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -121,6 +124,9 @@ private struct FinanceWindowPresentation<Presented: View>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onChange(of: isPresented, initial: true) { _, _ in synchronize() }
+            .onChange(of: activationID) { _, _ in
+                if isPresented, let taskID { openWindow(id: "finance-task", value: taskID) }
+            }
             .onChange(of: windowEnvironment.concealed) { _, concealed in
                 if !concealed { synchronize() }
             }

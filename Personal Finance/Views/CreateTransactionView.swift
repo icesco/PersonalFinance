@@ -23,6 +23,7 @@ struct CreateTransactionView: View {
     @State private var selectedDate = Date()
     @State private var includeTime = false
     @State private var selectedCategory: FinanceCategory?
+    @State private var showingCategoryPicker = false
     @State private var isRecurring = false
     @State private var selectedFrequency: RecurrenceFrequency = .monthly
     @State private var recurrenceEndDate = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
@@ -119,6 +120,10 @@ struct CreateTransactionView: View {
 
     var body: some View {
         NavigationStack {
+            Group {
+            #if os(macOS)
+            macTransactionForm
+            #else
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if transactionType != .transfer {
@@ -173,6 +178,8 @@ struct CreateTransactionView: View {
             }
             .background(ForgiaPalette.canvas)
             .scrollDismissesKeyboard(.interactively)
+            #endif
+            }
             #if !os(macOS)
             .safeAreaBar(edge: .bottom, spacing: 0) { saveBar }
             #endif
@@ -186,6 +193,10 @@ struct CreateTransactionView: View {
             }
             .sheet(isPresented: $showingCalculator) {
                 AmountCalculatorView(initialAmount: amount, currency: amountCurrency) { amount = $0 }
+            }
+            .sheet(isPresented: $showingCategoryPicker) {
+                CategoryPickerSheet(categories: filteredCategories, type: transactionType,
+                                    selection: $selectedCategory, allowsNone: true)
             }
             .alert("Impossibile salvare", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
                 Button("OK") { saveError = nil }
@@ -206,6 +217,103 @@ struct CreateTransactionView: View {
             }
         }
     }
+
+    #if os(macOS)
+    private var macTransactionForm: some View {
+        Form {
+            Section {
+                HStack(alignment: .firstTextBaseline) {
+                    TextField("Importo", text: $amountText, prompt: Text("0,00"))
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                        .textFieldStyle(.plain)
+                        .accessibilityLabel("Importo")
+                    Text(amountCurrency).foregroundStyle(.secondary)
+                    Button { showingCalculator = true } label: { Image(systemName: "plus.forwardslash.minus") }
+                        .help("Calcolatrice").accessibilityLabel("Calcolatrice")
+                }
+                if amountInvalid {
+                    Text("Inserisci un importo positivo valido.").font(.caption).foregroundStyle(.red)
+                }
+                if hasDifferentCurrencies {
+                    TextField("Importo ricevuto", text: $destinationAmountText)
+                }
+            }
+            Section("Dettagli") {
+                if transactionType == .transfer {
+                    Picker("Dal conto", selection: $fromConto) {
+                        Text("Seleziona un conto").tag(nil as Conto?)
+                        ForEach(activeConti, id: \.id) { Text($0.name ?? "Conto").tag(Optional($0)) }
+                    }
+                    Picker("Al conto", selection: $toConto) {
+                        Text("Seleziona un conto").tag(nil as Conto?)
+                        ForEach(activeConti.filter { $0.id != fromConto?.id }, id: \.id) {
+                            Text($0.name ?? "Conto").tag(Optional($0))
+                        }
+                    }
+                } else {
+                    if let conto { LabeledContent("Conto", value: conto.name ?? "Conto") }
+                    LabeledContent("Categoria") {
+                        Button {
+                            showingCategoryPicker = true
+                        } label: {
+                            Label(selectedCategory?.displayPath ?? "Seleziona una categoria",
+                                  systemImage: selectedCategory?.icon ?? "tag")
+                        }
+                        .disabled(filteredCategories.isEmpty)
+                        .accessibilityLabel("Categoria")
+                        .accessibilityValue(selectedCategory?.displayPath ?? "Nessuna categoria")
+                    }
+                }
+                TextField("Descrizione", text: $description)
+                DatePicker("Data", selection: $selectedDate,
+                           displayedComponents: includeTime ? [.date, .hourAndMinute] : .date)
+                Toggle("Includi orario", isOn: $includeTime)
+                if transactionType == .income && conto?.type == .savings {
+                    Toggle("Interessi accreditati", isOn: $isSavingsInterest)
+                    Text("Aumentano il saldo senza essere conteggiati come capitale versato.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if transactionType == .expense, amount > 0,
+               let category = selectedCategory, let account = conto?.account {
+                Section("Budget") {
+                    ExpenseBudgetCheckView(amount: amount, categoryID: category.id, accountID: account.id,
+                                           date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring)
+                }
+            }
+            Section("Saldo dopo il movimento") {
+                if transactionType == .transfer {
+                    if let fromConto, let toConto {
+                        LabeledContent(fromConto.name ?? "Dal conto", value: (fromConto.balance - amount).formatted(.currency(code: amountCurrency)))
+                        LabeledContent(toConto.name ?? "Al conto", value: (toConto.balance + (hasDifferentCurrencies ? destinationAmount : amount)).formatted(.currency(code: toConto.account?.currency ?? "EUR")))
+                    }
+                } else if let conto {
+                    LabeledContent(conto.name ?? "Conto", value: calculatedNewBalance.formatted(.currency(code: amountCurrency)))
+                }
+            }
+            Section {
+                MacRecurrenceEditor(isRecurring: $isRecurring, frequency: $selectedFrequency,
+                                    hasEndDate: $hasEndDate, endDate: $recurrenceEndDate, startDate: selectedDate)
+            }
+            Section("Altre opzioni") {
+                if transactionType != .transfer {
+                    Button("Importo in valuta estera…") { showingConversion = true }
+                    if let foreignAmount {
+                        Text(foreignAmount.originalAmount.formatted(.currency(code: foreignAmount.originalCurrency)))
+                            .foregroundStyle(.secondary)
+                    }
+                    VoiceTransactionEntryButton(onComplete: { dismiss() })
+                }
+                DisclosureGroup("Luogo e allegati") {
+                    TransactionPlaceEditor(place: $place, isLocating: $loadingLocation)
+                    DraftAttachmentsView(attachments: $attachmentDrafts, onSelectAmount: { amount = $0 }, loading: $loadingAttachment)
+                }
+                TextField("Note", text: $notes, axis: .vertical).lineLimit(1...4)
+            }
+        }
+        .formStyle(.grouped)
+    }
+    #endif
 
     // MARK: - Cards
 

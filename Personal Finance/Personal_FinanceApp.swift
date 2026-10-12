@@ -106,7 +106,9 @@ struct Personal_FinanceApp: App {
         WindowGroup("Formi", id: "finance-task", for: UUID.self) { $id in
             FinanceTaskWindow(id: id)
         }
-        .defaultSize(width: 640, height: 720)
+        .defaultWindowPlacement { content, _ in
+            WindowPlacement(size: content.sizeThatFits(.unspecified))
+        }
         .windowResizability(.contentMinSize)
         .restorationBehavior(.disabled)
         #endif

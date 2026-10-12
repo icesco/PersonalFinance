@@ -135,6 +135,7 @@ final class AppStateManager {
 
     // MARK: - Quick Transaction Context
     var quickTransactionType: TransactionType = .expense
+    var quickTransactionActivationID = UUID()
     var quickTransactionIsPlanned = false
     var quickTransactionPrefill: (amount: String, description: String)?
 
@@ -297,6 +298,12 @@ final class AppStateManager {
     }
     
     func presentQuickTransaction(type: TransactionType = .expense, planned: Bool = false) {
+        #if os(macOS)
+        if showingQuickTransaction {
+            quickTransactionActivationID = UUID()
+            return
+        }
+        #endif
         quickTransactionPrefill = nil
         quickTransactionType = type
         quickTransactionIsPlanned = planned
