@@ -684,7 +684,7 @@ struct TransactionListView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("Nessuna transazione", systemImage: "list.bullet.rectangle")
+            FormiEmptyStateLabel(title: "Nessuna transazione", artwork: .peeking)
         } description: {
             if !selectedCategories.isEmpty {
                 Text("Nessuna transazione per le categorie selezionate")

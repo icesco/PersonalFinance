@@ -198,11 +198,7 @@ struct BudgetView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "target")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(ForgiaPalette.accent)
-                .frame(width: 72, height: 72)
-                .background(ForgiaPalette.sageSurface, in: Circle())
+            FormiEmptyIllustration(artwork: .carrying)
             Text("Nessun budget attivo")
                 .font(.system(.title2, design: .serif, weight: .semibold))
             Text("Dai un limite alle categorie che vuoi tenere d'occhio: qui vedrai quanto ti resta in ogni periodo.")

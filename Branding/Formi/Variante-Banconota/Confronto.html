@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Formi · Formica sulla banconota</title>
+<style>body{font:16px system-ui;margin:0;background:#edf3ef;color:#173f40;padding:40px}main{max-width:1080px;margin:auto}h1{font-size:30px;margin-bottom:8px}p{line-height:1.5;max-width:720px}label{display:flex;align-items:center;gap:16px;margin:28px 0}section{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}figure{margin:0;min-height:300px;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#dce8e0;border-radius:24px;padding:24px;gap:20px}figure.dark{background:#152e30;color:#e4f1e9}img{width:var(--size,160px);height:var(--size,160px);object-fit:contain}figcaption{font-size:14px}a{color:inherit}</style>
+<main><h1>Formica sulla banconota</h1><p>MVP di icona alternativa per Formi. Anteprime esportate dal renderer Apple: materiali Liquid Glass applicati ai livelli vettoriali.</p><label>Dimensione <input id="size" type="range" min="40" max="256" value="160"><output id="value">160 px</output></label><section>
+<figure><img src="Previews/Default.png" alt="Formica verde su una banconota menta, fondo verde"><figcaption>Default</figcaption></figure>
+<figure class="dark"><img src="Previews/Dark.png" alt="Variante scura"><figcaption>Dark</figcaption></figure>
+<figure><img src="Previews/TintedLight.png" alt="Variante tinta chiara"><figcaption>Tinted Light</figcaption></figure>
+<figure class="dark"><img src="Previews/TintedDark.png" alt="Variante tinta scura"><figcaption>Tinted Dark</figcaption></figure>
+<figure><img src="Previews/ClearLight.png" alt="Variante trasparente chiara"><figcaption>Clear Light</figcaption></figure>
+<figure class="dark"><img src="Previews/ClearDark.png" alt="Variante trasparente scura"><figcaption>Clear Dark</figcaption></figure>
+</section><p><a href="FormiBanconota.icon">Documento Icon Composer</a> · <a href="Concept-imagegen.png">Concept imagegen</a></p><p>Prototipo non integrato nell’app. Da valutare anche nella Home su dispositivo.</p></main><script>const slider=document.getElementById('size');slider.addEventListener('input',()=>{document.documentElement.style.setProperty('--size',slider.value+'px');document.getElementById('value').value=slider.value+' px'});</script></html>

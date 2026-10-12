@@ -1,0 +1,38 @@
+{
+  "fill": {
+    "solid": "srgb:0.89804,0.94118,0.90980,1.00000"
+  },
+  "groups": [
+    {
+      "name": "04-ritratto",
+      "layers": [
+        {
+          "image-name": "personaggio.png",
+          "name": "Formica e banconota",
+          "glass": true,
+          "position": {
+            "scale": 0.88,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.15
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}

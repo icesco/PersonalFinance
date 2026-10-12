@@ -447,7 +447,7 @@ struct ContiSettingsView: View {
             let conti = visibleConti
             if conti.isEmpty {
                 ContentUnavailableView {
-                    Label("Nessun conto", systemImage: "creditcard")
+                    FormiEmptyStateLabel(title: "Nessun conto", artwork: .portrait)
                 } description: {
                     Text("Aggiungi il primo conto del libro: corrente, carta o contanti.")
                 } actions: {
@@ -484,7 +484,7 @@ struct ContiSettingsView: View {
         .navigationTitle("Conti")
         .financeEmptyOverlay(isPresented: visibleConti.isEmpty) {
             ContentUnavailableView {
-                Label("Nessun conto", systemImage: "creditcard")
+                FormiEmptyStateLabel(title: "Nessun conto", artwork: .portrait)
             } description: {
                 Text("Aggiungi il primo conto del libro: corrente, carta o contanti.")
             } actions: {

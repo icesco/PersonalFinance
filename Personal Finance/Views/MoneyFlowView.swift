@@ -124,8 +124,11 @@ private struct MoneyFlowExplorer: View {
                                     ? "Alcuni movimenti non hanno un importo valido. Correggili per visualizzare il flusso."
                                     : "Le rettifiche rendono negativa una categoria o le entrate. Consulta i movimenti per leggere questi importi."))
                         } else if report.income == 0 && report.expenses == 0 {
-                            ContentUnavailableView("Nessun movimento nel periodo", systemImage: "arrow.triangle.branch",
-                                description: Text("Registra un'entrata o un'uscita per vedere il percorso del denaro."))
+                            ContentUnavailableView {
+                                FormiEmptyStateLabel(title: "Nessun movimento nel periodo", artwork: .origami)
+                            } description: {
+                                Text("Registra un'entrata o un'uscita per vedere il percorso del denaro.")
+                            }
                         } else {
                             VStack(alignment: .leading, spacing: 14) {
                                 if let focus {

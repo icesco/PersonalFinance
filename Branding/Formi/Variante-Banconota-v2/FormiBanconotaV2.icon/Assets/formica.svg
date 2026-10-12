@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><g transform="translate(143.36 129) scale(.72)">
+<g fill="none" stroke="#CDEBDA" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+<path d="M480 338C470 299 447 275 419 267M544 338C554 299 577 275 605 267"/>
+<path d="M478 449L413 415L370 368M546 449L611 415L654 368"/>
+<path d="M477 490L397 491L351 535M547 490L627 491L673 535"/>
+<path d="M480 526L416 571L391 650M544 526L608 571L633 650"/>
+</g>
+<g fill="#CDEBDA">
+<path d="M497 388H527V601H497Z"/>
+<ellipse cx="512" cy="375" rx="67" ry="61"/>
+<ellipse cx="512" cy="489" rx="47" ry="69"/>
+<path d="M512 566C572 566 597 613 591 662C586 715 550 747 512 761C474 747 438 715 433 662C427 613 452 566 512 566Z"/>
+</g>
+</g></svg>
