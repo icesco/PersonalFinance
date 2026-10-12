@@ -46,11 +46,12 @@ struct VoiceDictationSurface: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { controls }
-        .background(alignment: .bottom) {
+        .background {
+            // Full-bleed: the bottom glow fades out on its own instead of being cut by a frame,
+            // and the rim follows the sheet's edges.
             VoiceEdgeGlow(meter: meter, recording: recording, processing: processing || finishing,
                           enabled: unavailableReason == nil)
-                .frame(height: 180)
-                .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea()
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
@@ -393,11 +394,15 @@ private struct VoiceEdgeGlow: View {
         let level = !enabled ? 0 : (reduceMotion ? (active ? 0.35 : 0.04) :
             (recording ? min(max(meter.level, 0), 1) : (processing ? 0.4 : 0.04)))
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || !active)) { timeline in
-            VoiceGlowField(level: level,
-                           phase: reduceMotion || !active ? 0 : timeline.date.timeIntervalSinceReferenceDate,
-                           processing: processing, dark: scheme == .dark,
-                           accent: ForgiaPalette.accent, warm: ForgiaPalette.spending)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: level)
+            let phase = reduceMotion || !active ? 0 : timeline.date.timeIntervalSinceReferenceDate
+            ZStack {
+                VoiceGlowField(level: level, phase: phase,
+                               processing: processing, dark: scheme == .dark,
+                               accent: ForgiaPalette.accent, warm: ForgiaPalette.spending)
+                VoiceRimGlow(level: active ? level : 0, phase: phase, dark: scheme == .dark,
+                             accent: ForgiaPalette.accent, warm: ForgiaPalette.spending)
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: level)
         }
     }
 }
@@ -418,7 +423,9 @@ private struct VoiceGlowField: View, Animatable {
         Canvas { context, size in
             let energy = min(max(level, 0), 1)
             let travel = processing ? sin(phase * 0.9) * 0.15 : sin(phase * 0.7) * 0.035
-            let height = size.height * (dark ? 0.12 + energy * 0.85 : 0.35 + energy * 1.02)
+            // Sized from a fixed band at the bottom, but drawn on the full canvas so it never clips.
+            let band = min(size.height * 0.3, 200)
+            let height = band * (dark ? 0.12 + energy * 0.85 : 0.35 + energy * 1.02)
             let opacity = dark ? 0.68 * (0.2 + energy * 0.8) : 0.88 * (0.36 + energy * 0.64)
             glow(context: context, size: size, x: 0.40 + travel, width: 0.55,
                  height: height, color: accent, opacity: opacity)
@@ -443,6 +450,39 @@ private struct VoiceGlowField: View, Animatable {
                     .init(color: color.opacity(opacity * 0.18), location: 0.65),
                     .init(color: .clear, location: 1)
                    ]), center: .zero, startRadius: 0, endRadius: 1))
+    }
+}
+
+/// A glow along the sheet's rim that breathes with the voice, slowly circling while listening.
+private struct VoiceRimGlow: View, Animatable {
+    var level: Double
+    let phase: Double
+    let dark: Bool
+    let accent: Color
+    let warm: Color
+    var animatableData: Double {
+        get { level }
+        set { level = newValue }
+    }
+
+    var body: some View {
+        let energy = min(max(level, 0), 1)
+        let gradient = AngularGradient(colors: [accent, warm, accent, warm, accent],
+                                       center: .center, angle: .degrees(phase * 36))
+        let shape = ConcentricRectangle()
+        ZStack {
+            // Strokes are centred on the edge: the outer half falls outside the sheet,
+            // so widths are doubled. Wide, soft halo whose reach follows the voice.
+            shape.stroke(gradient, lineWidth: 2 * (3 + energy * 12))
+                .blur(radius: 6 + energy * 10)
+                .opacity(energy == 0 ? 0 : (dark ? 0.5 : 0.55) * (0.3 + energy * 0.7))
+            // A thin, brighter line keeps the edge defined.
+            shape.stroke(gradient, lineWidth: 2 * (1 + energy * 1.5))
+                .blur(radius: 1)
+                .opacity(energy == 0 ? 0 : (dark ? 0.75 : 0.85) * (0.35 + energy * 0.65))
+        }
+        .saturation(dark ? 1 : 1.4)
+        .compositingGroup()
     }
 }
 

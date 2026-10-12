@@ -122,6 +122,8 @@ struct Personal_FinanceApp: App {
             BudgetDetailFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_NAVIGATION") {
             NavigationVisualFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_VOICE_DICTATION") {
+            VoiceDictationVisualFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_VOICE_REVIEW") {
             VoiceReviewVisualFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_ANTISLOP") {
