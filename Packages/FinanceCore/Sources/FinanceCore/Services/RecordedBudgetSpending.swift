@@ -41,3 +41,17 @@ extension Budget {
             }
     }
 }
+
+extension BudgetService {
+    /// Overlapping budgets share ledger entries; an all-budget list must count each expense once.
+    public static func recordedExpenses(for budgets: [Budget], period: (start: Date, end: Date),
+                                        transactions: [Transaction]) -> [Transaction] {
+        var visited = Set<ObjectIdentifier>()
+        return budgets.flatMap { $0.recordedExpenses(for: period, transactions: transactions) }
+            .filter { visited.insert(ObjectIdentifier($0)).inserted }
+            .sorted {
+                if $0.date != $1.date { return $0.date > $1.date }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+    }
+}

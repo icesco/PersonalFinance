@@ -57,6 +57,14 @@ struct RecordedBudgetSpendingTests {
         let transactions = [first, last, next, before, foreign, income, transfer]
         let expenses = budget.recordedExpenses(for: range, transactions: transactions + [first, last])
         #expect(expenses.map(\.id) == [last.id, first.id])
+        let overlapping = Budget(name: "All food", amount: 200, period: .quarterly)
+        overlapping.account = book; overlapping.categories = [category]; context.insert(overlapping)
+        let combined = BudgetService.recordedExpenses(for: [budget, overlapping], period: range, transactions: transactions)
+        #expect(combined.map(\.id) == [last.id, first.id])
+        #expect(combined.reduce(Decimal.zero) { $0 + ($1.amount ?? 0) } == 30)
+        #expect(BudgetService.recordedExpenses(for: [], period: range, transactions: transactions).isEmpty)
+        #expect(BudgetService.recordedExpenses(for: [budget], period: budget.previousPeriodRange,
+                                             transactions: transactions).map(\.id) == [before.id])
         #expect(expenses.reduce(Decimal.zero) { $0 + ($1.amount ?? 0) }
                 == (try BudgetService.currentSpent(for: budget, in: context)))
         #expect(try BudgetService.currentSpent(for: budget, in: context) == 30)

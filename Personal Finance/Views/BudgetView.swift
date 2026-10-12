@@ -119,6 +119,16 @@ struct BudgetView: View {
                     }
                     .accessibilityLabel("Nuovo budget")
                 }
+                ToolbarItem(placement: .secondaryAction) {
+                    if let account = appState.selectedAccount {
+                        NavigationLink {
+                            BudgetTransactionListView(account: account)
+                        } label: {
+                            Label("Transazioni dei budget", systemImage: "list.bullet")
+                        }
+                        .accessibilityIdentifier("budgets-transactions")
+                    }
+                }
             }
         }
         .financePresentation(isPresented: $showingCreateBudget, title: "Nuovo budget") {
@@ -142,7 +152,7 @@ struct BudgetView: View {
         let onTrack = snapshots.count - over - warning
         let tint = over > 0 ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface
         return VStack(alignment: .leading, spacing: 12) {
-            Text(snapshots.count == 1 ? "1 BUDGET ATTIVO" : "\(snapshots.count) BUDGET ATTIVI")
+            Text("PERIODI CORRENTI · \(snapshots.count == 1 ? "1 BUDGET ATTIVO" : "\(snapshots.count) BUDGET ATTIVI")")
                 .font(.caption2.weight(.semibold)).tracking(1.1)
                 .foregroundStyle(ForgiaPalette.mutedText)
             Text(over > 0 ? (over == 1 ? "Un budget è oltre il limite" : "\(over) budget sono oltre il limite")
@@ -153,7 +163,7 @@ struct BudgetView: View {
                 statusCount(warning, "Attenzione", "exclamationmark.circle.fill", .orange)
                 statusCount(over, "Superati", "exclamationmark.triangle.fill", .red)
             }
-            Text("Ogni limite vale per il proprio periodo e le categorie scelte. Una spesa può rientrare in più budget.")
+            Text("Speso e limite si riferiscono al periodo indicato su ogni budget. Il limite si rinnova secondo la sua cadenza: settimanale, mensile, trimestrale o annuale.")
                 .font(.caption)
                 .foregroundStyle(ForgiaPalette.mutedText)
         }
@@ -277,6 +287,10 @@ struct BudgetCard: View {
                 BudgetStatusPill(snapshot: snapshot)
             }
 
+            Text("Periodo del budget: \(BudgetPeriodText.range(DateInterval(start: snapshot.periodRange.start, end: snapshot.periodRange.end)))")
+                .font(.caption)
+                .foregroundStyle(ForgiaPalette.mutedText)
+
             Text(snapshot.status == .over ? "Oltre di \(snapshot.money(-snapshot.remaining))" : "Restano \(snapshot.money(snapshot.remaining))")
                 .font(.title3.weight(.semibold))
                 .monospacedDigit()
@@ -322,7 +336,7 @@ struct BudgetCard: View {
     }
 
     private var spentText: Text {
-        Text("Speso \(snapshot.money(snapshot.spent)) su \(snapshot.money(snapshot.limit))")
+        Text("Speso \(snapshot.money(snapshot.spent)) · limite \(snapshot.money(snapshot.limit)) \(BudgetPeriodText.frequency(for: budget.period))")
     }
 
     @ViewBuilder
@@ -333,10 +347,9 @@ struct BudgetCard: View {
     }
 
     private var periodText: String {
-        let period = budget.period?.displayName ?? "Periodo"
-        let days = snapshot.outlook.daysRemaining
-        if days <= 0 { return "\(period) · periodo concluso" }
-        return days == 1 ? "\(period) · ultimo giorno" : "\(period) · \(days) giorni rimasti"
+        let interval = DateInterval(start: snapshot.periodRange.start, end: snapshot.periodRange.end)
+        let title = BudgetPeriodText.title(for: budget.period, interval: interval)
+        return "\(budget.period?.displayName ?? "Periodo") · \(title)"
     }
 }
 
@@ -570,11 +583,16 @@ struct BudgetDetailView: View {
                 .foregroundStyle(ForgiaPalette.mutedText)
 
             if !expenses.isEmpty {
-                Text("Queste spese compongono il totale, comprese quelle future già registrate. Tocca una transazione per vedere i dettagli.")
+                if expenses.count > 3 {
+                    Text(expenseOrder == .newest ? "Le tre spese più recenti" : "Le tre spese di importo maggiore")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(ForgiaPalette.mutedText)
+                }
+                Text("Il totale include tutte le spese del periodo, anche quelle future già registrate.")
                     .font(.caption)
                     .foregroundStyle(ForgiaPalette.mutedText)
                 LazyVStack(spacing: 0) {
-                    ForEach(ordered) { transaction in
+                    ForEach(Array(ordered.prefix(3))) { transaction in
                         NavigationLink {
                             TransactionDetailView(transaction: transaction)
                         } label: {
@@ -582,10 +600,20 @@ struct BudgetDetailView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("budget-expense-\(transaction.id)")
-                        if transaction.id != ordered.last?.id { Divider().padding(.horizontal, 16) }
+                        if transaction.id != ordered.prefix(3).last?.id { Divider().padding(.horizontal, 16) }
                     }
                 }
                 .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+            if let account = budget.account {
+                NavigationLink {
+                    BudgetTransactionListView(account: account, initialBudget: budget)
+                } label: {
+                    Label("Vedi tutte le transazioni", systemImage: "list.bullet")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 44)
+                }
+                .accessibilityIdentifier("budget-open-transactions")
             }
         }
     }
@@ -603,15 +631,17 @@ struct BudgetDetailView: View {
 
     private func hero(_ snapshot: BudgetSnapshot) -> some View {
         let tint = snapshot.status == .over ? ForgiaPalette.apricotSurface : ForgiaPalette.sageSurface
-        let locale = Locale(identifier: "it_IT")
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("SPESO IN QUESTO PERIODO")
+                Text("SPESO NEL PERIODO DEL BUDGET")
                     .font(.caption2.weight(.semibold)).tracking(1.1)
                     .foregroundStyle(ForgiaPalette.mutedText)
                 Spacer(minLength: 8)
                 BudgetStatusPill(snapshot: snapshot)
             }
+            Text("\(budget.period?.displayName ?? "Periodo") · \(BudgetPeriodText.title(for: budget.period, interval: DateInterval(start: snapshot.periodRange.start, end: snapshot.periodRange.end)))")
+                .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("budget-detail-period")
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(snapshot.money(snapshot.spent))
                     .font(.system(size: 40, weight: .semibold, design: .rounded))
@@ -625,13 +655,21 @@ struct BudgetDetailView: View {
                     .foregroundStyle(ForgiaPalette.mutedText)
             }
             BudgetMeter(snapshot: snapshot, height: 10)
-            HStack {
-                Text("\(snapshot.periodRange.start.formatted(.dateTime.day().month(.abbreviated).locale(locale))) – \(snapshot.periodRange.end.addingTimeInterval(-1).formatted(.dateTime.day().month(.abbreviated).year().locale(locale)))")
-                Spacer(minLength: 8)
-                Text("Avviso al \(Int((snapshot.threshold * 100).rounded()))%")
+            Text(BudgetPeriodText.range(DateInterval(start: snapshot.periodRange.start, end: snapshot.periodRange.end)))
+                .font(.caption)
+                .foregroundStyle(ForgiaPalette.mutedText)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Text("Limite \(BudgetPeriodText.frequency(for: budget.period))")
+                    Spacer(minLength: 8)
+                    Text("Avviso al \(Int((snapshot.threshold * 100).rounded()))%")
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Limite \(BudgetPeriodText.frequency(for: budget.period))")
+                    Text("Avviso al \(Int((snapshot.threshold * 100).rounded()))%")
+                }
             }
-            .font(.caption)
-            .foregroundStyle(ForgiaPalette.mutedText)
+            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -646,74 +684,11 @@ struct BudgetDetailView: View {
 private struct BudgetExpenseRow: View {
     let transaction: FinanceTransaction
     let currency: String
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 12) {
-            BudgetIcon(category: transaction.category, size: 34)
-                .accessibilityHidden(true)
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 6) {
-                    details
-                    amount
-                }
-            } else {
-                details
-                Spacer(minLength: 8)
-                amount
-            }
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(ForgiaPalette.mutedText)
-                .accessibilityHidden(true)
-        }
+        CompactTransactionRow(transaction: transaction, currency: currency, showsDisclosure: true, showsFuture: true)
         .padding(.horizontal, 14)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
         .accessibilityHint("Apre i dettagli della transazione")
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color.primary)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(ForgiaPalette.mutedText)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
-        }
-    }
-
-    private var subtitle: String {
-        let date = transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT")))
-        guard let conto = transaction.fromConto?.name, !conto.isEmpty else { return date }
-        return "\(date) · \(conto)"
-    }
-
-    private var title: String {
-        if let description = transaction.transactionDescription, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return description
-        }
-        return transaction.category?.displayPath ?? "Spesa"
-    }
-
-    private var amount: some View {
-        VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
-            Text("−\((transaction.amount ?? 0).formatted(.currency(code: currency)))")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.primary)
-                .monospacedDigit()
-                .fixedSize(horizontal: true, vertical: false)
-            if transaction.date > Date() {
-                Text("Futura")
-                    .font(.caption2)
-                    .foregroundStyle(ForgiaPalette.mutedText)
-            }
-        }
     }
 }
 

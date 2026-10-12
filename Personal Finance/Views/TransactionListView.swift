@@ -588,7 +588,7 @@ struct TransactionListView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .listRowBackground(ForgiaPalette.surface)
-                                .listRowInsets(.vertical, 8)
+                                .listRowInsets(.vertical, 0)
                             } else {
                                 NavigationLink {
                                     TransactionDetailView(transaction: transaction)
@@ -625,7 +625,7 @@ struct TransactionListView: View {
                                     }
                                 }
                                 .listRowBackground(ForgiaPalette.surface)
-                                .listRowInsets(.vertical, 8)
+                                .listRowInsets(.vertical, 0)
                             }
                         }
                     } header: {
@@ -924,9 +924,6 @@ struct TransactionCell: View {
     private var amountText: String {
         (isTransfer ? "" : isIncome ? "+" : "−") + (transaction.amount ?? 0).formatted(.currency(code: transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR"))
     }
-    private var iconName: String {
-        transaction.category?.icon ?? (isTransfer ? "arrow.left.arrow.right" : isIncome ? "arrow.down.left" : "arrow.up.right")
-    }
 
     var body: some View {
         if dynamicTypeSize.isAccessibilitySize {
@@ -939,50 +936,9 @@ struct TransactionCell: View {
     }
 
     private var compactRow: some View {
-        HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(isIncome ? ForgiaPalette.accent : ForgiaPalette.mutedText)
-                .frame(width: 34, height: 34)
-                .background(isIncome ? ForgiaPalette.sageSurface : ForgiaPalette.canvas)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
-                    .font(.subheadline.weight(.medium)).lineLimit(1)
-
-                if showDate || (showConto && contoName != nil) {
-                    HStack(spacing: 4) {
-                        if showDate {
-                            Text(transaction.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))
-                        }
-                        if showConto, let conto = contoName {
-                            if showDate { Text("•") }
-                            Text(conto)
-                        }
-                    }
-                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                }
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(amountText)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(isIncome ? ForgiaPalette.accent : Color.primary)
-
-                if transaction.isRecurring == true {
-                    HStack(spacing: 2) {
-                        Image(systemName: "repeat")
-                        Text(transaction.recurrenceFrequency?.displayName ?? "")
-                    }
-                    .font(.caption2).foregroundStyle(ForgiaPalette.mutedText)
-                }
-            }
-        }
-        .padding(.vertical, 1)
+        CompactTransactionRow(transaction: transaction,
+                              currency: transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR",
+                              showConto: showConto, showDate: showDate)
     }
 
     private var tableRow: some View {
@@ -1018,6 +974,7 @@ struct TransactionCell: View {
             }
         }
         .padding(.vertical, 4)
+        .frame(minHeight: 48)
     }
 }
 
