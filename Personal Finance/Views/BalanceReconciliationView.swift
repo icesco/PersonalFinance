@@ -37,12 +37,7 @@ struct BalanceReconciliationView: View {
                 }
             }
             .navigationTitle("Verifica saldi")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") { dismiss() }
-                }
-            }
+            .modalChrome("Verifica saldi", closeLabel: "Fine") { dismiss() }
         }
     }
 }

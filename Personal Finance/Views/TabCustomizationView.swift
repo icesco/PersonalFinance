@@ -268,11 +268,14 @@ struct CalendarTabView: View {
 
     var body: some View {
         NavigationStack {
-            if !selectedBooks.isEmpty, Set(selectedBooks.map { $0.currency ?? "EUR" }).count == 1 {
-                FinanceCalendarView(contoIDs: Set(selectedBooks.flatMap(\.activeConti).map(\.id)), currency: selectedBooks.first?.currency ?? "EUR")
-            } else {
-                BookSelectionRequiredView(message: "Scegli un libro per consultare il calendario nella sua valuta.")
+            Group {
+                if !selectedBooks.isEmpty, Set(selectedBooks.map { $0.currency ?? "EUR" }).count == 1 {
+                    FinanceCalendarView(contoIDs: Set(selectedBooks.flatMap(\.activeConti).map(\.id)), currency: selectedBooks.first?.currency ?? "EUR")
+                } else {
+                    BookSelectionRequiredView(message: "Scegli un libro per consultare il calendario nella sua valuta.")
+                }
             }
+            .sectionSheetChrome("Calendario")
         }
     }
 }
@@ -286,11 +289,12 @@ struct BookScopedTabView: View {
             NavigationStack {
                 BookSelectionRequiredView(message: "Scegli un libro per gestire \(section == .budgets ? "i budget" : "i conti").")
                     .navigationTitle(section.navigationTitle)
+                    .sectionSheetChrome(section.navigationTitle)
             }
         } else if section == .budgets {
             BudgetView(showsCloseButton: false)
         } else {
-            NavigationStack { ContiSettingsView() }
+            NavigationStack { ContiSettingsView().sectionSheetChrome("Conti") }
         }
     }
 }

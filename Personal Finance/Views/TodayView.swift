@@ -115,6 +115,7 @@ struct TodayView: View {
             }
             #if os(iOS)
             .toolbar(screen == .home ? .hidden : .automatic, for: .navigationBar)
+            .sectionSheetChrome(screen == .analysis ? "Analisi" : "Oggi")
             .safeAreaBar(edge: .top, spacing: 0) {
                 if screen == .home {
                     HStack(spacing: 10) {

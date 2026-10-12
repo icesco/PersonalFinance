@@ -13,6 +13,7 @@ struct TransactionListView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
+    @Environment(\.closePresentedSection) private var closePresentedSection
 
     // Optional: pre-selected conto filter (for navigation from Dashboard)
     var initialConto: Conto? = nil
@@ -106,7 +107,8 @@ struct TransactionListView: View {
 
     var body: some View {
         if isPushed {
-            content
+            // A pushed list keeps its back button even inside a section sheet.
+            content.environment(\.closePresentedSection, nil)
         } else {
             NavigationStack { content }
                 .transactionButtonRoot(.transactions, isActive: !isInSelectionMode)
@@ -143,8 +145,10 @@ struct TransactionListView: View {
             .navigationTitle(navigationTitle)
             #if os(iOS)
             .toolbarTitleDisplayMode(.inline)
-            .toolbar(isPushed || initialConto != nil ? .visible : .hidden, for: .navigationBar)
+            // As a sheet from Home the bar carries the title and the close button.
+            .toolbar(isPushed || initialConto != nil || closePresentedSection != nil ? .visible : .hidden, for: .navigationBar)
             #endif
+            .sectionSheetChrome(navigationTitle)
             .financePresentation(isPresented: $showingRecurring, title: "Ricorrenze", width: 800) {
                 NavigationStack {
                     RecurringManagementView(contoIDs: contoIDsForQuery)

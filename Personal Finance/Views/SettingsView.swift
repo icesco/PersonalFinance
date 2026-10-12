@@ -99,6 +99,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .themedBackground()
             .navigationTitle("Impostazioni")
+            .sectionSheetChrome("Impostazioni")
         }
         #endif
     }

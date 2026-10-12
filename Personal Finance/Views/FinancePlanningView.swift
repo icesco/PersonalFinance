@@ -170,6 +170,7 @@ struct FinancePlanningView: View {
             }
             .themedBackground()
             .navigationTitle("Pianifica")
+            .sectionSheetChrome("Pianifica")
             .transactionButtonRoot(.planning)
             .confirmationDialog("Gestisci scadenza", isPresented: Binding(
                 get: { selectedOccurrence != nil }, set: { if !$0 { selectedOccurrence = nil } }

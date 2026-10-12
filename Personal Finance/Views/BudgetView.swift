@@ -109,10 +109,8 @@ struct BudgetView: View {
             .themedBackground()
             .financeEmptyOverlay(isPresented: budgets.isEmpty && archived.isEmpty) { emptyState }
             .navigationTitle("Budget")
+            .modifier(BudgetChrome(showsCloseButton: showsCloseButton))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    if showsCloseButton { Button("Fine") { dismiss() } }
-                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingCreateBudget = true
@@ -241,6 +239,19 @@ struct BudgetView: View {
 }
 
 // MARK: - Budget Card
+
+/// Presented from Home it closes itself; as a tab root it closes the sheet Home opened.
+private struct BudgetChrome: ViewModifier {
+    let showsCloseButton: Bool
+    @Environment(\.dismiss) private var dismiss
+    func body(content: Content) -> some View {
+        if showsCloseButton {
+            content.modalChrome("Budget", closeLabel: "Fine") { dismiss() }
+        } else {
+            content.sectionSheetChrome("Budget")
+        }
+    }
+}
 
 struct BudgetCard: View {
     let budget: FinanceBudget

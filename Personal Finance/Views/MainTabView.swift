@@ -87,13 +87,8 @@ struct MainTabView: View {
         .sheet(isPresented: Binding(get: { presentedSection != nil }, set: { if !$0 { presentedSection = nil } })) {
             if let section = presentedSection {
                 sectionContent(section)
-                    .safeAreaInset(edge: .top) {
-                        HStack {
-                            Text(section.navigationTitle).font(.headline)
-                            Spacer()
-                            Button("Chiudi") { presentedSection = nil }
-                        }.padding().background(.bar)
-                    }
+                    // Each root draws the Home-style bar itself, so its own toolbar actions stay in place.
+                    .environment(\.closePresentedSection, ClosePresentedSectionAction(section: section) { presentedSection = nil })
                     .sheet(isPresented: Binding(get: { appState.showingTabCustomization }, set: { appState.showingTabCustomization = $0 })) {
                         customizationSheet
                     }

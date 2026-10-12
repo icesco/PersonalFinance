@@ -32,14 +32,7 @@ struct CSVImportView: View {
         NavigationStack {
             fileSelectionView
                 .navigationTitle("Importa CSV")
-                .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Annulla") {
-                            dismiss()
-                        }
-                    }
-                }
+                .modalChrome("Importa CSV", closeLabel: "Annulla") { dismiss() }
                 .fileImporter(
                     isPresented: $showingFilePicker,
                     allowedContentTypes: [UTType.commaSeparatedText, UTType.text, UTType.plainText],
