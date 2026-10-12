@@ -64,7 +64,7 @@ struct TodayView: View {
                         }
                     } else {
                         ScrollView {
-                            VStack(alignment: .leading, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 16) {
                                 header(snapshot: snapshot)
                                 CaptureInboxEntry(compactHomeStyle: true)
                                     .buttonStyle(.plain)
@@ -83,9 +83,10 @@ struct TodayView: View {
                                     }
                                 }
                                 if !snapshot.hasMixedCurrencies {
-                                    FinanceCalendarPreview(contoIDs: snapshot.contoIDs, currency: snapshot.currency)
-                                    SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
                                     TodayActivityLayout(snapshot: snapshot)
+                                    FinanceCalendarPreview(contoIDs: snapshot.contoIDs, currency: snapshot.currency,
+                                                           upcoming: snapshot.planned.sorted { $0.date < $1.date })
+                                    SpendingCommitmentSummary(direction: snapshot.direction, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs)
                                 }
                             }
                             #if os(macOS)
@@ -95,7 +96,10 @@ struct TodayView: View {
                             .padding(.horizontal, 22)
                             .padding(.top, 14)
                             .padding(.bottom, 32)
+                            // Sub-point rounding in wrapped text must never widen the page into a sideways scroll.
+                            .containerRelativeFrame(.horizontal)
                         }
+                        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                         .themedBackground(tint: ForgiaPalette.margin)
                     }
                 } else if loadFailed {
@@ -255,23 +259,27 @@ private struct TodaySectionCards: View {
         if !sections.isEmpty {
             LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize
                       ? [GridItem(.flexible())]
-                      : [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                      : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(sections, id: \.rawValue) { tab in
                     Button {
                         appState.selectTab(tab)
                     } label: {
-                        VStack(alignment: .leading, spacing: 18) {
+                        HStack(spacing: 10) {
                             Image(systemName: tab.icon)
-                                .font(.system(size: 26, weight: .medium))
-                                .frame(height: 30, alignment: .leading)
+                                .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(ForgiaPalette.accent)
+                                .frame(width: 32, height: 32)
+                                .background(ForgiaPalette.sageSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             Text(tab.navigationTitle)
-                                .font(.headline)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(2)
                                 .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
-                        .unifiedCard()
-                        .contentShape(Rectangle())
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                        .compactCard()
+                        .contentShape(RoundedRectangle(cornerRadius: 16))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("today-section-\(tab.rawValue)")
@@ -329,16 +337,32 @@ private struct TodayMarginCard: View {
                     TodayMarginHero(margin: margin,
                                     available: snapshot.direction.liquidBalance - snapshot.direction.creditDebt,
                                     currency: snapshot.currency)
-                    Label("Simula un imprevisto", systemImage: "arrow.up.right")
-                        .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.margin)
-                    if let nextIncome = snapshot.direction.nextIncome {
-                        Text("Fino al \(nextIncome.date, format: .dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT")))")
+                    Divider().overlay(ForgiaPalette.border)
+                    HStack(spacing: 8) {
+                        if let nextIncome = snapshot.direction.nextIncome {
+                            Label {
+                                Text("Fino al \(nextIncome.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))")
+                            } icon: {
+                                Image(systemName: "calendar.badge.clock")
+                            }
                             .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
-                            .frame(maxWidth: .infinity)
+                        }
+                        Spacer(minLength: 8)
+                        Text("Simula una spesa")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(ForgiaPalette.margin)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(ForgiaPalette.margin.opacity(0.12), in: Capsule())
                     }
                 } else {
                     Text("Stima da completare").font(.title3.weight(.semibold))
-                    Text("Apri per vedere cosa manca").font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                    Label {
+                        Text(snapshot.direction.availability.statusMessage)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "list.bullet.clipboard")
+                    }
+                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                 }
             }.unifiedCard(tint: ForgiaPalette.margin).foregroundStyle(.primary)
         }
@@ -464,17 +488,7 @@ private struct TodayMarginDetailContent: View {
         }
     }
 
-    private var statusMessage: String {
-        switch snapshot.direction.availability {
-        case .noMovements: "Aggiungi o importa i movimenti per iniziare."
-        case .staleData: "Aggiorna i movimenti: i dati sono troppo vecchi per stimare quanto resta."
-        case .shortHistory: "Servono almeno 45 giorni di movimenti per stimare la spesa abituale."
-        case .sparseSpending: "Servono più spese recenti, distribuite su almeno due mesi, per stimare un margine attendibile."
-        case .unverifiedBalances: "Verifica il saldo attuale di ogni conto e carta prima di usare la stima."
-        case .noPlannedIncome: "Registra un'entrata ricorrente prevista entro 45 giorni per calcolare il margine fino a quella data."
-        case .ready: ""
-        }
-    }
+    private var statusMessage: String { snapshot.direction.availability.statusMessage }
 
     private func primaryAction(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -493,65 +507,113 @@ private struct TodayRecentActivityCard: View {
     let snapshot: TodaySnapshot
     @Environment(AppStateManager.self) private var appState
 
+    private var direction: SpendingDirection { snapshot.direction }
+    private var categories: [CategoryOutflow] { Array(direction.chartOutflows.prefix(4)) }
+    /// Shades of the card's own hue, so the breakdown stays within one colour family.
+    private var palette: [Color] {
+        [1, 0.68, 0.45, 0.28].map { ForgiaPalette.spending.opacity($0) }
+    }
+    /// Change versus the previous 30 days, only when there is a meaningful baseline.
+    private var change: Double? {
+        guard direction.previous30DaysExpenses > 0 else { return nil }
+        return NSDecimalNumber(decimal: (direction.recentExpenses - direction.previous30DaysExpenses) / direction.previous30DaysExpenses).doubleValue
+    }
+
     var body: some View {
         NavigationLink {
             SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency,
                                  scopeContoIDs: snapshot.contoIDs, initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
         } label: {
-            VStack(alignment: .leading, spacing: 15) {
-                HStack {
-                    Text("NEGLI ULTIMI 30 GIORNI")
-                        .font(.caption2.weight(.semibold))
-                        .tracking(1)
-                        .foregroundStyle(ForgiaPalette.mutedText)
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(ForgiaPalette.accent)
-                }
+            VStack(alignment: .leading, spacing: 14) {
+                AnalysisPreviewHeading(title: "Dove spendi", icon: "chart.bar.xaxis", tint: ForgiaPalette.spending,
+                                       accessory: "30 giorni")
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(snapshot.direction.recentExpenses, format: .currency(code: snapshot.currency))
+                    Text(direction.recentExpenses, format: .currency(code: snapshot.currency))
                         .font(.system(size: 31, weight: .semibold, design: .rounded))
                         .monospacedDigit()
+                        .financeNumericMotion(direction.recentExpenses)
                         .minimumScaleFactor(0.7)
                         .lineLimit(1)
                     Text("di uscite")
                         .font(.subheadline)
                         .foregroundStyle(ForgiaPalette.mutedText)
-                }
-                if let category = snapshot.direction.largestOutflows.first {
-                    Divider().overlay(ForgiaPalette.border)
-                    HStack(spacing: 10) {
-                        Image(systemName: "chart.pie.fill")
-                            .font(.caption)
-                            .foregroundStyle(ForgiaPalette.accent)
-                            .frame(width: 30, height: 30)
-                            .background(ForgiaPalette.sageSurface, in: Circle())
-                        Text("Soprattutto \(category.name.lowercased())")
-                            .font(.subheadline)
-                            .lineLimit(1)
-                        Spacer(minLength: 6)
-                        Text(category.amount, format: .currency(code: snapshot.currency))
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
+                    Spacer(minLength: 4)
+                    if let change, abs(change) >= 0.01 {
+                        changeBadge(change)
                     }
-                } else {
+                }
+                if categories.isEmpty {
                     Text("Importa o registra movimenti per scoprire dove spendi.")
                         .font(.subheadline)
                         .foregroundStyle(ForgiaPalette.mutedText)
+                } else {
+                    categoryBar
+                    VStack(spacing: 8) {
+                        ForEach(Array(categories.prefix(3).enumerated()), id: \.offset) { index, category in
+                            HStack(spacing: 8) {
+                                Circle().fill(color(at: index)).frame(width: 8, height: 8)
+                                Text(category.name).font(.subheadline).lineLimit(1)
+                                Spacer(minLength: 6)
+                                Text(category.amount, format: .currency(code: snapshot.currency))
+                                    .font(.subheadline.weight(.semibold))
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
                 }
-                if snapshot.direction.availability == .staleData,
-                   let latest = snapshot.direction.latestMovement {
+                if direction.availability == .staleData,
+                   let latest = direction.latestMovement {
                     Label("Dati al \(latest.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "it_IT"))))", systemImage: "clock")
                         .font(.caption)
                         .foregroundStyle(ForgiaPalette.mutedText)
                 }
             }
             .foregroundStyle(.primary)
-            .unifiedCard()
+            .unifiedCard(tint: ForgiaPalette.spending)
         }
         .buttonStyle(.plain)
+        .financeCardEntrance()
         .accessibilityLabel("Dove spendi, ultimi 30 giorni")
+    }
+
+    private func color(at index: Int) -> Color {
+        index < palette.count ? palette[index] : ForgiaPalette.mutedText
+    }
+
+    /// Proportional strip of the leading categories; the remainder stays neutral.
+    private var categoryBar: some View {
+        let total = direction.recentExpenses > 0 ? direction.recentExpenses
+            : categories.reduce(Decimal(0)) { $0 + $1.amount }
+        return GeometryReader { proxy in
+            HStack(spacing: 3) {
+                ForEach(Array(categories.enumerated()), id: \.offset) { index, category in
+                    let share = total > 0 ? NSDecimalNumber(decimal: category.amount / total).doubleValue : 0
+                    Capsule()
+                        .fill(color(at: index))
+                        .frame(width: max(4, (proxy.size.width - 3 * CGFloat(categories.count)) * share))
+                }
+                Capsule().fill(ForgiaPalette.border)
+            }
+        }
+        .frame(height: 8)
+        .financeChartReveal()
+        .accessibilityHidden(true)
+    }
+
+    private func changeBadge(_ change: Double) -> some View {
+        let up = change > 0
+        return Label {
+            Text(abs(change), format: .percent.precision(.fractionLength(0)))
+        } icon: {
+            Image(systemName: up ? "arrow.up.right" : "arrow.down.right")
+        }
+        .font(.caption.weight(.semibold))
+        .labelStyle(.titleAndIcon)
+        .foregroundStyle(up ? ForgiaPalette.deficit : ForgiaPalette.margin)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background((up ? ForgiaPalette.deficit : ForgiaPalette.margin).opacity(0.12), in: Capsule())
+        .fixedSize()
+        .accessibilityLabel(up ? "In aumento rispetto ai 30 giorni precedenti" : "In calo rispetto ai 30 giorni precedenti")
     }
 }
 
@@ -570,66 +632,51 @@ private struct TodayAmountRow: View {
     }
 }
 
-private struct TodayCommitmentsCard: View {
-    let snapshot: TodaySnapshot
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Impegni in arrivo").font(.headline)
-            if snapshot.planned.isEmpty {
-                Text("Nessuna uscita prevista nei prossimi 45 giorni. Aggiungi le scadenze importanti per completare la stima.")
-                    .foregroundStyle(ForgiaPalette.mutedText)
-            } else {
-                ForEach(Array(snapshot.planned.prefix(3).enumerated()), id: \.offset) { _, item in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(item.title).lineLimit(1)
-                            Text(item.date, format: .dateTime.day().month(.abbreviated))
-                                .font(.caption)
-                                .foregroundStyle(ForgiaPalette.mutedText)
-                        }
-                        Spacer()
-                        Text(item.amount, format: .currency(code: snapshot.currency))
-                            .monospacedDigit()
-                    }
-                    .font(.subheadline)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .unifiedCard()
-    }
-}
-
 private struct TodayShiftsCard: View {
     let shifts: [SpendingShift]
     let currency: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Da controllare").font(.headline)
-            if shifts.isEmpty {
-                Text("Nessuno scostamento affidabile da segnalare con i dati disponibili.")
-                    .foregroundStyle(ForgiaPalette.mutedText)
-            } else {
-                ForEach(Array(shifts.enumerated()), id: \.offset) { _, shift in
+            AnalysisPreviewHeading(title: "Da controllare", icon: "exclamationmark.bubble", tint: ForgiaPalette.deficit,
+                                   showsChevron: false)
+            Text("Categorie sopra il ritmo dei tre mesi precedenti")
+                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            VStack(spacing: 0) {
+                ForEach(Array(shifts.enumerated()), id: \.offset) { index, shift in
+                    if index > 0 { Divider().overlay(ForgiaPalette.border) }
                     NavigationLink {
                         TransactionListView(initialCategoryID: shift.categoryID, isPushed: true)
                     } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(shift.categoryName).font(.subheadline.weight(.semibold))
-                            Text("Hai speso \(shift.spent.formatted(.currency(code: currency))): \(shift.excess.formatted(.currency(code: currency))) oltre il ritmo dei tre mesi precedenti.")
-                                .font(.caption)
-                                .foregroundStyle(ForgiaPalette.mutedText)
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(shift.categoryName).font(.subheadline.weight(.semibold)).lineLimit(1)
+                                Text("Spesi \(shift.spent.formatted(.currency(code: currency))) · attesi \(shift.expectedByToday.formatted(.currency(code: currency)))")
+                                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                                    .lineLimit(1).minimumScaleFactor(0.85)
+                            }
+                            Spacer(minLength: 6)
+                            Text("+\(shift.excess.formatted(.currency(code: currency)))")
+                                .font(.caption.weight(.bold)).monospacedDigit()
+                                .foregroundStyle(ForgiaPalette.deficit)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(ForgiaPalette.deficit.opacity(0.12), in: Capsule())
+                                .fixedSize()
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                                .foregroundStyle(ForgiaPalette.mutedText).accessibilityHidden(true)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
                     }
-                    if shift.categoryName != shifts.last?.categoryName { Divider() }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(shift.categoryName): \(shift.excess.formatted(.currency(code: currency))) oltre il ritmo abituale")
                 }
             }
         }
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .unifiedCard()
+        .unifiedCard(tint: ForgiaPalette.deficit)
+        .financeCardEntrance()
     }
 }
 
@@ -646,9 +693,22 @@ private struct TodayActivityLayout: View {
     }
     @ViewBuilder private var cards: some View {
         TodayRecentActivityCard(snapshot: snapshot)
-        if !snapshot.planned.isEmpty { TodayCommitmentsCard(snapshot: snapshot) }
         if !snapshot.direction.shifts.isEmpty {
             TodayShiftsCard(shifts: snapshot.direction.shifts, currency: snapshot.currency)
+        }
+    }
+}
+
+private extension DirectionAvailability {
+    var statusMessage: String {
+        switch self {
+        case .noMovements: "Aggiungi o importa i movimenti per iniziare."
+        case .staleData: "Aggiorna i movimenti: i dati sono troppo vecchi per stimare quanto resta."
+        case .shortHistory: "Servono almeno 45 giorni di movimenti per stimare la spesa abituale."
+        case .sparseSpending: "Servono più spese recenti, distribuite su almeno due mesi, per stimare un margine attendibile."
+        case .unverifiedBalances: "Verifica il saldo attuale di ogni conto e carta prima di usare la stima."
+        case .noPlannedIncome: "Registra un'entrata ricorrente prevista entro 45 giorni per calcolare il margine fino a quella data."
+        case .ready: ""
         }
     }
 }

@@ -73,12 +73,13 @@ final class TabNavigationUITests: XCTestCase {
         app.launchArguments = ["UITEST_NAVIGATION", "-CloudSyncEnabled", "NO", "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
         app.launch()
         XCTAssertTrue(app.buttons["navigation-settings"].waitForExistence(timeout: 20))
-        for title in ["Oggi", "Movimenti"] {
-            app.tabBars.buttons[title].tap()
-            XCTAssertEqual(app.navigationBars.count, 0)
-            verifySettingsReturn(to: title, app: app)
-            XCTAssertEqual(app.navigationBars.count, 0)
-        }
+        app.tabBars.buttons["Oggi"].tap()
+        XCTAssertEqual(app.navigationBars.count, 0)
+        verifySettingsReturn(to: "Oggi", app: app)
+        XCTAssertEqual(app.navigationBars.count, 0)
+        app.tabBars.buttons["Movimenti"].tap()
+        XCTAssertEqual(app.navigationBars.count, 0)
+        XCTAssertFalse(app.buttons["navigation-settings"].exists)
         XCTAssertFalse(app.buttons["today-sections"].exists)
         app.tabBars.buttons["Pianifica"].tap()
         XCTAssertFalse(app.buttons["navigation-settings"].exists)

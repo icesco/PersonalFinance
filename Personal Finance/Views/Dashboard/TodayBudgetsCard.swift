@@ -25,23 +25,18 @@ struct TodayBudgetsCard: View {
         let over = ranked.filter { $0.status == .over }.count
         let warning = ranked.filter { $0.status == .warning }.count
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("I TUOI BUDGET")
-                    .font(.caption2.weight(.semibold)).tracking(1.1)
-                    .foregroundStyle(ForgiaPalette.mutedText)
-                Spacer(minLength: 8)
-                HStack(spacing: 4) {
-                    Text(ranked.count > 2 ? "Vedi tutti (\(ranked.count))" : "Apri")
-                    Image(systemName: "chevron.right")
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(ForgiaPalette.accent)
-            }
+            AnalysisPreviewHeading(title: "I tuoi budget", icon: "target", tint: ForgiaPalette.accent,
+                                   accessory: ranked.count > 2 ? "Vedi tutti (\(ranked.count))" : nil)
 
-            Text(over > 0 ? (over == 1 ? "Un budget è oltre il limite" : "\(over) budget oltre il limite")
+            Label {
+                Text(over > 0 ? (over == 1 ? "Un budget è oltre il limite" : "\(over) budget oltre il limite")
                  : warning > 0 ? (warning == 1 ? "Un budget vicino al limite" : "\(warning) budget vicini al limite")
                  : "Tutti i budget sono in linea")
-                .font(.system(.title3, design: .serif, weight: .semibold))
+            } icon: {
+                Image(systemName: over > 0 ? "exclamationmark.circle.fill" : warning > 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(over > 0 ? ForgiaPalette.deficit : warning > 0 ? Color.orange : ForgiaPalette.margin)
+            }
+            .font(.system(.title3, design: .serif, weight: .semibold))
 
             LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize
                       ? [GridItem(.flexible())]
@@ -51,8 +46,10 @@ struct TodayBudgetsCard: View {
                 }
             }
         }
+        .foregroundStyle(.primary)
         .unifiedCard(tint: ForgiaPalette.accent)
         .contentShape(RoundedRectangle(cornerRadius: 22))
+        .financeCardEntrance()
     }
 
     private var invitation: some View {
@@ -85,18 +82,26 @@ private struct TodayBudgetTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                Text(snapshot.name).font(.subheadline.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
+            HStack(alignment: .center, spacing: 8) {
                 Image(systemName: snapshot.icon)
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color(hex: snapshot.colorHex))
+                    .frame(width: 26, height: 26)
+                    .background(Color(hex: snapshot.colorHex).opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .accessibilityHidden(true)
+                Text(snapshot.name).font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text(snapshot.spent, format: .currency(code: snapshot.currency))
-                .font(.system(.title3, design: .rounded, weight: .semibold))
-                .monospacedDigit().foregroundStyle(snapshot.color)
-                .lineLimit(1).minimumScaleFactor(0.75)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(snapshot.spent, format: .currency(code: snapshot.currency))
+                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                    .monospacedDigit().foregroundStyle(snapshot.color)
+                Text("/ \(snapshot.money(snapshot.limit))")
+                    .font(.caption).monospacedDigit()
+                    .foregroundStyle(ForgiaPalette.mutedText)
+            }
+            .lineLimit(1).minimumScaleFactor(0.7)
             BudgetMeter(share: snapshot.share, threshold: snapshot.threshold, color: snapshot.color, height: 6)
                 .accessibilityHidden(true)
             Text(snapshot.status == .over ? "Oltre di \(snapshot.money(-snapshot.remaining))"
@@ -107,7 +112,7 @@ private struct TodayBudgetTile: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(14)
-        .background(ForgiaPalette.surface.opacity(0.8), in: RoundedRectangle(cornerRadius: 18))
+        .cardInset(cornerRadius: 16)
         .accessibilityElement(children: .combine)
     }
 }
@@ -119,7 +124,7 @@ private extension TodayBudgetSnapshot {
         switch status {
         case .onTrack: ForgiaPalette.accent
         case .warning: .orange
-        case .over: .red
+        case .over: ForgiaPalette.deficit
         }
     }
     func money(_ value: Decimal) -> String { value.formatted(.currency(code: currency)) }

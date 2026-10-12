@@ -223,15 +223,75 @@ struct FinanceCalendarPreview: View {
     let contoIDs: Set<UUID>
     let currency: String
     var initialDate = Date()
+    /// Upcoming scheduled outgoings, shown as a short agenda when present.
+    var upcoming: [PlannedCashMovement] = []
     var body: some View {
         NavigationLink {
             FinanceCalendarView(contoIDs: contoIDs, currency: currency, initialDate: initialDate)
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                AnalysisPreviewHeading(title: "Calendario e timeline", icon: "calendar", tint: ForgiaPalette.calendar)
-                Text("Consulta le spese nel calendario e le prossime scadenze nella timeline")
-                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+            VStack(alignment: .leading, spacing: 12) {
+                AnalysisPreviewHeading(title: "Calendario e timeline", icon: "calendar", tint: ForgiaPalette.calendar,
+                                       accessory: upcoming.isEmpty ? nil : "\(upcoming.count) in arrivo")
+                if upcoming.isEmpty {
+                    Text("Consulta le spese nel calendario e le prossime scadenze nella timeline")
+                        .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(Array(upcoming.prefix(3).enumerated()), id: \.offset) { _, item in
+                            UpcomingAgendaRow(item: item, currency: currency)
+                        }
+                    }
+                    let total = upcoming.reduce(Decimal(0)) { $0 + $1.amount }
+                    if upcoming.count > 3 {
+                        Text("Altre \(upcoming.count - 3) scadenze · \(total, format: .currency(code: currency)) in totale")
+                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                }
             }.unifiedCard(tint: ForgiaPalette.calendar).foregroundStyle(.primary)
         }.buttonStyle(.plain).financeCardEntrance().accessibilityIdentifier("finance-calendar-preview")
+    }
+}
+
+private struct UpcomingAgendaRow: View {
+    let item: PlannedCashMovement
+    let currency: String
+    private static let locale = Locale(identifier: "it_IT")
+
+    private var relativeDay: String {
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: item.date)).day ?? 0
+        switch days {
+        case ..<1: return "Oggi"
+        case 1: return "Domani"
+        default: return "Tra \(days) giorni"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(spacing: 0) {
+                Text(item.date, format: .dateTime.day())
+                    .font(.system(.headline, design: .rounded)).monospacedDigit()
+                Text(item.date.formatted(.dateTime.month(.abbreviated).locale(Self.locale)).uppercased())
+                    .font(.system(size: 9, weight: .bold)).tracking(0.5)
+            }
+            .foregroundStyle(ForgiaPalette.calendar)
+            .frame(width: 42, height: 42)
+            .background(ForgiaPalette.calendar.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    if item.isRecurring {
+                        Image(systemName: "repeat").font(.caption2).foregroundStyle(ForgiaPalette.mutedText)
+                            .accessibilityLabel("Ricorrente")
+                    }
+                }
+                Text(relativeDay).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            }
+            Spacer(minLength: 8)
+            Text(item.amount, format: .currency(code: currency))
+                .font(.subheadline.weight(.semibold)).monospacedDigit()
+        }
+        .accessibilityElement(children: .combine)
     }
 }

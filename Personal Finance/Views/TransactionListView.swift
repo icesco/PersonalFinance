@@ -302,11 +302,6 @@ struct TransactionListView: View {
                 .frame(width: 44, height: 44)
                 .disabled(isAtCurrentPeriod)
                 .opacity(isAtCurrentPeriod ? 0.4 : 1)
-
-                if !isPushed && initialConto == nil {
-                    CompactSettingsButton()
-                }
-
             }
         }
         .padding(.horizontal, 16)
@@ -589,6 +584,7 @@ struct TransactionListView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .listRowBackground(ForgiaPalette.surface)
+                                .listRowInsets(.vertical, 8)
                             } else {
                                 NavigationLink {
                                     TransactionDetailView(transaction: transaction)
@@ -625,6 +621,7 @@ struct TransactionListView: View {
                                     }
                                 }
                                 .listRowBackground(ForgiaPalette.surface)
+                                .listRowInsets(.vertical, 8)
                             }
                         }
                     } header: {
@@ -936,15 +933,15 @@ struct TransactionCell: View {
     private var compactRow: some View {
         HStack(spacing: 12) {
             Image(systemName: iconName)
-                .font(.subheadline.weight(.medium))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(isIncome ? ForgiaPalette.accent : ForgiaPalette.mutedText)
-                .frame(width: 44, height: 44)
+                .frame(width: 34, height: 34)
                 .background(isIncome ? ForgiaPalette.sageSurface : ForgiaPalette.canvas)
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(transaction.transactionDescription ?? transaction.category?.name ?? "Transazione")
-                    .font(.body.weight(.medium)).lineLimit(1)
+                    .font(.subheadline.weight(.medium)).lineLimit(1)
 
                 if showDate || (showConto && contoName != nil) {
                     HStack(spacing: 4) {
@@ -977,7 +974,7 @@ struct TransactionCell: View {
                 }
             }
         }
-        .padding(.vertical, 7)
+        .padding(.vertical, 1)
     }
 
     private var tableRow: some View {

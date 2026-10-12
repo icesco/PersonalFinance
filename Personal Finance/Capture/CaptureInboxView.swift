@@ -133,7 +133,7 @@ struct CaptureInboxEntry: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .compactCard()
                 .contentShape(RoundedRectangle(cornerRadius: 16))
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Da approvare")

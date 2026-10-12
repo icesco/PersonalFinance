@@ -11,10 +11,12 @@ struct CompactSettingsButton: View {
                 appState.selectTab(.settings)
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
+                    .font(.body.weight(.semibold))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .frame(width: 44, height: 44)
             .accessibilityLabel("Impostazioni")
             .accessibilityIdentifier("navigation-settings")
         }

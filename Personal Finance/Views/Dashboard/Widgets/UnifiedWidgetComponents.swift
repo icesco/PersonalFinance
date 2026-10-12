@@ -31,7 +31,8 @@ extension EnvironmentValues {
 
 // MARK: - Tinted Card Background
 
-/// The tint identifies the card at its heading and fades beneath the details.
+/// The tint washes the whole card so it reads against the canvas without an outline,
+/// and deepens at the heading to identify the card.
 private struct TintedCardBackground: View {
     let cornerRadius: CGFloat
     var identityTint: Color? = nil
@@ -39,16 +40,20 @@ private struct TintedCardBackground: View {
     @Environment(\.tintedBackgrounds) private var tintedBackgrounds
     @Environment(\.colorScheme) private var colorScheme
 
+    private var tint: Color { identityTint ?? cardTint }
+    private var isDark: Bool { colorScheme == .dark }
+
     var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        shape
             .fill(ForgiaPalette.surface)
             .overlay {
                 if tintedBackgrounds {
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(LinearGradient(
-                            colors: [(identityTint ?? cardTint).opacity(colorScheme == .dark ? 0.18 : 0.11), .clear],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ))
+                    shape.fill(tint.opacity(isDark ? 0.10 : 0.07))
+                    shape.fill(LinearGradient(
+                        colors: [tint.opacity(isDark ? 0.22 : 0.16), tint.opacity(0)],
+                        startPoint: .topLeading, endPoint: UnitPoint(x: 0.7, y: 0.8)
+                    ))
                 }
             }
     }
@@ -58,12 +63,56 @@ private struct TintedCardBackground: View {
 
 private struct UnifiedCardModifier: ViewModifier {
     var identityTint: Color? = nil
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
             .background { TintedCardBackground(cornerRadius: 22, identityTint: identityTint) }
-            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .clipShape(shape)
+            // Elevation lives outside the clip so the shadow is not cut off.
+            .background {
+                shape.fill(ForgiaPalette.surface)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.40 : 0.08), radius: 18, y: 8)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.30 : 0.04), radius: 2, y: 1)
+            }
+    }
+}
+
+private struct CompactCardBackground: View {
+    let cornerRadius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(ForgiaPalette.surface)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.07), radius: 12, y: 5)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.03), radius: 1.5, y: 1)
+    }
+}
+
+private struct CardInsetBackground: View {
+    let cornerRadius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        // A neutral veil over the card's own wash: recessed in light mode, lifted in dark mode.
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.045))
+    }
+}
+
+extension View {
+    /// Elevated surface for small rows (shortcuts, inbox entry) matching the card language.
+    func compactCard(cornerRadius: CGFloat = 16) -> some View {
+        background { CompactCardBackground(cornerRadius: cornerRadius) }
+    }
+
+    /// Secondary well inside a card (tiles, highlights), set apart by tone rather than an outline.
+    func cardInset(cornerRadius: CGFloat = 14) -> some View {
+        background { CardInsetBackground(cornerRadius: cornerRadius) }
     }
 }
 

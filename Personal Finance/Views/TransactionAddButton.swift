@@ -9,8 +9,12 @@ struct TransactionButtonRoot: ViewModifier {
     @Environment(AppStateManager.self) private var appState
     @State private var isOnScreen = false
 
+    /// Room below the last row so scrolled content can clear the floating button.
+    static let bottomClearance: CGFloat = 88
+
     func body(content: Content) -> some View {
         content
+            .safeAreaPadding(.bottom, isActive ? Self.bottomClearance : 0)
             .onAppear { isOnScreen = true; update() }
             .onDisappear { isOnScreen = false; update() }
             .onChange(of: isActive) { _, _ in update() }

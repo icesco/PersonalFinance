@@ -31,6 +31,9 @@ struct AnalysisPreviewHeading: View {
     let title: LocalizedStringKey
     let icon: String
     var tint: Color = ForgiaPalette.accent
+    /// Short trailing hint such as "Vedi tutti (4)"; shown before the chevron.
+    var accessory: String? = nil
+    var showsChevron = true
     var body: some View {
         HStack(spacing: 8) {
             Label {
@@ -41,8 +44,14 @@ struct AnalysisPreviewHeading: View {
                     .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }
             Spacer(minLength: 8)
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold))
-                .foregroundStyle(ForgiaPalette.mutedText).accessibilityHidden(true)
+            if let accessory {
+                Text(accessory).font(.subheadline.weight(.medium))
+                    .foregroundStyle(ForgiaPalette.mutedText).lineLimit(1)
+            }
+            if showsChevron {
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                    .foregroundStyle(ForgiaPalette.mutedText).accessibilityHidden(true)
+            }
         }
     }
 }
