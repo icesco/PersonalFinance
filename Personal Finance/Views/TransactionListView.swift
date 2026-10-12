@@ -652,6 +652,10 @@ struct TransactionListView: View {
             .listStyle(.inset)
             #endif
             .scrollContentBackground(.hidden)
+            // The tab root's safe-area padding stops at the NavigationStack, so the list
+            // reserves the floating button's room itself.
+            .contentMargins(.bottom, isPushed || isInSelectionMode ? 0 : TransactionButtonRoot.bottomClearance,
+                            for: .scrollContent)
             // Rows swap without animation (only the card animates); a scrolled list returns to the card.
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.contentInsets.top > 1
