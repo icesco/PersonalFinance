@@ -5,6 +5,19 @@ import CoreGraphics
 @testable import FinanceCore
 
 @MainActor struct CaptureTests {
+    @Test func captureLookupReturnsOnlyRequestedExistingProposals() throws {
+        let store = try CaptureStore.container(inMemory: true)
+        let first = PendingCapture(source: "notification", sourceName: "Banca", text: "EUR 25")
+        let second = PendingCapture(source: "notification", sourceName: "Banca", text: "EUR 50")
+        try CaptureStore.enqueue(first, in: store)
+        try CaptureStore.enqueue(second, in: store)
+        let matches = try CaptureStore.captures(ids: [first.id, UUID()], in: store)
+        #expect(matches.map(\.id) == [first.id])
+        #expect(try CaptureStore.captures(ids: [], in: store).isEmpty)
+        try CaptureStore.discard(id: first.id, in: store)
+        #expect(try CaptureStore.captures(ids: [first.id], in: store).isEmpty)
+    }
+
     @Test func notificationDateSurvivesIntakeAndParticipatesInRetryIdentity() throws {
         let inbox = try CaptureStore.container(inMemory: true)
         let id = UUID()

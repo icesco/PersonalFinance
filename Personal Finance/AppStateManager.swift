@@ -138,6 +138,7 @@ final class AppStateManager {
     var quickTransactionActivationID = UUID()
     var quickTransactionIsPlanned = false
     var quickTransactionPrefill: (amount: String, description: String)?
+    var captureShortcutDraft: CaptureShortcutDraft?
 
     // MARK: - Navigation Context
     var navigationRouter = NavigationRouter()
@@ -181,6 +182,7 @@ final class AppStateManager {
         copy.quickTransactionType = quickTransactionType
         copy.quickTransactionIsPlanned = quickTransactionIsPlanned
         copy.quickTransactionPrefill = quickTransactionPrefill
+        copy.captureShortcutDraft = captureShortcutDraft
         return copy
     }
 
@@ -305,6 +307,7 @@ final class AppStateManager {
         }
         #endif
         quickTransactionPrefill = nil
+        captureShortcutDraft = nil
         quickTransactionType = type
         quickTransactionIsPlanned = planned
         showingQuickTransaction = true
@@ -316,6 +319,7 @@ final class AppStateManager {
         watchDraftID = nil
         showingQuickTransaction = false
         quickTransactionPrefill = nil
+        captureShortcutDraft = nil
     }
 
     func dismissTransferSheet() {

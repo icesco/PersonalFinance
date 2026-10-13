@@ -1,9 +1,55 @@
 import Testing
 import Foundation
+import FinanceCore
 @testable import Personal_Finance
 
 @MainActor
 struct FinanceShortcutTests {
+    @Test func notificationOutputExposesRecognizedFieldsAndStableIdentity() throws {
+        let intent = CaptureBankNotificationIntent()
+        intent.notificationTitle = "Pagamento carta"
+        intent.text = "24,90 EUR presso Esselunga"
+        intent.notificationDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let capture = try intent.makeCapture()
+        let entity = CaptureTransactionEntity(capture: capture)
+        #expect(entity.id == capture.id)
+        #expect(entity.amount == 24.9)
+        #expect(entity.currency == "EUR")
+        #expect(entity.date == intent.notificationDate)
+        #expect(entity.payee == "Esselunga")
+        #expect(entity.category == nil)
+        #expect(entity.originalText == capture.originalText)
+        capture.originalText = "Pagamento 25 EUR. Saldo 500 EUR."
+        #expect(CaptureTransactionEntity(capture: capture).amount == nil)
+        capture.originalText = "Pagamento $25"
+        #expect(CaptureTransactionEntity(capture: capture).currency == nil)
+    }
+
+    @Test func prepareExpenseRoutesTheSameStoredProposalAndRejectsDiscardedResults() throws {
+        let store = try CaptureStore.container(inMemory: true)
+        let capture = PendingCapture(source: "notification", sourceName: "Banca", text: "EUR 25")
+        try CaptureStore.enqueue(capture, in: store)
+        let prepare = PrepareExpenseIntent()
+        prepare.transaction = CaptureTransactionEntity(capture: capture)
+        let inbox = FinanceShortcutInbox()
+        try inbox.submit(prepare.makeRequest(in: store))
+        let state = AppStateManager(persistsSelection: false)
+        inbox.deliver(to: state, canAccessContent: false)
+        #expect(!state.showingQuickTransaction)
+        inbox.deliver(to: state)
+        #expect(state.showingQuickTransaction)
+        #expect(state.captureShortcutDraft?.id == capture.id)
+        #expect(state.quickTransactionPrefill == nil)
+        #expect(try CaptureStore.pendingCount(in: store) == 1)
+        state.dismissQuickTransaction()
+        #expect(state.captureShortcutDraft == nil)
+        prepare.amount = "12.50"
+        prepare.note = "Correzione manuale"
+        #expect(try prepare.makeRequest(in: store) == .capture(CaptureShortcutDraft(id: capture.id, amount: "12,50", note: "Correzione manuale")))
+        try CaptureStore.discard(id: capture.id, in: store)
+        #expect(throws: FinanceShortcutError.self) { try prepare.makeRequest(in: store) }
+    }
+
     @Test func bankNotificationKeepsAllFieldsAndOriginalDate() throws {
         let intent = CaptureBankNotificationIntent()
         intent.notificationTitle = " Pagamento carta "

@@ -1,10 +1,12 @@
 import AppIntents
 import FinanceCore
 import Foundation
+import SwiftData
 import Observation
 
 /// A request carries only a draft; intents never write financial movements.
 enum FinanceShortcutRequest: Equatable, Sendable {
+    case capture(CaptureShortcutDraft)
     case watchExpense(WatchExpenseDraft)
     case widget(FinanceWidgetRoute)
     case today
@@ -50,6 +52,9 @@ final class FinanceShortcutInbox {
               !state.showingAccountSelection, !state.showingAccountCreation else { return }
         pending = nil
         switch request {
+        case let .capture(draft):
+            state.presentQuickTransaction()
+            state.captureShortcutDraft = draft
         case let .watchExpense(draft):
             if let id = draft.bookID {
                 guard let account = accounts.first(where: { $0.id == id && $0.isActive == true }) else {
@@ -94,11 +99,12 @@ final class FinanceShortcutInbox {
 }
 
 enum FinanceShortcutError: Error, CustomLocalizedStringResourceConvertible {
-    case invalidAmount, busy
+    case invalidAmount, busy, missingCapture
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .invalidAmount: "Inserisci un importo positivo, senza simboli di valuta o separatori delle migliaia."
         case .busy: "C’è già una richiesta in attesa. Apri Formi per completarla."
+        case .missingCapture: "La proposta non è più disponibile su questo dispositivo. Potrebbe essere già stata approvata o scartata."
         }
     }
 }
@@ -122,9 +128,11 @@ struct PrepareExpenseIntent: AppIntent {
 
     @Parameter(title: "Importo nella valuta del libro") var amount: String?
     @Parameter(title: "Descrizione") var note: String?
+    @Parameter(title: "Info transazione bancaria") var transaction: CaptureTransactionEntity?
 
     static var parameterSummary: some ParameterSummary {
         Summary("Prepara una spesa") {
+            \.$transaction
             \.$amount
             \.$note
         }
@@ -132,9 +140,21 @@ struct PrepareExpenseIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let normalized = try ShortcutAmount.normalized(amount)
-        try FinanceShortcutInbox.shared.submit(.expense(amount: normalized, description: note ?? ""))
+        try FinanceShortcutInbox.shared.submit(makeRequest())
         return .result()
+    }
+
+    @MainActor func makeRequest(in captureStore: ModelContainer? = nil) throws -> FinanceShortcutRequest {
+        let normalized = try ShortcutAmount.normalized(amount)
+        if let transaction {
+            let store = try captureStore ?? CaptureStore.container()
+            guard try !CaptureStore.captures(ids: [transaction.id], in: store).isEmpty else {
+                throw FinanceShortcutError.missingCapture
+            }
+            return .capture(CaptureShortcutDraft(id: transaction.id, amount: normalized.isEmpty ? nil : normalized, note: note))
+        } else {
+            return .expense(amount: normalized, description: note ?? "")
+        }
     }
 }
 

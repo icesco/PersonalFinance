@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
 struct CaptureReviewView: View {
     let capture: PendingCapture
     var onFinish: () -> Void
+    var amountOverride: String? = nil
+    var noteOverride: String? = nil
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStateManager.self) private var appState
@@ -241,6 +243,8 @@ struct CaptureReviewView: View {
                 note = String(result.content.merchant.prefix(160))
             } catch { /* AI is optional; manual review always remains available. */ }
         }
+        if let amountOverride { amount = amountOverride }
+        if let noteOverride { note = String(noteOverride.prefix(500)) }
         loading = false
         checkDuplicates()
     }

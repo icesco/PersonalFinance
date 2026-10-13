@@ -104,7 +104,11 @@ struct MainTabView: View {
             get: { appState.showingQuickTransaction },
             set: { _ in appState.dismissQuickTransaction() }
         ), title: "Nuovo movimento", activationID: appState.quickTransactionActivationID) {
-            QuickTransactionModal()
+            if let draft = appState.captureShortcutDraft {
+                CaptureShortcutReviewView(draft: draft)
+            } else {
+                QuickTransactionModal()
+            }
         }
         .financePresentation(isPresented: Binding(
             get: { appState.showingTransferSheet },

@@ -54,6 +54,9 @@ import Darwin
     public static func pending(in container: ModelContainer) throws -> [PendingCapture] {
         try ModelContext(container).fetch(FetchDescriptor<PendingCapture>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))
     }
+    public static func captures(ids: [UUID], in container: ModelContainer) throws -> [PendingCapture] {
+        try ModelContext(container).fetch(FetchDescriptor<PendingCapture>(predicate: #Predicate { ids.contains($0.id) }))
+    }
     public static func pendingCount(in container: ModelContainer) throws -> Int {
         try ModelContext(container).fetchCount(FetchDescriptor<PendingCapture>())
     }

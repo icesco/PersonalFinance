@@ -20,7 +20,7 @@ struct CaptureBankNotificationIntent: AppIntent {
             \.$bank; \.$destination; \.$eventID
         }
     }
-    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
+    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<CaptureTransactionEntity> {
         let capture = try makeCapture()
         do {
             try CaptureStore.enqueue(capture)
@@ -28,7 +28,7 @@ struct CaptureBankNotificationIntent: AppIntent {
         catch {
             throw CaptureIntentFailure.storageUnavailable
         }
-        return .result(dialog: "Notifica acquisita. Controllala in Da approvare in Formi.")
+        return .result(value: CaptureTransactionEntity(capture: capture), dialog: "Notifica acquisita. Controllala in Da approvare oppure passa il risultato a Prepara una spesa.")
     }
 
     @MainActor func makeCapture() throws -> PendingCapture {
