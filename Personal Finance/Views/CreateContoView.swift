@@ -258,15 +258,7 @@ struct EditContoView: View {
                     SavingsAccountSummary(conto: conto, allowsActions: false)
                 }
                 Section("Saldo Corrente") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Saldo attuale")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Text(conto.balance.formatted(.currency(code: conto.account?.currency ?? "EUR")))
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(conto.balance >= 0 ? .primary : .red)
-                    }
+                    ContoBalanceView(conto: conto)
                     .padding(.vertical, 4)
                 }
             }
@@ -298,17 +290,20 @@ struct EditContoView: View {
     }
     
     private func loadContoData() {
-        contoName = conto.name ?? ""
-        selectedType = conto.type ?? .checking
-        description = conto.contoDescription ?? ""
-        logoData = conto.logoData
-        selectedColor = conto.displayColorHex
-        creditLimit = conto.creditLimit
-        statementClosingDay = conto.statementClosingDay
-        paymentDueDay = conto.paymentDueDay
-        annualInterestRate = conto.savingsRates.last?.annualPercent ?? conto.annualInterestRate
-        savingsGoal = conto.linkedSavingsGoal?.targetAmount ?? conto.savingsGoal
-        linkedGoalID = conto.savingsGoalID
+        let context = ModelContext(modelContext.container)
+        let id = conto.id
+        let saved = (try? context.fetch(FetchDescriptor<Conto>(predicate: #Predicate { $0.id == id })).first) ?? conto
+        contoName = saved.name ?? ""
+        selectedType = saved.type ?? .checking
+        description = saved.contoDescription ?? ""
+        logoData = saved.logoData
+        selectedColor = saved.displayColorHex
+        creditLimit = saved.creditLimit
+        statementClosingDay = saved.statementClosingDay
+        paymentDueDay = saved.paymentDueDay
+        annualInterestRate = saved.savingsRates.last?.annualPercent ?? saved.annualInterestRate
+        savingsGoal = saved.linkedSavingsGoal?.targetAmount ?? saved.savingsGoal
+        linkedGoalID = saved.savingsGoalID
         rateDate = Calendar.current.startOfDay(for: Date())
     }
 
@@ -341,6 +336,15 @@ struct EditContoView: View {
                 try SavingsAccountEdits.linkGoal(conto: target, existingID: linkedGoalID, target: savingsGoal, context: context)
             } else { target.savingsGoalID = nil }
             try context.save()
+            conto.name = target.name
+            conto.type = target.type
+            conto.contoDescription = target.contoDescription
+            conto.color = target.color
+            conto.logoData = target.logoData
+            conto.creditLimit = target.creditLimit
+            conto.statementClosingDay = target.statementClosingDay
+            conto.paymentDueDay = target.paymentDueDay
+            conto.updatedAt = target.updatedAt
             dismiss()
         } catch {
             context.rollback()

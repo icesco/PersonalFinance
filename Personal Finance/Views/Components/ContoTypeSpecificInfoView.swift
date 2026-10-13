@@ -36,7 +36,7 @@ struct ContoTypeSpecificInfoView: View {
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Utilizzo plafond")
+                        Text("Utilizzo fido")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -47,7 +47,7 @@ struct ContoTypeSpecificInfoView: View {
                     ProgressView(value: min(ratio, 1.0))
                         .tint(creditColor(for: ratio))
                     HStack {
-                        Text("Speso: " + conto.currentMonthSpending.formatted(.currency(code: currency)))
+                        Text("Da rimborsare: " + conto.creditOutstandingBalance.formatted(.currency(code: currency)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()

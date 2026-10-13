@@ -42,7 +42,7 @@ public enum FormiCLITransactionService {
     public static func read(_ request: FormiCLIRequest, container: ModelContainer,
                             calendar: Calendar = .current, now: Date = Date()) throws -> Page {
         guard request.version == 3, request.command == "transactions", !request.commit,
-              !request.allowDuplicates, request.movements.isEmpty, request.categoryMutation == nil,
+              !request.allowDuplicates, request.movements.isEmpty, request.accountSplit == nil, request.categoryMutation == nil,
               request.includeArchived != true, let query = request.transactionQuery,
               (1...500).contains(query.limit), query.offset >= 0 else {
             throw FormiCLIService.Failure("Richiesta di lettura transazioni non valida.")

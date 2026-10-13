@@ -48,7 +48,7 @@ public enum FormiCLIService {
 
     public static func execute(_ request: FormiCLIRequest, container: ModelContainer,
                                calendar: Calendar = .current) throws -> Result {
-        guard request.transactionQuery == nil, [1, 2, 4].contains(request.version),
+        guard request.accountSplit == nil, request.transactionQuery == nil, [1, 2, 4].contains(request.version),
               request.version == 4 || request.movements.allSatisfy({ $0.type != "transfer" && $0.toAccountID == nil }),
               request.version != 1 || request.movements.allSatisfy({ $0.recurrence == nil }), request.categoryMutation == nil, ["add", "import", "preview"].contains(request.command),
               !request.movements.isEmpty, request.movements.count <= 500,
@@ -243,7 +243,7 @@ public enum FormiCLIService {
     public static func recurrences(_ request: FormiCLIRequest, container: ModelContainer,
                                    calendar: Calendar = .current, now: Date = Date()) throws -> [RecurringRow] {
         guard request.version == 2, request.command == "recurrences", !request.commit,
-              request.movements.isEmpty, request.categoryMutation == nil, request.transactionQuery == nil else {
+              request.movements.isEmpty, request.accountSplit == nil, request.categoryMutation == nil, request.transactionQuery == nil else {
             throw Failure("Richiesta di lettura ricorrenze non valida.")
         }
         let context = ModelContext(container)

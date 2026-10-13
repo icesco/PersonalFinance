@@ -29,9 +29,10 @@ struct ContoTypeSpecificFieldsView: View {
     private var creditCardFields: some View {
         Section("Carta di Credito") {
             HStack {
-                Text("Plafond Mensile")
+                Text("Fido totale")
                 Spacer()
                 TextField("0,00", value: $creditLimit, format: .currency(code: currency))
+                    .accessibilityIdentifier("credit-limit")
                     #if os(iOS)
                     .keyboardType(.decimalPad)
                     #endif

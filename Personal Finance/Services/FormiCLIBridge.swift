@@ -72,8 +72,11 @@ enum FormiCLIBridge {
         do {
             let context = ModelContext(container)
             switch request.command {
+            case "account-split":
+                let result = try FormiCLIAccountSplitService.execute(request, container: container)
+                reply(["ok": true, "version": 4, "result": result])
             case "accounts", "categories":
-                guard !request.commit, request.movements.isEmpty, request.categoryMutation == nil, request.transactionQuery == nil else {
+                guard request.accountSplit == nil, !request.commit, request.movements.isEmpty, request.categoryMutation == nil, request.transactionQuery == nil else {
                     throw FormiCLIService.Failure("La lettura non accetta movimenti o commit.")
                 }
                 let shared = Set(try context.fetch(FetchDescriptor<SharedBookMembership>()).map(\.localBookID))
@@ -85,9 +88,17 @@ enum FormiCLIBridge {
                         .filter { $0.isActive == true && $0.account.map { bookIDs.contains($0.id) } == true }
                     reply(["ok": true, "timeZone": TimeZone.current.identifier,
                            "accounts": accounts.map { conto -> [String: Any] in
-                        ["id": conto.id.uuidString, "name": conto.name ?? "Conto",
+                        var row: [String: Any] = ["id": conto.id.uuidString, "name": conto.name ?? "Conto",
                          "bookID": conto.account!.id.uuidString, "book": conto.account!.name ?? "Libro",
-                         "currency": conto.account!.currency ?? "", "writable": !shared.contains(conto.account!.id)]
+                         "currency": conto.account!.currency ?? "", "writable": !shared.contains(conto.account!.id),
+                         "type": conto.type?.rawValue ?? "other", "balance": "\(conto.balance)",
+                         "displayBalance": "\(conto.displayBalance)"]
+                        if conto.type == .credit {
+                            row["amountToRepay"] = "\(conto.creditOutstandingBalance)"
+                            if let limit = conto.creditLimit { row["creditLimit"] = "\(limit)" }
+                            if let available = conto.creditLimitRemaining { row["availableCredit"] = "\(available)" }
+                        }
+                        return row
                     }])
                 } else {
                     let categories = try context.fetch(FetchDescriptor<FinanceCore.Category>(sortBy: [SortDescriptor(\.name)]))

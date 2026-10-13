@@ -123,11 +123,10 @@ public final class Conto {
         return (initialBalance ?? 0) + incoming - outgoing
     }
 
-    /// For credit cards with a plafond, returns available credit (creditLimit − billing period spending).
-    /// For all other account types, returns the standard balance.
+    /// Credit availability is presentation only; ledger totals continue to use `balance`.
     public var displayBalance: Decimal {
-        if type == .credit, let remaining = creditLimitRemaining {
-            return remaining
+        if type == .credit {
+            return creditLimitRemaining ?? abs(balance)
         }
         return balance
     }
@@ -183,16 +182,18 @@ public final class Conto {
             .reduce(Decimal(0)) { $0 + ($1.amount ?? Decimal(0)) }
     }
 
-    /// Ratio of current billing period spending to credit limit (nil if no credit limit set)
+    /// Outstanding debt as a share of the configured credit limit.
     public var creditLimitUsageRatio: Double? {
-        guard let limit = creditLimit, limit > 0 else { return nil }
-        return NSDecimalNumber(decimal: currentMonthSpending / limit).doubleValue
+        guard type == .credit, let limit = creditLimit, limit > 0 else { return nil }
+        return NSDecimalNumber(decimal: creditOutstandingBalance / limit).doubleValue
     }
 
-    /// Remaining credit available (nil if no credit limit set)
+    public var creditOutstandingBalance: Decimal { max(0, -balance) }
+
+    /// Payments and refunds restore availability; future dated expenses do not consume it.
     public var creditLimitRemaining: Decimal? {
-        guard let limit = creditLimit else { return nil }
-        return limit - currentMonthSpending
+        guard type == .credit, let limit = creditLimit, limit > 0 else { return nil }
+        return max(0, limit + balance)
     }
 
     /// Next statement closing date based on statementClosingDay

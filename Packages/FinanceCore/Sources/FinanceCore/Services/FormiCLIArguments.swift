@@ -8,6 +8,17 @@ public enum FormiCLIArguments {
     }
     public static func parse(_ arguments: [String], read: (String) throws -> Data,
                              today: String) throws -> FormiCLIRequest {
+        if arguments.first == "account-split" {
+            guard arguments == ["account-split", "-"] || arguments == ["account-split", "-", "--yes"] else {
+                throw Failure("Usa account-split - [--yes] con il piano JSON su stdin.")
+            }
+            let data = try read("-")
+            guard data.count <= FormiCLIWire.maxBytes else { throw Failure("Piano troppo grande.") }
+            var request = FormiCLIRequest(command: "account-split", commit: arguments.contains("--yes"))
+            request.version = 4
+            request.accountSplit = try FormiCLIWire.decoder().decode(FormiCLIAccountSplit.self, from: data)
+            return request
+        }
         guard let command = arguments.first,
               ["accounts", "categories", "recurrences", "transactions", "add", "import", "preview", "category-create", "category-update"].contains(command) else {
             throw Failure("Comando sconosciuto. Usa formi --help.")

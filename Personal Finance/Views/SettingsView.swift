@@ -906,10 +906,7 @@ struct ContoSettingsRow: View {
 
             Spacer()
 
-            Text(conto.balance.formatted(.currency(code: conto.account?.currency ?? "EUR")))
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(conto.balance >= 0 ? Color.primary : Color.red)
+            ContoBalanceView(conto: conto, compact: true)
         }
         .padding(.vertical, 4)
     }
@@ -1264,13 +1261,17 @@ struct FinanceContoDetailsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Label(conto.type?.displayName ?? "Conto", systemImage: conto.type?.icon ?? "creditcard")
-                        .foregroundStyle(Color(hex: conto.displayColorHex))
-                    Text(conto.displayBalance, format: .currency(code: conto.account?.currency ?? "EUR"))
-                        .font(.system(.largeTitle, design: .rounded, weight: .semibold)).monospacedDigit()
+                if conto.type == .credit {
+                    CreditAccountCard(conto: conto)
                     Text(conto.account?.name ?? "Libro").foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity, alignment: .leading).unifiedCard()
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label(conto.type?.displayName ?? "Conto", systemImage: conto.type?.icon ?? "creditcard")
+                            .foregroundStyle(Color(hex: conto.displayColorHex))
+                        ContoBalanceView(conto: conto)
+                        Text(conto.account?.name ?? "Libro").foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, alignment: .leading).unifiedCard()
+                }
                 Button("Modifica conto", systemImage: "pencil") { editing = true }
                     .buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
                 NavigationLink { TransactionListView(initialConto: conto, isPushed: true) } label: {

@@ -96,10 +96,13 @@ struct TodayView: View {
                             .padding(.horizontal, 22)
                             .padding(.top, 14)
                             .padding(.bottom, 32)
-                            // Sub-point rounding in wrapped text must never widen the page into a sideways scroll.
+                            #if os(iOS)
                             .containerRelativeFrame(.horizontal)
+                            #endif
                         }
+                        #if os(iOS)
                         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                        #endif
                         .themedBackground(tint: ForgiaPalette.margin)
                     }
                 } else if loadFailed {

@@ -304,3 +304,9 @@ L'estratto del conto di partenza e quello di arrivo descrivono lo stesso movimen
 importalo una sola volta. Mantieni UUID `requestID` e dati invariati nei retry;
 le ricevute persistenti impediscono reinserimenti anche dopo la cancellazione.
 Non usare `--allow-duplicates` per aggirare un conflitto di riconciliazione.
+
+### Separare una carta senza ricreare i movimenti
+
+`formi account-split - < piano.json` prepara una separazione tra carte nello stesso libro personale. Il JSON contiene `sourceAccountID`, un nuovo `destinationAccountID` stabile, `sourceName`, `destinationName` e `transactionIDs` (1–500 UUID esistenti, non ricorrenti). L’anteprima restituisce `revision`: aggiungerla allo stesso piano e usare `--yes`. Il conto di destinazione viene creato e i movimenti vengono riassegnati in un unico salvataggio. Importi, date, categorie, identificativi e allegati restano intatti; per i trasferimenti cambia solo il lato della carta. Un tentativo ripetuto con tutti i movimenti già nella destinazione restituisce `alreadyRecorded` senza applicare nuovamente modifiche. Non riconcilia i saldi e non attribuisce automaticamente lo storico non selezionato.
+
+La risposta `accounts` include `balance` (saldo del registro, negativo per il debito), `displayBalance` e `type`. Per le carte include `amountToRepay`, `creditLimit` se impostato e `availableCredit` se il fido è positivo. I valori monetari sono stringhe decimali. `availableCredit` considera saldo iniziale, acquisti già registrati, rimborsi e pagamenti; non sottrae una seconda volta le spese in sospeso già nel registro.

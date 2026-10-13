@@ -93,6 +93,7 @@ public struct FormiCLITransactionQuery: Codable, Sendable {
 }
 
 public struct FormiCLIRequest: Codable, Sendable {
+    public var accountSplit: FormiCLIAccountSplit?
     public var version: Int = 1
     public var id: UUID = UUID()
     public var issuedAt: Date = Date()
@@ -113,6 +114,15 @@ public struct FormiCLIRequest: Codable, Sendable {
         self.command = command; self.movements = movements; self.commit = commit
         self.allowDuplicates = allowDuplicates; self.bookID = bookID
     }
+}
+
+public struct FormiCLIAccountSplit: Codable, Sendable {
+    public var sourceAccountID: UUID
+    public var destinationAccountID: UUID
+    public var destinationName: String
+    public var sourceName: String
+    public var transactionIDs: [UUID]
+    public var revision: String?
 }
 
 public enum FormiCLIWire {
