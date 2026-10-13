@@ -371,7 +371,7 @@ private struct SpendingDateRangeEditor: View {
             .navigationTitle("Scegli date")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {

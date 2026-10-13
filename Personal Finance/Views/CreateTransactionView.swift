@@ -201,7 +201,7 @@ struct CreateTransactionView: View {
             .navigationTitle(transactionType == .transfer ? "Nuovo trasferimento" : transactionType == .income ? "Nuova entrata" : "Nuova spesa")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
                 #if os(macOS)

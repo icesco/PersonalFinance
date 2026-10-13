@@ -138,7 +138,7 @@ struct CurrencyConversionSheet: View {
             }
             .navigationTitle("Valuta estera")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                FinanceDismissToolbar { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Usa importo") { if let draft, draft.converted != nil { onApply(draft); dismiss() } }
                         .disabled(draft?.converted == nil || loading)

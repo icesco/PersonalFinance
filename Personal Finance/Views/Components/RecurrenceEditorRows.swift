@@ -128,7 +128,7 @@ struct RecurrenceEditorRows: View {
                 }
                 .navigationTitle("Cadenza")
                 .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
+                    FinanceDismissToolbar(placement: .confirmationAction) {
                         Button("Fine") { showingFrequency = false }
                     }
                 }

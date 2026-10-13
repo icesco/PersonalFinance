@@ -41,7 +41,7 @@ struct SavingsExplanationView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Chiudi") { dismiss() } } }
+            .toolbar { FinanceDismissToolbar(placement: .confirmationAction) { Button("Chiudi") { dismiss() } } }
             .financePresentation(isPresented: $showingGuides, title: "Guide", width: 640) { BudgetingGuidesView() }
         }
     }

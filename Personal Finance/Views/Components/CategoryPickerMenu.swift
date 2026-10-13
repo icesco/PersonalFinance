@@ -104,7 +104,7 @@ struct CategoryPickerSheet: View {
             .navigationTitle("Scegli una categoria")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
             }

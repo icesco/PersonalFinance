@@ -72,7 +72,7 @@ struct WebsiteLogoPicker: View {
             .navigationTitle("Cerca logo")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                FinanceDismissToolbar { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Usa logo") {
                         guard let previewData else { return }

@@ -143,7 +143,7 @@ struct EditTransactionView: View {
             .navigationTitle("Modifica movimento")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
                 #if os(macOS)

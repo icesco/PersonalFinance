@@ -17,7 +17,7 @@ struct SharedInvitationNotice: View {
             .sheet(isPresented: $showing) {
                 NavigationStack {
                     SharedInvitationsView()
-                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { showing = false } } }
+                        .toolbar { FinanceDismissToolbar { Button("Chiudi") { showing = false } } }
                 }
             }
         }

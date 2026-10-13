@@ -33,6 +33,31 @@ extension View {
     }
 }
 
+/// Independent Mac windows already provide a close button; nested sheets still need dismissal.
+struct FinanceDismissToolbar<Content: View>: ToolbarContent {
+    let placement: ToolbarItemPlacement
+    @ViewBuilder let content: () -> Content
+    #if os(macOS)
+    @Environment(\.financeTaskID) private var taskID
+    @Environment(\.isPresented) private var isPresented
+    #endif
+
+    init(placement: ToolbarItemPlacement = .cancellationAction, @ViewBuilder content: @escaping () -> Content) {
+        self.placement = placement
+        self.content = content
+    }
+
+    var body: some ToolbarContent {
+        #if os(macOS)
+        if taskID == nil || isPresented {
+            ToolbarItem(placement: placement, content: content)
+        }
+        #else
+        ToolbarItem(placement: placement, content: content)
+        #endif
+    }
+}
+
 /// Dismiss the presented scene directly, even after its originating screen has disappeared.
 struct FinanceTaskDoneButton: View {
     @Environment(\.dismiss) private var dismiss
@@ -242,7 +267,6 @@ private struct FinanceTaskPrivacy: ViewModifier {
 
 struct FinanceTaskWindow: View {
     let id: UUID?
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         if let id, let task = FinanceTaskWindows.shared.task(for: id) {
@@ -255,7 +279,6 @@ struct FinanceTaskWindow: View {
                 .onDisappear { FinanceTaskWindows.shared.finish(id) }
         } else {
             ContentUnavailableView("Finestra non disponibile", systemImage: "macwindow")
-                .toolbar { Button("Chiudi") { dismiss() } }
         }
     }
 }

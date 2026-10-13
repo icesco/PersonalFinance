@@ -158,7 +158,7 @@ struct PurchaseCheckView: View {
             }
             .navigationTitle("Valuta una spesa")
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                FinanceDismissToolbar(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }
                 }
             }

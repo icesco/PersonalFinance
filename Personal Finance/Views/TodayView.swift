@@ -483,7 +483,7 @@ private struct TodayMarginDetailContent: View {
                     }.padding(24)
                 }
                 .navigationTitle("Il tuo margine")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fine") { showsMarginInfo = false } } }
+                .toolbar { FinanceDismissToolbar(placement: .confirmationAction) { Button("Fine") { showsMarginInfo = false } } }
             }
             .presentationDetents([.medium, .large])
         }

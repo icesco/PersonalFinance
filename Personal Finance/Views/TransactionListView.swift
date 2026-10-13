@@ -153,7 +153,7 @@ struct TransactionListView: View {
                 NavigationStack {
                     RecurringManagementView(contoIDs: contoIDsForQuery)
                         .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
+                            FinanceDismissToolbar(placement: .confirmationAction) {
                                 FinanceTaskDoneButton()
                             }
                         }
@@ -869,7 +869,7 @@ struct CategoryFilterSheet: View {
             .navigationTitle("Categorie e sottocategorie")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                FinanceDismissToolbar(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }
                 }
                 ToolbarItem(placement: .cancellationAction) {

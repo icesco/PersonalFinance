@@ -49,7 +49,7 @@ struct DateFormatPickerView: View {
             .navigationTitle("Formato Data")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }

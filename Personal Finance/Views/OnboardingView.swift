@@ -391,7 +391,7 @@ private struct AddContoOnboardingSheet: View {
             .navigationTitle("Nuovo Account")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }

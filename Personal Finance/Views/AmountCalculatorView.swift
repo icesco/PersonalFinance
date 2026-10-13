@@ -58,7 +58,7 @@ struct AmountCalculatorView: View {
             }
             .navigationTitle("Calcolatrice")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
             }

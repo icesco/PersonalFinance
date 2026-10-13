@@ -923,7 +923,7 @@ struct AddContoSheet: View {
         } else {
             NavigationStack {
                 ContentUnavailableView("Seleziona un libro", systemImage: "books.vertical", description: Text("Per aggiungere un conto, scegli prima il libro a cui appartiene."))
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } } }
+                    .toolbar { FinanceDismissToolbar { Button("Chiudi") { dismiss() } } }
             }
         }
     }
@@ -1009,7 +1009,7 @@ struct AddCategorySheet: View {
             }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -1148,7 +1148,7 @@ struct EditCategorySheet: View {
             }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {

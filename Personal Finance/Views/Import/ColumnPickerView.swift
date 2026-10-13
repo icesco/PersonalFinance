@@ -77,7 +77,7 @@ struct ColumnPickerView: View {
             .navigationTitle(field.rawValue)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }

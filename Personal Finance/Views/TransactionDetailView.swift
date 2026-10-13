@@ -176,7 +176,7 @@ struct TransactionDetailView: View {
         .toolbar {
             // Pushed screens already have Back; only a modal presentation needs its own way out.
             if showsCloseButton {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Chiudi") { dismiss() }
                 }
             }

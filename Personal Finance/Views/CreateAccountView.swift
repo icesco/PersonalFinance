@@ -78,7 +78,7 @@ struct CreateAccountView: View {
                 Button("OK", role: .cancel) { }
             } message: { Text("Il libro non è stato salvato. Controlla i dati e riprova.") }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }

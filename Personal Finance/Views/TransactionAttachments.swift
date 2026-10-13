@@ -244,7 +244,7 @@ private struct SavedAttachmentsEditor: View {
             Form { DraftAttachmentsView(attachments: $drafts, loading: $loadingAttachment) }
                 .navigationTitle("Allegati")
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                    FinanceDismissToolbar { Button("Annulla") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Salva") { save() }.disabled(!loaded || loadingAttachment) }
                 }
                 .task {

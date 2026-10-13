@@ -132,7 +132,7 @@ struct MainTabView: View {
         NavigationStack {
             TabCustomizationView()
                 .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
+                    FinanceDismissToolbar(placement: .confirmationAction) {
                         Button("Fine") { appState.showingTabCustomization = false }
                     }
                 }
@@ -563,7 +563,7 @@ struct QuickTransactionModal: View {
             .navigationTitle(movementTitle)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                         .keyboardShortcut(.cancelAction)
                 }

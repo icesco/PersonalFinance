@@ -44,7 +44,7 @@ private struct ModalChrome: ViewModifier {
         #else
         content.toolbar {
             if let close {
-                ToolbarItem(placement: .cancellationAction) { Button(closeLabel, action: close) }
+                FinanceDismissToolbar { Button(closeLabel, action: close) }
             }
         }
         #endif

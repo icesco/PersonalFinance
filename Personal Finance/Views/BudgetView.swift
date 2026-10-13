@@ -552,7 +552,7 @@ struct BudgetDetailView: View {
                     } label: { Image(systemName: "ellipsis") }
                     .accessibilityLabel("Azioni budget")
                 }
-                ToolbarItem(placement: .confirmationAction) {
+                FinanceDismissToolbar(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }
                 }
             }

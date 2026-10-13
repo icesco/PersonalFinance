@@ -69,7 +69,7 @@ struct AccountSelectionModal: View {
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 if !isInitialSelection {
-                    ToolbarItem(placement: .cancellationAction) {
+                    FinanceDismissToolbar {
                         Button("Chiudi", systemImage: "xmark") { dismiss() }
                             .labelStyle(.iconOnly)
                     }

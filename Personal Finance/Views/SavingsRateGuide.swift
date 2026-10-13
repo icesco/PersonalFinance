@@ -30,7 +30,7 @@ struct SavingsRateGuide: View {
             .navigationTitle("Capire il risparmio")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                FinanceDismissToolbar(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }
                         .accessibilityIdentifier("savings-guide-done")
                 }

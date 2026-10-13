@@ -136,7 +136,7 @@ struct ReceiptReviewView: View {
             .formStyle(.grouped)
             .navigationTitle("Leggi scontrino")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } }
+                FinanceDismissToolbar { Button("Chiudi") { dismiss() } }
             }
             .task(id: attachment.id) {
                 do { text = try await ReceiptReader.read(data: attachment.data, isPDF: attachment.contentType == "com.adobe.pdf") }

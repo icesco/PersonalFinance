@@ -277,7 +277,7 @@ struct TimedConfirmationSheet: View {
             .padding(.top, 40)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla", action: onCancel)
                 }
             }

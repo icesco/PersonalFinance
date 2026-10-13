@@ -68,7 +68,7 @@ struct BudgetingSetupView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                FinanceDismissToolbar { Button("Annulla") { dismiss() } }
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 16) {

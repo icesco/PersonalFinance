@@ -60,7 +60,7 @@ struct CSVExportView: View {
             .navigationTitle("Esporta CSV")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }

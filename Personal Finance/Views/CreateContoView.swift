@@ -118,7 +118,7 @@ struct CreateContoView: View {
             .navigationTitle("Nuovo Conto")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }
@@ -265,7 +265,7 @@ struct EditContoView: View {
             .navigationTitle("Modifica Conto")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") {
                         dismiss()
                     }
@@ -366,7 +366,7 @@ struct ColorPickerView: View {
                 .navigationTitle("Seleziona Colore")
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
+                    FinanceDismissToolbar(placement: .confirmationAction) {
                         Button("Fine") { dismiss() }
                     }
                 }

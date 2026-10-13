@@ -212,7 +212,7 @@ private struct SavingsRateEditor: View {
             }
             .navigationTitle("Aggiorna tasso")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                FinanceDismissToolbar { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") { save() }.disabled(rate == nil || rate?.isNaN == true)
                 }

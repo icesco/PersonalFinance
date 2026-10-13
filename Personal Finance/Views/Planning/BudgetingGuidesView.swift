@@ -59,7 +59,7 @@ struct BudgetingGuidesView: View {
                 }
             }
             .navigationTitle("Budget e risparmio")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Chiudi") { dismiss() } } }
+            .toolbar { FinanceDismissToolbar(placement: .confirmationAction) { Button("Chiudi") { dismiss() } } }
         }
     }
 }

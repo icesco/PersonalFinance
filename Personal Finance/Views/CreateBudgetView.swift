@@ -107,7 +107,7 @@ struct CreateBudgetView: View {
             .navigationTitle(budget == nil ? "Nuovo budget" : "Modifica budget")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                FinanceDismissToolbar {
                     Button("Annulla") { dismiss() }
                 }
             }
