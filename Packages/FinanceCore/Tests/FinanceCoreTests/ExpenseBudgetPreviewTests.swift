@@ -71,6 +71,43 @@ struct ExpenseBudgetPreviewTests {
         #expect(original.amount == 60 && original.categoryId == food.id && original.date == date(10))
     }
 
+    @Test func supermarketEditDoesNotShowExceededFunBudget() {
+        let book = Account(name: "Personale")
+        let conto = Conto(name: "Banca", type: .checking)
+        conto.account = book
+        book.conti = [conto]
+        let food = Category(name: "Fondamentali")
+        let supermarket = Category(name: "Supermercato", parentCategoryId: food.id)
+        let leisure = Category(name: "Tempo libero")
+        let cinema = Category(name: "Cinema", parentCategoryId: leisure.id)
+        let categories = [food, supermarket, leisure, cinema]
+        book.categories = categories
+        for category in categories { category.account = book }
+        let groceries = Budget(name: "Alimentari", amount: 300, period: .monthly)
+        groceries.account = book
+        groceries.categories = [food]
+        let fun = Budget(name: "Fun", amount: 100, period: .monthly)
+        fun.account = book
+        fun.categories = [food, leisure]
+        // Budgets saved before category hierarchy had exact membership and no flag.
+        fun.usesExactCategories = nil
+        let original = Transaction(amount: Decimal(string: "34.35")!, type: .expense, date: date(10))
+        original.setFromConto(conto)
+        original.setCategory(supermarket)
+        let entertainment = Transaction(amount: 150, type: .expense, date: date(10))
+        entertainment.setFromConto(conto)
+        entertainment.setCategory(cinema)
+        let previews = BudgetService.previewExpense(amount: original.amount!, categoryID: supermarket.id,
+            accountID: book.id, date: date(10), budgets: [fun, groceries],
+            transactions: [original, entertainment], calendar: calendar, excludingTransactionID: original.id)
+        #expect(previews.map(\.id) == [groceries.id])
+        #expect(previews.first?.spent == 0)
+        #expect(previews.first?.status == .withinLimit)
+        #expect(BudgetService.previewExpense(amount: original.amount!, categoryID: supermarket.id,
+            accountID: book.id, date: date(10), budgets: [fun], transactions: [original, entertainment],
+            calendar: calendar, excludingTransactionID: original.id).isEmpty)
+    }
+
     @Test func handlesThresholdExactLimitAndAlreadyExceededBudget() {
         let account = Account(name: "Personale")
         let category = Category(name: "Cibo", color: "green", icon: "cart")

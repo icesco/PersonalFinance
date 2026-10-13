@@ -54,6 +54,11 @@ struct CompactTransactionRow: View {
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
         .contentShape(Rectangle())
+        #if os(iOS)
+        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
+            dimensions[.leading] + 46
+        }
+        #endif
         .accessibilityElement(children: .combine)
     }
 

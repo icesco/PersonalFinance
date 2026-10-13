@@ -19,12 +19,17 @@ public struct BudgetEdits {
         guard !categories.isEmpty, categories.allSatisfy({ $0.account?.id == account.id }),
               Set(categories.map(\.id)).count == categories.count else { throw Failure.invalidCategories }
         if let budget = existing {
-            let previous = (budget.name, budget.amount, budget.period, budget.alertThreshold, budget.categories, budget.updatedAt)
+            let previous = (budget.name, budget.amount, budget.period, budget.alertThreshold, budget.categories, budget.updatedAt, budget.planningGroupRaw, budget.usesExactCategories)
             budget.name = name; budget.amount = amount; budget.period = period
             budget.alertThreshold = threshold; budget.categories = categories; budget.updatedAt = Date()
+            if Set((previous.4 ?? []).map(\.id)) != Set(categories.map(\.id)) {
+                // Explicit category edits turn a generated limit into a manual budget.
+                budget.planningGroupRaw = nil
+                budget.usesExactCategories = previous.7 ?? true
+            }
             do { try save(); return budget }
             catch {
-                (budget.name, budget.amount, budget.period, budget.alertThreshold, budget.categories, budget.updatedAt) = previous
+                (budget.name, budget.amount, budget.period, budget.alertThreshold, budget.categories, budget.updatedAt, budget.planningGroupRaw, budget.usesExactCategories) = previous
                 throw error
             }
         }

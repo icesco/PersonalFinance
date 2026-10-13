@@ -34,6 +34,8 @@ struct CreateBudgetView: View {
         _selectedCategories = State(initialValue: Set(budget?.categories ?? []))
     }
 
+    private var includesSubcategories: Bool { budget == nil || budget?.usesExactCategories == false }
+
     private var currency: String { account.currency ?? "EUR" }
     private var parsedAmount: Decimal? { BalanceInput.parse(budgetAmount, currency: currency) }
 
@@ -232,7 +234,7 @@ struct CreateBudgetView: View {
                     .disabled(showsSubcategories && !showingSubcategories)
 
                     if showsSubcategories {
-                        Text("Una categoria principale include già tutte le sue sottocategorie.")
+                        Text(includesSubcategories ? "Una categoria principale include già tutte le sue sottocategorie." : "Questo budget include solo le categorie e sottocategorie selezionate.")
                             .font(.caption)
                             .foregroundStyle(ForgiaPalette.mutedText)
                             .padding(.horizontal, 4)
@@ -251,7 +253,7 @@ struct CreateBudgetView: View {
     }
 
     private func categoryGrid(_ categories: [FinanceCategory], includedBy parent: FinanceCategory? = nil) -> some View {
-        let included = parent.map(selectedCategories.contains) ?? false
+        let included = includesSubcategories && (parent.map(selectedCategories.contains) ?? false)
         return LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
             ForEach(categories, id: \.id) { category in
                 BudgetCategoryTile(category: category, isSelected: included || selectedCategories.contains(category)) {
@@ -261,8 +263,9 @@ struct CreateBudgetView: View {
                             selectedCategories.remove(category)
                         } else {
                             selectedCategories.insert(category)
-                            // The macro category already covers its subcategories.
-                            selectedCategories.subtract(hierarchy.children(of: category))
+                            if includesSubcategories {
+                                selectedCategories.subtract(hierarchy.children(of: category))
+                            }
                         }
                     }
                 }

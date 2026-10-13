@@ -64,6 +64,43 @@ struct BudgetEditsTests {
         let stored = try #require(ModelContext(container).fetch(FetchDescriptor<Budget>()).first)
         #expect(stored.categories?.map(\.id) == [first.id] && stored.amount == 100 && stored.isActive == true)
     }
+    @Test func editingGeneratedBudgetUsesExplicitCategoriesInExpensePreview() throws {
+        let (container, book, first, second) = try fixture()
+        book.budgetingPlanJSON = try BudgetingPlan(monthlyIncome: 1000,
+            categoryGroups: [first.externalID: .needs, second.externalID: .wants]).encoded()
+        let budget = Budget(name: "Needs", amount: 100, period: .monthly)
+        budget.account = book
+        budget.categories = [first]
+        budget.planningGroupRaw = BudgetAllocationGroup.needs.rawValue
+        budget.usesExactCategories = true
+        container.mainContext.insert(budget)
+        try container.mainContext.save()
+        try BudgetEdits(context: container.mainContext).apply(to: budget, account: book,
+            name: "Needs renamed", amountText: "120", period: .monthly, threshold: 0.8, categories: [first])
+        #expect(budget.planningGroupRaw == BudgetAllocationGroup.needs.rawValue)
+        let failing = BudgetEdits(context: container.mainContext, save: { throw SaveFailure.unavailable })
+        #expect(throws: SaveFailure.self) {
+            try failing.apply(to: budget, account: book, name: "Travel", amountText: "100",
+                              period: .monthly, threshold: 0.8, categories: [second])
+        }
+        #expect(budget.planningGroupRaw == BudgetAllocationGroup.needs.rawValue)
+        #expect(budget.usesExactCategories == true)
+        #expect(budget.coveredCategoryIDs == [first.id])
+
+        try BudgetEdits(context: container.mainContext).apply(to: budget, account: book,
+            name: "Travel", amountText: "100", period: .monthly, threshold: 0.8, categories: [second])
+        let stored = try #require(ModelContext(container).fetch(FetchDescriptor<Budget>()).first)
+        #expect(stored.planningGroupRaw == nil)
+        #expect(stored.usesExactCategories == true)
+        #expect(stored.coveredCategoryIDs == [second.id])
+        func preview(categoryID: UUID) -> [ExpenseBudgetPreview] {
+            BudgetService.previewExpense(amount: 150, categoryID: categoryID, accountID: book.id,
+                date: Date(), budgets: [stored], transactions: [])
+        }
+        #expect(preview(categoryID: first.id).isEmpty)
+        #expect(preview(categoryID: second.id).first?.status == .overLimit)
+    }
+
     @Test func failedCreationDoesNotLeaveBudgetOrInverseRelationship() throws {
         let (container, book, first, _) = try fixture()
         let context = container.mainContext

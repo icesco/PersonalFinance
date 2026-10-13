@@ -40,6 +40,7 @@ public final class Budget {
     public var includeRecurringTransactions: Bool?  // Include transazioni ricorrenti pianificate
     
     /// Generated limits use exact membership so child overrides cannot overlap.
+    /// A missing flag preserves the exact membership of budgets saved before category hierarchy.
     public var usesExactCategories: Bool?
     public var planningGroupRaw: String?
 
@@ -64,6 +65,7 @@ public final class Budget {
         self.createdAt = Date()
         self.updatedAt = Date()
         self.categories = []
+        self.usesExactCategories = false
     }
     
     /// Current calendar period, with an exclusive end.
@@ -116,7 +118,7 @@ public final class Budget {
             return Set((account?.categories ?? []).filter { $0.fits(.expense) && plan.group(for: $0) == group }.map(\.id))
         }
         let selected = Set((categories ?? []).map(\.id))
-        return usesExactCategories == true ? selected : CategoryHierarchy(categories: account?.categories ?? []).expanding(selected)
+        return usesExactCategories != false ? selected : CategoryHierarchy(categories: account?.categories ?? []).expanding(selected)
     }
 
     /// Add a category to this budget

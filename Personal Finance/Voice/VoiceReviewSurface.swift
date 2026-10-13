@@ -270,7 +270,8 @@ private struct VoiceReviewEditor: View {
                     Text("Scegli il tipo").tag(nil as TransactionType?)
                     Text("Spesa").tag(Optional(TransactionType.expense))
                     Text("Entrata").tag(Optional(TransactionType.income))
-                }.frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 48)
+                }.pickerStyle(.menu).labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .trailing).frame(minHeight: 48)
             }
             FormRowDivider()
             FormRow(icon: "calendar") {
@@ -293,7 +294,8 @@ private struct VoiceReviewEditor: View {
                 Picker("Conto", selection: $draft.contoID) {
                     Text("Scegli un conto").tag(nil as UUID?)
                     ForEach(conti) { Text($0.name ?? "Conto").tag(Optional($0.id)) }
-                }.frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 48)
+                }.pickerStyle(.menu).labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .trailing).frame(minHeight: 48)
             }
             FormRowDivider()
             FormRow(icon: "tag", tint: ForgiaPalette.apricotSurface) {
@@ -302,8 +304,9 @@ private struct VoiceReviewEditor: View {
                 Picker("Categoria", selection: $draft.categoryID) {
                     Text("Senza categoria").tag(nil as UUID?)
                     ForEach(categories) { Text($0.name ?? "Categoria").tag(Optional($0.id)) }
-                }.disabled(draft.contoID == nil)
-                    .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 48)
+                }.pickerStyle(.menu).labelsHidden()
+                    .disabled(draft.contoID == nil)
+                    .frame(maxWidth: .infinity, alignment: .trailing).frame(minHeight: 48)
             }
         }
     }
