@@ -28,7 +28,7 @@ struct CaptureBankNotificationIntent: AppIntent {
         catch {
             throw CaptureIntentFailure.storageUnavailable
         }
-        return .result(value: CaptureTransactionEntity(capture: capture), dialog: "Notifica acquisita. Controllala in Da approvare oppure passa il risultato a Prepara una spesa.")
+        return .result(value: CaptureTransactionEntity(capture: capture), dialog: "Notifica acquisita. Controllala in Da approvare oppure passa il risultato a Prepara una spesa o Prepara un’entrata.")
     }
 
     @MainActor func makeCapture() throws -> PendingCapture {

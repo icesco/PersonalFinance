@@ -13,6 +13,7 @@ enum FinanceShortcutRequest: Equatable, Sendable {
     case planning
     case reminderPlanning
     case expense(amount: String, description: String)
+    case income(amount: String, description: String)
 }
 
 /// Dock and Home Screen actions use the same protected draft delivery as Shortcuts.
@@ -53,7 +54,7 @@ final class FinanceShortcutInbox {
         pending = nil
         switch request {
         case let .capture(draft):
-            state.presentQuickTransaction()
+            state.presentQuickTransaction(type: draft.type)
             state.captureShortcutDraft = draft
         case let .watchExpense(draft):
             if let id = draft.bookID {
@@ -93,6 +94,9 @@ final class FinanceShortcutInbox {
             state.selectTab(.planning)
         case let .expense(amount, description):
             state.presentQuickTransaction()
+            state.quickTransactionPrefill = (amount, description)
+        case let .income(amount, description):
+            state.presentQuickTransaction(type: .income)
             state.quickTransactionPrefill = (amount, description)
         }
     }
@@ -158,6 +162,41 @@ struct PrepareExpenseIntent: AppIntent {
     }
 }
 
+struct PrepareIncomeIntent: AppIntent {
+    static let title: LocalizedStringResource = "Prepara un’entrata"
+    static let description = IntentDescription("Apre un’entrata da controllare e salvare in Formi. Puoi passare il risultato di Acquisisci notifica bancaria, per esempio una notifica dello stipendio. Nessun movimento viene salvato automaticamente.")
+    static var supportedModes: IntentModes { .foreground }
+
+    @Parameter(title: "Importo nella valuta del libro") var amount: String?
+    @Parameter(title: "Descrizione") var note: String?
+    @Parameter(title: "Info transazione bancaria") var transaction: CaptureTransactionEntity?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Prepara un’entrata") {
+            \.$transaction
+            \.$amount
+            \.$note
+        }
+    }
+
+    @MainActor func perform() async throws -> some IntentResult {
+        try FinanceShortcutInbox.shared.submit(makeRequest())
+        return .result()
+    }
+
+    @MainActor func makeRequest(in captureStore: ModelContainer? = nil) throws -> FinanceShortcutRequest {
+        let normalized = try ShortcutAmount.normalized(amount)
+        if let transaction {
+            let store = try captureStore ?? CaptureStore.container()
+            guard try !CaptureStore.captures(ids: [transaction.id], in: store).isEmpty else {
+                throw FinanceShortcutError.missingCapture
+            }
+            return .capture(CaptureShortcutDraft(id: transaction.id, amount: normalized.isEmpty ? nil : normalized, note: note, type: .income))
+        }
+        return .income(amount: normalized, description: note ?? "")
+    }
+}
+
 struct OpenFinancialTodayIntent: AppIntent {
     static let title: LocalizedStringResource = "Apri il riepilogo di oggi"
     static var supportedModes: IntentModes { .foreground }
@@ -181,6 +220,7 @@ struct OpenFinancialPlanningIntent: AppIntent {
 struct FinanceShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: PrepareExpenseIntent(), phrases: ["Prepara una spesa in \(.applicationName)"], shortTitle: "Nuova spesa", systemImageName: "plus.circle")
+        AppShortcut(intent: PrepareIncomeIntent(), phrases: ["Prepara un’entrata in \(.applicationName)"], shortTitle: "Nuova entrata", systemImageName: "arrow.down.left.circle")
         AppShortcut(intent: OpenFinancialTodayIntent(), phrases: ["Apri il riepilogo in \(.applicationName)"], shortTitle: "Riepilogo di oggi", systemImageName: "house")
         AppShortcut(intent: OpenFinancialPlanningIntent(), phrases: ["Apri budget e scadenze in \(.applicationName)"], shortTitle: "Budget e scadenze", systemImageName: "calendar")
     }

@@ -14,7 +14,7 @@ struct CaptureShortcutReviewView: View {
             Group {
                 if let capture {
                     CaptureReviewView(capture: capture, onFinish: { appState.dismissQuickTransaction() },
-                                      amountOverride: draft.amount, noteOverride: draft.note)
+                                      amountOverride: draft.amount, noteOverride: draft.note, typeOverride: draft.type)
                 } else if let error {
                     ContentUnavailableView("Proposta non disponibile", systemImage: "tray", description: Text(error))
                 } else {
@@ -31,6 +31,7 @@ struct CaptureShortcutReviewView: View {
             do {
                 let store = try CaptureStore.container()
                 self.store = store
+                try CaptureStore.setTransactionType(id: draft.id, type: draft.type, in: store)
                 capture = try CaptureStore.captures(ids: [draft.id], in: store).first
                 if capture == nil { error = "La proposta è già stata approvata o scartata su questo dispositivo." }
             } catch {

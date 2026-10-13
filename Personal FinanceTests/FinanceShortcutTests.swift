@@ -5,6 +5,45 @@ import FinanceCore
 
 @MainActor
 struct FinanceShortcutTests {
+    @Test func salaryNotificationPreparesAnIncomeWithTheSameProposal() throws {
+        let store = try CaptureStore.container(inMemory: true)
+        let capture = PendingCapture(source: "notification", sourceName: "Banca", text: "Accredito stipendio 2.150,50 EUR")
+        try CaptureStore.enqueue(capture, in: store)
+        let prepare = PrepareIncomeIntent()
+        prepare.transaction = CaptureTransactionEntity(capture: capture)
+        #expect(prepare.transaction?.amount == 2150.5)
+        let request = try prepare.makeRequest(in: store)
+        #expect(request == .capture(CaptureShortcutDraft(id: capture.id, amount: nil, note: nil, type: .income)))
+        let inbox = FinanceShortcutInbox()
+        try inbox.submit(request)
+        let state = AppStateManager(persistsSelection: false)
+        inbox.deliver(to: state, canAccessContent: false)
+        #expect(!state.showingQuickTransaction)
+        inbox.deliver(to: state)
+        #expect(state.quickTransactionType == .income)
+        #expect(state.captureShortcutDraft?.type == .income)
+        #expect(state.captureShortcutDraft?.id == capture.id)
+        #expect(try CaptureStore.pendingCount(in: store) == 1)
+        try CaptureStore.discard(id: capture.id, in: store)
+        #expect(throws: FinanceShortcutError.self) { try prepare.makeRequest(in: store) }
+    }
+
+    @Test func manualIncomeUsesTheIncomeEditorAndValidatesAmount() throws {
+        let prepare = PrepareIncomeIntent()
+        prepare.amount = "2150.50"
+        prepare.note = "Stipendio"
+        let inbox = FinanceShortcutInbox()
+        try inbox.submit(prepare.makeRequest())
+        let state = AppStateManager(persistsSelection: false)
+        inbox.deliver(to: state)
+        #expect(state.quickTransactionType == .income)
+        #expect(state.quickTransactionPrefill?.amount == "2150,50")
+        #expect(state.quickTransactionPrefill?.description == "Stipendio")
+        #expect(state.captureShortcutDraft == nil)
+        prepare.amount = "-100"
+        #expect(throws: FinanceShortcutError.self) { try prepare.makeRequest() }
+    }
+
     @Test func notificationOutputExposesRecognizedFieldsAndStableIdentity() throws {
         let intent = CaptureBankNotificationIntent()
         intent.notificationTitle = "Pagamento carta"

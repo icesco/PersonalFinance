@@ -52,4 +52,5 @@ struct CaptureShortcutDraft: Equatable, Sendable {
     let id: UUID
     let amount: String?
     let note: String?
+    var type: TransactionType = .expense
 }

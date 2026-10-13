@@ -57,6 +57,13 @@ import Darwin
     public static func captures(ids: [UUID], in container: ModelContainer) throws -> [PendingCapture] {
         try ModelContext(container).fetch(FetchDescriptor<PendingCapture>(predicate: #Predicate { ids.contains($0.id) }))
     }
+    public static func setTransactionType(id: UUID, type: TransactionType, in container: ModelContainer) throws {
+        guard type != .transfer else { throw Failure.unavailable }
+        let context = ModelContext(container)
+        guard let capture = try context.fetch(FetchDescriptor<PendingCapture>(predicate: #Predicate { $0.id == id })).first else { throw Failure.unavailable }
+        capture.proposedType = type.rawValue
+        try context.save()
+    }
     public static func pendingCount(in container: ModelContainer) throws -> Int {
         try ModelContext(container).fetchCount(FetchDescriptor<PendingCapture>())
     }

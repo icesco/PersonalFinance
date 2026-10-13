@@ -10,6 +10,7 @@ struct CaptureReviewView: View {
     var onFinish: () -> Void
     var amountOverride: String? = nil
     var noteOverride: String? = nil
+    var typeOverride: TransactionType? = nil
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStateManager.self) private var appState
@@ -206,6 +207,7 @@ struct CaptureReviewView: View {
         } message: { Text(error ?? "") }
     }
     private func load() async {
+        type = typeOverride ?? capture.reviewType
         date = min(capture.notificationDate ?? capture.createdAt, Date())
         text = capture.originalText
         if capture.document != nil {

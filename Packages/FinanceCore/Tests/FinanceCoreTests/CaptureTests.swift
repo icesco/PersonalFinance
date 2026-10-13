@@ -5,6 +5,40 @@ import CoreGraphics
 @testable import FinanceCore
 
 @MainActor struct CaptureTests {
+    @Test func incomeProposalKeepsItsTypeAcrossReopeningAndAcquisitionRetries() throws {
+        let inbox = try CaptureStore.container(inMemory: true)
+        let id = UUID()
+        let proposal = PendingCapture(id: id, source: "notification", sourceName: "Banca", text: "Accredito stipendio 2.150,50 EUR")
+        #expect(proposal.reviewType == .expense)
+        try CaptureStore.enqueue(proposal, in: inbox)
+        try CaptureStore.setTransactionType(id: id, type: .income, in: inbox)
+        #expect(try CaptureStore.captures(ids: [id], in: inbox).first?.reviewType == .income)
+        try CaptureStore.enqueue(PendingCapture(id: id, source: "notification", sourceName: "Banca", text: proposal.originalText), in: inbox)
+        #expect(try CaptureStore.captures(ids: [id], in: inbox).first?.reviewType == .income)
+        #expect(try CaptureStore.pendingCount(in: inbox) == 1)
+        try CaptureStore.setTransactionType(id: id, type: .expense, in: inbox)
+        #expect(try CaptureStore.captures(ids: [id], in: inbox).first?.reviewType == .expense)
+    }
+
+    @Test func salaryApprovalCreditsTheDestinationAndIsRetrySafe() throws {
+        let (store, conto, _) = try ledger()
+        let salary = FinanceCore.Category(name: "Stipendio", kind: .income)
+        salary.account = conto.account
+        store.mainContext.insert(salary)
+        try store.mainContext.save()
+        let input = CaptureApprovalInput(captureID: UUID(), contoID: conto.id, categoryID: salary.id,
+            amount: Decimal(string: "2150.50")!, currency: "EUR", type: .income, note: "Stipendio", paymentConfirmed: true)
+        let id = try CaptureApproval.approve(input, in: store)
+        #expect(try CaptureApproval.approve(input, in: store) == id)
+        let context = ModelContext(store)
+        let transaction = try #require(context.fetch(FetchDescriptor<Transaction>()).first)
+        #expect(transaction.type == .income)
+        #expect(transaction.toContoId == conto.id)
+        #expect(transaction.fromContoId == nil)
+        #expect(transaction.toConto?.balance == Decimal(string: "2650.50"))
+        #expect(try context.fetchCount(FetchDescriptor<Transaction>()) == 1)
+    }
+
     @Test func captureLookupReturnsOnlyRequestedExistingProposals() throws {
         let store = try CaptureStore.container(inMemory: true)
         let first = PendingCapture(source: "notification", sourceName: "Banca", text: "EUR 25")

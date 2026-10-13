@@ -6,6 +6,8 @@ import SwiftData
     public var id: UUID = UUID()
     public var createdAt: Date = Date()
     public var notificationDate: Date?
+    public var proposedType: String?
+    public var reviewType: TransactionType { proposedType == TransactionType.income.rawValue ? .income : .expense }
     public var source: String = "share"
     public var sourceName: String = "Condivisione"
     public var originalText: String = ""
