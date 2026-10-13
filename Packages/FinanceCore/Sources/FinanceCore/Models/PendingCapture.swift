@@ -5,6 +5,7 @@ import SwiftData
 @Model public final class PendingCapture {
     public var id: UUID = UUID()
     public var createdAt: Date = Date()
+    public var notificationDate: Date?
     public var source: String = "share"
     public var sourceName: String = "Condivisione"
     public var originalText: String = ""
@@ -17,10 +18,12 @@ import SwiftData
     @Attribute(.externalStorage) public var document: Data?
 
     public init(id: UUID = UUID(), source: String, sourceName: String, text: String,
-                destinationName: String = "", filename: String? = nil, contentType: String? = nil, document: Data? = nil) {
+                destinationName: String = "", filename: String? = nil, contentType: String? = nil, document: Data? = nil,
+                notificationDate: Date? = nil) {
         self.id = id; self.source = source; self.sourceName = sourceName
         self.originalText = text; self.destinationName = destinationName
         self.filename = filename; self.contentType = contentType; self.document = document
+        self.notificationDate = notificationDate
     }
 }
 

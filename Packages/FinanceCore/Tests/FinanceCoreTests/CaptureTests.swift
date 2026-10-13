@@ -5,6 +5,20 @@ import CoreGraphics
 @testable import FinanceCore
 
 @MainActor struct CaptureTests {
+    @Test func notificationDateSurvivesIntakeAndParticipatesInRetryIdentity() throws {
+        let inbox = try CaptureStore.container(inMemory: true)
+        let id = UUID()
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        try CaptureStore.enqueue(PendingCapture(id: id, source: "notification", sourceName: "Banca", text: "EUR 25", notificationDate: date), in: inbox)
+        try CaptureStore.enqueue(PendingCapture(id: id, source: "notification", sourceName: "Banca", text: "EUR 25", notificationDate: date), in: inbox)
+        let captures = try CaptureStore.pending(in: inbox)
+        #expect(captures.count == 1)
+        #expect(captures.first?.notificationDate == date)
+        #expect(throws: CaptureStore.Failure.reusedID) {
+            try CaptureStore.enqueue(PendingCapture(id: id, source: "notification", sourceName: "Banca", text: "EUR 25", notificationDate: date.addingTimeInterval(60)), in: inbox)
+        }
+    }
+
     @Test func futureCaptureIsPlannedWithAttachmentAndDoesNotChangeCurrentBalance() throws {
         let (store, conto, category) = try ledger()
         let now = Date()

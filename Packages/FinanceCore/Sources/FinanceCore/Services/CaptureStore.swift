@@ -43,7 +43,8 @@ import Darwin
         if let existing = try context.fetch(FetchDescriptor<PendingCapture>(predicate: #Predicate { $0.id == id })).first {
             guard existing.originalText == capture.originalText, existing.destinationName == capture.destinationName,
                   existing.source == capture.source, existing.sourceName == capture.sourceName,
-                  existing.filename == capture.filename, existing.contentType == capture.contentType, existing.document == capture.document else { throw Failure.reusedID }
+                  existing.filename == capture.filename, existing.contentType == capture.contentType, existing.document == capture.document,
+                  existing.notificationDate == capture.notificationDate else { throw Failure.reusedID }
             return
         }
         context.insert(capture)

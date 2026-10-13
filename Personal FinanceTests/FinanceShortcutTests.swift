@@ -1,8 +1,35 @@
 import Testing
+import Foundation
 @testable import Personal_Finance
 
 @MainActor
 struct FinanceShortcutTests {
+    @Test func bankNotificationKeepsAllFieldsAndOriginalDate() throws {
+        let intent = CaptureBankNotificationIntent()
+        intent.notificationTitle = " Pagamento carta "
+        intent.subtitle = " Carta 1234 "
+        intent.text = " 24,90 EUR presso Esselunga\n "
+        intent.notificationDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let capture = try intent.makeCapture()
+        #expect(capture.originalText == "Pagamento carta\nCarta 1234\n24,90 EUR presso Esselunga")
+        #expect(capture.notificationDate == intent.notificationDate)
+        #expect(capture.createdAt > capture.notificationDate!)
+    }
+
+    @Test func bankNotificationAcceptsLegacyTextAndMissingBody() throws {
+        let legacy = CaptureBankNotificationIntent()
+        legacy.text = "Pagamento EUR 25"
+        #expect(try legacy.makeCapture().originalText == "Pagamento EUR 25")
+        #expect(try legacy.makeCapture().notificationDate == nil)
+        let titleOnly = CaptureBankNotificationIntent()
+        titleOnly.notificationTitle = "Pagamento EUR 25"
+        titleOnly.subtitle = "  "
+        #expect(try titleOnly.makeCapture().originalText == "Pagamento EUR 25")
+        #expect(throws: CaptureIntentFailure.self) { try CaptureBankNotificationIntent().makeCapture() }
+        legacy.notificationTitle = String(repeating: "a", count: 30_000)
+        #expect(throws: CaptureIntentFailure.self) { try legacy.makeCapture() }
+    }
+
     @Test func iconActionWaitsForUnlockAndOpensAnEmptyExpense() {
         let inbox = FinanceShortcutInbox()
         let state = AppStateManager(persistsSelection: false)

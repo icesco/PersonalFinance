@@ -204,7 +204,7 @@ struct CaptureReviewView: View {
         } message: { Text(error ?? "") }
     }
     private func load() async {
-        date = min(capture.createdAt, Date())
+        date = min(capture.notificationDate ?? capture.createdAt, Date())
         text = capture.originalText
         if capture.document != nil {
             do {

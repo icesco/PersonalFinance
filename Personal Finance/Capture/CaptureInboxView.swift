@@ -160,7 +160,7 @@ struct CaptureSetupView: View {
             }
             Section("Notifiche bancarie · iOS 27") {
                 Text("1. In Comandi Rapidi crea un comando e aggiungi l’automazione Notifica, scegliendo l’app della tua banca o Wallet.")
-                Text("2. Filtra le notifiche di pagamento. Aggiungi l’azione di Formi “Acquisisci notifica bancaria” e passa il testo della notifica nel campo Testo.")
+                Text("2. Filtra le notifiche di pagamento. Aggiungi l’azione di Formi “Acquisisci notifica bancaria” e collega Titolo, Sottotitolo, Corpo e Data ai rispettivi campi della notifica. Lascia vuoti i campi che la notifica non contiene.")
                 Text("3. Indica la banca o app di origine. Il nome del conto di destinazione è facoltativo: se lo lasci vuoto, Formi usa il default configurato per quella banca oppure propone l’unico libro e conto disponibili. Scegli l’esecuzione immediata dove disponibile e prova con una notifica reale.")
                 Text("Un conto indicato nel comando ha la precedenza sul default e viene proposto solo se corrisponde a un unico conto attivo. Controlla sempre la destinazione durante l’approvazione.")
                     .font(.footnote).foregroundStyle(.secondary)
