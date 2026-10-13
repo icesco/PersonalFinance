@@ -435,14 +435,18 @@ struct BooksSettingsView: View {
 // MARK: - Conti
 
 struct ContiSettingsView: View {
+    var accountOverride: Account? = nil
+    var showsVerificationOption = false
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
+    @State private var editingConto: Conto?
+    private var account: Account? { accountOverride ?? appState.selectedAccount }
     @State private var showingAddConto = false
     @State private var showingBalances = false
     @State private var showingSaveError = false
 
     private var visibleConti: [Conto] {
-        appState.selectedAccount?.conti?.sorted { ($0.name ?? "") < ($1.name ?? "") } ?? []
+        account?.conti?.sorted { ($0.name ?? "") < ($1.name ?? "") } ?? []
     }
 
     var body: some View {
@@ -459,22 +463,34 @@ struct ContiSettingsView: View {
                         .tint(ForgiaPalette.accent)
                 }
             } else {
-                Section {
-                    ForEach(conti, id: \.id) { conto in
-                        NavigationLink {
-                            FinanceContoDetailsView(conto: conto)
-                        } label: {
-                            VStack(alignment: .leading) {
-                                ContoSettingsRow(conto: conto)
-                                if conto.isActive != true { Text("Archiviato").font(.caption).foregroundStyle(.secondary) }
+                ForEach(ContoType.allCases, id: \.rawValue) { type in
+                    let group = conti.filter { $0.isActive == true && ($0.type ?? .checking) == type }
+                    if !group.isEmpty {
+                        Section(type.displayName) {
+                            ForEach(group) { conto in
+                                AccountManagementRow(conto: conto)
+                                    .modifier(FinanceDeletionActions(target: .conto(conto.id), name: conto.name ?? "Conto", archive: { archiveConto(conto) }, edit: { editingConto = conto }, showsMenu: false))
                             }
                         }
-                        .modifier(FinanceDeletionActions(target: .conto(conto.id), name: conto.name ?? "Conto", archive: conto.isActive == true ? { archiveConto(conto) } : nil))
                     }
-                } header: {
-                    Text(appState.selectedAccount?.name ?? "Libro")
-                } footer: {
-                    Text("Archivia conserva i movimenti. Elimina rimuove definitivamente anche i movimenti e i trasferimenti collegati.")
+                }
+                let archived = conti.filter { $0.isActive != true }
+                if !archived.isEmpty {
+                    Section {
+                        DisclosureGroup("Archiviati · \(archived.count)") {
+                            ForEach(archived) { conto in
+                                NavigationLink { FinanceContoDetailsView(conto: conto) } label: { ContoSettingsRow(conto: conto) }
+                                    .modifier(FinanceDeletionActions(target: .conto(conto.id), name: conto.name ?? "Conto", archive: nil, edit: { editingConto = conto }, showsMenu: false))
+                            }
+                        }
+                    } footer: { Text("I conti archiviati conservano i movimenti e sono esclusi dal saldo dei conti attivi.") }
+                }
+            }
+            if showsVerificationOption {
+                Section("Strumenti") {
+                    Button("Verifica saldi", systemImage: "checkmark.shield") { showingBalances = true }
+                        .accessibilityIdentifier("settings-verify-balances")
+                        .disabled(account == nil)
                 }
             }
         }
@@ -484,7 +500,29 @@ struct ContiSettingsView: View {
         .scrollContentBackground(.hidden)
         .themedBackground()
         #endif
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !visibleConti.isEmpty {
+                VStack(alignment: .leading, spacing: 14) {
+                    AccountsBalanceOverview(conti: visibleConti.filter { $0.isActive == true },
+                        currency: account?.currency ?? "EUR", bookName: account?.name ?? "Libro")
+                    let pending = visibleConti.filter { BalanceReconciliation.needsVerification(for: $0) }.count
+                    if pending > 0 {
+                        Button { showingBalances = true } label: {
+                            Label(pending == 1 ? "Verifica il saldo di 1 conto" : "Verifica i saldi di \(pending) conti", systemImage: "checkmark.shield")
+                                .frame(minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("accounts-verify-balances")
+                    }
+                }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ForgiaPalette.sageSurface)
+            }
+        }
         .navigationTitle("Conti")
+        .toolbarTitleDisplayMode(.inline)
         .financeEmptyOverlay(isPresented: visibleConti.isEmpty) {
             ContentUnavailableView {
                 FormiEmptyStateLabel(title: "Nessun conto", artwork: .portrait)
@@ -499,15 +537,6 @@ struct ContiSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showingBalances = true
-                } label: {
-                    Label("Verifica saldi", systemImage: "checkmark.circle")
-                }
-                .accessibilityIdentifier("accounts-verify-balances")
-                .disabled(appState.selectedAccount == nil || visibleConti.isEmpty)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
                     showingAddConto = true
                 } label: {
                     Label("Aggiungi conto", systemImage: "plus")
@@ -515,13 +544,14 @@ struct ContiSettingsView: View {
             }
         }
         .financePresentation(isPresented: $showingAddConto, title: "Nuovo conto") {
-            AddContoSheet()
+            if let account { CreateContoView(account: account) }
         }
         .financePresentation(isPresented: $showingBalances, title: "Verifica saldi") {
-            if let account = appState.selectedAccount {
+            if let account {
                 BalanceReconciliationView(account: account)
             }
         }
+        .financePresentation(item: $editingConto, title: "Modifica conto") { EditContoView(conto: $0) }
         .alert("Impossibile salvare", isPresented: $showingSaveError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -1255,39 +1285,6 @@ struct EditCategorySheet: View {
 }
 
 
-struct FinanceContoDetailsView: View {
-    let conto: Conto
-    @State private var editing = false
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                if conto.type == .credit {
-                    CreditAccountCard(conto: conto)
-                    Text(conto.account?.name ?? "Libro").foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label(conto.type?.displayName ?? "Conto", systemImage: conto.type?.icon ?? "creditcard")
-                            .foregroundStyle(Color(hex: conto.displayColorHex))
-                        ContoBalanceView(conto: conto)
-                        Text(conto.account?.name ?? "Libro").foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity, alignment: .leading).unifiedCard()
-                }
-                Button("Modifica conto", systemImage: "pencil") { editing = true }
-                    .buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
-                NavigationLink { TransactionListView(initialConto: conto, isPushed: true) } label: {
-                    Label("Vedi movimenti", systemImage: "list.bullet.rectangle")
-                }.buttonStyle(.bordered)
-                NavigationLink { BalanceHistoryView(bookID: conto.account?.id, contoID: conto.id) } label: {
-                    Label("Storico del saldo", systemImage: "chart.xyaxis.line")
-                }.buttonStyle(.bordered)
-            }.padding(22)
-        }
-        .themedBackground()
-        .navigationTitle(conto.name ?? "Conto")
-        .financePresentation(isPresented: $editing, title: "Modifica conto") { EditContoView(conto: conto) }
-    }
-}
-
 struct FinanceBookDetailsView: View {
     let book: Account
     @Environment(\.modelContext) private var context
@@ -1340,11 +1337,13 @@ struct FinanceBookDetailsView: View {
 }
 
 
-/// The same visible menu and swipe actions are available on iPhone, iPad and Mac.
+/// Row actions share deletion confirmation across menu, context menu and swipe entry points.
 private struct FinanceDeletionActions: ViewModifier {
     let target: FinanceContainerDeletion.Target
     let name: String
     var archive: (() -> Void)? = nil
+    var edit: (() -> Void)? = nil
+    var showsMenu = true
     @Environment(\.modelContext) private var context
     @Environment(AppStateManager.self) private var appState
     @State private var confirmation = false
@@ -1352,14 +1351,30 @@ private struct FinanceDeletionActions: ViewModifier {
     @State private var error: String?
 
     private var isBook: Bool { if case .book = target { return true }; return false }
+    @ViewBuilder private var actions: some View {
+        if let edit { Button("Modifica", systemImage: "pencil", action: edit) }
+        if let archive { Button("Archivia", systemImage: "archivebox", action: archive) }
+        Button("Elimina", systemImage: "trash", role: .destructive, action: prepare)
+    }
+
     func body(content: Content) -> some View {
-        HStack {
-            content
-            Menu {
-                if let archive { Button("Archivia", systemImage: "archivebox", action: archive) }
-                Button("Elimina", systemImage: "trash", role: .destructive, action: prepare)
-            } label: { Image(systemName: "ellipsis.circle").padding(8) }
-            .accessibilityLabel("Gestisci \(name)")
+        Group {
+            if showsMenu {
+                HStack {
+                    content
+                    Menu { actions } label: { Image(systemName: "ellipsis.circle").padding(8) }
+                        .accessibilityLabel("Gestisci \(name)")
+                }
+            } else {
+                content
+                    .contextMenu { actions }
+                    .accessibilityActions { actions }
+            }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            if let edit {
+                Button("Modifica", systemImage: "pencil", action: edit).tint(ForgiaPalette.accent)
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("Elimina", systemImage: "trash", role: .destructive, action: prepare)

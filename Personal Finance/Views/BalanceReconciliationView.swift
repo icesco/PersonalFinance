@@ -27,8 +27,8 @@ struct BalanceReconciliationView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Image(systemName: conto.initialBalance == nil ? "exclamationmark.circle" : "checkmark.circle.fill")
-                                    .foregroundStyle(conto.initialBalance == nil ? .orange : ForgiaPalette.accent)
+                                Image(systemName: BalanceReconciliation.needsVerification(for: conto) ? "exclamationmark.circle" : "checkmark.circle.fill")
+                                    .foregroundStyle(BalanceReconciliation.needsVerification(for: conto) ? .orange : ForgiaPalette.accent)
                             }
                         }
                     }
@@ -119,6 +119,8 @@ private struct BalanceEntryView: View {
             // Mirror only the values that the isolated context actually committed.
             conto.initialBalance = opening
             conto.updatedAt = now
+            conto.balanceVerifiedAt = now
+            conto.balanceVerificationFingerprint = BalanceReconciliation.verificationFingerprint(for: conto, through: now)
             dismiss()
         } catch BalanceReconciliation.Failure.invalidAmount {
             errorMessage = "Inserisci un saldo valido nella valuta del libro."

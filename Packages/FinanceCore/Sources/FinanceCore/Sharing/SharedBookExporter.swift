@@ -45,7 +45,9 @@ public enum SharedBookExporter {
         for conto in conti {
             records.append(record(.conto, conto.id, ["book": bookReference, "externalID": .text(conto.externalID),
                 "name": conto.name.map(SharedValue.text), "type": conto.type.map { .text($0.rawValue) },
-                "initialBalance": conto.initialBalance.map(SharedValue.decimal), "createdAt": conto.createdAt.map(SharedValue.date),
+                "initialBalance": conto.initialBalance.map(SharedValue.decimal),
+                "balanceVerifiedAt": conto.balanceVerifiedAt.map(SharedValue.date),
+                "balanceVerificationFingerprint": conto.balanceVerificationFingerprint.map(SharedValue.text), "createdAt": conto.createdAt.map(SharedValue.date),
                 "updatedAt": conto.updatedAt.map(SharedValue.date), "isActive": conto.isActive.map(SharedValue.flag),
                 "description": conto.contoDescription.map(SharedValue.text), "color": conto.color.map(SharedValue.text),
                 "logo": conto.logoData.map { .text($0.base64EncodedString()) },

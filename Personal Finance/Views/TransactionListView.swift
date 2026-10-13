@@ -255,61 +255,9 @@ struct TransactionListView: View {
     }
 
     private var compactPeriodHeader: some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 8) {
-                Button {
-                    selectedMonth = selectedTimeframe.moving(selectedMonth, by: -1)
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-                .frame(width: 44, height: 44)
-
-                Spacer()
-
-                Menu {
-                    Picker("Granularità", selection: $selectedTimeframe) {
-                        ForEach(TransactionTimeframe.allCases, id: \.self) { timeframe in
-                            Text(timeframe.displayName).tag(timeframe)
-                        }
-                    }
-                } label: {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 6) {
-                            Text(selectedTimeframe.title(containing: selectedMonth))
-                                .font(.system(.title3, design: .serif, weight: .semibold))
-                            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
-                        }
-                        if let subtitle = selectedTimeframe.subtitle(containing: selectedMonth) {
-                            Text(subtitle)
-                                .font(.caption)
-                                .foregroundStyle(ForgiaPalette.mutedText)
-                        }
-                    }.frame(minHeight: 44)
-                }
-                .accessibilityIdentifier("transactions-period-menu")
-
-                Spacer()
-
-                Button {
-                    selectedMonth = selectedTimeframe.moving(selectedMonth, by: 1)
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-                .frame(width: 44, height: 44)
-                .disabled(isAtCurrentPeriod)
-                .opacity(isAtCurrentPeriod ? 0.4 : 1)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 4)
+        FinancePeriodHeader(anchor: $selectedMonth, timeframe: $selectedTimeframe,
+                            compact: isPushed || closePresentedSection != nil,
+                            accessibilityIdentifier: "transactions-period-menu")
     }
 
     private var periodSummary: some View {

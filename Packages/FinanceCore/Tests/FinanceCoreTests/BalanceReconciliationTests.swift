@@ -30,6 +30,62 @@ struct BalanceReconciliationTests {
         #expect(BalanceReconciliation.status(for: conto, now: now.addingTimeInterval(2 * 86_400)).balance == 150)
         #expect(try context.fetchCount(FetchDescriptor<Transaction>()) == 2)
     }
+    @Test func verificationPersistsAndOnlyPastFinancialChangesInvalidateIt() throws {
+        let (container, id) = try fixture()
+        let originalContext = ModelContext(container)
+        let before = try #require(originalContext.fetch(FetchDescriptor<Conto>()).first)
+        #expect(BalanceReconciliation.needsVerification(for: before))
+        try BalanceReconciliation.apply(contoID: id, enteredBalance: "200", container: container, now: now)
+        let context = ModelContext(container)
+        let conto = try #require(context.fetch(FetchDescriptor<Conto>()).first)
+        #expect(conto.balanceVerifiedAt == now)
+        #expect(!BalanceReconciliation.needsVerification(for: conto))
+        let later = Transaction(amount: 10, type: .expense, date: now.addingTimeInterval(3600))
+        later.setFromConto(conto)
+        context.insert(later)
+        try context.save()
+        #expect(!BalanceReconciliation.needsVerification(for: conto))
+        let historical = try #require(conto.allTransactions.first { $0.date < now })
+        historical.transactionDescription = "A clearer note"
+        #expect(!BalanceReconciliation.needsVerification(for: conto))
+        historical.amount = 25
+        #expect(BalanceReconciliation.needsVerification(for: conto))
+        historical.amount = 20
+        #expect(!BalanceReconciliation.needsVerification(for: conto))
+        conto.initialBalance = 181
+        #expect(BalanceReconciliation.needsVerification(for: conto))
+        conto.initialBalance = 180
+        let backdated = Transaction(amount: 5, type: .expense, date: now.addingTimeInterval(-3600))
+        backdated.setFromConto(conto)
+        context.insert(backdated)
+        try context.save()
+        #expect(BalanceReconciliation.needsVerification(for: conto))
+    }
+
+    @Test func verificationSurvivesSharedBookImportWithNewLocalIDs() throws {
+        let (source, id) = try fixture()
+        try BalanceReconciliation.apply(contoID: id, enteredBalance: "200", container: source, now: now)
+        let conto = try #require(ModelContext(source).fetch(FetchDescriptor<Conto>()).first)
+        let book = try #require(conto.account)
+        let snapshot = try SharedBookExporter.export(bookID: book.id, container: source)
+        let target = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        _ = try SharedBookImporter.apply(scope: SharedBookScope(ownerName: "test-owner", bookID: book.id),
+            records: snapshot.records, assets: snapshot.assets, container: target)
+        let imported = try #require(ModelContext(target).fetch(FetchDescriptor<Conto>()).first)
+        #expect(imported.id != id)
+        #expect(imported.balanceVerifiedAt == now)
+        #expect(!BalanceReconciliation.needsVerification(for: imported))
+    }
+
+    @Test func archivedAndInvestmentAccountsDoNotRequestVerification() {
+        let conto = Conto(name: "Investments", type: .investment)
+        #expect(!BalanceReconciliation.needsVerification(for: conto))
+        conto.type = .checking
+        #expect(BalanceReconciliation.needsVerification(for: conto))
+        conto.isActive = false
+        #expect(!BalanceReconciliation.needsVerification(for: conto))
+    }
+
     @Test func futureMovementDoesNotMakeAnOldLedgerRecent() throws {
         let (container, id) = try fixture(recent: false)
         #expect(throws: BalanceReconciliation.Failure.staleMovements) {

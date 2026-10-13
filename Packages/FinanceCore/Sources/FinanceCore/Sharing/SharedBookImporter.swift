@@ -328,6 +328,8 @@ public enum SharedBookImporter {
         value.name = try record.text("name")
         value.type = try record.enumeration("type", ContoType.self)
         value.initialBalance = try record.decimal("initialBalance")
+        value.balanceVerifiedAt = try record.date("balanceVerifiedAt")
+        value.balanceVerificationFingerprint = try record.text("balanceVerificationFingerprint")
         value.createdAt = try record.date("createdAt")
         value.updatedAt = try record.date("updatedAt")
         value.isActive = try record.flag("isActive")

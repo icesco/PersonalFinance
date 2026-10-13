@@ -12,6 +12,7 @@ import FinanceCore
 struct TransactionSearchView: View {
     /// Conti in cui cercare; `nil` usa i conti attivi del libro selezionato.
     var scopeContoIDs: Set<UUID>? = nil
+    var usesSearchTab = false
 
     @Environment(AppStateManager.self) private var appState
     @Query(sort: \FinanceTransaction.date, order: .reverse) private var transactions: [FinanceTransaction]
@@ -108,14 +109,16 @@ struct TransactionSearchView: View {
         .textInputAutocapitalization(.never)
         .toolbar(.visible, for: .navigationBar)
         // Field at the bottom, within thumb reach; the filters keep the top of the screen.
-        .toolbar(.hidden, for: .tabBar)
-        .toolbar { DefaultToolbarItem(kind: .search, placement: .bottomBar) }
+        .toolbar(usesSearchTab ? .visible : .hidden, for: .tabBar)
+        .toolbar { if !usesSearchTab { DefaultToolbarItem(kind: .search, placement: .bottomBar) } }
         #endif
         .sheet(isPresented: $showingCategoryFilter) {
             CategoryFilterSheet(categories: availableCategories, selectedCategories: $criteria.categoryIDs)
         }
         .onChange(of: criteria) { _, _ in limit = Self.pageSize }
-        .onChange(of: appState.selectedAccount?.id) { _, _ in criteria = SearchCriteria() }
+        .onChange(of: appState.selectedAccount?.id) { _, _ in
+            criteria = SearchCriteria()
+        }
         .onAppear {
             // Open straight into typing the first time, without stealing focus on every return from a detail.
             guard !didPresentSearch else { return }
@@ -401,7 +404,7 @@ struct TransactionSearchLink<Label: View>: View {
         #if os(macOS)
         return true
         #else
-        return horizontalSizeClass == .regular
+        return horizontalSizeClass == .regular || appState.compactTabs.contains(.search)
         #endif
     }
 

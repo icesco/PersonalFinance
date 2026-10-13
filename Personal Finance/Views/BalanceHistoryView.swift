@@ -8,7 +8,9 @@ import CoreData
 private struct CachedBalanceSeriesContent<Content: View>: View {
     let contoIDs: Set<UUID>
     let interval: DateInterval
-    @ViewBuilder let content: ([AccountBalanceSeries]) -> Content
+    var animatedPeriodChanges = false
+    @ViewBuilder let content: ([AccountBalanceSeries], DateInterval) -> Content
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var phase
     @State private var reader = BalanceSeriesReader()
@@ -17,7 +19,7 @@ private struct CachedBalanceSeriesContent<Content: View>: View {
     @State private var revision = 0
     @State private var failed = false
 
-    private struct Scope: Equatable {
+    private struct Scope: Hashable {
         let ids: Set<UUID>
         let interval: DateInterval
     }
@@ -29,8 +31,18 @@ private struct CachedBalanceSeriesContent<Content: View>: View {
 
     var body: some View {
         Group {
-            if loadedScope == scope {
-                content(series)
+            if loadedScope == scope || (animatedPeriodChanges && loadedScope != nil && !failed) {
+                content(series, loadedScope?.interval ?? interval)
+                    .allowsHitTesting(loadedScope == scope)
+                    .accessibilityHidden(loadedScope != scope)
+                    .overlay(alignment: .topTrailing) {
+                        if loadedScope != scope {
+                            ProgressView("Aggiornamento grafico")
+                                .labelsHidden()
+                                .accessibilityLabel("Aggiornamento grafico")
+                                .padding(8)
+                        }
+                    }
             } else if failed {
                 VStack(spacing: 8) {
                     Text("Grafico non disponibile").foregroundStyle(.secondary)
@@ -48,7 +60,7 @@ private struct CachedBalanceSeriesContent<Content: View>: View {
                                                   interval: requestedScope.interval)
                 try Task.checkCancellation()
                 var transaction = SwiftUI.Transaction()
-                transaction.disablesAnimations = true
+                transaction.disablesAnimations = !animatedPeriodChanges || reduceMotion
                 withTransaction(transaction) {
                     series = value
                     loadedScope = requestedScope
@@ -77,66 +89,90 @@ private struct CachedBalanceSeriesContent<Content: View>: View {
 }
 
 struct BalanceHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
     @Query(sort: \Account.name) private var books: [Account]
     @State private var bookID: UUID?
     @State private var contoID: UUID?
     @State private var anchor = Date()
-    @State private var yearly = false
+    private let scopesToAccount: Bool
+    @State private var timeframe: TransactionTimeframe = .month
     @State private var selectedDate: Date?
 
     init(bookID: UUID? = nil, contoID: UUID? = nil) {
+        scopesToAccount = contoID != nil
         _bookID = State(initialValue: bookID)
         _contoID = State(initialValue: contoID)
     }
     private var book: Account? { books.first { $0.id == bookID } ?? books.first }
     private var conti: [Conto] { (book?.conti ?? []).sorted { ($0.name ?? "") < ($1.name ?? "") } }
-    private var interval: DateInterval { Calendar.current.dateInterval(of: yearly ? .year : .month, for: anchor)! }
+    private var interval: DateInterval { timeframe.interval(containing: anchor) }
     private var currency: String { book?.currency ?? "EUR" }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Picker("Libro", selection: Binding(get: { book?.id }, set: { bookID = $0; contoID = nil; selectedDate = nil })) {
-                    ForEach(books) { Text($0.name ?? "Libro").tag(Optional($0.id)) }
+                CachedBalanceSeriesContent(contoIDs: Set(conti.filter { contoID == nil || $0.id == contoID }.map(\.id)), interval: interval, animatedPeriodChanges: true) { series, displayedInterval in
+                    BalanceHistoryChart(series: series, interval: displayedInterval, currency: currency, selectedDate: $selectedDate)
                 }
-                Picker("Conto", selection: $contoID) {
-                    Text("Tutti i conti del libro").tag(nil as UUID?)
-                    ForEach(conti) { Text($0.name ?? "Conto").tag(Optional($0.id)) }
-                }
-                Picker("Periodo", selection: $yearly) {
-                    Text("Mese").tag(false)
-                    Text("Anno").tag(true)
-                }.pickerStyle(.segmented)
-                HStack {
-                    Button("Periodo precedente", systemImage: "chevron.left") { move(-1) }.labelStyle(.iconOnly)
-                    Spacer()
-                    Text(anchor, format: yearly ? .dateTime.year() : .dateTime.month(.wide).year())
-                    Spacer()
-                    Button("Periodo successivo", systemImage: "chevron.right") { move(1) }
-                        .labelStyle(.iconOnly).disabled(interval.end > Date())
-                }
-                CachedBalanceSeriesContent(contoIDs: Set(conti.filter { contoID == nil || $0.id == contoID }.map(\.id)), interval: interval) { series in
-                    BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
-                        .unifiedCard(tint: ForgiaPalette.balance)
-                }
+                .frame(maxWidth: .infinity, minHeight: 450, alignment: .topLeading)
+                .unifiedCard(tint: ForgiaPalette.balance)
                 if let conto = conti.first(where: { $0.id == contoID }), conto.type == .savings {
                     SavingsAccountSummary(conto: conto)
                 }
-                Text("Saldo ricostruito dai saldi iniziali e dai movimenti datati fino a oggi. Il tratteggio indica la previsione basata sulle transazioni programmate e sulle ricorrenze fino alla fine del periodo. Sono compresi anche i conti archiviati del libro; le valute di libri diversi restano separate.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                DisclosureGroup("Come viene calcolato il saldo") {
+                    Text("Saldo ricostruito dai saldi iniziali e dai movimenti datati fino a oggi. Il tratteggio indica la previsione basata sulle transazioni programmate e sulle ricorrenze fino alla fine del periodo. Sono compresi anche i conti archiviati del libro; le valute di libri diversi restano separate.")
+                        .font(.footnote).foregroundStyle(.secondary).padding(.top, 8)
+                }.font(.subheadline)
             }.padding()
         }
-        .navigationTitle("Saldo storico")
+        .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 16) {
+                    if scopesToAccount, let conto = conti.first(where: { $0.id == contoID }) {
+                        HStack(spacing: 12) {
+                            Button("Indietro", systemImage: "chevron.left") { dismiss() }
+                                .labelStyle(.iconOnly)
+                                .buttonStyle(.glass).buttonBorderShape(.circle)
+                                .controlSize(.large).frame(width: 44, height: 44)
+                            ContoLogo(conto: conto, size: 36)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(conto.name ?? "Conto")
+                                    .font(.system(.title3, design: .serif, weight: .semibold))
+                                Text(book?.name ?? "Libro").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }.padding(.horizontal, 22)
+                    } else {
+                        VStack(spacing: 12) {
+                            LabeledContent("Libro") {
+                                Picker("Libro", selection: Binding(get: { book?.id }, set: { bookID = $0; contoID = nil; selectedDate = nil })) {
+                                    ForEach(books) { Text($0.name ?? "Libro").tag(Optional($0.id)) }
+                                }.labelsHidden().pickerStyle(.menu)
+                            }
+                            LabeledContent("Conto") {
+                                Picker("Conto", selection: $contoID) {
+                                    Text("Tutti i conti").tag(nil as UUID?)
+                                    ForEach(conti) { Text($0.name ?? "Conto").tag(Optional($0.id)) }
+                                }.labelsHidden().pickerStyle(.menu)
+                            }
+                        }.padding(.horizontal, 22)
+                    }
+                    FinancePeriodHeader(anchor: $anchor, timeframe: $timeframe, compact: true,
+                                        accessibilityIdentifier: "balance-history-period-menu")
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ForgiaPalette.sageSurface)
+        }
+        .themedBackground()
+        .navigationTitle("Andamento saldo")
+        .toolbarTitleDisplayMode(.inline)
         #if os(iOS)
-        .toolbar(.visible, for: .navigationBar)
+        .toolbar(scopesToAccount ? .hidden : .visible, for: .navigationBar)
         #endif
         .onChange(of: contoID) { selectedDate = nil }
-        .onChange(of: yearly) { selectedDate = nil }
+        .onChange(of: interval) { selectedDate = nil }
     }
-    private func move(_ value: Int) {
-        anchor = Calendar.current.date(byAdding: yearly ? .year : .month, value: value, to: anchor) ?? anchor
-        selectedDate = nil
-    }
+
 
 }
 
@@ -149,7 +185,7 @@ struct InlineBalanceHistoryDetailCard: View {
     @State private var selectedDate: Date?
 
     var body: some View {
-        CachedBalanceSeriesContent(contoIDs: scopeContoIDs, interval: interval) { series in
+        CachedBalanceSeriesContent(contoIDs: scopeContoIDs, interval: interval) { series, _ in
             VStack(alignment: .leading, spacing: 16) {
                 Label("Saldo per conto", systemImage: "chart.xyaxis.line")
                     .font(.system(.title3, design: .serif, weight: .semibold))
@@ -172,16 +208,22 @@ struct InlineBalanceHistoryCard: View {
     let interval: DateInterval
     let currency: String
     var periodTitle = ""
+    var historyBookID: UUID? = nil
+    var historyContoID: UUID? = nil
 
     var body: some View {
-        CachedBalanceSeriesContent(contoIDs: scopeContoIDs, interval: interval) { series in
+        CachedBalanceSeriesContent(contoIDs: scopeContoIDs, interval: interval) { series, _ in
             NavigationLink {
-                AnalysisDetailScreen(title: "Saldo per conto", periodTitle: periodTitle) {
-                    InlineBalanceHistoryDetailCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
+                if let historyContoID {
+                    BalanceHistoryView(bookID: historyBookID, contoID: historyContoID)
+                } else {
+                    AnalysisDetailScreen(title: "Andamento saldo", periodTitle: periodTitle) {
+                        InlineBalanceHistoryDetailCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency)
+                    }
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 12) {
-                    AnalysisPreviewHeading(title: "Saldo per conto", icon: "chart.xyaxis.line", tint: ForgiaPalette.balance)
+                    AnalysisPreviewHeading(title: "Andamento saldo", icon: "chart.xyaxis.line", tint: ForgiaPalette.balance)
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
                             if series.isEmpty {
@@ -231,6 +273,7 @@ private struct BalanceHistoryChart: View {
     let interval: DateInterval
     let currency: String
     @Binding var selectedDate: Date?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let openingDate = series.first?.points.first?.date,
@@ -250,7 +293,9 @@ private struct BalanceHistoryChart: View {
                     Text(total, format: .currency(code: currency))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
                         .monospacedDigit().foregroundStyle(ForgiaPalette.balance)
-                        .minimumScaleFactor(0.65).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .financeNumericMotion(total)
                     Text(probeDate, format: .dateTime.day().month().year())
                         .font(.caption).foregroundStyle(.secondary)
                 }.accessibilityElement(children: .combine)
@@ -262,8 +307,13 @@ private struct BalanceHistoryChart: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(delta >= 0 ? ForgiaPalette.balance : ForgiaPalette.deficit)
 
-                BalanceHistoryPlot(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
-                    .frame(height: 230).financeChartReveal()
+                ZStack {
+                    BalanceHistoryPlot(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
+                        .id(interval)
+                        .transition(.opacity)
+                }
+                .frame(height: 230)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: interval)
 
                 let hasSavings = series.contains(where: { $0.savingsCapital != nil })
                 if hasProjection || hasSavings {

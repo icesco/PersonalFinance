@@ -99,9 +99,9 @@ struct TabCustomizationView: View {
     private var nativeTabPreview: some View {
         TabView(selection: .constant(AppTab.dashboard)) {
             ForEach(appState.compactTabs, id: \.rawValue) { tab in
-                Color.clear
-                    .tabItem { Label(tab.navigationTitle, systemImage: tab.icon) }
-                    .tag(tab)
+                Tab(value: tab, role: tab == .search ? .search : nil) {
+                    Color.clear
+                } label: { Label(tab.navigationTitle, systemImage: tab.icon) }
             }
         }
         #if os(iOS)
@@ -123,14 +123,14 @@ struct TabCustomizationView: View {
                 .onDrag { NSItemProvider(object: dragValue(tab) as NSString) }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("tab-drag-\(tab.rawValue)")
-                .accessibilityHint("Trascina per riordinare o togliere dalla barra")
+                .accessibilityHint(tab == .search ? "Trascina per togliere dalla barra. Ricerca resta separata dagli altri tab." : "Trascina per riordinare o togliere dalla barra")
             Spacer()
             Button { move(tab, by: -1) } label: { Image(systemName: "chevron.up").frame(width: 44, height: 44) }
-                .disabled(appState.optionalTabs.first == tab)
+                .disabled(tab == .search || appState.optionalTabs.first == tab)
                 .accessibilityLabel("Sposta \(tab.navigationTitle) prima")
                 .accessibilityIdentifier("Sposta \(tab.navigationTitle) prima")
             Button { move(tab, by: 1) } label: { Image(systemName: "chevron.down").frame(width: 44, height: 44) }
-                .disabled(appState.optionalTabs.last == tab)
+                .disabled(tab == .search || appState.optionalTabs.filter { $0 != .search }.last == tab)
                 .accessibilityLabel("Sposta \(tab.navigationTitle) dopo")
                 .accessibilityIdentifier("Sposta \(tab.navigationTitle) dopo")
             Button { appState.setOptionalTabs(appState.optionalTabs.filter { $0 != tab }) } label: {
@@ -253,6 +253,7 @@ struct TabCustomizationView: View {
         case .calendar: "Movimenti registrati e previsti, giorno per giorno"
         case .budgets: "Limiti di spesa del libro selezionato"
         case .accounts: "Saldi e gestione dei conti del libro selezionato"
+        case .search: "Cerca in tutte le date. Il tab resta separato dagli altri nella barra."
         default: ""
         }
     }

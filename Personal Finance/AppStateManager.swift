@@ -50,7 +50,7 @@ final class AppStateManager {
         for tab in tabs where AppTab.optionalChoices.contains(tab) && !result.contains(tab) {
             if result.count < 3 { result.append(tab) }
         }
-        return result
+        return result.filter { $0 != .search } + result.filter { $0 == .search }
     }
 
     /// Tab roots currently on screen that want the new-transaction button; pushed screens drop out.
@@ -374,12 +374,12 @@ enum AppTab: Int, CaseIterable {
     case addTransaction = 3 // Used for legacy tab bar button
     case analysis = 4
     case planning = 5
-    case search = 6 // Dedicated tab on iPad and Mac; lives inside Movimenti on iPhone
+    case search = 6
     case calendar = 7
     case budgets = 8
     case accounts = 9
 
-    static let optionalChoices: [AppTab] = [.planning, .analysis, .calendar, .budgets, .accounts]
+    static let optionalChoices: [AppTab] = [.planning, .analysis, .calendar, .budgets, .accounts, .search]
 
     var navigationTitle: String {
         switch self {

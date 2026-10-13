@@ -20,13 +20,20 @@ private struct ModalChrome: ViewModifier {
     let title: String
     let closeLabel: String
     let close: (() -> Void)?
+    var showsTitle = true
 
     func body(content: Content) -> some View {
         #if os(iOS)
-        content
-            .toolbar(removing: .title)
+        Group {
+            if showsTitle {
+                content.toolbar(removing: .title)
+            } else {
+                content
+            }
+        }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                if showsTitle {
                 ToolbarItem(placement: .topBarLeading) {
                     Text(title)
                         .font(.system(.title2, design: .serif, weight: .semibold))
@@ -35,6 +42,7 @@ private struct ModalChrome: ViewModifier {
                         .accessibilityAddTraits(.isHeader)
                 }
                 .sharedBackgroundVisibility(.hidden)
+                }
                 if let close {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(closeLabel, systemImage: "xmark", action: close)
@@ -55,11 +63,12 @@ private struct ModalChrome: ViewModifier {
 /// leaving the same screen untouched when it lives in a tab or the sidebar.
 private struct SectionSheetChrome: ViewModifier {
     let title: String
+    var showsTitle = true
     @Environment(\.closePresentedSection) private var close
 
     func body(content: Content) -> some View {
         if let close {
-            content.modifier(ModalChrome(title: title, closeLabel: "Chiudi", close: { close() }))
+            content.modifier(ModalChrome(title: title, closeLabel: "Chiudi", close: { close() }, showsTitle: showsTitle))
         } else {
             content
         }
@@ -73,7 +82,7 @@ extension View {
     }
 
     /// Home-style chrome for a tab root, active only when Home presents it as a sheet.
-    func sectionSheetChrome(_ title: String) -> some View {
-        modifier(SectionSheetChrome(title: title))
+    func sectionSheetChrome(_ title: String, showsTitle: Bool = true) -> some View {
+        modifier(SectionSheetChrome(title: title, showsTitle: showsTitle))
     }
 }

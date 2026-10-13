@@ -118,7 +118,7 @@ struct TodayView: View {
             }
             #if os(iOS)
             .toolbar(screen == .home ? .hidden : .automatic, for: .navigationBar)
-            .sectionSheetChrome(screen == .analysis ? "Analisi" : "Oggi")
+            .sectionSheetChrome(screen == .analysis ? "Analisi" : "Oggi", showsTitle: screen != .analysis)
             .safeAreaBar(edge: .top, spacing: 0) {
                 if screen == .home {
                     HStack(spacing: 10) {
@@ -526,7 +526,9 @@ private struct TodayRecentActivityCard: View {
     var body: some View {
         NavigationLink {
             SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency,
-                                 scopeContoIDs: snapshot.contoIDs, initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
+                                 scopeContoIDs: snapshot.contoIDs, initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id,
+                                 isPushed: true)
+                .environment(\.closePresentedSection, nil)
         } label: {
             VStack(alignment: .leading, spacing: 14) {
                 AnalysisPreviewHeading(title: "Dove spendi", icon: "chart.bar.xaxis", tint: ForgiaPalette.spending,

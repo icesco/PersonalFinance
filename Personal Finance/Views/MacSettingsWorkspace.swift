@@ -250,7 +250,7 @@ struct MacSettingsWorkspace: View {
         case .privacy: settingsForm { AppLockSettingsSection() }
         case .books: BooksSettingsView()
         case .accounts:
-            if state.selectedAccount != nil { ContiSettingsView() }
+            if state.selectedAccount != nil { ContiSettingsView(showsVerificationOption: true) }
             else { chooseBook }
         case .categories:
             if state.selectedAccount != nil { CategoryManagementView() }

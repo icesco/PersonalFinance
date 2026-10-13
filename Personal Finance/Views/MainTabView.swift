@@ -60,10 +60,6 @@ struct MainTabView: View {
         .onChange(of: appState.showingAccountSelection) { _, showing in if !showing { deliverShortcut() } }
         .onChange(of: appState.showingAccountCreation) { _, showing in if !showing { deliverShortcut() } }
         .onChange(of: appState.selectedTab, initial: true) { old, new in
-            if !usesSidebar && new == .search {
-                appState.selectedTab = .transactions
-                return
-            }
             if !usesSidebar && !appState.compactTabs.contains(new) {
                 presentedSection = new
                 appState.selectedTab = appState.compactTabs.contains(old) ? old : .dashboard
@@ -75,10 +71,6 @@ struct MainTabView: View {
             }
         }
         .onChange(of: usesSidebar) { _, sidebar in
-            if !sidebar && appState.selectedTab == .search {
-                appState.selectedTab = .transactions
-                return
-            }
             if !sidebar && !appState.compactTabs.contains(appState.selectedTab) {
                 presentedSection = appState.selectedTab
                 appState.selectedTab = .dashboard
@@ -176,7 +168,6 @@ struct MainTabView: View {
         }
     }
 
-    /// iPhone has no search tab: a search selected on iPad falls back to Movimenti when the width shrinks.
     private var compactTabSelection: Binding<AppTab> {
         Binding(
             get: { appState.compactTabs.contains(appState.selectedTab) ? appState.selectedTab : .dashboard },
@@ -190,13 +181,14 @@ struct MainTabView: View {
     private var iOS26TabView: some View {
         TabView(selection: compactTabSelection) {
             ForEach(appState.compactTabs, id: \.rawValue) { tab in
-                Tab(value: tab) {
+                Tab(value: tab, role: tab == .search ? .search : nil) {
                     sectionContent(tab)
                 } label: {
                     Label(tab.navigationTitle, systemImage: tab.icon)
                 }
             }
         }
+        .modifier(FinanceSearchTabActivation(enabled: appState.compactTabs.contains(.search)))
     }
 
     // MARK: - Legacy TabView (iOS 18-25)
@@ -365,7 +357,7 @@ struct MainTabView: View {
                 TransactionListView()
             case .search:
                 NavigationStack {
-                    TransactionSearchView()
+                    TransactionSearchView(usesSearchTab: !usesSidebar && appState.compactTabs.contains(.search))
                 }
             case .planning:
                 FinancePlanningView()
@@ -1066,4 +1058,17 @@ struct QuickTransactionModal: View {
         .environment(DataStorageManager.shared)
         .environment(NavigationRouter())
         .modelContainer(try! FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true))
+}
+
+struct FinanceSearchTabActivation: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if #available(iOS 27, *), enabled {
+            content.tabViewSearchActivation(.searchTabSelection)
+        } else { content }
+        #else
+        content
+        #endif
+    }
 }

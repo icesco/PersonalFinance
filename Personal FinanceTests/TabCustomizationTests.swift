@@ -16,6 +16,20 @@ struct TabCustomizationTests {
         #expect(AppStateManager(defaults: defaults).compactTabs == [.dashboard, .transactions])
     }
 
+    @Test func searchCanBeAddedRemovedAndRestoredWithoutChangingFixedTabs() throws {
+        let name = "tab-search-tests-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let state = AppStateManager(defaults: defaults)
+        #expect(state.placeOptionalTab(.search))
+        #expect(state.compactTabs == [.dashboard, .transactions, .planning, .search])
+        #expect(AppStateManager(defaults: defaults).optionalTabs == [.planning, .search])
+        state.setOptionalTabs([.search, .search, .calendar, .accounts, .analysis])
+        #expect(state.compactTabs == [.dashboard, .transactions, .calendar, .accounts, .search])
+        state.setOptionalTabs([.planning])
+        #expect(AppStateManager(defaults: defaults).compactTabs == [.dashboard, .transactions, .planning])
+    }
+
     @Test func corruptSavedChoicesAreSanitized() throws {
         let name = "tab-tests-\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: name))

@@ -4,6 +4,7 @@ import FinanceCore
 
 /// Accounts, limits and expected movements share the same explicit book scope.
 struct FinancePlanningView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.modelContext) private var modelContext
     @Environment(DataStorageManager.self) private var storage
     @Query private var memberships: [SharedBookMembership]
@@ -17,8 +18,6 @@ struct FinancePlanningView: View {
     @State private var selectedOccurrence: Occurrence?
     @State private var resolutionError: String?
     @State private var showingBudgets = false
-    @State private var creatingContoFor: Account?
-    @State private var editingConto: Conto?
     @State private var selectedTransaction: FinanceTransaction?
 
     private var books: [Account] {
@@ -66,33 +65,16 @@ struct FinancePlanningView: View {
     }
 
     var body: some View {
+        let pendingOccurrences = occurrences
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Dai spazio ai tuoi progetti")
-                            .font(.system(size: 32, weight: .semibold, design: .serif))
-                        Text("Conti, limiti e prossimi impegni, in un unico posto.")
-                            .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
-                        Label(appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Nessun libro selezionato", systemImage: "books.vertical")
-                            .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
-                    }
-                    if !appState.showAllAccounts, let account = appState.selectedAccount {
-                        SavingsPlanningPanel(account: account)
-                    }
-                    PlanningPanel(title: "Budget", symbol: "chart.bar.xaxis") {
-                        Text("Scegli quanto destinare alle tue spese e controlla i limiti del libro.")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                        if !appState.showAllAccounts, appState.selectedAccount != nil {
-                            Button { showingBudgets = true } label: {
-                                Label("Budget e limiti di spesa", systemImage: "arrow.up.right")
-                            }.buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
-                                .accessibilityIdentifier("planning-budgets")
-                        } else {
-                            Button("Scegli libro nelle Impostazioni") { appState.openBookSettings() }
-                                .buttonStyle(.bordered)
-                        }
-                    }
+                    PlanningScheduleOverview(
+                        entries: pendingOccurrences.map { .init(date: $0.date, amount: $0.transaction.amount ?? 0,
+                                                         type: $0.transaction.type, currency: $0.currency) },
+                        scope: appState.showAllAccounts ? "Tutti i libri" : books.first?.name ?? "Nessun libro selezionato",
+                        hasError: _recurring.fetchError != nil || _resolutions.fetchError != nil
+                    )
                     PlanningPanel(title: "Scadenze da gestire", symbol: "calendar") {
                         Picker("Periodo delle scadenze", selection: $browseByMonth) {
                             Text("Vicino a oggi").tag(false)
@@ -113,16 +95,20 @@ struct FinancePlanningView: View {
                         }
                         if _recurring.fetchError != nil || _resolutions.fetchError != nil {
                             Label("Impossibile caricare le ricorrenti", systemImage: "exclamationmark.triangle")
-                        } else if occurrences.isEmpty {
+                        } else if pendingOccurrences.isEmpty {
                             Label("Nessuna scadenza da gestire nel periodo selezionato.", systemImage: "checkmark.circle")
                                 .foregroundStyle(.secondary).padding(.vertical, 12)
                         } else {
-                            ForEach(occurrences) { occurrence in
-                                Button { selectedOccurrence = occurrence } label: {
-                                    occurrenceRow(occurrence).padding(12)
-                                        .background(ForgiaPalette.canvas, in: RoundedRectangle(cornerRadius: 16))
-                                }.buttonStyle(.plain)
-                                .accessibilityIdentifier("occurrence-\(RecurrenceResolution.key(sourceID: occurrence.transaction.id, date: occurrence.date))")
+                            let today = Calendar.current.startOfDay(for: Date())
+                            let overdue = pendingOccurrences.filter { $0.date < today }
+                            let upcoming = pendingOccurrences.filter { $0.date >= today }
+                            if !overdue.isEmpty {
+                                Text("Da recuperare · \(overdue.count)").font(.headline).foregroundStyle(ForgiaPalette.deficit)
+                                ForEach(overdue) { occurrence in scheduleButton(occurrence) }
+                            }
+                            if !upcoming.isEmpty {
+                                Text("In programma · \(upcoming.count)").font(.headline)
+                                ForEach(upcoming) { occurrence in scheduleButton(occurrence) }
                             }
                         }
                         Text(browseByMonth ? "Seleziona una scadenza per registrarla o saltarla. Le scadenze future restano previsioni." : "I 30 giorni passati e i prossimi 30. Scegli Per mese per consultare altri periodi.")
@@ -135,26 +121,36 @@ struct FinancePlanningView: View {
                             Label("Scadenze gestite", systemImage: "checkmark.circle")
                         }
                     }
-                    ForEach(books) { book in
-                        PlanningPanel(title: books.count > 1 ? "Conti · \(book.name ?? "Libro")" : "I tuoi conti", symbol: "creditcard") {
-                            ForEach(book.activeConti) { conto in
-                                HStack(spacing: 12) {
-                                NavigationLink { FinanceContoDetailsView(conto: conto) } label: {
-                                    HStack {
-                                        ContoSettingsRow(conto: conto)
-                                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
-                                    }.padding(12).background(ForgiaPalette.canvas, in: RoundedRectangle(cornerRadius: 16))
-                                }.buttonStyle(.plain)
-                                .contextMenu { Button("Modifica conto") { editingConto = conto } }
-                                    #if os(macOS)
-                                    Button("Modifica", systemImage: "pencil") { editingConto = conto }
-                                        .buttonStyle(.bordered)
-                                        .help("Modifica \(conto.name ?? "conto")")
-                                    #endif
-                                }
-                            }
-                            Button { creatingContoFor = book } label: { Label("Nuovo conto", systemImage: "plus") }
+                    if !appState.showAllAccounts, let account = appState.selectedAccount {
+                        DisclosureGroup("Piano di risparmio") {
+                            SavingsPlanningPanel(account: account).padding(.top, 12)
+                        }
+                        .font(.headline)
+                        .padding(18)
+                        .background(ForgiaPalette.surface, in: RoundedRectangle(cornerRadius: 22))
+                    }
+                    PlanningPanel(title: "Budget", symbol: "chart.bar.xaxis") {
+                        Text("Scegli quanto destinare alle tue spese e controlla i limiti del libro.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        if !appState.showAllAccounts, appState.selectedAccount != nil {
+                            Button { showingBudgets = true } label: {
+                                Label("Budget e limiti di spesa", systemImage: "arrow.up.right")
+                            }.buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
+                                .accessibilityIdentifier("planning-budgets")
+                        } else {
+                            Button("Scegli libro nelle Impostazioni") { appState.openBookSettings() }
                                 .buttonStyle(.bordered)
+                        }
+                    }
+                    ForEach(books) { book in
+                        PlanningPanel(title: books.count > 1 ? "Conti · \(book.name ?? "Libro")" : "Conti e saldi", symbol: "creditcard") {
+                            Text("\(book.activeConti.count) conti attivi").font(.subheadline).foregroundStyle(.secondary)
+                            NavigationLink {
+                                ContiSettingsView(accountOverride: book)
+                            } label: {
+                                Label("Gestisci conti e verifica saldi", systemImage: "creditcard")
+                                    .frame(minHeight: 48)
+                            }
                             NavigationLink { SharedBookView(book: book) } label: {
                                 SharedBookStatusLabel(status: storage.isCloudSyncEnabled && !storage.isMigrating && memberships.contains(where: { $0.localBookID == book.id }) ? storage.sharedBookAutomaticRefresh.statuses[book.id] : nil)
                             }.accessibilityIdentifier("planning-share-book")
@@ -187,12 +183,19 @@ struct FinancePlanningView: View {
                 Button("OK") { resolutionError = nil }
             } message: { Text(resolutionError ?? "") }
             .financePresentation(isPresented: $showingBudgets, title: "Budget", width: 800) { BudgetView() }
-            .financePresentation(item: $creatingContoFor, title: "Nuovo conto") { CreateContoView(account: $0) }
-            .financePresentation(item: $editingConto, title: "Modifica conto") { EditContoView(conto: $0) }
             .financePresentation(item: $selectedTransaction, title: "Movimento") { transaction in
                 NavigationStack { TransactionDetailView(transaction: transaction, showsCloseButton: true) }
             }
         }
+    }
+
+    private func scheduleButton(_ occurrence: Occurrence) -> some View {
+        Button { selectedOccurrence = occurrence } label: {
+            occurrenceRow(occurrence).padding(12)
+                .frame(minHeight: 60)
+                .background(ForgiaPalette.canvas, in: RoundedRectangle(cornerRadius: 16))
+        }.buttonStyle(.plain)
+            .accessibilityIdentifier("occurrence-\(RecurrenceResolution.key(sourceID: occurrence.transaction.id, date: occurrence.date))")
     }
 
     private func moveScheduleMonth(_ offset: Int) {
@@ -214,15 +217,18 @@ struct FinancePlanningView: View {
     }
 
     private func occurrenceRow(_ occurrence: Occurrence) -> some View {
-        HStack {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
             VStack(alignment: .leading, spacing: 4) {
                 Text(occurrence.transaction.transactionDescription ?? occurrence.transaction.category?.name ?? "Ricorrenza")
                     .font(.headline)
                 Text(occurrence.date, format: .dateTime.day().month().year())
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
+            if !dynamicTypeSize.isAccessibilitySize { Spacer() }
+            VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
                 Text(occurrence.transaction.amount ?? 0, format: .currency(code: occurrence.currency))
                     .monospacedDigit()
                 Text(occurrence.transaction.type == .income ? "Entrata prevista" :
@@ -248,5 +254,58 @@ private struct PlanningPanel<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .unifiedCard()
+    }
+}
+
+private struct PlanningScheduleOverview: View {
+    struct Entry {
+        let date: Date
+        let amount: Decimal
+        let type: TransactionType
+        let currency: String
+    }
+    let entries: [Entry]
+    let scope: String
+    let hasError: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(scope).font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+            Text("Tieni il passo con le scadenze")
+                .font(.system(.largeTitle, design: .serif, weight: .semibold))
+            if hasError {
+                Label("Riepilogo scadenze non disponibile", systemImage: "exclamationmark.circle")
+            } else {
+                let today = Calendar.current.startOfDay(for: Date())
+                let overdue = entries.filter { $0.date < today }.count
+                if overdue > 0 {
+                    Label(overdue == 1 ? "1 scadenza da recuperare" : "\(overdue) scadenze da recuperare", systemImage: "clock.badge.exclamationmark")
+                        .font(.headline).foregroundStyle(ForgiaPalette.deficit)
+                } else {
+                    Label("Nessuna scadenza arretrata nel periodo", systemImage: "checkmark.circle")
+                        .font(.subheadline).foregroundStyle(ForgiaPalette.accent)
+                }
+                let upcoming = entries.filter { $0.date >= today }
+                ForEach(Array(Set(upcoming.map(\.currency))).sorted(), id: \.self) { currency in
+                    let scoped = upcoming.filter { $0.currency == currency }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Uscite ancora da registrare").font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                        Text(scoped.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.amount }, format: .currency(code: currency))
+                            .font(.system(.title, design: .rounded, weight: .semibold)).monospacedDigit()
+                        let income = scoped.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.amount }
+                        if income > 0 {
+                            Text("Entrate previste: \(income.formatted(.currency(code: currency)))")
+                                .font(.subheadline).foregroundStyle(ForgiaPalette.accent)
+                        }
+                    }
+                }
+                Text("Il riepilogo segue il periodo selezionato. Le scadenze ricorrenti sono previsioni e non modificano il saldo finché non le registri.")
+                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(22)
+        .background(ForgiaPalette.sageSurface, in: RoundedRectangle(cornerRadius: 26))
+        .accessibilityIdentifier("planning-schedule-overview")
     }
 }

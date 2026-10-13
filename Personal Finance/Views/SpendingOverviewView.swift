@@ -6,10 +6,16 @@ import FinanceCore
 /// A factual drill-down of recorded expenses, excluding transfers.
 struct SpendingOverviewView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.isPresented) private var isPresented
+    @Environment(\.closePresentedSection) private var closePresentedSection
     let transactions: [DirectionTransaction]
     let currency: String
     let scopeContoIDs: Set<UUID>
     var initialBookID: UUID? = nil
+    var isPushed = false
+
+    private var usesCompactPeriod: Bool { isPushed || isPresented || closePresentedSection != nil }
 
     @Query private var books: [Account]
 
@@ -46,6 +52,7 @@ struct SpendingOverviewView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
+                if !usesCompactPeriod {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Dove spendi")
                         .font(.system(size: 36, weight: .semibold, design: .serif))
@@ -57,6 +64,7 @@ struct SpendingOverviewView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 26)
                 .padding(.horizontal, 22)
+                }
 
                 VStack(alignment: .leading, spacing: 24) {
                     if period == .month {
@@ -151,14 +159,17 @@ struct SpendingOverviewView: View {
         }
         .themedBackground(tint: ForgiaPalette.spending)
         .safeAreaBar(edge: .top, spacing: 0) {
+            if !usesCompactPeriod {
             SpendingPeriodBar(
                 period: $period,
+                compact: usesCompactPeriod,
                 title: periodTitle,
                 coverage: "\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))",
                 canMoveForward: interval.end <= Date(),
                 move: movePeriod,
                 chooseCustom: { showingCustomPeriod = true }
             )
+            }
         }
         .sheet(isPresented: $showingCustomPeriod) {
             SpendingDateRangeEditor(start: customStart, end: customEnd) { start, end in
@@ -170,8 +181,31 @@ struct SpendingOverviewView: View {
             .presentationDragIndicator(.visible)
             .presentationContentInteraction(.scrolls)
         }
+        .navigationTitle("Dove spendi")
+        .toolbar {
+            if usesCompactPeriod {
+                ToolbarItem(placement: .principal) {
+            SpendingPeriodBar(
+                period: $period,
+                compact: true,
+                title: periodTitle,
+                coverage: "\(formattedDay(interval.start)) – \(formattedDay(min(Date(), interval.end.addingTimeInterval(-1))))",
+                canMoveForward: interval.end <= Date(),
+                move: movePeriod,
+                chooseCustom: { showingCustomPeriod = true }
+            )
+                }
+                .sharedBackgroundVisibility(.hidden)
+            }
+            if isPresented && !isPushed && closePresentedSection == nil {
+                FinanceDismissToolbar {
+                    Button("Chiudi", systemImage: "xmark") { dismiss() }
+                }
+            }
+        }
         #if os(iOS)
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar(usesCompactPeriod ? .visible : .hidden, for: .navigationBar)
         #endif
     }
 
@@ -391,6 +425,7 @@ private struct SpendingDateRangeEditor: View {
 
 private struct SpendingPeriodBar: View {
     @Binding var period: SpendingAnalysisPeriod?
+    var compact = false
     let title: String
     let coverage: String
     let canMoveForward: Bool
@@ -398,9 +433,56 @@ private struct SpendingPeriodBar: View {
     let chooseCustom: () -> Void
 
     var body: some View {
+        if compact {
+            periodMenu
+        } else {
+            expandedBar
+        }
+    }
+
+    private var periodMenu: some View {
+                Menu {
+                    if compact, period != nil {
+                        Button("Periodo precedente", systemImage: "chevron.left") { move(-1) }
+                        Button("Periodo successivo", systemImage: "chevron.right") { move(1) }
+                            .disabled(!canMoveForward)
+                        Divider()
+                    }
+                    ForEach(SpendingAnalysisPeriod.allCases, id: \.self) { value in
+                        Button { period = value } label: {
+                            if period == value { Label(value.displayName, systemImage: "checkmark") }
+                            else { Text(value.displayName) }
+                        }
+                    }
+                    Divider()
+                    Button("Personalizzato…", action: chooseCustom)
+                } label: {
+                    VStack(spacing: 1) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .hidden()
+                        Text(title)
+                            .font(.system(.title3, design: .serif, weight: .bold))
+                            .foregroundStyle(ForgiaPalette.accent)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(compact ? 1 : nil)
+                        Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                            .foregroundStyle(ForgiaPalette.accent)
+                    }
+                    if compact {
+                        Text(coverage).font(.caption2).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                    }
+                    .frame(minHeight: 44)
+                }
+                .accessibilityIdentifier("analysis-period-picker")
+    }
+
+    private var expandedBar: some View {
         VStack(spacing: 2) {
             HStack(spacing: 8) {
-                if period != nil {
+                if period != nil && !compact {
                     Button { move(-1) } label: {
                         Image(systemName: "chevron.left")
                             .font(.subheadline.weight(.semibold))
@@ -412,30 +494,9 @@ private struct SpendingPeriodBar: View {
                     .accessibilityLabel("Periodo precedente")
                 }
                 Spacer(minLength: 0)
-                Menu {
-                    ForEach(SpendingAnalysisPeriod.allCases, id: \.self) { value in
-                        Button { period = value } label: {
-                            if period == value { Label(value.displayName, systemImage: "checkmark") }
-                            else { Text(value.displayName) }
-                        }
-                    }
-                    Divider()
-                    Button("Personalizzato…", action: chooseCustom)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .hidden()
-                        Text(title)
-                            .font(.system(.title3, design: .serif, weight: .semibold))
-                            .multilineTextAlignment(.center)
-                        Image(systemName: "chevron.down").font(.caption.weight(.semibold))
-                    }
-                    .frame(minHeight: 44)
-                }
-                .accessibilityIdentifier("analysis-period-picker")
+                periodMenu
                 Spacer(minLength: 0)
-                if period != nil {
+                if period != nil && !compact {
                     Button { move(1) } label: {
                         Image(systemName: "chevron.right")
                             .font(.subheadline.weight(.semibold))

@@ -39,6 +39,9 @@ public final class Conto {
     public var name: String?
     public var type: ContoType?
     public var initialBalance: Decimal?
+    /// Optional markers preserve existing stores and detect changes to the verified ledger.
+    public var balanceVerifiedAt: Date?
+    public var balanceVerificationFingerprint: String?
     public var createdAt: Date?
     public var updatedAt: Date?
     public var isActive: Bool?

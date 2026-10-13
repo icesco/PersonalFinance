@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import SwiftData
 
 @MainActor
@@ -25,6 +26,38 @@ public enum BalanceReconciliation {
                       canReconcile: latest.map { now.timeIntervalSince($0) <= 7 * 86_400 } ?? false)
     }
 
+    public static func needsVerification(for conto: Conto) -> Bool {
+        guard conto.isActive == true, [.checking, .savings, .cash, .credit].contains(conto.type) else { return false }
+        guard let date = conto.balanceVerifiedAt, let saved = conto.balanceVerificationFingerprint else { return true }
+        return verificationFingerprint(for: conto, through: date) != saved
+    }
+
+    /// Only financial changes through the verification date invalidate it; later movements do not.
+    public static func verificationFingerprint(for conto: Conto, through date: Date) -> String? {
+        struct Movement: Encodable {
+            let externalID: String
+            let date: Date
+            let change: Decimal
+        }
+        struct Ledger: Encodable {
+            let opening: Decimal
+            let movements: [Movement]
+        }
+        var seen = Set<UUID>()
+        let movements = conto.allTransactions.filter { $0.date <= date && seen.insert($0.id).inserted }
+            .map { transaction in
+                let snapshot = TransactionSnapshot(amount: transaction.amount ?? 0, type: transaction.type,
+                    date: transaction.date, fromContoId: transaction.fromConto?.id ?? transaction.fromContoId,
+                    toContoId: transaction.toConto?.id ?? transaction.toContoId, destinationAmount: transaction.destinationAmount)
+                return Movement(externalID: transaction.externalID, date: transaction.date,
+                    change: BalanceCalculator.netChange(for: snapshot, contiIDs: [conto.id]))
+            }.sorted { $0.externalID < $1.externalID }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(Ledger(opening: conto.initialBalance ?? 0, movements: movements)) else { return nil }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
     /// Changes only the opening balance. No synthetic transaction is inserted.
     /// A private context prevents a failed save from becoming a later autosave.
     @discardableResult
@@ -42,6 +75,9 @@ public enum BalanceReconciliation {
             guard !corrected.isNaN else { throw Failure.invalidAmount }
             conto.initialBalance = corrected
             conto.updatedAt = now
+            conto.balanceVerifiedAt = now
+            guard let fingerprint = verificationFingerprint(for: conto, through: now) else { throw Failure.invalidAmount }
+            conto.balanceVerificationFingerprint = fingerprint
             try context.save()
             return corrected
         } catch { context.rollback(); throw error }
