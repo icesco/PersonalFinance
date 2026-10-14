@@ -2,6 +2,46 @@ import XCTest
 
 final class SpendingVisualUITests: XCTestCase {
     @MainActor
+    func testMoneyFlowGranularity() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_MONEY_FLOW", "-CloudSyncEnabled", "NO",
+                               "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        app.launch()
+        let picker = app.segmentedControls["money-flow-granularity"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        XCTAssertTrue(picker.buttons["Macro categorie"].isSelected)
+        XCTAssertTrue(app.buttons["money-flow-node-Casa"].exists)
+        XCTAssertFalse(app.buttons["money-flow-node-Affitto"].exists)
+        capture(app, "formi-money-flow-macro")
+
+        picker.buttons["Sottocategorie"].tap()
+        XCTAssertTrue(picker.buttons["Sottocategorie"].isSelected)
+        XCTAssertTrue(app.buttons["money-flow-node-Affitto"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Utenze"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Direttamente nella categoria"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Da classificare"].exists)
+        capture(app, "formi-money-flow-subcategories")
+
+        let home = app.buttons["money-flow-node-Casa"]
+        scrollTo(home, in: app)
+        home.tap()
+        XCTAssertEqual(app.staticTexts["money-flow-focus-name"].label, "Casa")
+        let rent = app.buttons["money-flow-node-Affitto"]
+        scrollTo(rent, in: app)
+        rent.tap()
+        XCTAssertEqual(app.staticTexts["money-flow-focus-name"].label, "Affitto")
+        app.buttons["Panoramica"].tap()
+        capture(app, "formi-money-flow-granularity-return")
+        XCTAssertTrue(app.staticTexts["money-flow-focus-name"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        XCTAssertTrue(picker.buttons["Sottocategorie"].isSelected)
+        picker.buttons["Macro categorie"].tap()
+        XCTAssertFalse(app.buttons["money-flow-node-Affitto"].exists)
+        XCTAssertTrue(app.buttons["money-flow-node-Casa"].exists)
+    }
+
+    @MainActor
     func testMoneyFlowRibbonDrillDown() throws {
         try verifyMoneyFlowDrillDown(dark: false)
     }

@@ -112,7 +112,7 @@ struct TodayView: View {
                         Button("Riprova") { refreshRevision &+= 1 }
                     }
                 } else {
-                    ProgressView("Caricamento riepilogo…")
+                    FormiLoadingView("Caricamento riepilogo…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }

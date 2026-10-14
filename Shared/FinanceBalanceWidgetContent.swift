@@ -34,9 +34,9 @@ struct FinanceBalanceWidgetContent: View {
                 VStack(alignment: .leading, spacing: 5) {
                     BalanceWidgetHeader(history: history, compact: true)
                     Text(history.recordedTotal, format: .currency(code: currency))
-                        .font(.system(.title3, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                        .font(.system(.title3, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                     Text("Previsto: \(history.projectedTotal.formatted(.currency(code: currency)))")
-                        .font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history)).lineLimit(1).minimumScaleFactor(0.7)
+                        .font(.caption2.weight(.medium)).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history)).lineLimit(1).minimumScaleFactor(0.7)
                     Spacer(minLength: 0)
                     FinanceWidgetFreshness(generatedAt: history.recordedAt, now: Date())
                 }
@@ -55,7 +55,7 @@ struct FinanceBalanceWidgetContent: View {
                             }
                         }
                         if history.series.count > 2 { Text("+\(history.series.count - 2)") }
-                    }.font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
+                    }.font(.caption2.weight(.medium)).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
                     }
                 }
                 // The plot draws its "Registrato" label above its own frame.
@@ -126,7 +126,7 @@ private struct BalanceWidgetHeader: View {
     var body: some View {
         HStack(spacing: 6) {
             BalanceWidgetPeriodLabel(history: history)
-                .font(.system(compact ? .subheadline : .headline, design: .rounded, weight: .semibold))
+                .font(.system(compact ? .subheadline : .headline, design: .rounded, weight: compact ? .medium : .semibold))
                 .lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: 4)
             Image("FormiMark").resizable().widgetAccentedRenderingMode(.accented).scaledToFit()
@@ -170,7 +170,7 @@ private struct FinanceBalanceSmallContent: View {
         VStack(alignment: .leading, spacing: 5) {
             BalanceWidgetHeader(history: history, compact: true)
             Text(history.recordedTotal, format: .currency(code: currency))
-                .font(.system(.title2, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                .font(.system(.title2, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 .layoutPriority(1)
             BalanceHistoryPlot(series: chartSeries, interval: history.interval, currency: currency,
                                selectedDate: .constant(nil), compact: true, interactive: false,

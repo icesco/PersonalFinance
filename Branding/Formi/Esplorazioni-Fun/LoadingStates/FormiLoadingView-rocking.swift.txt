@@ -1,0 +1,85 @@
+import SwiftUI
+
+struct FormiLoadingView: View {
+    enum Style {
+        case regular
+        case inline
+    }
+
+    let title: LocalizedStringKey
+    var style: Style = .regular
+    var isPlaying = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @ScaledMetric(relativeTo: .body) private var illustrationSize = 96.0
+
+    init(_ title: LocalizedStringKey = "Caricamento…", style: Style = .regular, isPlaying: Bool = true) {
+        self.title = title
+        self.style = style
+        self.isPlaying = isPlaying
+    }
+
+    var body: some View {
+        Group {
+            if isPlaying && scenePhase == .active && !reduceMotion {
+                PhaseAnimator([0, 1, 2]) { phase in
+                    content(phase: phase)
+                } animation: { _ in
+                    .easeInOut(duration: 0.48)
+                }
+            } else {
+                content(phase: nil)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+    }
+
+    @ViewBuilder
+    private func content(phase: Int?) -> some View {
+        if style == .inline {
+            HStack(spacing: 12) {
+                illustration(phase: phase, size: 44)
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                dots(phase: phase)
+            }
+        } else {
+            VStack(spacing: 14) {
+                illustration(phase: phase, size: min(illustrationSize, 128))
+                dots(phase: phase)
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    private func illustration(phase: Int?, size: CGFloat) -> some View {
+        Image(FormiEmptyArtwork.carrying.rawValue)
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .rotationEffect(.degrees(phase.map { Double($0 - 1) * 2 } ?? 0))
+            .offset(y: phase == 1 ? -size * 0.025 : 0)
+            .frame(width: size + 8, height: size + 8)
+    }
+
+    private func dots(phase: Int?) -> some View {
+        HStack(spacing: 5) {
+            dot(index: 0, phase: phase)
+            dot(index: 1, phase: phase)
+            dot(index: 2, phase: phase)
+        }
+    }
+
+    private func dot(index: Int, phase: Int?) -> some View {
+        Circle()
+            .fill(ForgiaPalette.accent)
+            .frame(width: 5, height: 5)
+            .opacity(phase == nil ? 0.55 : (phase == index ? 1 : 0.25))
+    }
+}

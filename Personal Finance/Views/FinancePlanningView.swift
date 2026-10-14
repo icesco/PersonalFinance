@@ -157,7 +157,7 @@ struct FinancePlanningView: View {
                         }
                     }
                     NavigationLink { SharedInvitationsView() } label: {
-                        Label("Inviti ai libri condivisi", systemImage: "person.2.badge.plus")
+                        Label("Inviti alla condivisione", systemImage: "person.2.badge.plus")
                     }.buttonStyle(.bordered)
                 }
                 .frame(maxWidth: 760)

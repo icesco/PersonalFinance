@@ -88,7 +88,7 @@ struct CSVExportView: View {
             #endif
             .overlay {
                 if isExporting {
-                    ProgressView("Esportazione in corso...")
+                    FormiLoadingView("Esportazione in corso...")
                         .padding()
                         .background(Color(.systemBackground))
                         .cornerRadius(12)

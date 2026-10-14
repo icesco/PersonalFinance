@@ -130,7 +130,7 @@ struct ReceiptReviewView: View {
                 } else if let error {
                     Text(error)
                 } else {
-                    ProgressView("Lettura scontrino…")
+                    FormiLoadingView("Lettura scontrino…", style: .inline)
                 }
             }
             .formStyle(.grouped)

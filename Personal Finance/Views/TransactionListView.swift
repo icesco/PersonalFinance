@@ -118,7 +118,7 @@ struct TransactionListView: View {
     private var content: some View {
             VStack(spacing: 0) {
                 if !hasLoaded {
-                    ProgressView()
+                    FormiLoadingView("Caricamento movimenti…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     transactionList
@@ -623,7 +623,7 @@ struct TransactionListView: View {
     private var loadMoreRow: some View {
         HStack {
             Spacer()
-            ProgressView()
+            FormiLoadingView("Caricamento di altre transazioni", style: .inline)
             Spacer()
         }
         .padding(.vertical, 12)

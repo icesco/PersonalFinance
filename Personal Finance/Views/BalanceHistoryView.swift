@@ -49,7 +49,7 @@ private struct CachedBalanceSeriesContent<Content: View>: View {
                     Button("Riprova") { revision &+= 1 }
                 }.frame(maxWidth: .infinity)
             } else {
-                ProgressView("Caricamento andamento…").frame(maxWidth: .infinity)
+                FormiLoadingView("Caricamento andamento…").frame(maxWidth: .infinity)
             }
         }
         .task(id: Request(scope: scope, revision: revision)) {
@@ -263,7 +263,7 @@ private struct BalanceHistoryMiniChart: View {
                     LineMark(x: .value("Data", point.date),
                              y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue),
                              series: .value("Conto", account.id.uuidString))
-                        .foregroundStyle(account.color).interpolationMethod(.stepEnd)
+                        .foregroundStyle(account.color).interpolationMethod(FinanceChartStyle.interpolation)
                 }
             }
         }

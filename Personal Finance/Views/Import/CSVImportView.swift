@@ -58,7 +58,7 @@ struct CSVImportView: View {
                 }
                 .overlay {
                     if isLoading {
-                        ProgressView("Lettura file...")
+                        FormiLoadingView("Lettura file...")
                             .padding()
                             .background(Color(.systemBackground))
                             .cornerRadius(12)

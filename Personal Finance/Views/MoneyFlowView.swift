@@ -27,6 +27,11 @@ struct MoneyFlowView: View {
     }
 }
 
+private enum MoneyFlowGranularity: String {
+    case macroCategories
+    case subcategories
+}
+
 private struct MoneyFlowExplorer: View {
     let report: RecordedFlowReport
     let currency: String
@@ -35,13 +40,17 @@ private struct MoneyFlowExplorer: View {
     let scopeContoIDs: Set<UUID>
     var reduceMotionOverride: Bool? = nil
     @State private var path: [String] = []
+    @State private var granularity: MoneyFlowGranularity = .macroCategories
     @State private var chartPosition = ScrollPosition()
     @State private var chartOffset = CGPoint.zero
     @State private var chartOffsets: [String: CGPoint] = [:]
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
 
-    private var viewportKey: String { path.last ?? "overview" }
+    private var viewportKey: String { viewportKey(for: path) }
+    private func viewportKey(for route: [String]) -> String {
+        route.last ?? "overview-\(granularity.rawValue)"
+    }
     private var motion: Animation? { reduceMotion ? nil : .easeInOut(duration: 0.24) }
     private var backTitle: String {
         guard path.count > 1 else { return String(localized: "Indietro") }
@@ -56,7 +65,7 @@ private struct MoneyFlowExplorer: View {
 
     private func navigate(to route: [String], restoring: Bool) {
         chartOffsets[viewportKey] = chartOffset
-        let offset = restoring ? chartOffsets[route.last ?? "overview"] : nil
+        let offset = restoring ? chartOffsets[viewportKey(for: route)] : nil
         withAnimation(motion) {
             path = route
             chartPosition.scrollTo(point: offset ?? .zero)
@@ -130,6 +139,32 @@ private struct MoneyFlowExplorer: View {
                                 Text("Registra un'entrata o un'uscita per vedere il percorso del denaro.")
                             }
                         } else {
+                            if focus == nil {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Picker("Dettaglio del flusso", selection: Binding(
+                                        get: { granularity },
+                                        set: { value in
+                                            chartOffsets[viewportKey] = chartOffset
+                                            withAnimation(motion) {
+                                                granularity = value
+                                                chartPosition.scrollTo(point: chartOffsets[viewportKey] ?? .zero)
+                                            }
+                                        }
+                                    )) {
+                                        Text("Macro categorie").tag(MoneyFlowGranularity.macroCategories)
+                                        Text("Sottocategorie").tag(MoneyFlowGranularity.subcategories)
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .accessibilityIdentifier("money-flow-granularity")
+                                    if granularity == .macroCategories {
+                                        Text("Le uscite sono raggruppate per macro categoria.")
+                                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                                    } else {
+                                        Text("Ogni macro categoria mostra le sue sottocategorie. Scorri il grafico per leggere tutti i dettagli.")
+                                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                                    }
+                                }
+                            }
                             VStack(alignment: .leading, spacing: 14) {
                                 if let focus {
                                     MoneyFlowFocusDetails(node: focus, expenseTotal: report.expenses,
@@ -146,6 +181,7 @@ private struct MoneyFlowExplorer: View {
                             .id("money-flow-selection")
                             GeometryReader { geometry in
                                 let layout = MoneyFlowLayout(report: report, focus: focus,
+                                    granularity: granularity,
                                     width: max(320, geometry.size.width - 32))
                                 ScrollView([.horizontal, .vertical]) {
                                     diagram(layout: layout)
@@ -381,9 +417,11 @@ private struct MoneyFlowLayout {
     let labelWidth: CGFloat
     var height: CGFloat = 0
 
-    init(report: RecordedFlowReport, focus: RecordedFlowNode?, width: CGFloat) {
-        let levels = focus == nil ? 3 : 2
-        self.width = max(width, 320)
+    init(report: RecordedFlowReport, focus: RecordedFlowNode?, granularity: MoneyFlowGranularity,
+         width: CGFloat) {
+        let showsSubcategories = focus == nil && granularity == .subcategories
+        let levels = focus != nil ? 2 : (showsSubcategories ? 4 : 3)
+        self.width = max(width, showsSubcategories ? 620 : 320)
         let trailingSpace: CGFloat = focus != nil || self.width >= 392 ? 144 : 108
         let step = (self.width - trailingSpace) / CGFloat(levels - 1)
         self.labelWidth = min(124, max(80, step - 22))
@@ -421,7 +459,7 @@ private struct MoneyFlowLayout {
             height = extent(focus, depth: 1) + 56
             return
         }
-        let depth = 0
+        let depth = showsSubcategories ? 1 : 0
         let expenseBlock = max(56, report.categories.reduce(CGFloat.zero) { $0 + extent($1, depth: depth) })
         let expense = Node(id: "expenses", title: String(localized: "Uscite"), amount: report.expenses,
                            color: ForgiaPalette.spending, x: 8 + step, y: 28 + expenseBlock / 2,

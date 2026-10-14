@@ -177,7 +177,7 @@ struct DraftAttachmentsView: View {
                     .disabled(loading || attachments.count >= 5)
             }
             #endif
-            if loading { ProgressView("Caricamento allegato…") }
+            if loading { FormiLoadingView("Caricamento allegato…", style: .inline) }
             Text("Immagini e PDF · massimo 5 file da 10 MB. Verranno salvati insieme al movimento.")
                 .font(.caption).foregroundStyle(.secondary)
         }

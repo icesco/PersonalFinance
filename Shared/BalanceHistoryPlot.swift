@@ -3,6 +3,10 @@ import Charts
 import FinanceCore
 import WidgetKit
 
+enum FinanceChartStyle {
+    static let interpolation: InterpolationMethod = .monotone
+}
+
 extension AccountBalanceSeries {
     var color: Color {
         let hex = colorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
@@ -48,13 +52,14 @@ struct BalanceHistoryPlot: View {
                 ForEach(account.savingsCapital ?? [], id: \.date) { point in
                     LineMark(x: .value("Data", point.date), y: .value("Capitale versato", NSDecimalNumber(decimal: point.balance).doubleValue),
                              series: .value("Conto", account.id.uuidString + "-capitale"))
-                        .interpolationMethod(.stepEnd)
+                        .interpolationMethod(FinanceChartStyle.interpolation)
                         .foregroundStyle(account.color.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 2))
                 }
                 ForEach(account.savingsValue ?? [], id: \.date) { point in
                     LineMark(x: .value("Data", point.date), y: .value("Controvalore stimato", NSDecimalNumber(decimal: point.balance).doubleValue),
                              series: .value("Conto", account.id.uuidString + "-controvalore"))
+                        .interpolationMethod(FinanceChartStyle.interpolation)
                         .foregroundStyle(account.color)
                         .lineStyle(StrokeStyle(lineWidth: 2, dash: [2, 3]))
                 }
@@ -143,7 +148,7 @@ struct BalanceHistoryPlot: View {
         let label = point.balance.formatted(.currency(code: currency))
         return LineMark(x: .value("Data", point.date), y: .value("Saldo", amount),
                         series: .value("Conto", account.id.uuidString + (projected ? "-previsto" : "-registrato")))
-            .interpolationMethod(snapshotLabel ? .monotone : .stepEnd)
+            .interpolationMethod(FinanceChartStyle.interpolation)
             .lineStyle(StrokeStyle(lineWidth: 1.75, lineCap: .round, lineJoin: .round, dash: projected ? [5, 4] : []))
             .foregroundStyle((colorOverride ?? account.color).opacity(projected ? (snapshotLabel ? 0.85 : 0.65) : 1))
             .accessibilityLabel(account.name + (projected ? ", previsto" : ", registrato"))

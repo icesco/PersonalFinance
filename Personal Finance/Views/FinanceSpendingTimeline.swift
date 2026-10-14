@@ -152,7 +152,10 @@ private struct FinanceTimelineEventCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.tintedBackgrounds) private var tintedBackgrounds
     private var tint: Color {
-        event.kind != .recorded ? ForgiaPalette.calendar : event.type == .income ? ForgiaPalette.margin : ForgiaPalette.spending
+        if event.kind != .recorded {
+            return FinanceCategoryColor.color(hex: category?.color, fallback: ForgiaPalette.calendar)
+        }
+        return event.type == .income ? ForgiaPalette.margin : ForgiaPalette.spending
     }
     private var icon: String {
         event.kind == .recurrence ? "arrow.trianglehead.2.clockwise.rotate.90" : event.kind == .planned ? "clock" : event.type == .income ? "arrow.down.left" : "arrow.up.right"
@@ -195,7 +198,7 @@ private struct FinanceTimelineEventCard: View {
                 if let amount = event.amount {
                     Text(amount, format: .currency(code: currency))
                         .font(.system(.title2, design: .rounded, weight: .semibold))
-                        .foregroundStyle(tint).monospacedDigit().financeNumericMotion(amount)
+                        .foregroundStyle(event.kind == .recorded ? tint : .primary).monospacedDigit().financeNumericMotion(amount)
                         .lineLimit(1).minimumScaleFactor(0.75)
                 } else {
                     Label("Importo da verificare", systemImage: "exclamationmark.triangle")

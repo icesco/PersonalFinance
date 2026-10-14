@@ -82,11 +82,13 @@ struct MonthlySpendingLines: View {
         Chart {
             ForEach(trend.current) { point in
                 LineMark(x: .value("Giorno", point.day), y: .value("Spese", number(point.amount)), series: .value("Periodo", "current"))
+                    .interpolationMethod(FinanceChartStyle.interpolation)
                     .foregroundStyle(ForgiaPalette.spending).lineStyle(StrokeStyle(lineWidth: 3))
             }
             if trend.hasPreviousExpenses {
                 ForEach(trend.previous) { point in
                     LineMark(x: .value("Giorno", point.day), y: .value("Spese", number(point.amount)), series: .value("Periodo", "previous"))
+                        .interpolationMethod(FinanceChartStyle.interpolation)
                         .foregroundStyle(ForgiaPalette.mutedText).lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
                 }
             }
