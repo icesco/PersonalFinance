@@ -11,7 +11,11 @@ public final class SharedBookMembership {
     public var remoteBookID: UUID = UUID()
     public var localBookID: UUID = UUID()
     public var isOwner: Bool = false
+    /// A non-nil value limits this membership to one conto in the local book.
+    public var localContoID: UUID? = nil
+    public var peopleJSON: String? = nil
     public var importNamespace: UUID? = nil
+    public var refreshIdentity: UUID { localContoID ?? localBookID }
     public init(scopeKey: String, ownerName: String, remoteBookID: UUID, localBookID: UUID, isOwner: Bool = false) {
         self.scopeKey = scopeKey; self.ownerName = ownerName
         self.remoteBookID = remoteBookID; self.localBookID = localBookID
@@ -37,6 +41,7 @@ public final class SharedBookDeparture {
     #Index<SharedBookDeparture>([\.scopeKey])
     public var scopeKey: String = ""
     public var localBookID: UUID = UUID()
+    public var retiredNamespaceID: UUID? = nil
     public init(scopeKey: String, localBookID: UUID) {
         self.scopeKey = scopeKey; self.localBookID = localBookID
     }

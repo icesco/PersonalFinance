@@ -7,12 +7,13 @@ public enum SharedBookInvitation {
                              shareRecordName: String, hierarchical: Bool) throws -> SharedBookScope {
         guard containerIdentifier == FinanceCoreModule.cloudKitContainerIdentifier else { throw Failure.foreignContainer }
         guard !hierarchical, shareRecordName == CKRecordNameZoneWideShare else { throw Failure.unsupportedShare }
-        let prefix = "ForgiaBook-"
+        let isContoShare = zoneName.hasPrefix("FormiConto-")
+        let prefix = isContoShare ? "FormiConto-" : "ForgiaBook-"
         guard zoneName.hasPrefix(prefix), let id = UUID(uuidString: String(zoneName.dropFirst(prefix.count))),
-              SharedBookCloudCodec.zoneName(bookID: id) == zoneName else { throw Failure.invalidZone }
+              SharedBookCloudCodec.zoneName(bookID: id, isContoShare: isContoShare) == zoneName else { throw Failure.invalidZone }
         guard !ownerName.isEmpty, ownerName != CKCurrentUserDefaultName, ownerName.utf8.count <= 255,
               !ownerName.contains("\u{0}") else { throw Failure.invalidOwner }
-        return SharedBookScope(ownerName: ownerName, bookID: id)
+        return SharedBookScope(ownerName: ownerName, bookID: id, isContoShare: isContoShare)
     }
     public static func scope(metadata: CKShare.Metadata) throws -> SharedBookScope {
         let zone = metadata.share.recordID.zoneID

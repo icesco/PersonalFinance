@@ -104,6 +104,10 @@ public final class Transaction {
     public var updatedAt: Date?
     public var transactionDescription: String?
     public var notes: String?
+    public var createdByJSON: String?
+    public var lastEditedByJSON: String?
+    public var assignedToJSON: String?
+    public var contributorJSON: String?
     public var originalAmount: Decimal?
     public var originalCurrency: String?
     public var exchangeRate: Decimal?
@@ -196,6 +200,8 @@ public final class Transaction {
         self.recurrenceEndDate = recurrenceEndDate
         self.createdAt = Date()
         self.updatedAt = Date()
+        self.createdByJSON = TransactionPeople.current?.encoded
+        self.lastEditedByJSON = self.createdByJSON
     }
     
     /// Display amount (negative for expenses, positive for income)

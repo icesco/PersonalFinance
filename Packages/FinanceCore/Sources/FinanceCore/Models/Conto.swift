@@ -37,6 +37,7 @@ public final class Conto {
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var name: String?
+    public var usesSharedCategories: Bool?
     public var type: ContoType?
     public var initialBalance: Decimal?
     /// Optional markers preserve existing stores and detect changes to the verified ledger.

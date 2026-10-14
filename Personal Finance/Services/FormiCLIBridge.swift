@@ -79,7 +79,9 @@ enum FormiCLIBridge {
                 guard request.accountSplit == nil, !request.commit, request.movements.isEmpty, request.categoryMutation == nil, request.transactionQuery == nil else {
                     throw FormiCLIService.Failure("La lettura non accetta movimenti o commit.")
                 }
-                let shared = Set(try context.fetch(FetchDescriptor<SharedBookMembership>()).map(\.localBookID))
+                let memberships = try context.fetch(FetchDescriptor<SharedBookMembership>())
+                let shared = Set(memberships.filter { $0.localContoID == nil }.map(\.localBookID))
+                let sharedConti = Set(memberships.compactMap(\.localContoID))
                 let books = try context.fetch(FetchDescriptor<Account>(sortBy: [SortDescriptor(\.name)]))
                     .filter { $0.isActive == true && (request.bookID == nil || request.bookID == $0.id) }
                 let bookIDs = Set(books.map(\.id))
@@ -90,7 +92,7 @@ enum FormiCLIBridge {
                            "accounts": accounts.map { conto -> [String: Any] in
                         var row: [String: Any] = ["id": conto.id.uuidString, "name": conto.name ?? "Conto",
                          "bookID": conto.account!.id.uuidString, "book": conto.account!.name ?? "Libro",
-                         "currency": conto.account!.currency ?? "", "writable": !shared.contains(conto.account!.id),
+                         "currency": conto.account!.currency ?? "", "writable": !shared.contains(conto.account!.id) && !sharedConti.contains(conto.id),
                          "type": conto.type?.rawValue ?? "other", "balance": "\(conto.balance)",
                          "displayBalance": "\(conto.displayBalance)"]
                         if conto.type == .credit {

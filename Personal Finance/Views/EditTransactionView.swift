@@ -15,6 +15,8 @@ struct EditTransactionView: View {
     @State private var amountText = ""
     @State private var description = ""
     @State private var notes = ""
+    @State private var assignedTo: TransactionPerson?
+    @State private var contributor: TransactionPerson?
     @State private var isSavingsInterest = false
     @State private var selectedDate = Date()
     @State private var includeTime = false
@@ -31,6 +33,7 @@ struct EditTransactionView: View {
     @State private var destinationAmountText = ""
 
     @Query private var categories: [FinanceCategory]
+    @Query private var memberships: [SharedBookMembership]
     @Query private var allConti: [Conto]
 
     private var amountCurrency: String { fromConto?.account?.currency ?? transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR" }
@@ -44,8 +47,7 @@ struct EditTransactionView: View {
     }
 
     private var filteredCategories: [FinanceCategory] {
-        guard let bookID = (transaction.type == .income ? transaction.toConto : transaction.fromConto)?.account?.id else { return [] }
-        return categories.filter { $0.isActive == true && $0.account?.id == bookID }
+        SharedContoCategories.available(for: transaction.type == .income ? transaction.toConto : transaction.fromConto, in: categories)
     }
 
     private var activeConti: [Conto] {
@@ -61,11 +63,25 @@ struct EditTransactionView: View {
         RecurrenceSchedule.inclusiveEnd(anchor: selectedDate, lastDay: recurrenceEndDate)
     }
 
+    private func isSharedEndpoint(_ conto: Conto?) -> Bool {
+        guard let conto else { return false }
+        return memberships.contains { $0.localContoID == conto.id }
+    }
+
     private var isFormInvalid: Bool {
+        if let selectedCategory, let conto = transaction.type == .income ? transaction.toConto : transaction.fromConto,
+           !SharedContoCategories.permits(selectedCategory, for: conto) { return true }
         if loadingLocation || amount <= 0 { return true }
         if isRecurring && hasEndDate && effectiveRecurrenceEndDate == nil { return true }
 
         if transaction.type == .transfer {
+            if isSharedEndpoint(transaction.fromConto), fromConto?.id != transaction.fromConto?.id { return true }
+            if isSharedEndpoint(transaction.toConto), toConto?.id != transaction.toConto?.id { return true }
+            let receivedProjection = transaction.fromConto == nil || transaction.toConto == nil
+            if receivedProjection {
+                if let fromConto, let toConto { return fromConto.id == toConto.id || (hasDifferentCurrencies && destinationAmount <= 0) }
+                return fromConto == nil && toConto == nil
+            }
             return fromConto == nil || toConto == nil || fromConto?.id == toConto?.id || (hasDifferentCurrencies && destinationAmount <= 0)
         }
 
@@ -91,6 +107,11 @@ struct EditTransactionView: View {
                     }
 
                     FormCard(title: "Dettagli") { detailsRows }
+                    if transaction.type != .transfer { SharedCategoryNotice(conto: transaction.type == .income ? transaction.toConto : transaction.fromConto) }
+                    FormCard(title: "Persone") {
+                        TransactionPeopleEditor(contoIDs: [fromConto?.id, toConto?.id].compactMap { $0 },
+                            isTransfer: transaction.type == .transfer, assignedTo: $assignedTo, contributor: $contributor)
+                    }
                     if transaction.type == .income && transaction.toConto?.type == .savings {
                         FormCard(title: "Risparmio") {
                             Toggle("Interessi accreditati", isOn: $isSavingsInterest)
@@ -236,10 +257,12 @@ struct EditTransactionView: View {
         if transaction.type == .transfer {
             FormRow(icon: "arrow.up.right", tint: ForgiaPalette.apricotSurface) {
                 contoMenu(title: "Dal conto", selection: $fromConto, options: activeConti)
+                    .disabled(isSharedEndpoint(transaction.fromConto))
             }
             FormRowDivider()
             FormRow(icon: "arrow.down.left", tint: ForgiaPalette.sageSurface) {
                 contoMenu(title: "Al conto", selection: $toConto, options: activeConti.filter { $0.id != fromConto?.id })
+                    .disabled(isSharedEndpoint(transaction.toConto))
             }
             FormRowDivider()
         } else if !filteredCategories.isEmpty {
@@ -324,6 +347,8 @@ struct EditTransactionView: View {
         amount = transaction.amount ?? Decimal(0)
         description = transaction.transactionDescription ?? ""
         notes = transaction.notes ?? ""
+        assignedTo = transaction.assignedTo
+        contributor = transaction.contributor
         isSavingsInterest = transaction.isSavingsInterest == true
         selectedDate = transaction.date
         selectedCategory = transaction.category
@@ -352,6 +377,7 @@ struct EditTransactionView: View {
         let oldDate = transaction.date
         let oldDescription = transaction.transactionDescription
         let oldNotes = transaction.notes
+        let oldPeople = (transaction.assignedToJSON, transaction.contributorJSON, transaction.lastEditedByJSON)
         let oldInterest = transaction.isSavingsInterest
         let oldRecurring = transaction.isRecurring
         let oldFrequency = transaction.recurrenceFrequency
@@ -372,6 +398,9 @@ struct EditTransactionView: View {
         transaction.recurrenceEndDate = isRecurring && hasEndDate
             ? effectiveRecurrenceEndDate : nil
         transaction.updatedAt = Date()
+        transaction.assignedTo = assignedTo
+        transaction.contributor = contributor
+        transaction.recordEdit()
 
         // Use setters to keep denormalized IDs in sync
         if transaction.type == .transfer {
@@ -394,6 +423,7 @@ struct EditTransactionView: View {
             transaction.date = oldDate
             transaction.transactionDescription = oldDescription
             transaction.notes = oldNotes
+            transaction.assignedToJSON = oldPeople.0; transaction.contributorJSON = oldPeople.1; transaction.lastEditedByJSON = oldPeople.2
             transaction.isSavingsInterest = oldInterest
             transaction.isRecurring = oldRecurring
             transaction.recurrenceFrequency = oldFrequency

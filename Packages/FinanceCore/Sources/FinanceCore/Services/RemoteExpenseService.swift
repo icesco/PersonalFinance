@@ -67,6 +67,7 @@ public enum RemoteExpenseService {
               let category = book.categories?.first(where: { $0.id == input.categoryID && $0.isActive == true }) else {
             throw Failure.invalidSelection
         }
+        guard SharedContoCategories.permits(category, for: conto) else { throw Failure.invalidSelection }
         return (book, conto, category)
     }
 

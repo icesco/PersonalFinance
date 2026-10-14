@@ -11,7 +11,7 @@ public struct FinanceContainerDeletion {
         public var errorDescription: String? {
             switch self {
             case .selectionChanged: return "Il libro o il conto non è più disponibile. Aggiorna la lista e riprova."
-            case .sharedBook: return "Gestisci prima la condivisione del libro dalla schermata Condivisione del libro: interrompila o abbandonala prima di eliminare questi dati."
+            case .sharedBook: return "Gestisci prima la condivisione del conto o del libro: interrompila o abbandonala prima di eliminare i dati condivisi."
             }
         }
     }
@@ -61,7 +61,10 @@ public struct FinanceContainerDeletion {
         })
         let affectedBooks = Set(allConti.filter { linkedContoIDs.contains($0.id) }.compactMap { $0.account?.id }
                                 + [book?.id].compactMap { $0 })
-        if try context.fetch(FetchDescriptor<SharedBookMembership>()).contains(where: { affectedBooks.contains($0.localBookID) }) {
+        if try context.fetch(FetchDescriptor<SharedBookMembership>()).contains(where: { member in
+            if let contoID = member.localContoID { return linkedContoIDs.contains(contoID) || book?.id == member.localBookID }
+            return affectedBooks.contains(member.localBookID)
+        }) {
             throw Failure.sharedBook
         }
         return Selection(book: book, conti: conti, transactions: transactions, categories: categories,

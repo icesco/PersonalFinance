@@ -60,7 +60,9 @@ public enum FormiCLIService {
         context.autosaveEnabled = false
         let conti = try context.fetch(FetchDescriptor<Conto>())
         let categories = try context.fetch(FetchDescriptor<Category>())
-        let shared = Set(try context.fetch(FetchDescriptor<SharedBookMembership>()).map(\.localBookID))
+        let memberships = try context.fetch(FetchDescriptor<SharedBookMembership>())
+        let shared = Set(memberships.filter { $0.localContoID == nil }.map(\.localBookID))
+        let sharedConti = Set(memberships.compactMap(\.localContoID))
         let series: [Transaction] = request.movements.contains(where: { $0.recurrence != nil })
             ? try context.fetch(FetchDescriptor<Transaction>(
                 predicate: #Predicate { $0.isRecurring == true && $0.recurrenceSourceID == nil }))
@@ -78,7 +80,7 @@ public enum FormiCLIService {
                       request.bookID == nil || request.bookID == book.id else {
                     throw Failure("Conto o libro non disponibile.")
                 }
-                guard !shared.contains(book.id) else { throw Failure("La CLI supporta per ora solo libri personali.") }
+                guard !shared.contains(book.id), !sharedConti.contains(conto.id) else { throw Failure("La CLI supporta per ora solo libri personali.") }
                 guard book.currency == input.currency else { throw Failure("La valuta non corrisponde al libro.") }
                 var destination: Conto?
                 if type == .transfer {
@@ -88,7 +90,7 @@ public enum FormiCLIService {
                           let destinationBook = found.account, destinationBook.isActive == true else {
                         throw Failure("Trasferimento non valido: scegli due conti diversi e attivi, senza ricorrenza.")
                     }
-                    guard !shared.contains(destinationBook.id) else {
+                    guard !shared.contains(destinationBook.id), !sharedConti.contains(found.id) else {
                         throw Failure("Il conto di arrivo deve appartenere a un libro personale.")
                     }
                     guard destinationBook.currency == input.currency else {
@@ -124,7 +126,7 @@ public enum FormiCLIService {
                 var category: Category?
                 if let id = input.categoryID {
                     guard let found = categories.first(where: { $0.id == id && $0.isActive == true }),
-                          found.account?.id == book.id, (type == .transfer || found.fits(type)) else {
+                          found.account?.id == book.id, SharedContoCategories.permits(found, for: conto), (type == .transfer || found.fits(type)) else {
                         throw Failure("Categoria non disponibile o incompatibile con il conto e il tipo.")
                     }
                     category = found

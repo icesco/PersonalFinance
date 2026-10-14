@@ -41,7 +41,7 @@ struct SharedBookSystemSheet: View {
     var body: some View {
         VStack(spacing: 18) {
             Text(title).font(.title2)
-            Text("Gestisci le persone che possono accedere al libro tramite iCloud.")
+            Text("Gestisci le persone che possono accedere ai dati condivisi tramite iCloud.")
             MacCloudSharingButton(share: share, onStatus: onStatus, onStopSharing: onStopSharing).frame(width: 220, height: 32)
             Button("Chiudi") { dismiss() }
         }.padding(28).frame(width: 400)

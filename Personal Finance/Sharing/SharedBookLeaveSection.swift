@@ -15,7 +15,7 @@ struct SharedBookLeaveSection: View {
                     Button("Lascia e conserva una copia", role: .destructive, action: onLeave)
                     Button("Annulla", role: .cancel) { }
                 } message: {
-                    Text("Il libro degli altri partecipanti resterà disponibile. La tua copia includerà soltanto i dati già presenti su questo dispositivo, comprese le modifiche non ancora inviate.")
+                    Text("I dati degli altri partecipanti resteranno disponibili. La tua copia includerà soltanto i dati già presenti su questo dispositivo, comprese le modifiche non ancora inviate.")
                 }
             Text("Conserverai una copia privata con i dati presenti su questo dispositivo. Le modifiche successive non verranno più condivise.")
                 .font(.footnote).foregroundStyle(.secondary)

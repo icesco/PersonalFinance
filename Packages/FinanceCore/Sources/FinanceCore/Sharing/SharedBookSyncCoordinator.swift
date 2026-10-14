@@ -32,23 +32,24 @@ public final class SharedBookSyncCoordinator {
 
     /// Invoked by an explicit sharing action, never by startup or background
     /// refresh. The sharing sheet is returned only after uploading the book.
-    public func prepareOwnerShare(bookID: UUID) async throws -> OwnerPreparation {
+    public func prepareOwnerShare(bookID: UUID, contoID: UUID? = nil) async throws -> OwnerPreparation {
         let initial = configuration()
         guard initial.enabled, let container = initial.container else { throw Failure.unavailable }
-        guard !pendingOwnerCleanup.contains(bookID) else { throw Failure.unavailable }
+        let preparationID = contoID ?? bookID
+        guard !pendingOwnerCleanup.contains(preparationID) else { throw Failure.unavailable }
         guard preparing.insert(bookID).inserted else { throw Failure.alreadySyncing }
         defer { preparing.remove(bookID) }
-        let bookRevision = ownerBookRevisions[bookID, default: 0]
+        let bookRevision = ownerBookRevisions[preparationID, default: 0]
         func check() throws {
             try Task.checkCancellation()
             let current = configuration()
             guard current.enabled, current.generation == initial.generation, current.container === container,
-                  ownerBookRevisions[bookID, default: 0] == bookRevision else { throw Failure.unavailable }
+                  ownerBookRevisions[preparationID, default: 0] == bookRevision else { throw Failure.unavailable }
         }
         let owner = try await transport.ownerRecordName()
         try check()
         try container.mainContext.save()
-        let scope = try SharedBookOwnerRegistration.register(bookID: bookID, ownerRecordName: owner, container: container)
+        let scope = try SharedBookOwnerRegistration.register(bookID: bookID, contoID: contoID, ownerRecordName: owner, container: container)
         revokedScopes.remove(scope.key)
         try await transport.ensureOwnerZone(scope: scope)
         try check()
@@ -59,7 +60,7 @@ public final class SharedBookSyncCoordinator {
         try check()
         let context = ModelContext(container)
         guard let book = try context.fetch(FetchDescriptor<Account>(predicate: #Predicate { $0.id == bookID })).first else { throw Failure.missingLocalIdentity }
-        let share = try await transport.ownerShare(scope: scope, title: book.name ?? "Libro condiviso")
+        let share = try await transport.ownerShare(scope: scope, title: contoID.flatMap { id in book.conti?.first { $0.id == id }?.name } ?? book.name ?? "Condivisione")
         try check()
         return .ready(scope: scope, share: share)
     }
@@ -160,6 +161,17 @@ public final class SharedBookSyncCoordinator {
             // upload. Those newer edits will differ from this base on the next run.
             try shadows.write(scope: scope, acknowledged: plan.records)
         }
+        if let people = try? await transport.people(scope: scope, role: role) {
+            try checkConfiguration()
+            let peopleContext = ModelContext(container)
+            if let data = try? JSONEncoder().encode(people) {
+                for membership in try peopleContext.fetch(FetchDescriptor<SharedBookMembership>(predicate: #Predicate { $0.scopeKey == key })) {
+                    membership.peopleJSON = String(data: data, encoding: .utf8)
+                }
+                try peopleContext.save()
+            }
+        }
+        try checkConfiguration()
         return .synchronized(localBookID: localBookID)
     }
 }

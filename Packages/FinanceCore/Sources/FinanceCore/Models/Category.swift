@@ -13,6 +13,7 @@ public final class Category {
     public var isActive: Bool?
     public var parentCategoryId: UUID?
     public var kindRaw: String?
+    public var sharedContoID: UUID?
     
     public var account: Account?
     

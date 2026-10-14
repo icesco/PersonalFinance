@@ -24,6 +24,15 @@ struct FinanceContoDetailsView: View {
                             currency: currency, periodTitle: Date().formatted(.dateTime.month(.wide).year()),
                             historyBookID: conto.account?.id, historyContoID: conto.id)
                     }
+                    NavigationLink {
+                        if let book = conto.account { SharedBookView(book: book, conto: conto) }
+                    } label: {
+                        Label("Condivisione del conto", systemImage: "person.2")
+                            .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 48)
+                    }
+                    .accessibilityIdentifier("share-conto")
+                    SharedCategoryNotice(conto: conto)
+                    AccountContributionsView(conto: conto)
                     recentMovements
                     if conto.type == .savings {
                         SavingsAccountSummary(conto: conto)

@@ -45,7 +45,7 @@ struct CaptureReviewView: View {
     }
     private var bookConti: [Conto] { activeConti.filter { $0.account?.id == bookID } }
     private var conto: Conto? { activeConti.first { $0.id == contoID } }
-    private var categories: [FinanceCore.Category] { (conto?.account?.categories ?? []).filter { $0.isActive == true && $0.fits(type) }.sorted { ($0.name ?? "") < ($1.name ?? "") } }
+    private var categories: [FinanceCore.Category] { SharedContoCategories.available(for: conto, in: conto?.account?.categories ?? []).filter { $0.isActive == true && $0.fits(type) }.sorted { ($0.name ?? "") < ($1.name ?? "") } }
     private var isFuture: Bool { date > Date() }
     private var actionTitle: String {
         if isFuture { return saving ? "Pianificazione…" : (type == .income ? "Pianifica entrata" : "Pianifica pagamento") }
@@ -118,6 +118,7 @@ struct CaptureReviewView: View {
                         }.disabled(conto == nil).accessibilityIdentifier("capture-category")
                     }
                 }
+                SharedCategoryNotice(conto: conto)
                 if contoID == classification?.contoID, let reason = classification?.accountReason { Text(reason).font(.caption).foregroundStyle(ForgiaPalette.mutedText) }
                 if categoryID == classification?.categoryID, let reason = classification?.categoryReason { Text(reason).font(.caption).foregroundStyle(ForgiaPalette.mutedText) }
                 if let conto, currency != conto.account?.currency {

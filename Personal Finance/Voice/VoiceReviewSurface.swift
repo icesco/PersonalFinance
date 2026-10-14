@@ -131,7 +131,7 @@ private struct VoiceReviewCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var conto: Conto? { conti.first { $0.id == draft.contoID } }
     private var categories: [FinanceCore.Category] {
-        (conto?.account?.categories ?? []).filter { $0.isActive == true && draft.type.map($0.fits) == true }
+        SharedContoCategories.available(for: conto, in: conto?.account?.categories ?? []).filter { $0.isActive == true && draft.type.map($0.fits) == true }
             .sorted { ($0.name ?? "") < ($1.name ?? "") }
     }
     private var category: FinanceCore.Category? { categories.first { $0.id == draft.categoryID } }
@@ -159,6 +159,7 @@ private struct VoiceReviewCard: View {
                 Label(issue, systemImage: "exclamationmark.circle")
                     .font(.subheadline).foregroundStyle(ForgiaPalette.spending)
             }
+            SharedCategoryNotice(conto: conto)
             if expanded {
                 VoiceReviewEditor(draft: $draft, conti: conti, categories: categories)
                     .transition(.opacity)

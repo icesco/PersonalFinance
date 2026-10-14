@@ -13,6 +13,7 @@ protocol SharedCloudDatabase {
     func page(zone: CKRecordZone.ID, token: CKServerChangeToken?) async throws -> SharedCloudPage
     func save(_ records: [CKRecord]) async throws -> [CKRecord]
     func ownerRecordName() async throws -> String
+    func existingShare(zone: CKRecordZone.ID) async throws -> CKShare
     func ensureZone(_ zone: CKRecordZone.ID) async throws
     func share(zone: CKRecordZone.ID, title: String) async throws -> CKShare
     func accept(_ metadata: CKShare.Metadata) async throws -> CKShare
@@ -20,6 +21,7 @@ protocol SharedCloudDatabase {
 }
 
 extension SharedCloudDatabase {
+    func existingShare(zone: CKRecordZone.ID) async throws -> CKShare { throw SharedBookCloudTransport.Failure.unsupportedOperation }
     func leaveShare(_ id: CKRecord.ID) async throws -> CKRecord.ID { throw SharedBookCloudTransport.Failure.unsupportedOperation }
     func ownerRecordName() async throws -> String { throw SharedBookCloudTransport.Failure.unsupportedOperation }
     func ensureZone(_ zone: CKRecordZone.ID) async throws { throw SharedBookCloudTransport.Failure.unsupportedOperation }
@@ -56,6 +58,11 @@ private final class AppleSharedCloudDatabase: SharedCloudDatabase {
             try Task.checkCancellation()
             _ = try await database.save(CKRecordZone(zoneID: zone))
         }
+    }
+    func existingShare(zone: CKRecordZone.ID) async throws -> CKShare {
+        let id = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zone)
+        guard let share = try await database.record(for: id) as? CKShare else { throw SharedBookCloudTransport.Failure.incompleteResponse }
+        return share
     }
     func share(zone: CKRecordZone.ID, title: String) async throws -> CKShare {
         let fetched = try await database.recordZone(for: zone)
@@ -131,7 +138,7 @@ public final class SharedBookCloudTransport {
         return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
     private func zone(scope: SharedBookScope, role: Role) -> CKRecordZone.ID {
-        CKRecordZone.ID(zoneName: SharedBookCloudCodec.zoneName(bookID: scope.bookID),
+        CKRecordZone.ID(zoneName: SharedBookCloudCodec.zoneName(bookID: scope.bookID, isContoShare: scope.isContoShare),
                         ownerName: role == .owner ? CKCurrentUserDefaultName : scope.ownerName)
     }
 
@@ -141,7 +148,22 @@ public final class SharedBookCloudTransport {
         let name = try await request { try await database.ownerRecordName() }
         _ = try permit(generation)
         guard !name.isEmpty, name != CKCurrentUserDefaultName else { throw Failure.incompleteResponse }
+        TransactionPeople.cacheCloudIdentity(name)
         return name
+    }
+
+    public func people(scope: SharedBookScope, role: Role) async throws -> [TransactionPerson] {
+        let generation = try permit()
+        let database = makeDatabase(role)
+        let zoneID = zone(scope: scope, role: role)
+        let share = try await request { try await database.existingShare(zone: zoneID) }
+        _ = try permit(generation)
+        return share.participants.compactMap { participant in
+            guard participant.acceptanceStatus == .accepted || participant.role == .owner,
+                  let id = participant.userIdentity.userRecordID?.recordName else { return nil }
+            let name = participant.userIdentity.nameComponents.map { PersonNameComponentsFormatter.localizedString(from: $0, style: .short) } ?? ""
+            return TransactionPerson(id: id, name: name)
+        }
     }
 
     public func acceptInvitation(_ metadata: CKShare.Metadata) async throws -> SharedBookScope {

@@ -4,7 +4,11 @@ import CryptoKit
 public struct SharedBookScope: Codable, Hashable, Sendable {
     public let ownerName: String
     public let bookID: UUID
-    public init(ownerName: String, bookID: UUID) { self.ownerName = ownerName; self.bookID = bookID }
+    private var contoScope: Bool?
+    public var isContoShare: Bool { contoScope == true }
+    public init(ownerName: String, bookID: UUID, isContoShare: Bool = false) {
+        self.ownerName = ownerName; self.bookID = bookID; self.contoScope = isContoShare ? true : nil
+    }
     public var key: String { digest("scope").map { String(format: "%02x", $0) }.joined() }
 
     /// Each confirmed departure advances the deterministic identity chain once.
@@ -17,7 +21,7 @@ public struct SharedBookScope: Codable, Hashable, Sendable {
         for _ in retiredBookIDs {
             guard retiredBookIDs.contains(candidate) else { break }
             namespace = candidate
-            candidate = SharedBookScope(ownerName: ownerName, bookID: candidate).isolatedID(for: root)
+            candidate = SharedBookScope(ownerName: ownerName, bookID: candidate, isContoShare: isContoShare).isolatedID(for: root)
         }
         return namespace
     }
@@ -32,7 +36,8 @@ public struct SharedBookScope: Codable, Hashable, Sendable {
                            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
     }
     private func digest(_ suffix: String) -> SHA256.Digest {
-        SHA256.hash(data: Data("forgia.shared.v1\u{0}\(ownerName)\u{0}\(bookID.uuidString)\u{0}\(suffix)".utf8))
+        let domain = isContoShare ? "formi.shared.conto.v1" : "forgia.shared.v1"
+        return SHA256.hash(data: Data("\(domain)\u{0}\(ownerName)\u{0}\(bookID.uuidString)\u{0}\(suffix)".utf8))
     }
 }
 

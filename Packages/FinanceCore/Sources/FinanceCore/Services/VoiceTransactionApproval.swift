@@ -75,7 +75,7 @@ public struct VoiceTransactionDraft: Identifiable, Sendable, Equatable {
                 var category: Category?
                 if let categoryID = draft.categoryID {
                     category = try context.fetch(FetchDescriptor<Category>(predicate: #Predicate { $0.id == categoryID })).first
-                    guard category?.isActive == true, category?.account?.id == book.id, category?.fits(type) == true else {
+                    guard category?.isActive == true, category?.account?.id == book.id, category?.fits(type) == true, category.map({ SharedContoCategories.permits($0, for: conto) }) == true else {
                         throw Failure.invalidRow(index + 1)
                     }
                 }

@@ -64,7 +64,7 @@ public struct CaptureApprovalInput: Sendable {
         var category: Category?
         if let categoryID = input.categoryID {
             category = try context.fetch(FetchDescriptor<Category>(predicate: #Predicate { $0.id == categoryID })).first
-            guard category?.isActive == true, category?.account?.id == book.id, category?.fits(input.type) == true else { throw Failure.invalidSelection }
+            guard category?.isActive == true, category?.account?.id == book.id, category?.fits(input.type) == true, category.map({ SharedContoCategories.permits($0, for: conto) }) == true else { throw Failure.invalidSelection }
         }
         if let document = input.document {
             guard !document.isEmpty, document.count <= 10 * 1024 * 1024, input.filename != nil,

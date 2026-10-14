@@ -27,7 +27,7 @@ struct WatchDirectExpenseView: View {
                 }
                 Picker("Categoria", selection: $categoryID) {
                     Text("Scegli").tag(nil as UUID?)
-                    ForEach(book.categories ?? []) { Text($0.name).tag(Optional($0.id)) }
+                    ForEach((book.categories ?? []).filter { option in contoID.map { option.allowedContoIDs?.contains($0) ?? true } ?? false }) { Text($0.name).tag(Optional($0.id)) }
                 }
                 TextField("Importo", text: $amount)
                 TextField("Descrizione", text: $note)
@@ -43,6 +43,7 @@ struct WatchDirectExpenseView: View {
             if connection.isSending { ProgressView() }
         }
         .navigationTitle("Nuova spesa")
+        .onChange(of: contoID) { _, _ in categoryID = nil }
         .task {
             if let input = connection.remote.input, input.bookID == bookID {
                 contoID = input.contoID; categoryID = input.categoryID

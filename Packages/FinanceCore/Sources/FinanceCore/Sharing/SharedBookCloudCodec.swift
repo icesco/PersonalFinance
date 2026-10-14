@@ -7,12 +7,17 @@ import CryptoKit
 public enum SharedBookCloudCodec {
     public enum Failure: Error { case unsupportedRecord, wrongBook, invalidIdentity, oversizedRecord, missingAsset, corruptAsset }
     public static let recordType = "ForgiaSharedItemV1"
-    public static func zoneName(bookID: UUID) -> String { "ForgiaBook-\(bookID.uuidString.lowercased())" }
+    public static func zoneName(bookID: UUID, isContoShare: Bool = false) -> String {
+        "\(isContoShare ? "FormiConto" : "ForgiaBook")-\(bookID.uuidString.lowercased())"
+    }
+    private static func matchesZone(_ name: String, bookID: UUID) -> Bool {
+        name == zoneName(bookID: bookID) || name == zoneName(bookID: bookID, isContoShare: true)
+    }
 
     public static func encode(_ value: SharedBookRecord, zoneID: CKRecordZone.ID,
                               existing: CKRecord? = nil, assetURL: URL? = nil) throws -> CKRecord {
         try validate(value, bookID: value.id.bookID)
-        guard zoneID.zoneName == zoneName(bookID: value.id.bookID) else { throw Failure.wrongBook }
+        guard matchesZone(zoneID.zoneName, bookID: value.id.bookID) else { throw Failure.wrongBook }
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         let payload = try encoder.encode(value)
@@ -38,7 +43,7 @@ public enum SharedBookCloudCodec {
         guard payload.count <= 900_000 else { throw Failure.oversizedRecord }
         let value = try JSONDecoder().decode(SharedBookRecord.self, from: payload)
         try validate(value, bookID: expectedBookID)
-        guard record.recordID.zoneID.zoneName == zoneName(bookID: expectedBookID),
+        guard matchesZone(record.recordID.zoneID.zoneName, bookID: expectedBookID),
               record.recordID.recordName == value.id.recordName else { throw Failure.invalidIdentity }
         if value.id.kind == .attachment && !value.deleted {
             guard let url = (record["file"] as? CKAsset)?.fileURL else { throw Failure.missingAsset }

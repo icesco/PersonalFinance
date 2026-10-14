@@ -6,6 +6,7 @@ import FinanceCore
 struct WatchOption: Codable, Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
+    var allowedContoIDs: [UUID]? = nil
 }
 
 struct WatchBook: Codable, Identifiable, Equatable, Sendable {

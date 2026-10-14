@@ -387,6 +387,8 @@ struct QuickTransactionModal: View {
     @Environment(AppStateManager.self) private var appState
 
     @State private var selectedConto: Conto?
+    @State private var assignedTo: TransactionPerson?
+    @State private var contributor: TransactionPerson? = TransactionPeople.current
     @State private var destinationConto: Conto?
     @State private var destinationAmount = ""
     @State private var showingDestinationPicker = false
@@ -418,7 +420,7 @@ struct QuickTransactionModal: View {
     }
 
     private var availableCategories: [FinanceCategory] {
-        appState.selectedAccount?.categories?.filter { $0.isActive == true } ?? []
+        SharedContoCategories.available(for: selectedConto, in: appState.selectedAccount?.categories ?? [])
     }
 
     private var parsedAmount: Decimal? {
@@ -466,7 +468,7 @@ struct QuickTransactionModal: View {
                   availableConti.contains(where: { $0.id == destinationConto.id }) else { return false }
             return !hasDifferentCurrencies || (parsedDestinationAmount ?? 0) > 0
         }
-        return selectedCategory != nil
+        return selectedCategory.map { category in availableCategories.contains { $0.id == category.id } } == true
     }
 
     var body: some View {
@@ -539,6 +541,11 @@ struct QuickTransactionModal: View {
                     }
 
 
+                    if transactionType != .transfer { SharedCategoryNotice(conto: selectedConto) }
+                    FormCard(title: "Persone") {
+                        TransactionPeopleEditor(contoIDs: [selectedConto?.id, destinationConto?.id].compactMap { $0 },
+                            isTransfer: transactionType == .transfer, assignedTo: $assignedTo, contributor: $contributor)
+                    }
                     VStack(alignment: .leading, spacing: 8) {
                         sectionTitle("Ricorrenza")
                         recurrenceCard
@@ -628,6 +635,7 @@ struct QuickTransactionModal: View {
             }
             .onChange(of: selectedConto?.id) { _, _ in
                 if destinationConto?.id == selectedConto?.id { destinationConto = nil }
+                if let category = selectedCategory, !availableCategories.contains(where: { $0.id == category.id }) { selectedCategory = nil }
             }
             .onChange(of: destinationConto?.id) { _, _ in destinationAmount = "" }
             .sheet(isPresented: $showingCategoryPicker) {
@@ -698,6 +706,11 @@ struct QuickTransactionModal: View {
                         riskLevel = $0
                     }
                 }
+            }
+            if transactionType != .transfer { Section { SharedCategoryNotice(conto: selectedConto) } }
+            Section("Persone") {
+                TransactionPeopleEditor(contoIDs: [selectedConto?.id, destinationConto?.id].compactMap { $0 },
+                    isTransfer: transactionType == .transfer, assignedTo: $assignedTo, contributor: $contributor)
             }
             Section("Dettagli") {
                 Picker(transactionType == .transfer ? "Dal conto" : "Conto", selection: $selectedConto) {
@@ -1019,6 +1032,8 @@ struct QuickTransactionModal: View {
             recurrenceEndDate: isRecurring && hasRecurrenceEndDate ? effectiveRecurrenceEndDate : nil
         )
 
+        transaction.assignedTo = assignedTo
+        transaction.contributor = transactionType == .transfer ? contributor : nil
         transaction.setCategory(transactionType == .transfer ? nil : selectedCategory)
 
         switch transactionType {

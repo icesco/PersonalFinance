@@ -118,7 +118,11 @@ struct Personal_FinanceApp: App {
 
     @ViewBuilder private var appContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("UITEST_BUDGET_DETAIL") {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_CONTO_DESTINATION") {
+            SharedContoDestinationFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_SHARED_CONTO") {
+            SharedContoFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("UITEST_BUDGET_DETAIL") {
             BudgetDetailFixture()
         } else if ProcessInfo.processInfo.arguments.contains("UITEST_NAVIGATION") {
             NavigationVisualFixture()

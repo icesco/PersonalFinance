@@ -2,21 +2,24 @@ import Foundation
 import SwiftData
 import CloudKit
 
-/// Registers an existing book for the owner's custom CloudKit zone. This only
-/// writes local identity metadata; it neither creates a share nor uploads data.
+/// Registers the owner's local graph without creating a share or uploading data.
+/// A single conto receives isolated category copies before its first export.
 @MainActor
 public enum SharedBookOwnerRegistration {
     public enum Failure: Error { case invalidOwner, alreadyRegistered, invalidMapping }
-    public static func register(bookID: UUID, ownerRecordName: String, container: ModelContainer) throws -> SharedBookScope {
+    public static func register(bookID: UUID, contoID: UUID? = nil, ownerRecordName: String, container: ModelContainer) throws -> SharedBookScope {
         guard !ownerRecordName.isEmpty, ownerRecordName != CKCurrentUserDefaultName,
               ownerRecordName.utf8.count <= 255, !ownerRecordName.contains("\u{0}") else { throw Failure.invalidOwner }
-        let scope = SharedBookScope(ownerName: ownerRecordName, bookID: bookID)
-        let snapshot = try SharedBookExporter.export(bookID: bookID, container: container)
+        let remoteID = contoID ?? bookID
+        let scope = SharedBookScope(ownerName: ownerRecordName, bookID: remoteID, isContoShare: contoID != nil)
         let context = ModelContext(container)
         context.autosaveEnabled = false
         do {
             let memberships = try context.fetch(FetchDescriptor<SharedBookMembership>(predicate: #Predicate { $0.localBookID == bookID }))
-            guard memberships.allSatisfy({ $0.scopeKey == scope.key && $0.ownerName == ownerRecordName && $0.remoteBookID == bookID && $0.isOwner }) else {
+            guard memberships.allSatisfy({
+                if $0.scopeKey == scope.key { return $0.ownerName == ownerRecordName && $0.remoteBookID == remoteID && $0.isOwner && $0.localContoID == contoID }
+                return contoID != nil && $0.localContoID != nil && $0.localContoID != contoID
+            }) else {
                 throw Failure.alreadyRegistered
             }
             let key = scope.key
@@ -28,15 +31,22 @@ public enum SharedBookOwnerRegistration {
                 guard existing[link.remoteRecordName] == nil || existing[link.remoteRecordName] == link.localIdentity else { throw Failure.invalidMapping }
                 existing[link.remoteRecordName] = link.localIdentity
             }
-            for record in snapshot.records {
+            if let contoID { try SharedContoCategories.prepare(contoID: contoID, container: container) }
+            let snapshot = try SharedBookExporter.export(bookID: bookID, contoID: contoID, container: container)
+            for original in snapshot.records {
+                let record = original.id.kind == .book
+                    ? SharedBookRecord(id: SharedRecordID(bookID: remoteID, kind: .book, entityID: remoteID.uuidString.lowercased())) : original
+                let localIdentity = record.id.kind == .book ? bookID.uuidString.lowercased() : record.id.entityID
                 if let identity = existing[record.id.recordName] {
-                    guard identity == record.id.entityID else { throw Failure.invalidMapping }
+                    guard identity == localIdentity else { throw Failure.invalidMapping }
                 } else {
-                    context.insert(SharedBookRecordLink(scopeKey: key, remoteRecordName: record.id.recordName, localIdentity: record.id.entityID))
+                    context.insert(SharedBookRecordLink(scopeKey: key, remoteRecordName: record.id.recordName, localIdentity: localIdentity))
                 }
             }
-            if memberships.isEmpty {
-                context.insert(SharedBookMembership(scopeKey: key, ownerName: ownerRecordName, remoteBookID: bookID, localBookID: bookID, isOwner: true))
+            if scopedMemberships.isEmpty {
+                let membership = SharedBookMembership(scopeKey: key, ownerName: ownerRecordName, remoteBookID: remoteID, localBookID: bookID, isOwner: true)
+                membership.localContoID = contoID
+                context.insert(membership)
             }
             try context.save()
             return scope

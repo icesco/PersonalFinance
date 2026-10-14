@@ -48,7 +48,7 @@ public final class SharedBookAutomaticRefresh {
         do {
             let memberships = try context.fetch(FetchDescriptor<SharedBookMembership>())
             let groups = Dictionary(grouping: memberships, by: \.scopeKey)
-            let liveIDs = Set(memberships.map(\.localBookID))
+            let liveIDs = Set(memberships.map(\.refreshIdentity))
             statuses = statuses.filter { liveIDs.contains($0.key) }
             retryNotBefore = retryNotBefore.filter { liveIDs.contains($0.key) }
             attempted = attempted.filter { groups[$0.key] != nil }
@@ -59,18 +59,18 @@ public final class SharedBookAutomaticRefresh {
                 fresh.autosaveEnabled = false
                 let entries = try fresh.fetch(FetchDescriptor<SharedBookMembership>(predicate: #Predicate { $0.scopeKey == key }))
                 guard let member = entries.first else { continue }
-                guard entries.allSatisfy({ $0.localBookID == member.localBookID && $0.remoteBookID == member.remoteBookID && $0.ownerName == member.ownerName && $0.isOwner == member.isOwner }) else {
-                    for entry in entries { statuses[entry.localBookID] = .failed }
+                guard entries.allSatisfy({ $0.localBookID == member.localBookID && $0.remoteBookID == member.remoteBookID && $0.ownerName == member.ownerName && $0.isOwner == member.isOwner && $0.localContoID == member.localContoID }) else {
+                    for entry in entries { statuses[entry.refreshIdentity] = .failed }
                     continue
                 }
-                let scope = SharedBookScope(ownerName: member.ownerName, bookID: member.remoteBookID)
-                guard scope.key == key else { statuses[member.localBookID] = .failed; continue }
+                let scope = SharedBookScope(ownerName: member.ownerName, bookID: member.remoteBookID, isContoShare: member.localContoID != nil)
+                guard scope.key == key else { statuses[member.refreshIdentity] = .failed; continue }
                 // Multiple windows and saves must not produce bursts of identical requests.
                 let instant = now()
-                if let deadline = retryNotBefore[member.localBookID], instant < deadline { continue }
+                if let deadline = retryNotBefore[member.refreshIdentity], instant < deadline { continue }
                 if let last = attempted[key], instant.timeIntervalSince(last) >= 0, instant.timeIntervalSince(last) < 60 { continue }
                 attempted[key] = instant
-                let localID = member.localBookID
+                let localID = member.refreshIdentity
                 do {
                     let outcome = try await synchronize(scope, member.isOwner ? .owner : .participant)
                     guard isCurrent() else { return }

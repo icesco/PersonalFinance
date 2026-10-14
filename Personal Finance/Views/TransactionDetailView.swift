@@ -15,6 +15,12 @@ struct TransactionDetailView: View {
     @State private var showingDeleteAlert = false
     @State private var showingDeleteError = false
 
+    private func personLabel(_ person: TransactionPerson?) -> String {
+        guard let person else { return String(localized: "Non indicato") }
+        if person.id == TransactionPeople.current?.id { return String(localized: "Tu") }
+        return person.name.isEmpty ? String(localized: "Partecipante") : person.name
+    }
+
     private var currency: String {
         transaction.fromConto?.account?.currency ?? transaction.toConto?.account?.currency ?? "EUR"
     }
@@ -151,6 +157,14 @@ struct TransactionDetailView: View {
                 .listRowBackground(ForgiaPalette.surface)
             }
 
+            Section("Persone") {
+                LabeledContent("Registrato da", value: personLabel(transaction.createdBy))
+                LabeledContent("Ultima modifica di", value: personLabel(transaction.lastEditedBy))
+                LabeledContent("Assegnato a", value: personLabel(transaction.assignedTo))
+                if transaction.type == .transfer {
+                    LabeledContent("Versamento di", value: personLabel(transaction.contributor))
+                }
+            }
             TransactionAttachmentsSection(transaction: transaction)
                 .listRowBackground(ForgiaPalette.surface)
 

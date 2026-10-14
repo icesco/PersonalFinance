@@ -52,12 +52,17 @@ public struct SettingsEdits {
     /// A subcategory takes its macro category's kind; `kind` applies to macro categories only.
     @discardableResult
     public func createCategory(name: String, color: String, icon: String,
-                               parentID: UUID?, kind: CategoryKind? = nil, account: Account) throws -> Category {
+                               parentID: UUID?, kind: CategoryKind? = nil, account: Account, sharedContoID: UUID? = nil) throws -> Category {
         let name = try validName(name)
-        let parent = try validParent(parentID, for: nil, in: account)
+        if let sharedContoID {
+            guard let conto = try context.fetch(FetchDescriptor<Conto>(predicate: #Predicate { $0.id == sharedContoID })).first,
+                  conto.account?.id == account.id, conto.usesSharedCategories == true else { throw Failure.invalidParent }
+        }
+        let parent = try validParent(parentID, for: nil, in: account, scopeID: sharedContoID)
         let category = Category(name: name, color: color, icon: icon, parentCategoryId: parentID,
                                 kind: parent.map(\.kind) ?? kind)
         category.account = account
+        category.sharedContoID = sharedContoID
         context.insert(category)
         do { try save(); return category }
         catch {
@@ -78,7 +83,7 @@ public struct SettingsEdits {
                                parentID: UUID?, kind: CategoryKind?) throws {
         let name = try validName(name)
         guard let account = category.account else { throw Failure.invalidParent }
-        let parent = try validParent(parentID, for: category, in: account)
+        let parent = try validParent(parentID, for: category, in: account, scopeID: category.sharedContoID)
         let children = (account.categories ?? []).filter { $0.parentCategoryId == category.id }
         if parent != nil, children.contains(where: { $0.isActive == true }) { throw Failure.invalidParent }
         let kind = parent.map(\.kind) ?? kind
@@ -99,10 +104,10 @@ public struct SettingsEdits {
         }
     }
 
-    private func validParent(_ parentID: UUID?, for category: Category?, in account: Account) throws -> Category? {
+    private func validParent(_ parentID: UUID?, for category: Category?, in account: Account, scopeID: UUID?) throws -> Category? {
         guard let parentID else { return nil }
         guard parentID != category?.id, let parent = account.categories?.first(where: {
-            $0.id == parentID && $0.isActive == true && $0.parentCategoryId == nil
+            $0.id == parentID && $0.sharedContoID == scopeID && $0.isActive == true && $0.parentCategoryId == nil
         }) else { throw Failure.invalidParent }
         return parent
     }

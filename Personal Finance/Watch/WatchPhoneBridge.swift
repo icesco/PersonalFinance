@@ -152,7 +152,10 @@ private actor WatchOverviewReader {
     static func expenseCategories(of book: Account) -> [WatchOption] {
         let hierarchy = CategoryHierarchy(categories: book.categories ?? [], kind: .expense)
         return hierarchy.roots.flatMap { [$0] + hierarchy.children(of: $0) }
-            .map { WatchOption(id: $0.id, name: hierarchy.path(of: $0)) }
+            .map { category in
+                WatchOption(id: category.id, name: hierarchy.path(of: category),
+                    allowedContoIDs: book.activeConti.filter { SharedContoCategories.permits(category, for: $0) }.map(\.id))
+            }
     }
 }
 #endif

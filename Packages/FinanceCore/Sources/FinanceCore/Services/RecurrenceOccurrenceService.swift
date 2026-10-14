@@ -36,6 +36,8 @@ public enum RecurrenceOccurrenceService {
         transaction.exchangeRateDate = source.exchangeRateDate
         transaction.exchangeRateSource = source.exchangeRateSource
         transaction.externalID = key
+        transaction.assignedToJSON = source.assignedToJSON
+        transaction.contributorJSON = source.contributorJSON
         transaction.recurrenceSourceID = source.id
         transaction.setFromConto(source.fromConto)
         transaction.setToConto(source.toConto)

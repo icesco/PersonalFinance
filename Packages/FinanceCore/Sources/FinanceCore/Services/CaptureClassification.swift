@@ -68,7 +68,7 @@ public struct CaptureClassification {
         }
         if let chosen { result.contoID = chosen.id; result.bookID = chosen.account?.id }
         guard let bookID = result.bookID else { return result }
-        let categories = (active.first { $0.account?.id == bookID }?.account?.categories ?? []).filter { $0.isActive == true && $0.fits(type) }
+        let categories = SharedContoCategories.available(for: chosen, in: chosen?.account?.categories ?? []).filter { $0.fits(type) }
         let bookHistory = matchingHistory.filter {
             let account = type == .expense ? $0.fromConto?.account : $0.toConto?.account
             return account?.id == bookID

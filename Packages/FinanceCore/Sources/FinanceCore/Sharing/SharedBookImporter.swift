@@ -26,8 +26,8 @@ public enum SharedBookImporter {
                 aliases[link.remoteRecordName] = link.localIdentity
             }
             let departures = try context.fetch(FetchDescriptor<SharedBookDeparture>(predicate: #Predicate { $0.scopeKey == scopeKey }))
-            let namespace = memberships.first?.importNamespace ?? (memberships.isEmpty ? scope.importNamespace(afterLeaving: Set(departures.map(\.localBookID))) : nil)
-            let identityScope = namespace.map { SharedBookScope(ownerName: scope.ownerName, bookID: $0) } ?? scope
+            let namespace = memberships.first?.importNamespace ?? (memberships.isEmpty ? scope.importNamespace(afterLeaving: Set(departures.map { $0.retiredNamespaceID ?? $0.localBookID })) : nil)
+            let identityScope = namespace.map { SharedBookScope(ownerName: scope.ownerName, bookID: $0, isContoShare: scope.isContoShare) } ?? scope
             let localBookID = memberships.first?.localBookID ?? identityScope.isolatedID(for: rootID)
             guard memberships.allSatisfy({ $0.localBookID == localBookID && $0.ownerName == scope.ownerName && $0.remoteBookID == scope.bookID && $0.importNamespace == namespace }),
                   aliases[rootID.recordName] == nil || aliases[rootID.recordName] == localBookID.uuidString.lowercased() else { throw Failure.identityCollision }
@@ -37,6 +37,15 @@ public enum SharedBookImporter {
                 guard let uuid = aliases[record.id.recordName].flatMap(UUID.init(uuidString:)) ?? (aliases[record.id.recordName] == nil ? proposed : nil) else { throw Failure.identityCollision }
                 ids[record.id] = uuid
             }
+            let sharedContoReference = try root.reference("sharedConto", kind: .conto)
+            let sharedContoID = try sharedContoReference.flatMap { reference -> UUID? in
+                guard let value = ids[reference] else { throw Failure.invalidGraph }
+                return value
+            } ?? memberships.first?.localContoID
+            let isContoShare = sharedContoID != nil
+            let declaresContoShare = try root.text("shareKind") == "conto"
+            guard root.deleted || (scope.isContoShare == declaresContoShare && isContoShare == declaresContoShare && (!isContoShare || sharedContoReference != nil)) else { throw Failure.invalidGraph }
+            guard memberships.allSatisfy({ $0.localContoID == sharedContoID }) else { throw Failure.invalidGraph }
             func localID(_ reference: SharedRecordID?) throws -> UUID? {
                 guard let reference else { return nil }
                 guard let value = ids[reference] else { throw Failure.invalidGraph }
@@ -59,8 +68,8 @@ public enum SharedBookImporter {
             var attachments = try indexed(context.fetch(FetchDescriptor<TransactionAttachment>()), key: \.id)
             let resolutions = try context.fetch(FetchDescriptor<RecurrenceResolution>())
             func owns(_ transaction: Transaction) -> Bool {
-                let legs = [transaction.fromConto, transaction.toConto].compactMap { $0 }
-                return !legs.isEmpty && legs.allSatisfy { $0.account?.id == localBookID }
+                let legs = [transaction.fromContoId ?? transaction.fromConto?.id, transaction.toContoId ?? transaction.toConto?.id].compactMap { $0 }
+                return !legs.isEmpty && legs.allSatisfy { isContoShare ? $0 == sharedContoID : conti[$0]?.account?.id == localBookID }
             }
             // The owner retains both legs of cross-book transfers privately.
             // An unchanged shared projection must not sever that private leg.
@@ -70,6 +79,7 @@ public enum SharedBookImporter {
                 ownerProjection = Dictionary(uniqueKeysWithValues: try SharedBookExporter.export(bookID: localBookID, container: container).records.map { ($0.id, $0) })
             } else { ownerProjection = [:] }
             var preserved: Set<SharedRecordID> = []
+            var linkedTransfers: Set<SharedRecordID> = []
             // Validate ownership before changing any relationship or triggering cascades.
             if books[localBookID] != nil && memberships.isEmpty { throw Failure.identityCollision }
             for record in records where record.id.kind != .recurrence {
@@ -83,8 +93,20 @@ public enum SharedBookImporter {
                 case .category: if let value = categories[uuid], value.account?.id != localBookID { throw Failure.identityCollision }
                 case .transaction:
                     if let value = transactions[uuid], !owns(value) {
-                        guard !record.deleted, ownerProjection[record.id] == record else { throw Failure.protectedTransfer }
-                        preserved.insert(record.id)
+                        if let sharedContoID, value.type == .transfer,
+                           (value.fromContoId ?? value.fromConto?.id) == sharedContoID || (value.toContoId ?? value.toConto?.id) == sharedContoID {
+                            if !record.deleted {
+                                let from = try localID(record.reference("fromConto", kind: .conto))
+                                let to = try localID(record.reference("toConto", kind: .conto))
+                                guard try record.enumeration("type", TransactionType.self) == .transfer,
+                                      from == ((value.fromContoId ?? value.fromConto?.id) == sharedContoID ? sharedContoID : nil),
+                                      to == ((value.toContoId ?? value.toConto?.id) == sharedContoID ? sharedContoID : nil) else { throw Failure.protectedTransfer }
+                            }
+                            linkedTransfers.insert(record.id)
+                        } else {
+                            guard !record.deleted, ownerProjection[record.id] == record else { throw Failure.protectedTransfer }
+                            preserved.insert(record.id)
+                        }
                     }
                 case .budget: if let value = budgets[uuid], value.account?.id != localBookID { throw Failure.identityCollision }
                 case .goal: if let value = goals[uuid], value.account?.id != localBookID { throw Failure.identityCollision }
@@ -117,6 +139,7 @@ public enum SharedBookImporter {
                         for value in budgets.values where (value.categories ?? []).contains(where: { $0.id == uuid }) { try covered(.budget, value.id.uuidString.lowercased()) }
                         for value in categories.values where value.parentCategoryId == uuid { try covered(.category, value.id.uuidString.lowercased()) }
                     case .transaction:
+                        if linkedTransfers.contains(record.id) { break }
                         for value in attachments.values where value.transaction?.id == uuid { try covered(.attachment, value.id.uuidString.lowercased()) }
                         for value in transactions.values where value.recurrenceSourceID == uuid { try covered(.transaction, value.id.uuidString.lowercased()) }
                         for value in resolutions where value.sourceID == uuid || value.transactionID == uuid { try covered(.recurrence, value.key) }
@@ -127,10 +150,14 @@ public enum SharedBookImporter {
             if memberships.isEmpty {
                 let membership = SharedBookMembership(scopeKey: scopeKey, ownerName: scope.ownerName, remoteBookID: scope.bookID, localBookID: localBookID)
                 membership.importNamespace = namespace
+                membership.localContoID = sharedContoID
                 context.insert(membership)
             }
             if root.deleted {
-                if let book = books[localBookID] {
+                if let sharedContoID, let conto = conti[sharedContoID] {
+                    guard ((conto.incomingTransactions ?? []) + (conto.outgoingTransactions ?? [])).allSatisfy(owns) else { throw Failure.protectedTransfer }
+                    context.delete(conto)
+                } else if let book = books[localBookID] {
                     let all = (book.conti ?? []).flatMap { ($0.incomingTransactions ?? []) + ($0.outgoingTransactions ?? []) }
                     guard all.allSatisfy(owns) else { throw Failure.protectedTransfer }
                     context.delete(book)
@@ -142,7 +169,11 @@ public enum SharedBookImporter {
                 return localBookID
             }
             let book = books[localBookID] ?? Account(name: "")
-            if books[localBookID] == nil { book.id = localBookID; context.insert(book); books[localBookID] = book }
+            if books[localBookID] == nil {
+                book.id = localBookID
+                if isContoShare { book.name = try root.text("name"); book.currency = try root.text("currency") }
+                context.insert(book); books[localBookID] = book
+            }
             // Allocate the graph first; links may arrive in any record order.
             for record in records where !record.deleted && record.id.kind != .recurrence {
                 guard let uuid = ids[record.id] else { throw Failure.invalidGraph }
@@ -171,16 +202,23 @@ public enum SharedBookImporter {
                 }
                 switch record.id.kind {
                 case .book:
+                    if isContoShare { break }
                     book.name = try record.text("name"); book.currency = try record.text("currency")
                     book.budgetingPlanJSON = try record.text("budgetingPlan")
                     book.externalID = try required(record.text("externalID"))
                     book.createdAt = try record.date("createdAt"); book.updatedAt = try record.date("updatedAt"); book.isActive = try record.flag("isActive")
                 case .conto:
                     let value = try required(uuid.flatMap { conti[$0] }); value.account = book
+                    let privateMetadata = (value.externalID, value.contoDescription, value.balanceVerificationFingerprint, value.savingsGoalID)
                     try applyConto(record, to: value)
-                    value.savingsGoalID = try localID(record.reference("linkedSavingsGoal", kind: .goal))
+                    if isContoShare { value.usesSharedCategories = true }
+                    if isContoShare {
+                        value.externalID = privateMetadata.0; value.contoDescription = privateMetadata.1
+                        value.balanceVerificationFingerprint = privateMetadata.2; value.savingsGoalID = privateMetadata.3
+                    } else { value.savingsGoalID = try localID(record.reference("linkedSavingsGoal", kind: .goal)) }
                 case .category:
                     let value = try required(uuid.flatMap { categories[$0] }); value.account = book
+                    value.sharedContoID = sharedContoID
                     value.externalID = try required(record.text("externalID")); value.name = try record.text("name")
                     value.color = try record.text("color"); value.icon = try record.text("icon")
                     value.createdAt = try record.date("createdAt"); value.updatedAt = try record.date("updatedAt")
@@ -189,6 +227,16 @@ public enum SharedBookImporter {
                     value.parentCategoryId = try localID(record.reference("parent", kind: .category))
                 case .transaction:
                     let value = try required(uuid.flatMap { transactions[$0] })
+                    if linkedTransfers.contains(record.id) {
+                        let credited = try record.decimal("amount")
+                        if (value.toContoId ?? value.toConto?.id) == sharedContoID && value.destinationAmount != nil {
+                            value.destinationAmount = credited
+                        } else { value.amount = credited }
+                        value.date = try required(record.date("date"))
+                        value.updatedAt = try record.date("updatedAt")
+                        try applyPeople(record, to: value)
+                        break
+                    }
                     try applyTransaction(record, to: value)
                     value.setFromConto(try localID(record.reference("fromConto", kind: .conto)).flatMap { conti[$0] })
                     value.setToConto(try localID(record.reference("toConto", kind: .conto)).flatMap { conti[$0] })
@@ -231,7 +279,14 @@ public enum SharedBookImporter {
                 case .book: break
                 case .conto: if let value = uuid.flatMap({ conti[$0] }) { context.delete(value) }
                 case .category: if let value = uuid.flatMap({ categories[$0] }) { context.delete(value) }
-                case .transaction: if let value = uuid.flatMap({ transactions[$0] }) { context.delete(value) }
+                case .transaction:
+                    if let value = uuid.flatMap({ transactions[$0] }) {
+                        if linkedTransfers.contains(record.id), let uuid {
+                            for resolution in resolutions where resolution.sourceID == uuid || resolution.transactionID == uuid { context.delete(resolution) }
+                            for child in transactions.values where child.recurrenceSourceID == uuid { child.recurrenceSourceID = nil }
+                        }
+                        context.delete(value)
+                    }
                 case .budget: if let value = uuid.flatMap({ budgets[$0] }) { context.delete(value) }
                 case .goal: if let value = uuid.flatMap({ goals[$0] }) { context.delete(value) }
                 case .attachment: if let value = uuid.flatMap({ attachments[$0] }) { context.delete(value) }
@@ -277,6 +332,15 @@ public enum SharedBookImporter {
             guard records.allSatisfy(\.deleted) else { throw Failure.invalidGraph }
             return graph
         }
+        if try root.text("shareKind") == "conto" {
+            let conto = try required(root.reference("sharedConto", kind: .conto))
+            guard records.filter({ !$0.deleted && $0.id.kind == .conto }).map(\.id) == [conto],
+                  !records.contains(where: { !$0.deleted && ($0.id.kind == .budget || $0.id.kind == .goal) }) else { throw Failure.invalidGraph }
+            for record in records where !record.deleted && record.id.kind == .transaction {
+                let from = try record.reference("fromConto", kind: .conto), to = try record.reference("toConto", kind: .conto)
+                guard from == conto || to == conto else { throw Failure.invalidGraph }
+            }
+        } else if root.fields["shareKind"] != nil { throw Failure.invalidGraph }
         for record in records where !record.deleted {
             for value in record.fields.values {
                 let references: [SharedRecordID]
@@ -359,6 +423,7 @@ public enum SharedBookImporter {
         value.updatedAt = try record.date("updatedAt")
         value.transactionDescription = try record.text("description")
         value.notes = try record.text("notes")
+        try applyPeople(record, to: value)
         value.type = try required(record.enumeration("type", TransactionType.self))
         value.originalAmount = try record.decimal("originalAmount")
         value.originalCurrency = try record.text("originalCurrency")
@@ -372,6 +437,16 @@ public enum SharedBookImporter {
         value.isRecurring = try record.flag("isRecurring")
         value.recurrenceFrequency = try record.enumeration("recurrenceFrequency", RecurrenceFrequency.self)
         value.recurrenceEndDate = try record.date("recurrenceEndDate")
+    }
+
+    private static func applyPeople(_ record: SharedBookRecord, to value: Transaction) throws {
+        for key in ["createdBy", "lastEditedBy", "assignedTo", "contributor"] {
+            if let encoded = try record.text(key), TransactionPerson.decode(encoded) == nil { throw Failure.invalidField(key) }
+        }
+        value.createdByJSON = try record.text("createdBy")
+        value.lastEditedByJSON = try record.text("lastEditedBy")
+        value.assignedToJSON = try record.text("assignedTo")
+        value.contributorJSON = try record.text("contributor")
     }
 
     private static func applyGoal(_ record: SharedBookRecord, to value: SavingsGoal) throws {

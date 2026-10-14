@@ -17,8 +17,9 @@ public enum SharedBookParticipantExporter {
                   memberships.allSatisfy({ $0.localBookID == membership.localBookID && $0.ownerName == scope.ownerName && $0.remoteBookID == scope.bookID }) else {
                 throw Failure.missingMembership
             }
-            let snapshot = try SharedBookExporter.export(bookID: membership.localBookID, container: container)
             let links = try context.fetch(FetchDescriptor<SharedBookRecordLink>(predicate: #Predicate { $0.scopeKey == key }))
+            if let contoID = membership.localContoID { try SharedContoCategories.prepare(contoID: contoID, container: container) }
+            let snapshot = try SharedBookExporter.export(bookID: membership.localBookID, contoID: membership.localContoID, container: container)
             var localToRemote: [SharedRecordID: SharedRecordID] = [:]
             var remoteToLocal: [SharedRecordID: SharedRecordID] = [:]
             func register(local: SharedRecordID, remote: SharedRecordID, persist: Bool) throws {
@@ -75,7 +76,15 @@ public enum SharedBookParticipantExporter {
                     default: fields[name] = value
                     }
                 }
-                records.append(SharedBookRecord(id: try mapped(record.id), fields: fields))
+                let remoteID = try mapped(record.id)
+                if membership.localContoID != nil {
+                    if record.id.kind == .book { fields["externalID"] = .text(scope.bookID.uuidString) }
+                    if record.id.kind == .conto { fields["externalID"] = .text(remoteID.entityID) }
+                    if record.id.kind == .transaction, fields["type"] == .text("transfer") {
+                        fields["externalID"] = .text(remoteID.entityID)
+                    }
+                }
+                records.append(SharedBookRecord(id: remoteID, fields: fields))
             }
             var assets: [SharedRecordID: Data] = [:]
             for (id, bytes) in snapshot.assets { assets[try mapped(id)] = bytes }

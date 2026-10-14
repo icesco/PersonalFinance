@@ -19,6 +19,8 @@ struct CreateTransactionView: View {
     @State private var showingCalculator = false
     @State private var description = ""
     @State private var notes = ""
+    @State private var assignedTo: TransactionPerson?
+    @State private var contributor: TransactionPerson?
     @State private var isSavingsInterest = false
     @State private var selectedDate = Date()
     @State private var includeTime = false
@@ -48,8 +50,8 @@ struct CreateTransactionView: View {
     }
 
     private var filteredCategories: [FinanceCategory] {
-        guard let bookID = conto?.account?.id else { return [] }
-        return categories.filter { $0.isActive == true && $0.account?.id == bookID }
+        guard conto?.account != nil else { return [] }
+        return SharedContoCategories.available(for: conto, in: categories)
     }
     
     private var calculatedNewBalance: Decimal {
@@ -85,6 +87,7 @@ struct CreateTransactionView: View {
     }
 
     private var isFormInvalid: Bool {
+        if let selectedCategory, let conto, !SharedContoCategories.permits(selectedCategory, for: conto) { return true }
         if loadingLocation || amount <= 0 || loadingAttachment { return true }
         if isRecurring && hasEndDate && effectiveRecurrenceEndDate == nil { return true }
         
@@ -99,6 +102,7 @@ struct CreateTransactionView: View {
         _isSavingsInterest = State(initialValue: savingsInterest)
         self.conto = conto
         self.transactionType = transactionType
+        _contributor = State(initialValue: transactionType == .transfer ? TransactionPeople.current : nil)
         
         // Initialize transfer conti
         if transactionType == .transfer {
@@ -133,6 +137,11 @@ struct CreateTransactionView: View {
                     }
 
                     FormCard(title: "Dettagli") { detailsRows }
+                    if transactionType != .transfer { SharedCategoryNotice(conto: conto) }
+                    FormCard(title: "Persone") {
+                        TransactionPeopleEditor(contoIDs: [conto?.id, fromConto?.id, toConto?.id].compactMap { $0 },
+                            isTransfer: transactionType == .transfer, assignedTo: $assignedTo, contributor: $contributor)
+                    }
                     if transactionType == .income && conto?.type == .savings {
                         FormCard(title: "Risparmio") {
                             Toggle("Interessi accreditati", isOn: $isSavingsInterest)
@@ -234,6 +243,11 @@ struct CreateTransactionView: View {
                 if hasDifferentCurrencies {
                     TextField("Importo ricevuto", text: $destinationAmountText)
                 }
+            }
+            if transactionType != .transfer { Section { SharedCategoryNotice(conto: conto) } }
+            Section("Persone") {
+                TransactionPeopleEditor(contoIDs: [conto?.id, fromConto?.id, toConto?.id].compactMap { $0 },
+                    isTransfer: transactionType == .transfer, assignedTo: $assignedTo, contributor: $contributor)
             }
             Section("Dettagli") {
                 if transactionType == .transfer {
@@ -575,6 +589,8 @@ struct CreateTransactionView: View {
             created = transaction
         }
         
+        created?.assignedTo = assignedTo
+        created?.contributor = contributor
         do {
             try modelContext.save()
             appState.triggerDataRefresh()

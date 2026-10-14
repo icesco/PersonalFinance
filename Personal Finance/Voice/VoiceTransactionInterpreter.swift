@@ -98,7 +98,7 @@ import FinanceCore
             let type = evidence.map { VoiceTextEvidence.isUnresolved($0) ? nil : extractedType } ?? nil
             let note = VoiceTextEvidence.purpose(item.note, in: evidence ?? "", accountNames: conti.compactMap(\.name))
             let category = note.isEmpty || type == nil ? "" : item.category
-            let categories = (conto?.account?.categories ?? []).filter {
+            let categories = SharedContoCategories.available(for: conto, in: conto?.account?.categories ?? []).filter {
                 $0.isActive == true && type.map($0.fits) == true && !category.isEmpty && equalName($0.name ?? "", category)
             }
             let date = VoiceTextEvidence.date(in: text, clause: evidence, expression: item.dateExpression, now: now)

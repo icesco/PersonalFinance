@@ -674,29 +674,120 @@ struct CloudSettingsView: View {
 // MARK: - Category Management View
 
 struct CategoryManagementView: View {
+    @Environment(AppStateManager.self) private var appState
+    @SceneStorage("formi.categoryManagement.sharedScope") private var showsSharedCategories = false
+    @Query private var sharingMemberships: [SharedBookMembership]
+    @Query private var categories: [FinanceCategory]
+    @Query private var conti: [Conto]
+    private var isBookShared: Bool {
+        guard let account else { return false }
+        return sharingMemberships.contains { $0.localBookID == account.id && $0.localContoID == nil }
+    }
+
+    private var account: Account? { appState.selectedAccount }
+    private var hasSharedCategories: Bool {
+        guard let account else { return false }
+        let scopedCategories = categories.filter { $0.account?.id == account.id && $0.isActive == true }
+        if isBookShared { return !scopedCategories.isEmpty }
+        let sharedIDs = Set(conti.filter {
+            $0.account?.id == account.id && $0.isActive == true && $0.usesSharedCategories == true
+        }.map(\.id))
+        return scopedCategories.contains { $0.sharedContoID.map(sharedIDs.contains) == true }
+    }
+    private var showsSharedList: Bool { hasSharedCategories ? showsSharedCategories : isBookShared }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if showsSharedList {
+                if isBookShared { CategoryListManagementView().id("book-shared-\(account?.id.uuidString ?? "none")") }
+                else { SharedCategoriesOverview(book: account) }
+            } else if isBookShared {
+                ContentUnavailableView("Le categorie di questo libro sono condivise", systemImage: "person.2",
+                    description: Text("Le trovi nella sezione Condivise. Gli altri libri personali restano separati."))
+            } else { CategoryListManagementView().id("personal-\(account?.id.uuidString ?? "none")") }
+        }
+        .safeAreaBar(edge: .top, spacing: 0) {
+            if hasSharedCategories {
+            Picker("Categorie", selection: $showsSharedCategories) {
+                Label("Personali", systemImage: "person").tag(false)
+                Label("Condivise", systemImage: "person.2").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            .accessibilityIdentifier("category-sharing-scope")
+            }
+        }
+        .navigationTitle("Categorie")
+        .onAppear { if isBookShared { showsSharedCategories = true } }
+        .onChange(of: isBookShared) { if isBookShared { showsSharedCategories = true } }
+        .onChange(of: hasSharedCategories) {
+            if !hasSharedCategories && !isBookShared { showsSharedCategories = false }
+        }
+    }
+}
+
+struct CategoryListManagementView: View {
+    var sharedConto: Conto? = nil
+    var isManaging = false
+    var sharedConti: [Conto] = []
+    var onSelectSharedConto: ((Conto) -> Void)? = nil
+    @State private var copyMessage: String?
     @State private var showingSaveError = false
     @Environment(\.modelContext) private var modelContext
     @Environment(AppStateManager.self) private var appState
 
-    @State private var showingAddCategory = false
-    @State private var addingChildTo: FinanceCategory?
-    @State private var editingCategory: FinanceCategory?
+    @State private var destination: Destination?
+    private enum Destination: Identifiable {
+        case add, child(FinanceCategory), edit(FinanceCategory), copy, suggestions(Conto?)
+        var id: String {
+            switch self {
+            case .add: "add"
+            case .child(let category): "child-\(category.id)"
+            case .edit(let category): "edit-\(category.id)"
+            case .copy: "copy"
+            case .suggestions(let conto): "suggestions-\(conto?.id.uuidString ?? "personal")"
+            }
+        }
+        var title: String {
+            switch self {
+            case .add: "Nuova categoria"
+            case .child: "Nuova sottocategoria"
+            case .edit: "Modifica categoria"
+            case .copy: "Copia categorie"
+            case .suggestions: "Scegli categorie"
+            }
+        }
+    }
     @State private var searchText = ""
+    private var account: Account? { sharedConto?.account ?? appState.selectedAccount }
 
-    private var account: Account? { appState.selectedAccount }
-
-    private var hierarchy: CategoryHierarchy { CategoryHierarchy(categories: account?.categories ?? []) }
+    private var hierarchy: CategoryHierarchy { CategoryHierarchy(categories: (account?.categories ?? []).filter { $0.sharedContoID == sharedConto?.id }) }
 
     private var activeCount: (roots: Int, children: Int) {
-        let active = (account?.categories ?? []).filter { $0.isActive == true }
+        let active = (account?.categories ?? []).filter { $0.isActive == true && $0.sharedContoID == sharedConto?.id }
         let roots = hierarchy.roots.count
         return (roots, active.count - roots)
     }
 
     private var suggestions: CategoryDefaults.Plan? {
         guard let account else { return nil }
-        let plan = CategoryDefaults.plan(for: account)
+        let plan: CategoryDefaults.Plan
+        if let sharedConto {
+            guard activeCount.roots + activeCount.children <= 5 else { return nil }
+            plan = CategoryDefaults.plan(for: sharedConto)
+        } else { plan = CategoryDefaults.plan(for: account) }
         return plan.isEmpty ? nil : plan
+    }
+
+    @Query private var allConti: [Conto]
+    private var emptySharedConti: [Conto] {
+        guard sharedConto == nil, !isManaging, !isBookShared, let account else { return [] }
+        let conti = allConti.filter { $0.account?.id == account.id && $0.usesSharedCategories == true && $0.isActive == true }
+        let ids = Set(conti.map(\.id))
+        guard !(account.categories ?? []).contains(where: {
+            $0.isActive == true && $0.sharedContoID.map(ids.contains) == true
+        }) else { return [] }
+        return conti.sorted { ($0.name ?? "").localizedStandardCompare($1.name ?? "") == .orderedAscending }
     }
 
     /// A macro category with the subcategories that match the search.
@@ -727,8 +818,31 @@ struct CategoryManagementView: View {
         return result
     }
 
-    var body: some View {
+    var body: some View { categoryList }
+
+    private var isBookShared: Bool {
+        guard let account else { return false }
+        return sharingMemberships.contains { $0.localBookID == account.id && $0.localContoID == nil }
+    }
+    @Query private var sharingMemberships: [SharedBookMembership]
+
+    private var categoryList: some View {
         List {
+            ForEach(emptySharedConti) { conto in
+                sharedStarterCard(conto)
+            }
+            if sharedConto != nil && isManaging {
+                Section {
+                    Button { destination = .copy } label: {
+                        Label("Copia categorie personali", systemImage: "doc.on.doc")
+                            .frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("shared-category-copy")
+                    if let copyMessage { Text(copyMessage).font(.footnote).foregroundStyle(.secondary) }
+                } footer: {
+                    Text("Categorie e sottocategorie di questo conto sono condivise con le persone invitate. Le copie restano indipendenti dalle categorie personali.")
+                }
+            }
             if let suggestions, searchText.isEmpty {
                 suggestionsCard(suggestions)
             }
@@ -763,27 +877,43 @@ struct CategoryManagementView: View {
                 Text(searchText.isEmpty ? "Crea categorie per riconoscere le tue abitudini di spesa." : "Prova con un altro nome.")
             }
         }
-        .safeAreaInset(edge: .top) {
-            #if os(macOS)
-            Text("\(activeCount.roots) categorie principali · \(activeCount.children) sottocategorie")
-                .font(.callout).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20).padding(.vertical, 8)
-            #else
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Dai un nome alle tue abitudini")
-                    .font(.system(.title2, design: .serif, weight: .semibold))
-                Text("\(activeCount.roots) principali · \(activeCount.children) sottocategorie · \(account?.name ?? "Scegli un libro")")
-                    .font(.subheadline).foregroundStyle(.secondary)
+        .safeAreaBar(edge: .top, spacing: 0) {
+            HStack(spacing: 12) {
+                if sharedConto != nil || isBookShared {
+                    if sharedConti.count > 1, let onSelectSharedConto {
+                        Menu {
+                            ForEach(sharedConti) { conto in
+                                Button { onSelectSharedConto(conto) } label: {
+                                    Label(conto.name ?? "Conto", systemImage: conto.id == sharedConto?.id ? "checkmark" : "person.2")
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Label(sharedConto?.name ?? "Conto", systemImage: "person.2")
+                                Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                            }.frame(minHeight: 44)
+                        }
+                        .menuIndicator(.hidden)
+                        .foregroundStyle(ForgiaPalette.accent)
+                        .accessibilityLabel("Conto condiviso")
+                        .accessibilityValue(sharedConto?.name ?? "Conto")
+                        .accessibilityIdentifier("shared-categories-account-picker")
+                    } else {
+                        Label(sharedConto?.name ?? "Condivise", systemImage: "person.2")
+                            .foregroundStyle(ForgiaPalette.accent)
+                    }
+                }
+                Text("\(activeCount.roots) principali · \(activeCount.children) sottocategorie")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
                 if account == nil {
                     Button("Scegli un libro") { appState.presentAccountSelection() }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20).background(.ultraThinMaterial)
-            #endif
+            .font(.caption)
+            .padding(.horizontal, 20).padding(.vertical, 8)
         }
-        .navigationTitle("Categorie")
+        .navigationTitle(isManaging ? "Gestisci categorie" : "Categorie")
             .alert("Impossibile salvare", isPresented: $showingSaveError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -792,22 +922,48 @@ struct CategoryManagementView: View {
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddCategory = true
-                } label: {
-                    Label("Nuova categoria principale", systemImage: "plus")
+                if isManaging {
+                    Button {
+                        destination = .add
+                    } label: {
+                        Label("Nuova categoria principale", systemImage: "plus")
+                    }
+                    .disabled(account == nil)
+                } else {
+                    NavigationLink {
+                        CategoryListManagementView(sharedConto: sharedConto, isManaging: true)
+                    } label: {
+                        Text("Gestisci")
+                    }
+                    .disabled(account == nil)
+                    .accessibilityIdentifier("manage-categories")
+                    .contextMenu {
+                        Button("Nuova categoria", systemImage: "plus") { destination = .add }
+                            .disabled(account == nil)
+                    }
+                    .accessibilityAction(named: Text("Nuova categoria")) {
+                        if account != nil { destination = .add }
+                    }
                 }
-                .disabled(account == nil)
             }
         }
-        .financePresentation(isPresented: $showingAddCategory, title: "Nuova categoria") {
-            AddCategorySheet()
-        }
-        .financePresentation(item: $addingChildTo, title: "Nuova sottocategoria") { parent in
-            AddCategorySheet(parent: parent)
-        }
-        .financePresentation(item: $editingCategory, title: "Modifica categoria") { category in
-            EditCategorySheet(category: category)
+        .financePresentation(item: $destination, title: destination?.title ?? "Categorie") { value in
+            switch value {
+            case .add:
+                AddCategorySheet(sharedConto: sharedConto)
+            case .child(let parent):
+                AddCategorySheet(parent: parent, sharedConto: sharedConto)
+            case .edit(let category):
+                EditCategorySheet(category: category)
+            case .copy:
+                if let sharedConto {
+                    CopySharedContoCategoriesView(conto: sharedConto) { count in
+                        copyMessage = count == 0 ? "Le categorie selezionate sono già presenti nell’elenco condiviso." : "Categorie copiate: \(count). Le originali restano invariate."
+                    }
+                }
+            case .suggestions(let conto):
+                if let account { SuggestedCategoriesPicker(account: account, sharedConto: conto) }
+            }
         }
     }
 
@@ -815,31 +971,36 @@ struct CategoryManagementView: View {
     private func familyRows(_ family: Family) -> some View {
         let rows = [family.root] + family.children
         // Searching hides the add row, so the last match closes the tree.
-        let showsAdd = searchText.isEmpty
+        let showsAdd = isManaging && searchText.isEmpty
         ForEach(Array(rows.enumerated()), id: \.element.id) { index, category in
             NavigationLink {
                 TransactionListView(initialCategoryID: category.id, isPushed: true,
                                     pushedTitle: category.displayPath)
             } label: {
                 if index == 0 {
-                    CategoryTreeRow(category: category, level: .macro(childCount: family.allChildren)) { chevron }
+                    CategoryTreeRow(category: category, level: .macro(childCount: family.allChildren))
                 } else {
-                    CategoryTreeRow(category: category, level: .child(isLast: !showsAdd && index == rows.count - 1)) { chevron }
+                    CategoryTreeRow(category: category, level: .child(isLast: !showsAdd && index == rows.count - 1))
                 }
             }
             .buttonStyle(.plain)
             .categoryTreeRowStyle(isMacro: index == 0)
             .contextMenu {
-                Button("Modifica", systemImage: "pencil") { editingCategory = category }
+                if isManaging {
+                    Button("Modifica", systemImage: "pencil") { destination = .edit(category) }
+                }
             }
             .swipeActions(edge: .leading) {
-                Button("Modifica", systemImage: "pencil") { editingCategory = category }
-                    .tint(ForgiaPalette.accent)
+                if isManaging {
+                    Button("Modifica", systemImage: "pencil") { destination = .edit(category) }
+                        .tint(ForgiaPalette.accent)
+                }
             }
+            .deleteDisabled(!isManaging)
         }
         .onDelete { archive(rows, at: $0) }
         if showsAdd {
-            Button { addingChildTo = family.root } label: {
+            Button { destination = .child(family.root) } label: {
                 HStack(spacing: 12) {
                     TreeConnector(isLast: true)
                         .stroke(family.root.tint.opacity(0.35), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
@@ -863,26 +1024,26 @@ struct CategoryManagementView: View {
         }
     }
 
-    private var chevron: some View {
-        Image(systemName: "chevron.right")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.tertiary)
-    }
-
     private func suggestionsCard(_ plan: CategoryDefaults.Plan) -> some View {
         let onlyColors = plan.addedCount == 0 && plan.movedCount == 0
         return Section {
             VStack(alignment: .leading, spacing: 10) {
-                Label(onlyColors ? "Nuovi colori per le categorie" : "Categorie suggerite",
+                Label(sharedConto != nil ? "Categorie per iniziare" : (onlyColors ? "Nuovi colori per le categorie" : "Categorie suggerite"),
                       systemImage: onlyColors ? "paintpalette" : "sparkles")
                     .font(.headline)
-                Text(onlyColors ? "Porta le categorie suggerite sulla palette di Formi. I colori che hai scelto tu restano come sono."
+                Text(sharedConto != nil ? "Scegli le categorie e sottocategorie da aggiungere a questo conto. Saranno condivise con le persone invitate; quelle già presenti restano come sono."
+                                : plan.addedCount > 0 ? "Scegli quali categorie e sottocategorie aggiungere. Le categorie già presenti restano come sono."
+                                : onlyColors ? "Porta le categorie suggerite sulla palette di Formi. I colori che hai scelto tu restano come sono."
                                 : suggestionText(plan))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Button(onlyColors ? "Aggiorna i colori" : "Aggiungi categorie suggerite", action: applySuggestions)
+                Button(plan.addedCount > 0 ? "Scegli categorie suggerite" : (onlyColors ? "Aggiorna i colori" : "Organizza categorie")) {
+                    if plan.addedCount > 0 { destination = .suggestions(sharedConto) }
+                    else { applySuggestions() }
+                }
                     .buttonStyle(.borderedProminent)
                     .tint(ForgiaPalette.accent)
+                    .accessibilityIdentifier("category-add-suggestions")
             }
             .padding(.vertical, 6)
         }
@@ -899,10 +1060,30 @@ struct CategoryManagementView: View {
 
     private func applySuggestions() {
         guard let account else { return }
+        let latest = sharedConto.map { CategoryDefaults.plan(for: $0) } ?? CategoryDefaults.plan(for: account)
+        if latest.addedCount > 0 {
+            destination = .suggestions(sharedConto)
+            return
+        }
         do {
-            try CategoryDefaults(context: modelContext).upgrade(account)
+            if let sharedConto { try CategoryDefaults(context: modelContext).upgrade(sharedConto) }
+            else { try CategoryDefaults(context: modelContext).upgrade(account) }
         } catch {
             showingSaveError = true
+        }
+    }
+
+    private func sharedStarterCard(_ conto: Conto) -> some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Categorie condivise per \(conto.name ?? "Conto")", systemImage: "person.2")
+                    .font(.headline)
+                Text("Il conto non ha ancora categorie. Scegli quelle da cui partire: saranno condivise solo con le persone invitate a questo conto.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                Button("Scegli categorie suggerite") { destination = .suggestions(conto) }
+                .buttonStyle(.borderedProminent).tint(ForgiaPalette.accent)
+                .accessibilityIdentifier("shared-category-start-\(conto.id)")
+            }.padding(.vertical, 6)
         }
     }
 
@@ -990,6 +1171,7 @@ struct CategoryPlacementFields: View {
 // MARK: - Add Category Sheet
 
 struct AddCategorySheet: View {
+    let sharedConto: Conto?
     @State private var showingSaveError = false
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
@@ -1003,19 +1185,19 @@ struct AddCategorySheet: View {
     @State private var parentCategory: FinanceCategory?
     @State private var kind: CategoryKind? = .expense
 
-    init(parent: FinanceCategory? = nil) {
+    init(parent: FinanceCategory? = nil, sharedConto: Conto? = nil) {
+        self.sharedConto = sharedConto
         _parentCategory = State(initialValue: parent)
         _selectedColor = State(initialValue: parent?.color ?? CategoryPalette.fallback)
         _kind = State(initialValue: parent?.kind ?? .expense)
     }
 
     // MARK: - Constants
-    private let icons = CategoryIconChoices.all
 
 
     // MARK: - Computed Properties
     private var parentCategories: [FinanceCategory] {
-        CategoryHierarchy(categories: appState.selectedAccount?.categories ?? []).roots
+        CategoryHierarchy(categories: ((sharedConto?.account ?? appState.selectedAccount)?.categories ?? []).filter { $0.sharedContoID == sharedConto?.id }).roots
     }
 
     private var isValid: Bool {
@@ -1025,12 +1207,9 @@ struct AddCategorySheet: View {
     // MARK: - Body
     var body: some View {
         NavigationStack {
-            Form {
-                detailsSection
-                iconSection
-                colorSection
-                previewSection
-            }
+            CategoryEditorContent(name: $name, icon: $selectedIcon, color: $selectedColor,
+                                  parent: $parentCategory, kind: $kind, parents: parentCategories,
+                                  sharedConto: sharedConto)
             .navigationTitle(parentCategory == nil ? "Nuova categoria" : "Nuova sottocategoria")
             .alert("Impossibile salvare", isPresented: $showingSaveError) {
                 Button("OK", role: .cancel) { }
@@ -1045,83 +1224,26 @@ struct AddCategorySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") { saveCategory() }
                         .disabled(!isValid)
+                        .accessibilityIdentifier("category-save")
                 }
             }
         }
-    }
-
-    private var detailsSection: some View {
-        Section {
-            TextField("Nome categoria", text: $name)
-            CategoryPlacementFields(parents: parentCategories, parent: $parentCategory, kind: $kind)
-        } header: {
-            Text("Dettagli")
-        } footer: {
-            Text(parentCategory == nil
-                 ? "Una categoria principale raggruppa le sottocategorie: usala quando non vuoi entrare nel dettaglio."
-                 : "La sottocategoria eredita il tipo della categoria principale.")
-        }
-        .onChange(of: parentCategory) { _, parent in
-            if let color = parent?.color { selectedColor = color }
-        }
-    }
-
-    private var iconSection: some View {
-        Section("Icona") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
-                ForEach(icons, id: \.self) { icon in
-                    Button {
-                        selectedIcon = icon
-                    } label: {
-                        Image(systemName: icon)
-                            .font(.title2)
-                            .frame(width: 40, height: 40)
-                            .background(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.18) : Color.clear)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(selectedIcon == icon ? Color(hex: selectedColor) : Color.primary)
-                }
-            }
-        }
-    }
-
-    private var colorSection: some View {
-        Section("Colore") {
-            CategoryColorGrid(selection: $selectedColor)
-        }
-    }
-
-    private var previewSection: some View {
-        Section("Anteprima") {
-            HStack(spacing: 12) {
-                let isMacro = parentCategory == nil
-                Image(systemName: selectedIcon)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isMacro ? Color.white : Color(hex: selectedColor))
-                    .frame(width: 40, height: 40)
-                    .background(isMacro ? Color(hex: selectedColor) : Color(hex: selectedColor).opacity(0.14),
-                                in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name.isEmpty ? "Nome categoria" : name)
-                        .font(.headline)
-                        .foregroundStyle(name.isEmpty ? .secondary : .primary)
-                    Text(parentCategory.map { "Sottocategoria di \($0.name ?? "Categoria")" } ?? "Categoria principale")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
+        .tint(ForgiaPalette.accent)
+        #if os(iOS)
+        .presentationBackground(ForgiaPalette.canvas)
+        .presentationDragIndicator(.visible)
+        #elseif os(macOS)
+        .frame(minWidth: 440, idealWidth: 560, minHeight: 480, idealHeight: 720)
+        #endif
     }
 
     private func saveCategory() {
-        guard isValid, let account = appState.selectedAccount else { return }
+        guard isValid, let account = sharedConto?.account ?? appState.selectedAccount else { return }
 
         do {
             try SettingsEdits(context: modelContext).createCategory(
                 name: name, color: selectedColor, icon: selectedIcon,
-                parentID: parentCategory?.id, kind: kind, account: account
+                parentID: parentCategory?.id, kind: kind, account: account, sharedContoID: sharedConto?.id
             )
             dismiss()
         } catch {
@@ -1130,10 +1252,133 @@ struct AddCategorySheet: View {
     }
 }
 
+struct CategoryEditorContent: View {
+    @Binding var name: String
+    @Binding var icon: String
+    @Binding var color: String
+    @Binding var parent: FinanceCategory?
+    @Binding var kind: CategoryKind?
+    let parents: [FinanceCategory]
+    var sharedConto: Conto? = nil
+    var canMove = true
+    var inheritsParentColor = true
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                previewSection
+                detailsSection
+                FormCard(title: "Aspetto") {
+                    FormiAppearanceFields(icon: $icon, color: $color)
+                }
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .padding(20)
+            .frame(maxWidth: .infinity)
+        }
+        .themedBackground()
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FormCard(title: "Dettagli") {
+                FormRow(icon: "pencil", tint: ForgiaPalette.sageSurface) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Nome").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                        TextField("Nome categoria", text: $name)
+                            .textFieldStyle(.plain)
+                            .accessibilityIdentifier("category-name")
+                    }
+                }
+                FormRowDivider()
+                FormRow(icon: "square.stack", tint: ForgiaPalette.sageSurface) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Categoria principale").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                        Picker("Categoria principale", selection: $parent) {
+                            Text("Nessuna, è principale").tag(nil as FinanceCategory?)
+                            ForEach(parents) { category in
+                                Label(category.name ?? "Categoria", systemImage: category.icon ?? "tag")
+                                    .tag(category as FinanceCategory?)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(!canMove)
+                        .labelsHidden()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("category-parent")
+                    }.padding(.vertical, 10)
+                }
+                if parent == nil {
+                    FormRowDivider()
+                    FormRow(icon: "arrow.up.arrow.down", tint: ForgiaPalette.sageSurface) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Tipo").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                            Picker("Tipo", selection: $kind) {
+                                Text("Spese").tag(CategoryKind.expense as CategoryKind?)
+                                Text("Entrate").tag(CategoryKind.income as CategoryKind?)
+                                Text("Entrambe").tag(nil as CategoryKind?)
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }.padding(.vertical, 10)
+                    }
+                }
+            }
+            if !canMove {
+                Text("Contiene sottocategorie, quindi resta una categoria principale. Il tipo vale anche per le sottocategorie.")
+                    .font(.footnote).foregroundStyle(ForgiaPalette.mutedText).padding(.horizontal, 4)
+            }
+            Text(parent == nil
+                 ? "Puoi usare la categoria principale oppure aggiungere sottocategorie per entrare nel dettaglio."
+                 : "La sottocategoria eredita il tipo della categoria principale.")
+                .font(.footnote).foregroundStyle(ForgiaPalette.mutedText).padding(.horizontal, 4)
+        }
+        .onChange(of: parent) { _, parent in
+            if inheritsParentColor, let parentColor = parent?.color { color = parentColor }
+        }
+    }
+
+
+    private var previewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FormCard {
+                HStack(spacing: 14) {
+                    let isMacro = parent == nil
+                    Image(systemName: icon)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(isMacro ? Color.white : Color(hex: color))
+                        .frame(width: 52, height: 52)
+                        .background(isMacro ? Color(hex: color) : Color(hex: color).opacity(0.14),
+                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(name.isEmpty ? "Nome categoria" : name)
+                            .font(.system(.title3, design: .serif, weight: .semibold))
+                            .foregroundStyle(name.isEmpty ? .secondary : .primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(parent.map { "Sottocategoria di \($0.name ?? "Categoria")" } ?? "Categoria principale")
+                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }.padding(16)
+            }
+            if let sharedConto {
+                Label("Condivisa nel conto \(sharedConto.name ?? "Conto")", systemImage: "person.2")
+                    .font(.footnote).foregroundStyle(ForgiaPalette.accent).padding(.horizontal, 4)
+            }
+        }
+        .accessibilityIdentifier("category-preview")
+    }
+
+}
+
 // MARK: - Edit Category Sheet
 
 struct EditCategorySheet: View {
     @State private var showingSaveError = false
+    @State private var loadedDraft = false
     // MARK: - Properties
     let category: FinanceCategory
 
@@ -1154,23 +1399,20 @@ struct EditCategorySheet: View {
     }
 
     private var parentCategories: [FinanceCategory] {
-        CategoryHierarchy(categories: category.account?.categories ?? []).roots.filter { $0.id != category.id }
+        CategoryHierarchy(categories: (category.account?.categories ?? []).filter { $0.sharedContoID == category.sharedContoID }).roots.filter { $0.id != category.id }
     }
 
     // MARK: - Constants
-    private let icons = CategoryIconChoices.all
 
 
     // MARK: - Body
     var body: some View {
         NavigationStack {
-            Form {
-                detailsSection
-                iconSection
-                colorSection
-                previewSection
-            }
-            .navigationTitle("Modifica Categoria")
+            CategoryEditorContent(name: $name, icon: $selectedIcon, color: $selectedColor,
+                                  parent: $parentCategory, kind: $kind, parents: parentCategories,
+                                  sharedConto: category.account?.conti?.first { $0.id == category.sharedContoID },
+                                  canMove: !hasSubcategories, inheritsParentColor: false)
+            .navigationTitle("Modifica categoria")
             .alert("Impossibile salvare", isPresented: $showingSaveError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -1184,9 +1426,12 @@ struct EditCategorySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") { saveChanges() }
                         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("category-save")
                 }
             }
             .onAppear {
+                guard !loadedDraft else { return }
+                loadedDraft = true
                 name = category.name ?? ""
                 selectedIcon = category.icon ?? "tag"
                 selectedColor = category.color ?? CategoryPalette.fallback
@@ -1194,69 +1439,13 @@ struct EditCategorySheet: View {
                 kind = category.kind
             }
         }
-    }
-
-    private var detailsSection: some View {
-        Section {
-            TextField("Nome categoria", text: $name)
-            CategoryPlacementFields(parents: parentCategories, parent: $parentCategory, kind: $kind,
-                                    canMove: !hasSubcategories)
-        } header: {
-            Text("Dettagli")
-        } footer: {
-            if hasSubcategories {
-                Text("Contiene sottocategorie, quindi resta una categoria principale. Il tipo vale anche per le sottocategorie.")
-            }
-        }
-    }
-
-    private var iconSection: some View {
-        Section("Icona") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
-                ForEach(icons, id: \.self) { icon in
-                    Button {
-                        selectedIcon = icon
-                    } label: {
-                        Image(systemName: icon)
-                            .font(.title2)
-                            .frame(width: 40, height: 40)
-                            .background(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.18) : Color.clear)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(selectedIcon == icon ? Color(hex: selectedColor) : Color.primary)
-                }
-            }
-        }
-    }
-
-    private var colorSection: some View {
-        Section("Colore") {
-            CategoryColorGrid(selection: $selectedColor)
-        }
-    }
-
-    private var previewSection: some View {
-        Section("Anteprima") {
-            HStack(spacing: 12) {
-                let isMacro = parentCategory == nil
-                Image(systemName: selectedIcon)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isMacro ? Color.white : Color(hex: selectedColor))
-                    .frame(width: 40, height: 40)
-                    .background(isMacro ? Color(hex: selectedColor) : Color(hex: selectedColor).opacity(0.14),
-                                in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name.isEmpty ? "Nome categoria" : name)
-                        .font(.headline)
-                        .foregroundStyle(name.isEmpty ? .secondary : .primary)
-                    Text(parentCategory.map { "Sottocategoria di \($0.name ?? "Categoria")" } ?? "Categoria principale")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
+        .tint(ForgiaPalette.accent)
+        #if os(iOS)
+        .presentationBackground(ForgiaPalette.canvas)
+        .presentationDragIndicator(.visible)
+        #elseif os(macOS)
+        .frame(minWidth: 440, idealWidth: 560, minHeight: 480, idealHeight: 720)
+        #endif
     }
 
     private func saveChanges() {
