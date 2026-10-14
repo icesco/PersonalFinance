@@ -74,7 +74,7 @@ struct FinanceUpcomingWidgetView: View {
     let entry: FinanceUpcomingEntry
     @Environment(\.widgetFamily) private var family
     @Environment(\.financeWidgetTheme) private var theme
-    private var tint: Color { theme.palette.indicators.calendar }
+    private var tint: Color { theme.palette.accent }
     private var portrait: Bool {
         if #available(iOS 27.0, macOS 27.0, *) { return family == .systemExtraLargePortrait }
         return false
@@ -97,7 +97,7 @@ struct FinanceUpcomingWidgetView: View {
                 #endif
             } else {
                 VStack(alignment: .leading, spacing: family == .systemSmall ? 8 : 12) {
-                    UpcomingHeader(bookName: entry.book?.name, compact: family == .systemSmall)
+                    UpcomingHeader(compact: family == .systemSmall)
                     if let book = entry.book, let schedule = book.upcomingSchedule {
                         if family == .systemSmall || family == .systemMedium {
                             UpcomingNextContent(transactions: entry.transactions, now: entry.date, currency: book.currency,
@@ -129,7 +129,7 @@ struct FinanceUpcomingWidgetView: View {
         }
         .privacySensitive()
         .containerBackground(for: .widget) {
-            if accessory { Color.clear } else { FinanceWidgetBackground(tint: tint) }
+            if accessory { Color.clear } else { FinanceWidgetBackground() }
         }
         .widgetURL(FinanceWidgetRoute(destination: .planning, bookID: entry.book?.id ?? entry.bookID).url)
     }
@@ -137,15 +137,10 @@ struct FinanceUpcomingWidgetView: View {
 
 private struct UpcomingHeader: View {
     @Environment(\.financeWidgetTheme) private var theme
-    let bookName: String?
     let compact: Bool
     var body: some View {
         FinanceWidgetHeader(title: "Prossime", icon: "calendar.badge.clock",
-                            tint: theme.palette.indicators.calendar, compact: compact) {
-            if !compact, let bookName {
-                Text(bookName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-        }
+                            tint: theme.palette.accent, compact: compact)
     }
 }
 
@@ -156,41 +151,42 @@ private struct UpcomingNextContent: View {
     let coverageEnd: Date
     let compact: Bool
     @Environment(\.calendar) private var calendar
+    @Environment(\.financeWidgetTheme) private var theme
 
     var body: some View {
         if let summary = WidgetUpcomingDaySummary.next(in: transactions, at: now, calendar: calendar) {
             if compact {
                 VStack(alignment: .leading, spacing: 5) {
                     UpcomingDueDate(date: summary.date, days: summary.daysUntilDue)
-                        .font(.system(summary.daysUntilDue <= 7 ? .title2 : .headline, design: .rounded, weight: .bold))
+                        .font(.system(summary.daysUntilDue <= 7 ? .title2 : .headline, weight: .semibold))
                         .lineLimit(2).minimumScaleFactor(0.85)
                     UpcomingDayAmount(total: summary.total, type: summary.type, currency: currency)
                     UpcomingDayDescription(title: summary.transactions.count == 1 ? summary.transactions.first?.title : nil,
                                            count: summary.transactions.count, type: summary.type)
                     Spacer(minLength: 0)
-                    UpcomingCategoryIcons(transactions: summary.categoryRepresentatives, limit: 4)
+                    UpcomingCategoryIcons(transactions: summary.categoryRepresentatives, limit: 3)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 HStack(alignment: .top, spacing: 20) {
                     VStack(alignment: .leading, spacing: 6) {
                         UpcomingDueDate(date: summary.date, days: summary.daysUntilDue)
-                            .font(.system(.largeTitle, design: .rounded, weight: .bold)).lineLimit(2).minimumScaleFactor(0.85)
+                            .font(.system(.largeTitle, weight: .semibold)).lineLimit(2).minimumScaleFactor(0.85)
                         if summary.daysUntilDue <= 7 {
                             Text(summary.date, format: .dateTime.day().month(.wide))
-                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.caption).financeWidgetForeground(theme.palette.mutedText).lineLimit(1)
                         }
                         Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     VStack(alignment: .leading, spacing: 5) {
                         Text(summary.type == .expense ? "Da spendere" : "In entrata")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).financeWidgetForeground(theme.palette.mutedText)
                         UpcomingDayAmount(total: summary.total, type: summary.type, currency: currency)
                         UpcomingDayDescription(title: summary.transactions.count == 1 ? summary.transactions.first?.title : nil,
                                                count: summary.transactions.count, type: summary.type)
                         Spacer(minLength: 0)
-                        UpcomingCategoryIcons(transactions: summary.categoryRepresentatives, limit: 4)
+                        UpcomingCategoryIcons(transactions: summary.categoryRepresentatives, limit: 3)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
@@ -208,8 +204,8 @@ private struct UpcomingDayAmount: View {
     var body: some View {
         if let total {
             Text(type == .expense ? -total : total, format: .currency(code: currency))
-                .font(.system(.title2, design: .rounded, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
-                .widgetAccentable()
+                .font(.system(.title2, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                .foregroundStyle(.primary)
         } else {
             Text("Importo da verificare").font(.subheadline.weight(.semibold))
         }
@@ -217,6 +213,7 @@ private struct UpcomingDayAmount: View {
 }
 
 private struct UpcomingDayDescription: View {
+    @Environment(\.financeWidgetTheme) private var theme
     let title: String?
     let count: Int
     let type: TransactionType
@@ -227,7 +224,7 @@ private struct UpcomingDayDescription: View {
             else if type == .expense { Text("\(count) spese programmate") }
             else { Text("\(count) entrate programmate") }
         }
-        .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.85)
+        .font(.caption).financeWidgetForeground(theme.palette.mutedText).lineLimit(1).minimumScaleFactor(0.85)
     }
 }
 
@@ -247,34 +244,32 @@ private struct UpcomingDueDate: View {
     }
 }
 
-/// Category glyphs in the widget's own hue: the shapes carry the meaning, one colour keeps it calm.
 private struct UpcomingCategoryIcons: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.financeWidgetTheme) private var theme
     let transactions: [WidgetUpcomingTransaction]
     let limit: Int
     var body: some View {
-        let tint = theme.palette.indicators.calendar
         HStack(spacing: 6) {
             ForEach(Array(transactions.prefix(limit))) { transaction in
+                let tint = transaction.widgetTint(fallback: theme.palette.accent)
                 Image(systemName: transaction.widgetIcon)
                     .widgetAccentedRenderingMode(.accented)
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .financeWidgetForeground(tint)
-                    .frame(width: 26, height: 26)
+                    .frame(width: 32, height: 32)
                     .background(renderingMode == .fullColor ? tint.opacity(0.14) : .clear,
                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .accessibilityLabel(transaction.title)
             }
             if transactions.count > limit {
-                Text("+\(transactions.count - limit)").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Text("+\(transactions.count - limit)").font(.caption2.weight(.semibold)).financeWidgetForeground(theme.palette.mutedText)
             }
         }
     }
 }
 
 private struct UpcomingAmount: View {
-    @Environment(\.financeWidgetTheme) private var theme
     let transaction: WidgetUpcomingTransaction
     let currency: String
     var body: some View {
@@ -284,8 +279,7 @@ private struct UpcomingAmount: View {
             } else { Text("Importo non disponibile") }
         }
         .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
-        .financeWidgetForeground(transaction.type == .income ? theme.palette.indicators.margin : .primary)
-        .widgetAccentable()
+        .foregroundStyle(.primary)
     }
 }
 
@@ -302,8 +296,6 @@ private struct UpcomingEmptyContent: View {
 }
 
 private struct UpcomingTimelineContent: View {
-    @Environment(\.widgetRenderingMode) private var renderingMode
-    @Environment(\.financeWidgetTheme) private var theme
     let transactions: [WidgetUpcomingTransaction]
     let currency: String
     let coverageEnd: Date
@@ -312,33 +304,99 @@ private struct UpcomingTimelineContent: View {
         if transactions.isEmpty {
             UpcomingEmptyContent(coverageEnd: coverageEnd)
         } else {
-            let tint = theme.palette.indicators.calendar
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(Array(transactions.prefix(limit))) { transaction in
-                    HStack(alignment: .center, spacing: 10) {
+            ViewThatFits(in: .vertical) {
+                rows(limit: limit)
+                rows(limit: max(1, limit - 1))
+                rows(limit: max(1, limit - 2))
+                rows(limit: max(1, limit / 2))
+                rows(limit: 1)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    private func rows(limit: Int) -> some View {
+        UpcomingTimelineRows(transactions: Array(transactions.prefix(limit)),
+                             remainingCount: max(0, transactions.count - limit), currency: currency)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct UpcomingTimelineNodeAnchors: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
+    }
+}
+
+private struct UpcomingTimelineRows: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.financeWidgetTheme) private var theme
+    let transactions: [WidgetUpcomingTransaction]
+    let remainingCount: Int
+    let currency: String
+
+    var body: some View {
+        let tint = theme.palette.accent
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(transactions) { transaction in
+                    let categoryTint = transaction.widgetTint(fallback: tint)
+                    HStack(alignment: .center, spacing: 12) {
                         Image(systemName: transaction.widgetIcon)
                             .widgetAccentedRenderingMode(.accented)
-                            .font(.caption.weight(.semibold))
-                            .financeWidgetForeground(tint)
-                            .frame(width: 28, height: 28)
-                            .background(renderingMode == .fullColor ? tint.opacity(0.14) : Color.primary.opacity(0.1),
-                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        VStack(alignment: .leading, spacing: 1) {
+                            .font(.title3.weight(.semibold))
+                            .financeWidgetForeground(categoryTint)
+                            .frame(width: 42, height: 42)
+                            .background {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(renderingMode == .fullColor ? theme.palette.surface : Color.clear)
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .fill(renderingMode == .fullColor ? categoryTint.opacity(0.14) : Color.primary.opacity(0.1))
+                                    }
+                            }
+                            .anchorPreference(key: UpcomingTimelineNodeAnchors.self, value: .bounds) { [transaction.id: $0] }
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(transaction.title.isEmpty ? (transaction.type == .income ? "Entrata" : "Spesa") : transaction.title)
-                                .font(.subheadline.weight(.medium)).lineLimit(1)
-                            Text(transaction.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.headline).lineLimit(2)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(transaction.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                                    .font(.caption).financeWidgetForeground(theme.palette.mutedText).lineLimit(1)
+                                Spacer(minLength: 0)
+                                UpcomingAmount(transaction: transaction, currency: currency)
+                                    .font(.title3.weight(.semibold))
+                                    .layoutPriority(1)
+                            }
                         }
-                        Spacer(minLength: 4)
-                        UpcomingAmount(transaction: transaction, currency: currency)
-                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .accessibilityElement(children: .combine)
                 }
-                Spacer(minLength: 0)
-                if transactions.count > limit {
-                    Text("Altre \(transactions.count - limit) in programma").font(.caption2).foregroundStyle(.secondary)
+            }
+            .backgroundPreferenceValue(UpcomingTimelineNodeAnchors.self) { anchors in
+                GeometryReader { geometry in
+                    let centers = anchors.values.map { anchor in
+                        let bounds = geometry[anchor]
+                        return CGPoint(x: bounds.midX, y: bounds.midY)
+                    }.sorted { $0.y < $1.y }
+                    Path { path in
+                        if centers.count > 1, let first = centers.first, let last = centers.last {
+                            path.move(to: first)
+                            path.addLine(to: last)
+                        }
+                    }
+                    .stroke(renderingMode == .fullColor ? tint.opacity(0.45) : Color.primary.opacity(0.45),
+                            style: StrokeStyle(lineWidth: 1.5, dash: [2, 5]))
                 }
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+            }
+            if remainingCount > 0 {
+                Text("Altre \(remainingCount) in programma")
+                    .font(.caption).financeWidgetForeground(theme.palette.mutedText)
+                    .padding(.leading, 54)
             }
         }
     }
@@ -375,12 +433,12 @@ private struct UpcomingCalendarContent: View {
                             let today = calendar.component(.day, from: date) == day
                             VStack(spacing: 3) {
                                 Text(day.formatted(.number.locale(locale))).font(.caption.weight(today ? .bold : .regular))
-                                Circle().fill(markedDays[day] == nil ? Color.clear : (renderingMode == .fullColor ? theme.palette.indicators.calendar : .primary))
+                                Circle().fill(markedDays[day] == nil ? Color.clear : (renderingMode == .fullColor ? theme.palette.accent : .primary))
                                     .frame(width: renderingMode == .fullColor ? 4 : 5, height: renderingMode == .fullColor ? 4 : 5)
                                     .widgetAccentable()
                             }
                             .frame(maxWidth: .infinity, minHeight: 28)
-                            .background(today && renderingMode == .fullColor ? theme.palette.indicators.calendar.opacity(0.16) : .clear,
+                            .background(today && renderingMode == .fullColor ? theme.palette.accent.opacity(0.16) : .clear,
                                         in: RoundedRectangle(cornerRadius: 8))
                             .overlay {
                                 if today && renderingMode != .fullColor {
@@ -392,7 +450,7 @@ private struct UpcomingCalendarContent: View {
                     }
                 }
                 Label("Movimenti programmati", systemImage: "circle.fill")
-                    .font(.caption2).financeWidgetForeground(theme.palette.indicators.calendar)
+                    .font(.caption2).financeWidgetForeground(theme.palette.accent)
             }
         }
     }
@@ -438,6 +496,10 @@ private struct UpcomingLockScreenContent: View {
 
 
 private extension WidgetUpcomingTransaction {
+    func widgetTint(fallback: Color) -> Color {
+        FinanceCategoryColor.color(hex: categoryColor, fallback: fallback)
+    }
+
     var widgetIcon: String {
         guard let icon = categoryIcon?.trimmingCharacters(in: .whitespacesAndNewlines), !icon.isEmpty else { return type.icon }
         return icon

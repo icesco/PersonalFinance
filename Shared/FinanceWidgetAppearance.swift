@@ -15,8 +15,6 @@ enum FinanceWidgetAppearance {
     }
 }
 
-/// The same language as the app's cards: a theme surface washed with the widget's own hue,
-/// deeper at the heading so each widget is recognisable at a glance.
 struct FinanceWidgetBackground: View {
     var tint: Color? = nil
     @Environment(\.financeWidgetTheme) private var theme
@@ -25,12 +23,9 @@ struct FinanceWidgetBackground: View {
 
     var body: some View {
         if renderingMode == .fullColor {
-            let hue = tint ?? theme.palette.accent
             ZStack {
                 theme.palette.surface
-                hue.opacity(colorScheme == .dark ? 0.12 : 0.08)
-                LinearGradient(colors: [hue.opacity(colorScheme == .dark ? 0.24 : 0.18), hue.opacity(0)],
-                               startPoint: .topLeading, endPoint: UnitPoint(x: 0.75, y: 0.85))
+                if let tint { tint.opacity(colorScheme == .dark ? 0.10 : 0.06) }
             }
         } else {
             Color.clear
@@ -62,6 +57,13 @@ struct FinanceWidgetHeader<Trailing: View>: View {
                 .lineLimit(1)
             Spacer(minLength: 4)
             trailing
+            Image("FormiMark")
+                .resizable()
+                .widgetAccentedRenderingMode(.accented)
+                .scaledToFit()
+                .frame(width: compact ? 14 : 18, height: compact ? 14 : 18)
+                .financeWidgetForeground(tint)
+                .accessibilityHidden(true)
         }
     }
 }

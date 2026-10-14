@@ -186,6 +186,34 @@ struct ThemeIndicatorPalette {
     }
 }
 
+enum FinanceCategoryColor {
+    static func color(hex: String?, fallback: Color) -> Color {
+        guard let hex else { return fallback }
+        let digits = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return fallback }
+        let components = [Double((value >> 16) & 255) / 255,
+                          Double((value >> 8) & 255) / 255, Double(value & 255) / 255]
+        return Color(light: adjusted(components, dark: false), dark: adjusted(components, dark: true))
+    }
+
+    // Keep the category hue while making it usable for small text on themed surfaces.
+    private static func adjusted(_ components: [Double], dark: Bool) -> UInt32 {
+        var result = components
+        func luminance(_ values: [Double]) -> Double {
+            let linear = values.map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+            return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+        }
+        for _ in 0..<32 {
+            let light = luminance(result)
+            if dark ? light >= 0.6 : light <= 0.12 { break }
+            result = result.map { dark ? $0 + (1 - $0) * 0.06 : $0 * 0.94 }
+        }
+        let bytes = result.map { UInt32(($0 * 255).rounded()) }
+        return (bytes[0] << 16) | (bytes[1] << 8) | bytes[2]
+    }
+}
+
 private extension Color {
     init(light: UInt32, dark: UInt32) {
         #if os(iOS)

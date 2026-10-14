@@ -41,6 +41,130 @@ struct WidgetBalanceSnapshotTests {
         #expect(snapshot.validUntil <= histories.map(\.interval.end).min()!)
     }
 
+    @Test func creditPaymentsAreTransfersAndCreditLimitIsNotCash() {
+        let bank = Conto(name: "Corrente", type: .checking, initialBalance: 2000)
+        let card = Conto(name: "Carta", type: .credit, initialBalance: -300, creditLimit: 5000)
+        let payment = Transaction(amount: 300, type: .transfer, date: date(9))
+        payment.setFromConto(bank); payment.setToConto(card)
+        let expense = Transaction(amount: 100, type: .expense, date: date(10))
+        expense.setFromConto(card)
+        let income = Transaction(amount: 200, type: .income, date: date(11))
+        income.setToConto(bank)
+        let history = WidgetBalanceSnapshot.make(period: .month, conti: [bank, card],
+            transactions: [payment, expense, income], resolutions: [], now: date(7), calendar: calendar)
+        #expect(history.recordedTotal == 1700)
+        #expect(history.projectedTotal == 1800)
+        #expect(history.scheduledFlows?.incoming == 200)
+        #expect(history.scheduledFlows?.outgoing == 100)
+        #expect(history.plannedMovements?.count == 3)
+        let bankOnly = history.selecting(accountIDs: [bank.id])
+        #expect(bankOnly.projectedTotal == 1900)
+        #expect(bankOnly.scheduledFlows?.incoming == 200)
+        #expect(bankOnly.scheduledFlows?.outgoing == 300)
+        #expect(bankOnly.plannedMovements?.count == 2)
+        let cardOnly = history.selecting(accountIDs: [card.id])
+        #expect(cardOnly.projectedTotal == -100)
+        #expect(cardOnly.scheduledFlows?.incoming == 300)
+        #expect(cardOnly.scheduledFlows?.outgoing == 100)
+        let flat = WidgetBalanceSnapshot.make(period: .month, conti: [bank, card],
+            transactions: [], resolutions: [], now: date(7), calendar: calendar)
+        #expect(flat.projectedTotal == 1700)
+        #expect(flat.plannedMovements?.isEmpty == true)
+    }
+
+    @Test func savingsRateDoesNotAddEstimatedInterestToLedgerForecast() throws {
+        let savings = Conto(name: "Risparmi", type: .savings, initialBalance: 1000)
+        try savings.setSavingsRate(10, effectiveDate: date(1))
+        let credited = Transaction(amount: 5, type: .income, date: date(3))
+        credited.isSavingsInterest = true; credited.setToConto(savings)
+        let futureCredit = Transaction(amount: 10, type: .income, date: date(20))
+        futureCredit.isSavingsInterest = true; futureCredit.setToConto(savings)
+        let history = WidgetBalanceSnapshot.make(period: .month, conti: [savings],
+            transactions: [credited, futureCredit, futureCredit], resolutions: [], now: date(7), calendar: calendar)
+        #expect(history.recordedTotal == 1005)
+        #expect(history.projectedTotal == 1015)
+        #expect(history.scheduledFlows?.incoming == 10)
+        #expect(history.scheduledFlows?.outgoing == 0)
+        #expect(history.plannedMovements?.count == 1)
+        #expect(history.series.first?.savingsValue == nil)
+    }
+
+    @Test func scheduledDetailsCoverWholePeriodAndLegacyCacheRemainsReadable() throws {
+        let bank = Conto(name: "Corrente", type: .checking, initialBalance: 1000)
+        let anchor = calendar.date(from: DateComponents(year: 2026, month: 1, day: 1, hour: 12))!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 1, day: 7, hour: 12))!
+        let expense = Transaction(amount: 10, type: .expense, date: anchor, isRecurring: true, recurrenceFrequency: .monthly)
+        expense.transactionDescription = "Abbonamento"; expense.setFromConto(bank)
+        let annual = WidgetBalanceSnapshot.make(period: .year, conti: [bank], transactions: [expense],
+            resolutions: [], now: now, calendar: calendar)
+        #expect(annual.plannedMovements?.count == 3)
+        #expect(annual.scheduledMovementCount == 11)
+        #expect(annual.scheduledFlows?.outgoing == 110)
+        #expect(annual.projectedTotal - annual.recordedTotal == -110)
+        #expect(Set(annual.plannedMovements?.map(\.id) ?? []).count == 3)
+        let quarter = WidgetBalanceSnapshot.make(period: .quarter, conti: [bank], transactions: [expense],
+            resolutions: [], now: now, calendar: calendar)
+        #expect(quarter.plannedMovements?.count == 2)
+        #expect(quarter.scheduledFlows?.outgoing == 20)
+        let data = try JSONEncoder().encode(annual)
+        #expect(try JSONDecoder().decode(WidgetBalanceSnapshot.self, from: data) == annual)
+        var legacy = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        legacy.removeValue(forKey: "plannedMovements")
+        legacy.removeValue(forKey: "scheduledFlowGroups")
+        let decoded = try JSONDecoder().decode(WidgetBalanceSnapshot.self, from: JSONSerialization.data(withJSONObject: legacy))
+        #expect(decoded.plannedMovements == nil)
+        #expect(decoded.scheduledFlows == nil)
+        #expect(decoded.projectedTotal == annual.projectedTotal)
+    }
+
+    @Test func boundedScadenzeKeepTotalsAndNextRowsForEachSelection() {
+        let a = Conto(name: "A", type: .checking, initialBalance: 100)
+        let b = Conto(name: "B", type: .checking, initialBalance: 100)
+        let rows = (8...20).flatMap { day in
+            [a, b].map { account in
+                let row = Transaction(amount: 1, type: .expense, date: date(day))
+                row.setFromConto(account)
+                return row
+            }
+        }
+        let history = WidgetBalanceSnapshot.make(period: .month, conti: [a, b], transactions: rows,
+            resolutions: [], now: date(7), calendar: calendar)
+        #expect(history.plannedMovements?.count == 6)
+        #expect(history.scheduledMovementCount == 26)
+        #expect(history.scheduledFlows?.outgoing == 26)
+        let selected = history.selecting(accountIDs: [b.id])
+        #expect(selected.scheduledMovementCount == 13)
+        #expect(selected.scheduledFlows?.outgoing == 13)
+        #expect(selected.plannedMovements?.map(\.date) == [date(8), date(9), date(10)])
+        #expect(selected.projectedTotal == 87)
+    }
+
+    @Test func unknownScheduledAmountsAreNotShownAsCompleteTotals() {
+        let bank = Conto(name: "Banca", type: .checking, initialBalance: 100)
+        let unknown = Transaction(amount: 0, type: .expense, date: date(9))
+        unknown.amount = nil
+        unknown.setFromConto(bank)
+        let history = WidgetBalanceSnapshot.make(period: .month, conti: [bank], transactions: [unknown],
+            resolutions: [], now: date(7), calendar: calendar)
+        #expect(history.plannedMovements?.count == 1)
+        #expect(history.plannedMovements?.first?.amount == nil)
+        #expect(history.scheduledFlows?.incoming == nil)
+        #expect(history.scheduledFlows?.outgoing == nil)
+    }
+
+    @Test func groupingDoesNotNetOffOppositeSignedMovements() {
+        let bank = Conto(name: "Banca", type: .checking, initialBalance: 100)
+        let expense = Transaction(amount: 20, type: .expense, date: date(9))
+        expense.setFromConto(bank)
+        let reversal = Transaction(amount: -5, type: .expense, date: date(10))
+        reversal.setFromConto(bank)
+        let history = WidgetBalanceSnapshot.make(period: .month, conti: [bank], transactions: [expense, reversal],
+            resolutions: [], now: date(7), calendar: calendar)
+        #expect(history.scheduledFlows?.incoming == 5)
+        #expect(history.scheduledFlows?.outgoing == 20)
+        #expect(history.projectedTotal == 85)
+    }
+
     @Test func persistedChartRoundTripsAndLegacySnapshotsStillDecode() throws {
         let book = Account(name: "Libro")
         let conto = Conto(name: "Banca", type: .checking, initialBalance: 125)
@@ -56,6 +180,45 @@ struct WidgetBalanceSnapshotTests {
         #expect(decoded.books.first?.balanceHistories == nil)
         #expect(decoded.usable(at: date(7)))
         #expect(FinanceWidgetSnapshot.empty(.hidden).books.isEmpty)
+    }
+
+    @Test func futureMovementDaysSurviveEvenWhenDailyNetChangeIsZero() throws {
+        let bank = Conto(name: "Banca", type: .checking, initialBalance: 100)
+        let other = Conto(name: "Altro", type: .checking, initialBalance: 50)
+        let expense = Transaction(amount: 20, type: .expense, date: date(9, hour: 9))
+        expense.setFromConto(bank)
+        let income = Transaction(amount: 20, type: .income, date: date(9, hour: 18))
+        income.setToConto(bank)
+        let nextExpense = Transaction(amount: 5, type: .expense, date: date(10))
+        nextExpense.setFromConto(bank)
+        let history = WidgetBalanceSnapshot.make(period: .month, conti: [bank, other],
+            transactions: [expense, income, nextExpense], resolutions: [], now: date(7), calendar: calendar)
+        let projected = try #require(history.series.first { $0.id == bank.id }?.projected)
+        let movementPoints = projected.filter { $0.date > history.recordedAt && $0.date < history.interval.end }
+        #expect(movementPoints.map(\.date) == [date(9, hour: 18), date(10)])
+        #expect(movementPoints.map(\.balance) == [100, 95])
+        let unrelated = try #require(history.series.first { $0.id == other.id }?.projected)
+        #expect(unrelated.filter { $0.date > history.recordedAt && $0.date < history.interval.end }.isEmpty)
+        #expect(history.totalProjected.contains { $0.date == date(9, hour: 18) && $0.balance == 150 })
+        #expect(history.selecting(accountIDs: [other.id]).totalProjected.count == 2)
+    }
+
+    @Test func projectedMinimumUsesDailyTotalsRatherThanPartialAccountClosings() {
+        let interval = DateInterval(start: date(1), end: date(31))
+        let a = AccountBalanceSeries(id: UUID(), name: "A", colorHex: "356CB0",
+            points: [.init(date: date(7), balance: 100)],
+            projected: [.init(date: date(7), balance: 100), .init(date: date(9, hour: 9), balance: 0),
+                        .init(date: interval.end, balance: 0)])
+        let b = AccountBalanceSeries(id: UUID(), name: "B", colorHex: "8E5A88",
+            points: [.init(date: date(7), balance: 100)],
+            projected: [.init(date: date(7), balance: 100), .init(date: date(9, hour: 18), balance: 200),
+                        .init(date: interval.end, balance: 200)])
+        let history = WidgetBalanceSnapshot(period: .month, interval: interval, recordedAt: date(7), series: [a, b])
+        #expect(history.minimumProjectedDailyBalance(calendar: calendar)?.balance == 200)
+        #expect(history.minimumProjectedDailyBalance(calendar: calendar)?.date == date(9, hour: 18))
+        #expect(history.selecting(accountIDs: [a.id]).minimumProjectedDailyBalance(calendar: calendar)?.balance == 0)
+        let empty = WidgetBalanceSnapshot(period: .month, interval: interval, recordedAt: date(7), series: [])
+        #expect(empty.minimumProjectedDailyBalance(calendar: calendar) == nil)
     }
 
     @Test func dailySnapshotsRemainBoundedAndColorsMatchTheApp() throws {
@@ -80,5 +243,59 @@ struct WidgetBalanceSnapshotTests {
     @Test func balanceLinkRoundTripsToAnalysis() {
         let route = FinanceWidgetRoute(destination: .analysis, bookID: UUID())
         #expect(FinanceWidgetRoute(url: route.url) == route)
+    }
+
+    @Test func totalCurveKeepsEveryChangeAndCancelsTransfers() {
+        let first = AccountBalanceSeries(id: UUID(), name: "Banca", colorHex: "356CB0",
+            points: [.init(date: date(1), balance: 100), .init(date: date(3), balance: 80),
+                     .init(date: date(7), balance: 80)],
+            projected: [.init(date: date(7), balance: 80), .init(date: date(9), balance: 70),
+                        .init(date: date(31), balance: 70)])
+        let second = AccountBalanceSeries(id: UUID(), name: "Risparmi", colorHex: "7354A6",
+            points: [.init(date: date(1), balance: 50), .init(date: date(3), balance: 70),
+                     .init(date: date(5), balance: 75), .init(date: date(7), balance: 75)],
+            projected: [.init(date: date(7), balance: 75), .init(date: date(9), balance: 85),
+                        .init(date: date(10), balance: 285), .init(date: date(31), balance: 285)])
+        let debt = AccountBalanceSeries(id: UUID(), name: "Carta", colorHex: "A5532B",
+            points: [.init(date: date(1), balance: -30), .init(date: date(7), balance: -30)], projected: [])
+        let history = WidgetBalanceSnapshot(period: .month,
+            interval: DateInterval(start: date(1), end: date(31)), recordedAt: date(7), series: [first, second, debt])
+        #expect(history.totalPoints.map(\.date) == [date(1), date(3), date(5), date(7)])
+        #expect(history.totalPoints.map(\.balance) == [120, 120, 125, 125])
+        #expect(history.totalProjected.map(\.balance) == [125, 125, 325, 325])
+        #expect(history.totalPoints.last?.balance == history.recordedTotal)
+        #expect(history.totalProjected.first?.balance == history.recordedTotal)
+        #expect(history.totalProjected.last?.balance == history.projectedTotal)
+    }
+
+    @Test func totalCurveWithoutProjectionDoesNotInventAForecast() {
+        let series = AccountBalanceSeries(id: UUID(), name: "Conto", colorHex: "356CB0",
+            points: [.init(date: date(1), balance: 50), .init(date: date(7), balance: 50)], projected: [])
+        let history = WidgetBalanceSnapshot(period: .month,
+            interval: DateInterval(start: date(1), end: date(31)), recordedAt: date(7), series: [series])
+        #expect(history.totalPoints.map(\.balance) == [50, 50])
+        #expect(history.totalProjected.isEmpty)
+        let empty = WidgetBalanceSnapshot(period: .month, interval: history.interval, recordedAt: date(7), series: [])
+        #expect(empty.totalPoints.isEmpty)
+        #expect(empty.totalProjected.isEmpty)
+    }
+
+    @Test func accountSelectionScopesBalancesAndKeepsIdentityAndPeriod() {
+        let a = AccountBalanceSeries(id: UUID(), name: "Banca", colorHex: "356CB0",
+            points: [.init(date: date(7), balance: 100)], projected: [.init(date: date(31), balance: 80)])
+        let b = AccountBalanceSeries(id: UUID(), name: "Carta", colorHex: "8E5A88",
+            points: [.init(date: date(7), balance: -30)], projected: [])
+        let history = WidgetBalanceSnapshot(period: .month,
+            interval: DateInterval(start: date(1), end: date(31)), recordedAt: date(7), series: [a, b])
+        #expect(history.selecting(accountIDs: []) == history)
+        #expect(history.selecting(accountIDs: [a.id, b.id]) == history)
+        let selected = history.selecting(accountIDs: [a.id])
+        #expect(selected.series == [a])
+        #expect(selected.recordedTotal == 100)
+        #expect(selected.projectedTotal == 80)
+        #expect(selected.period == history.period && selected.interval == history.interval)
+        #expect(selected.recordedAt == history.recordedAt)
+        #expect(history.selecting(accountIDs: [UUID()]).series.isEmpty)
+        #expect(history.selecting(accountIDs: [b.id, UUID()]).series == [b])
     }
 }

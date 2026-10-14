@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import FinanceCore
+import WidgetKit
 
 extension AccountBalanceSeries {
     var color: Color {
@@ -22,6 +23,10 @@ struct BalanceHistoryPlot: View {
     var interactive = true
     var snapshotLabel = false
     var minimal = false
+    var colorOverride: Color? = nil
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    private var distinguishesAccounts: Bool { snapshotLabel && renderingMode == .accented && series.count > 1 }
+    @Environment(\.colorScheme) private var colorScheme
 
     @ViewBuilder var body: some View {
         if interactive { plot.chartXSelection(value: $selectedDate) }
@@ -56,11 +61,36 @@ struct BalanceHistoryPlot: View {
                 ForEach(account.projected, id: \.date) { point in
                     accountLine(account, point: point, projected: true)
                 }
+                if snapshotLabel {
+                    ForEach(account.projected.filter { $0.date > closingDate && $0.date < interval.end }, id: \.date) { point in
+                        PointMark(x: .value("Data", point.date),
+                                  y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue))
+                            .symbol(distinguishesAccounts ? BalanceAccountSymbol.shape(for: account.id, in: series) : .circle)
+                            .symbolSize(minimal ? 12 : (distinguishesAccounts ? 30 : 20))
+                            .foregroundStyle((colorOverride ?? account.color).opacity(0.9))
+                            .accessibilityLabel("\(account.name), movimenti programmati")
+                            .accessibilityValue(Text("\(point.date, format: .dateTime.day().month()), saldo previsto \(point.balance, format: .currency(code: currency))"))
+                    }
+                }
                 PointMark(x: .value("Data", probeDate),
                           y: .value("Saldo", NSDecimalNumber(decimal: account.balance(at: probeDate)).doubleValue))
-                    .foregroundStyle(account.color).symbolSize(36)
+                    .foregroundStyle(colorOverride ?? account.color)
+                    .symbol(distinguishesAccounts ? BalanceAccountSymbol.shape(for: account.id, in: series) : .circle)
+                    .symbolSize(distinguishesAccounts ? (minimal ? 25 : 49) : (minimal ? 16 : 36))
                     .accessibilityLabel(account.name)
                     .accessibilityValue(Text(account.balance(at: probeDate), format: .currency(code: currency)))
+            }
+            if distinguishesAccounts && !minimal {
+                ForEach(series) { account in
+                    if let point = account.projected.last {
+                        PointMark(x: .value("Data", point.date),
+                                  y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue))
+                            .symbol(BalanceAccountSymbol.shape(for: account.id, in: series))
+                            .symbolSize(49)
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .accessibilityHidden(true)
+                    }
+                }
             }
             if hasProjection && !minimal {
                 RuleMark(x: .value("Oggi", closingDate))
@@ -78,6 +108,14 @@ struct BalanceHistoryPlot: View {
         .chartYScale(domain: NSDecimalNumber(decimal: domain.lowerBound).doubleValue...NSDecimalNumber(decimal: domain.upperBound).doubleValue)
         .chartXScale(domain: openingDate...max(endDate, openingDate.addingTimeInterval(1)))
         .chartLegend(.hidden)
+        .chartPlotStyle { content in
+            content.background {
+                if snapshotLabel && !minimal {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.025))
+                }
+            }
+        }
         .chartXAxis {
             if !minimal {
                 AxisMarks(values: .automatic(desiredCount: compact ? 2 : 4)) { _ in
@@ -86,8 +124,8 @@ struct BalanceHistoryPlot: View {
             }
         }
         .chartYAxis {
-            if !compact {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+            if !minimal && (!compact || snapshotLabel) {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: compact ? 2 : (snapshotLabel ? 3 : 4))) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 4])).foregroundStyle(.secondary.opacity(0.2))
                     AxisValueLabel {
                         if let amount = value.as(Double.self) {
@@ -105,11 +143,38 @@ struct BalanceHistoryPlot: View {
         let label = point.balance.formatted(.currency(code: currency))
         return LineMark(x: .value("Data", point.date), y: .value("Saldo", amount),
                         series: .value("Conto", account.id.uuidString + (projected ? "-previsto" : "-registrato")))
-            .interpolationMethod(.stepEnd)
+            .interpolationMethod(snapshotLabel ? .monotone : .stepEnd)
             .lineStyle(StrokeStyle(lineWidth: 1.75, lineCap: .round, lineJoin: .round, dash: projected ? [5, 4] : []))
-            .foregroundStyle(account.color.opacity(projected ? 0.65 : 1))
+            .foregroundStyle((colorOverride ?? account.color).opacity(projected ? (snapshotLabel ? 0.85 : 0.65) : 1))
             .accessibilityLabel(account.name + (projected ? ", previsto" : ", registrato"))
             .accessibilityValue(label)
     }
 
+}
+
+struct BalanceAccountSymbol {
+    static func shape(for accountID: UUID, in series: [AccountBalanceSeries]) -> BasicChartSymbolShape {
+        let shapes: [BasicChartSymbolShape] = [.circle, .square, .triangle, .diamond, .pentagon, .plus, .cross, .asterisk]
+        return shapes[(series.firstIndex { $0.id == accountID } ?? 0) % shapes.count]
+    }
+}
+
+struct BalanceAccountLegendKey: View {
+    let account: AccountBalanceSeries
+    let series: [AccountBalanceSeries]
+    var compact = false
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    var body: some View {
+        if renderingMode == .accented && series.count > 1 {
+            BalanceAccountSymbol.shape(for: account.id, in: series)
+                .fill(.primary).frame(width: compact ? 7 : 9, height: compact ? 7 : 9)
+                .frame(width: compact ? 7 : 14)
+                .accessibilityHidden(true)
+        } else if compact {
+            Circle().fill(account.color).frame(width: 5, height: 5)
+        } else {
+            Capsule().fill(account.color).frame(width: 14, height: 3)
+        }
+    }
 }

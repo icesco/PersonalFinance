@@ -138,7 +138,12 @@ private struct FinanceCalendarSummary: View {
     var upcomingOnly = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(upcomingOnly ? "Spese future del mese" : "Spese del mese").font(.headline).foregroundStyle(ForgiaPalette.calendar)
+            HStack(spacing: 8) {
+                Text(upcomingOnly ? "Spese future del mese" : "Spese del mese").font(.headline)
+                Spacer(minLength: 4)
+                Image("FormiMark").resizable().scaledToFit().frame(width: 22, height: 22)
+                    .accessibilityHidden(true)
+            }.foregroundStyle(ForgiaPalette.calendar)
             let expenses = events.filter { $0.type == .expense }
             let recorded = expenses.filter { $0.kind == .recorded }
             let future = expenses.filter { $0.kind != .recorded && $0.date > Date() }
