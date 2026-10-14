@@ -111,24 +111,12 @@ struct RecordedSavingsCard: View {
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 AnalysisPreviewHeading(title: "Tasso di risparmio", icon: "gauge.with.needle", tint: ForgiaPalette.savings)
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let rate = report.savingsRate {
-                            Text(rate, format: .percent.precision(.fractionLength(1)))
-                                .font(.system(.title2, design: .rounded, weight: .semibold))
-                                .foregroundStyle(rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings).monospacedDigit().financeNumericMotion(rate)
-                            Text(rate < 0 ? "Spese oltre le entrate" : "Margine sulle entrate")
-                                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                        } else {
-                            Text("Non calcolabile").font(.title3.weight(.semibold)).foregroundStyle(ForgiaPalette.savings)
-                            Text(report.hasInvalidAmounts ? "Importi da verificare" : "Servono entrate registrate")
-                                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                    if let rate = report.savingsRate {
-                        SavingsRateGauge(rate: rate, compact: true).frame(width: 112)
-                            .accessibilityHidden(true)
-                    }
+                if let rate = report.savingsRate {
+                    SavingsRateHero(rate: rate, compact: true)
+                } else {
+                    Text("Non calcolabile").font(.title3.weight(.semibold)).foregroundStyle(ForgiaPalette.savings)
+                    Text(report.hasInvalidAmounts ? "Importi da verificare" : "Servono entrate registrate")
+                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
             }.unifiedCard(tint: ForgiaPalette.savings).foregroundStyle(.primary)
         }

@@ -14,37 +14,47 @@ struct TodayMarginHero: View {
     private var tint: Color { remaining < 0 ? ForgiaPalette.deficit : remaining == 0 ? ForgiaPalette.calendar : ForgiaPalette.margin }
 
     var body: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 16))
-        layout {
+        VStack(spacing: 8) {
             if hasBoundedShare && !dynamicTypeSize.isAccessibilitySize {
                 FinancialRing(share: share, tint: tint,
                               referenceShare: expense == nil ? nil : NSDecimalNumber(decimal: margin / available).doubleValue) {
-                    Text(share, format: .percent.precision(.fractionLength(0)))
-                        .font(.system(.headline, design: .rounded)).monospacedDigit()
+                    marginValue
                 }
-                .frame(width: 108, height: 108)
-                .accessibilityLabel("Quota residua del saldo netto")
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(expense == nil ? "Margine stimato" : "Dopo l’imprevisto")
-                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
-                Text(remaining, format: .currency(code: currency))
-                    .font(.system(.title, design: .rounded, weight: .bold))
-                    .monospacedDigit()
-                    .contentTransition(reduceMotion ? .identity : .numericText())
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.26), value: remaining)
+                .frame(maxWidth: 280)
+                Text(share, format: .percent.precision(.fractionLength(0)))
+                    .font(.subheadline.weight(.medium)).monospacedDigit()
                     .foregroundStyle(tint)
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    .accessibilityIdentifier("margin-scenario-remaining")
-                Text(remaining < 0 ? "Oltre il margine" : remaining == 0 ? "Margine esaurito" : "Residuo stimato")
+                    .accessibilityLabel("Quota residua del saldo netto")
+                    .accessibilityValue(Text(share, format: .percent.precision(.fractionLength(0))))
+                Text("del saldo netto")
                     .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                marginValue
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
+    }
+
+    private var marginValue: some View {
+        VStack(spacing: 6) {
+            Text(expense == nil ? "Margine stimato" : "Dopo l’imprevisto")
+                .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+            Text(remaining, format: .currency(code: currency))
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .monospacedDigit()
+                .contentTransition(reduceMotion ? .identity : .numericText())
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.26), value: remaining)
+                .foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.5)
+                .accessibilityIdentifier("margin-scenario-remaining")
+            Text(remaining < 0 ? "Oltre il margine" : remaining == 0 ? "Margine esaurito" : "Residuo stimato")
+                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .multilineTextAlignment(.center)
     }
 }
 
@@ -86,7 +96,7 @@ struct MarginScenarioSection: View {
                 if available > 0 && margin >= 0 && margin <= available {
                     HStack(spacing: 12) {
                         Label("Residuo", systemImage: "circle.fill").foregroundStyle(scenario.remaining < 0 ? ForgiaPalette.deficit : scenario.remaining == 0 ? ForgiaPalette.calendar : ForgiaPalette.margin)
-                        Label("Imprevisto", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.spending)
+                        Label("Prima dell’imprevisto", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.spending)
                     }.font(.caption)
                 }
             } else {
@@ -113,7 +123,8 @@ private struct MarginScenarioExplanation: View {
         DisclosureGroup("Come funziona") {
             VStack(alignment: .leading, spacing: 8) {
                 if showsSegments {
-                    Text("Ogni segmento rappresenta 1/12 del saldo netto di \(available, format: .currency(code: currency)).")
+                    Text("La finestra ingrandisce il settore della quota residua, con una parte dei settori vicini. Il pallino indica il valore esatto.")
+                    Text("Ogni segmento rappresenta 1/6 del saldo netto di \(available, format: .currency(code: currency)).")
                 }
                 Text("La simulazione sottrae solo questo imprevisto. Le uscite previste e abituali sono già comprese nel margine.")
             }
