@@ -100,6 +100,8 @@ public final class Transaction {
     /// An actual interest credit is income, but is not a savings contribution.
     public var isSavingsInterest: Bool?
     public var date: Date = Date()
+    /// Original due date of an explicitly scheduled movement, retained after payment.
+    public var scheduledOriginDate: Date?
     public var createdAt: Date?
     public var updatedAt: Date?
     public var transactionDescription: String?
@@ -199,6 +201,7 @@ public final class Transaction {
         self.recurrenceFrequency = recurrenceFrequency
         self.recurrenceEndDate = recurrenceEndDate
         self.createdAt = Date()
+        self.scheduledOriginDate = date > Date() ? date : nil
         self.updatedAt = Date()
         self.createdByJSON = TransactionPeople.current?.encoded
         self.lastEditedByJSON = self.createdByJSON

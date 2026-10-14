@@ -418,6 +418,7 @@ public enum SharedBookImporter {
         value.amount = try record.decimal("amount")
         value.destinationAmount = try record.decimal("destinationAmount")
         value.isSavingsInterest = try record.flag("isSavingsInterest")
+        value.scheduledOriginDate = try record.date("scheduledOriginDate") ?? value.scheduledOriginDate
         value.date = try required(record.date("date"))
         value.createdAt = try record.date("createdAt")
         value.updatedAt = try record.date("updatedAt")

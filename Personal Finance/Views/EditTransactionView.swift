@@ -375,6 +375,7 @@ struct EditTransactionView: View {
         let oldDestinationAmount = transaction.destinationAmount
         let oldAmount = transaction.amount
         let oldDate = transaction.date
+        let oldScheduledOrigin = transaction.scheduledOriginDate
         let oldDescription = transaction.transactionDescription
         let oldNotes = transaction.notes
         let oldPeople = (transaction.assignedToJSON, transaction.contributorJSON, transaction.lastEditedByJSON)
@@ -389,6 +390,10 @@ struct EditTransactionView: View {
         if let foreignAmount { foreignAmount.apply(to: transaction) } else { ForeignAmountDraft.clear(transaction) }
         place.apply(to: transaction)
         transaction.amount = amount
+        if transaction.scheduledOriginDate == nil {
+            if transaction.date > Date() { transaction.scheduledOriginDate = transaction.date }
+            else if selectedDate > Date() { transaction.scheduledOriginDate = selectedDate }
+        }
         transaction.date = selectedDate
         transaction.transactionDescription = description.isEmpty ? nil : description
         transaction.notes = notes.isEmpty ? nil : notes
@@ -421,6 +426,7 @@ struct EditTransactionView: View {
             transaction.destinationAmount = oldDestinationAmount
             transaction.amount = oldAmount
             transaction.date = oldDate
+            transaction.scheduledOriginDate = oldScheduledOrigin
             transaction.transactionDescription = oldDescription
             transaction.notes = oldNotes
             transaction.assignedToJSON = oldPeople.0; transaction.contributorJSON = oldPeople.1; transaction.lastEditedByJSON = oldPeople.2

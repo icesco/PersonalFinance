@@ -94,6 +94,7 @@ public enum SharedBookExporter {
             records.append(record(.transaction, transaction.id, ["book": bookReference,
                 "externalID": .text(transaction.externalID), "amount": transaction.amount.map(SharedValue.decimal),
                 "destinationAmount": transaction.destinationAmount.map(SharedValue.decimal), "isSavingsInterest": transaction.isSavingsInterest.map(SharedValue.flag), "date": .date(transaction.date),
+                "scheduledOriginDate": transaction.scheduledOriginDate.map(SharedValue.date),
                 "createdAt": transaction.createdAt.map(SharedValue.date), "updatedAt": transaction.updatedAt.map(SharedValue.date),
                 "description": transaction.transactionDescription.map(SharedValue.text), "notes": transaction.notes.map(SharedValue.text),
                 "createdBy": transaction.createdByJSON.map(SharedValue.text),
