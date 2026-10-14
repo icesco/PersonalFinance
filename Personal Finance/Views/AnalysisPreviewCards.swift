@@ -31,6 +31,7 @@ struct AnalysisPreviewHeading: View {
     let title: LocalizedStringKey
     let icon: String
     var tint: Color = ForgiaPalette.accent
+    var illustration: FormiFeatureSymbol? = nil
     /// Short trailing hint such as "Vedi tutti (4)"; shown before the chevron.
     var accessory: String? = nil
     var showsChevron = true
@@ -39,7 +40,14 @@ struct AnalysisPreviewHeading: View {
             Label {
                 Text(title).font(.headline).foregroundStyle(tint)
             } icon: {
-                Image(systemName: icon).font(.subheadline.weight(.semibold))
+                Group {
+                    if let illustration {
+                        FormiFeatureIcon(symbol: illustration, size: 28, ink: tint)
+                    } else {
+                        Image(systemName: icon)
+                    }
+                }
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(tint).frame(width: 32, height: 32)
                     .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }

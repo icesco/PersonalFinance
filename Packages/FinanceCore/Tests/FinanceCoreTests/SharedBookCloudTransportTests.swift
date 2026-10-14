@@ -5,6 +5,8 @@ import Testing
 
 @MainActor
 private final class FakeSharedCloudDatabase: SharedCloudDatabase {
+    var onCurrentPerson: () async throws -> TransactionPerson = { .init(id: "synthetic-current", name: "Anna") }
+    func currentPerson() async throws -> TransactionPerson { try await onCurrentPerson() }
     var leaveIDs: [CKRecord.ID] = []
     var onLeave: (CKRecord.ID) async throws -> CKRecord.ID = { $0 }
     func leaveShare(_ id: CKRecord.ID) async throws -> CKRecord.ID {
@@ -24,6 +26,47 @@ private final class FakeSharedCloudDatabase: SharedCloudDatabase {
 
 @MainActor
 struct SharedBookCloudTransportTests {
+    @Test func currentPersonDoesNotStartCloudWorkWhenDisabled() async {
+        var factories = 0
+        let transport = SharedBookCloudTransport(configuration: { (false, 1) }, makeDatabase: { _ in
+            factories += 1
+            return FakeSharedCloudDatabase()
+        })
+        await #expect(throws: (any Error).self) { try await transport.currentPerson() }
+        #expect(factories == 0)
+    }
+
+    @Test func staleNameLookupDoesNotCacheIdentityOrName() async throws {
+        let suite = "SharedBookCloudTransportTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var generation = 1
+        let database = FakeSharedCloudDatabase()
+        database.onCurrentPerson = {
+            generation += 1
+            return TransactionPerson(id: "synthetic-current", name: "Anna")
+        }
+        let transport = SharedBookCloudTransport(configuration: { (true, generation) },
+            makeDatabase: { _ in database }, identityDefaults: defaults)
+        await #expect(throws: (any Error).self) { try await transport.currentPerson() }
+        #expect(defaults.string(forKey: "formi.cloudPersonID") == nil)
+        #expect(defaults.string(forKey: "formi.personDisplayName") == nil)
+    }
+
+    @Test func currentPersonPrefillsNameWithoutCreatingAShare() async throws {
+        let suite = "SharedBookCloudTransportTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let database = FakeSharedCloudDatabase()
+        let transport = SharedBookCloudTransport(configuration: { (true, 1) },
+            makeDatabase: { _ in database }, identityDefaults: defaults)
+        let person = try await transport.currentPerson()
+        #expect(person.name == "Anna")
+        #expect(defaults.string(forKey: "formi.personDisplayName") == "Anna")
+        #expect(database.saveCalls == 0)
+        #expect(database.pageCalls == 0)
+    }
+
     private let scope = SharedBookScope(ownerName: "synthetic-owner", bookID: UUID())
     private func record() -> SharedBookRecord {
         SharedBookRecord(id: SharedRecordID(bookID: scope.bookID, kind: .book, entityID: scope.bookID.uuidString.lowercased()), fields: ["name": .text("Demo")])

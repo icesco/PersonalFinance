@@ -12,6 +12,7 @@ struct SharedBookView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var books: [Account]
     @State private var destinationBookID: UUID?
+    @State private var cloudIdentityRevision = 0
     @State private var action: Action?
     @State private var prepared: PreparedShare?
     @State private var message: String?
@@ -27,108 +28,84 @@ struct SharedBookView: View {
     private struct PreparedShare: Identifiable { let id = UUID(); let share: CKShare; let scope: SharedBookScope }
     private var membership: SharedBookMembership? { memberships.first { $0.localBookID == book.id && $0.localContoID == conto?.id } }
     private var enabled: Bool { storage.isCloudSyncEnabled && !storage.isMigrating }
+    private struct NameLookup: Hashable {
+        let enabled: Bool
+        let generation: Int
+        let revision: Int
+    }
 
     var body: some View {
-        List {
-            if let pendingStopScope {
-                Button("Completa l’interruzione sul dispositivo") { completeOwnerStop(scope: pendingStopScope) }
-            }
-            Section {
-                Text(conto?.name ?? book.name ?? "Libro").font(.headline)
-                Text(conto == nil ? "Condividi conti, movimenti, budget, ricorrenze e allegati di questo libro con le persone che inviti." : "Condividi soltanto questo conto e i suoi movimenti. I tuoi altri conti restano privati, anche se appartengono allo stesso libro.")
-                    .foregroundStyle(.secondary)
-                Text(conto == nil ? "I conti di altri libri restano privati. I trasferimenti mostrano soltanto la parte relativa a questo libro." : "I trasferimenti mantengono il collegamento al tuo conto privato sul tuo dispositivo. Gli invitati vedono solo il movimento sul conto condiviso, senza note o allegati del trasferimento privato.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            if let conto {
-                Section("Categorie del conto") {
-                    Text("Questo conto ha un elenco di categorie condiviso con le persone invitate. Alla condivisione, Formi copia nell’elenco le categorie già usate dai suoi movimenti. Puoi anche creare nuove categorie dedicate al conto.")
-                    Text("Le copie sono indipendenti: le categorie personali originali restano invariate.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                    if conto.usesSharedCategories == true {
-                        NavigationLink("Gestisci categorie condivise") { SharedContoCategoriesView(conto: conto) }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                SharedBookOverview(name: conto?.name ?? book.name ?? "Libro", isContoShare: conto != nil)
+
+                if let pendingStopScope {
+                    SharedBookPanel(cardLayout: true) {
+                        Button("Completa l’interruzione sul dispositivo") { completeOwnerStop(scope: pendingStopScope) }
+                            .frame(minHeight: 44)
                     }
                 }
-            }
-            Section("Come compari nei movimenti") {
-                TextField("Il tuo nome", text: $personName)
-                Text("Serve a riconoscere chi registra i movimenti e chi effettua i versamenti.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            if !enabled {
-                Section {
-                    Label("Sincronizzazione iCloud disattivata", systemImage: "icloud.slash")
-                    Text("Attiva iCloud nelle impostazioni di Formi per condividere o aggiornare i dati.")
-                        .foregroundStyle(.secondary)
+
+                SharedBookInvitationCard(isContoShare: conto != nil, isOwner: membership?.isOwner != false,
+                                         isShared: membership != nil, enabled: enabled, busy: action != nil,
+                                         personName: Binding(get: { personName }, set: {
+                                             personName = $0
+                                             TransactionPeople.markDisplayNameAsManual()
+                                         }),
+                                         onInvite: { action = Action(kind: .share) },
+                                         onSync: { action = Action(kind: .synchronize) }) {
+                    SharedBookSyncFeedback(message: message, busy: action != nil,
+                        status: enabled ? storage.sharedBookAutomaticRefresh.statuses[conto?.id ?? book.id] : nil)
                 }
-            }
-            Section {
-                if membership?.isOwner != false {
-                    Button {
-                        action = Action(kind: .share)
-                    } label: {
-                        Label(membership == nil ? (conto == nil ? "Condividi libro" : "Condividi conto") : "Gestisci invitati", systemImage: "person.badge.plus")
-                    }
-                    .disabled(!enabled || action != nil)
-                    .opacity(enabled && action == nil ? 1 : 0.45)
-                    .accessibilityIdentifier("shared-book-invite")
-                } else {
-                    Label(conto == nil ? "Libro ricevuto" : "Conto ricevuto", systemImage: "person.2")
-                    Text("Gli inviti sono gestiti dal proprietario della condivisione.").foregroundStyle(.secondary)
+
+                SharedBookPrivacyCard(isContoShare: conto != nil)
+
+                if let conto {
+                    SharedContoCategoriesCard(conto: conto)
                 }
-                if membership != nil {
-                    Button("Sincronizza adesso", systemImage: "arrow.triangle.2.circlepath") { action = Action(kind: .synchronize) }
-                        .disabled(!enabled || action != nil)
-                        .opacity(enabled && action == nil ? 1 : 0.45)
-                        .accessibilityIdentifier("shared-book-sync")
-                }
-                if action != nil { ProgressView("Aggiornamento della condivisione…") }
-                if let message {
-                    Text(message).font(.callout).accessibilityIdentifier("shared-book-status")
-                } else if enabled, let status = storage.sharedBookAutomaticRefresh.statuses[conto?.id ?? book.id] {
-                    switch status {
-                    case let .updated(date):
-                        Text("Aggiornamento automatico: \(date, format: .dateTime.hour().minute())")
-                            .font(.callout)
-                    case .needsReview:
-                        Text("Ci sono differenze da verificare. Tocca Sincronizza adesso per confrontarle.")
-                            .font(.callout)
-                    case .failed:
-                        Text("Aggiornamento automatico non riuscito. I dati locali restano disponibili; puoi riprovare con Sincronizza adesso.")
-                            .font(.callout)
-                    }
-                }
-            }
-            if let conto, membership?.isOwner == false {
-                Section("Libro sul tuo dispositivo") {
-                    Picker("Inserisci il conto in", selection: $destinationBookID) {
-                        Text("Scegli un libro").tag(nil as UUID?)
-                        ForEach(books.filter { $0.isActive == true && $0.currency == book.currency && $0.id != book.id }) { candidate in
-                            Text(candidate.name ?? "Libro").tag(Optional(candidate.id))
+
+                if let conto, membership?.isOwner == false {
+                    SharedBookPanel("Libro sul tuo dispositivo", cardLayout: true) {
+                        Picker("Inserisci il conto in", selection: $destinationBookID) {
+                            Text("Scegli un libro").tag(nil as UUID?)
+                            ForEach(books.filter { $0.isActive == true && $0.currency == book.currency && $0.id != book.id }) { candidate in
+                                Text(candidate.name ?? "Libro").tag(Optional(candidate.id))
+                            }
                         }
+                        Button("Sposta nel libro scelto") { moveConto() }
+                            .frame(minHeight: 44)
+                            .disabled(destinationBookID == nil || action != nil)
+                        Text("Il conto resta lo stesso. I conti personali del libro scelto restano privati.")
+                            .font(.footnote).foregroundStyle(ForgiaPalette.mutedText)
+                        Text(conto.name ?? "Conto").font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                     }
-                    Button("Sposta nel libro scelto") { moveConto() }
-                        .disabled(destinationBookID == nil || action != nil)
-                    Text("Il conto resta lo stesso. I conti personali del libro scelto restano privati.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                    Text(conto.name ?? "Conto").font(.caption).foregroundStyle(.secondary)
+                }
+
+                if membership?.isOwner == false {
+                    SharedBookLeaveSection(enabled: enabled, busy: action != nil, cardLayout: true) {
+                        action = Action(kind: .leave)
+                    }
+                }
+                SharedBookConflictReview(conflicts: conflicts, referenceCount: referenceCount, currency: book.currency ?? "EUR",
+                                         enabled: enabled, busy: action != nil, cardLayout: true, choices: $choices) {
+                    action = Action(kind: .resolve)
                 }
             }
-            if membership?.isOwner == false {
-                SharedBookLeaveSection(enabled: enabled, busy: action != nil) {
-                    action = Action(kind: .leave)
-                }
-            }
-            SharedBookConflictReview(conflicts: conflicts, referenceCount: referenceCount, currency: book.currency ?? "EUR",
-                                     enabled: enabled, busy: action != nil, choices: $choices) {
-                action = Action(kind: .resolve)
-            }
-            Section {
-                Text("I conti e i libri già condivisi si aggiornano automaticamente mentre Formi è aperta e sbloccata, con iCloud attivo. Puoi anche usare Sincronizza adesso. La prima condivisione carica i dati su iCloud prima di aprire gli inviti.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            .padding(20)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
+        .themedBackground()
+        .tint(ForgiaPalette.accent)
         .navigationTitle("Condivisione")
+        .toolbarTitleDisplayMode(.inline)
+        .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+            cloudIdentityRevision += 1
+        }
+        .task(id: NameLookup(enabled: enabled, generation: storage.containerGeneration, revision: cloudIdentityRevision)) {
+            guard enabled, personName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            _ = try? await storage.sharedBookTransport.currentPerson()
+        }
         .task(id: action) {
             guard let action else { return }
             await perform(action)

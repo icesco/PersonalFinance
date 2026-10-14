@@ -13,6 +13,7 @@ protocol SharedCloudDatabase {
     func page(zone: CKRecordZone.ID, token: CKServerChangeToken?) async throws -> SharedCloudPage
     func save(_ records: [CKRecord]) async throws -> [CKRecord]
     func ownerRecordName() async throws -> String
+    func currentPerson() async throws -> TransactionPerson
     func existingShare(zone: CKRecordZone.ID) async throws -> CKShare
     func ensureZone(_ zone: CKRecordZone.ID) async throws
     func share(zone: CKRecordZone.ID, title: String) async throws -> CKShare
@@ -21,6 +22,9 @@ protocol SharedCloudDatabase {
 }
 
 extension SharedCloudDatabase {
+    func currentPerson() async throws -> TransactionPerson {
+        TransactionPerson(id: try await ownerRecordName(), name: "")
+    }
     func existingShare(zone: CKRecordZone.ID) async throws -> CKShare { throw SharedBookCloudTransport.Failure.unsupportedOperation }
     func leaveShare(_ id: CKRecord.ID) async throws -> CKRecord.ID { throw SharedBookCloudTransport.Failure.unsupportedOperation }
     func ownerRecordName() async throws -> String { throw SharedBookCloudTransport.Failure.unsupportedOperation }
@@ -38,6 +42,22 @@ private final class AppleSharedCloudDatabase: SharedCloudDatabase {
         database = role == .owner ? container.privateCloudDatabase : container.sharedCloudDatabase
     }
     func ownerRecordName() async throws -> String { try await container.userRecordID().recordName }
+    func currentPerson() async throws -> TransactionPerson {
+        let id = try await container.userRecordID()
+        var name = ""
+        do {
+            let participant = try await container.shareParticipant(forUserRecordID: id)
+            if participant.userIdentity.userRecordID == id, let components = participant.userIdentity.nameComponents {
+                name = PersonNameComponentsFormatter.localizedString(from: components, style: .default)
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Name lookup is optional; the record ID still identifies the author.
+            try Task.checkCancellation()
+        }
+        return TransactionPerson(id: id.recordName, name: name)
+    }
     func accept(_ metadata: CKShare.Metadata) async throws -> CKShare { try await container.accept(metadata) }
     func leaveShare(_ id: CKRecord.ID) async throws -> CKRecord.ID {
         // Deleting CKShare from the participant's shared database removes only
@@ -105,14 +125,17 @@ public final class SharedBookCloudTransport {
     }
     private let configuration: @MainActor () -> (enabled: Bool, generation: Int)
     private let makeDatabase: @MainActor (Role) -> any SharedCloudDatabase
+    private let identityDefaults: UserDefaults
     private var cancellations: [UUID: @MainActor () -> Void] = [:]
 
     public convenience init(configuration: @escaping @MainActor () -> (enabled: Bool, generation: Int)) {
         self.init(configuration: configuration, makeDatabase: { AppleSharedCloudDatabase(role: $0) })
     }
     init(configuration: @escaping @MainActor () -> (enabled: Bool, generation: Int),
-         makeDatabase: @escaping @MainActor (Role) -> any SharedCloudDatabase) {
+         makeDatabase: @escaping @MainActor (Role) -> any SharedCloudDatabase,
+         identityDefaults: UserDefaults = .standard) {
         self.configuration = configuration; self.makeDatabase = makeDatabase
+        self.identityDefaults = identityDefaults
     }
     public func cancelPendingRequests() {
         for cancel in cancellations.values { cancel() }
@@ -148,8 +171,19 @@ public final class SharedBookCloudTransport {
         let name = try await request { try await database.ownerRecordName() }
         _ = try permit(generation)
         guard !name.isEmpty, name != CKCurrentUserDefaultName else { throw Failure.incompleteResponse }
-        TransactionPeople.cacheCloudIdentity(name)
+        TransactionPeople.cacheCloudIdentity(name, defaults: identityDefaults)
         return name
+    }
+
+    public func currentPerson() async throws -> TransactionPerson {
+        let generation = try permit()
+        let database = makeDatabase(.owner)
+        let person = try await request { try await database.currentPerson() }
+        _ = try permit(generation)
+        guard !person.id.isEmpty, person.id != CKCurrentUserDefaultName else { throw Failure.incompleteResponse }
+        TransactionPeople.cacheCloudIdentity(person.id, defaults: identityDefaults)
+        TransactionPeople.fillDisplayNameIfEmpty(person, defaults: identityDefaults)
+        return person
     }
 
     public func people(scope: SharedBookScope, role: Role) async throws -> [TransactionPerson] {

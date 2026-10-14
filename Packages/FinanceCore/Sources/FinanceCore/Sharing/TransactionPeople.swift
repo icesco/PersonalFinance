@@ -25,14 +25,40 @@ public enum TransactionPeople {
         let name = UserDefaults.standard.string(forKey: "formi.personDisplayName") ?? ""
         return TransactionPerson(id: id, name: String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100)))
     }
-    public static func cacheCloudIdentity(_ id: String) {
-        UserDefaults.standard.set(id, forKey: "formi.cloudPersonID")
+    public static func cacheCloudIdentity(_ id: String, defaults: UserDefaults = .standard) {
+        if let previous = defaults.string(forKey: "formi.cloudPersonID"), previous != id {
+            clearAutomaticDisplayName(defaults: defaults)
+        }
+        defaults.set(id, forKey: "formi.cloudPersonID")
     }
-    public static func clearCloudIdentity() {
-        UserDefaults.standard.removeObject(forKey: "formi.cloudPersonID")
+    public static func clearCloudIdentity(defaults: UserDefaults = .standard) {
+        clearAutomaticDisplayName(defaults: defaults)
+        defaults.removeObject(forKey: "formi.cloudPersonID")
     }
-    public static func setDisplayName(_ name: String) {
-        UserDefaults.standard.set(String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100)), forKey: "formi.personDisplayName")
+    public static func setDisplayName(_ name: String, defaults: UserDefaults = .standard) {
+        markDisplayNameAsManual(defaults: defaults)
+        defaults.set(String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100)), forKey: "formi.personDisplayName")
+    }
+
+    public static func markDisplayNameAsManual(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: "formi.cloudPersonDisplayName")
+    }
+
+    public static func fillDisplayNameIfEmpty(_ person: TransactionPerson, defaults: UserDefaults = .standard) {
+        guard defaults.string(forKey: "formi.cloudPersonID") == person.id,
+              (defaults.string(forKey: "formi.personDisplayName") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let name = String(person.name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
+        guard !name.isEmpty else { return }
+        defaults.set(name, forKey: "formi.cloudPersonDisplayName")
+        defaults.set(name, forKey: "formi.personDisplayName")
+    }
+
+    private static func clearAutomaticDisplayName(defaults: UserDefaults) {
+        if let automatic = defaults.string(forKey: "formi.cloudPersonDisplayName"),
+           automatic == defaults.string(forKey: "formi.personDisplayName") {
+            defaults.removeObject(forKey: "formi.personDisplayName")
+        }
+        defaults.removeObject(forKey: "formi.cloudPersonDisplayName")
     }
 }
 

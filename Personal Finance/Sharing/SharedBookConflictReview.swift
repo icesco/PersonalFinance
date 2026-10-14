@@ -7,12 +7,13 @@ struct SharedBookConflictReview: View {
     let currency: String
     let enabled: Bool
     let busy: Bool
+    var cardLayout = false
     @Binding var choices: [SharedRecordID: SharedBookMerge.Side]
     let onApply: () -> Void
 
     var body: some View {
         if !conflicts.isEmpty || referenceCount > 0 {
-            Section("Modifiche da confrontare") {
+            SharedBookPanel("Modifiche da confrontare", cardLayout: cardLayout) {
                 Text("Il libro non è stato aggiornato: alcune modifiche richiedono una scelta.")
                 ForEach(conflicts, id: \.local.id) { conflict in
                     SharedBookConflictCard(conflict: conflict, currency: currency, choice: Binding(

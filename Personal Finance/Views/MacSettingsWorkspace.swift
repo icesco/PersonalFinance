@@ -7,13 +7,21 @@ import AppKit
 struct MacThemedSidebarRow: View {
     let title: String
     let symbol: String
+    var illustration: FormiFeatureSymbol? = nil
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 9) {
-                Image(systemName: symbol)
+                Group {
+                    if let illustration {
+                        FormiFeatureIcon(symbol: illustration, size: 22,
+                                         ink: isSelected ? ForgiaPalette.onAccent : ForgiaPalette.accent)
+                    } else {
+                        Image(systemName: symbol)
+                    }
+                }
                     .frame(width: 18)
                     .foregroundStyle(isSelected ? ForgiaPalette.onAccent : ForgiaPalette.accent)
                 Text(title)
@@ -39,6 +47,14 @@ struct MacThemedSidebarRow: View {
 enum MacSettingsPane: String, CaseIterable, Identifiable {
     case appearance, reminders, privacy, books, accounts, categories, widgets, shortcuts, cli, cloud, files, erase, about
     var id: Self { self }
+    var illustration: FormiFeatureSymbol? {
+        switch self {
+        case .books: .books
+        case .accounts: .accounts
+        case .categories: .categories
+        default: nil
+        }
+    }
     var title: String {
         switch self {
         case .appearance: "Aspetto"
@@ -136,7 +152,7 @@ struct MacSettingsWorkspace: View {
                     List {
                         Section(group.title) {
                             ForEach(group.panes) { pane in
-                                MacThemedSidebarRow(title: pane.title, symbol: pane.symbol, isSelected: selection == pane) {
+                                MacThemedSidebarRow(title: pane.title, symbol: pane.symbol, illustration: pane.illustration, isSelected: selection == pane) {
                                     selection = pane
                                     sidebarFocused = true
                                 }
@@ -224,7 +240,13 @@ struct MacSettingsWorkspace: View {
             selection = tab.panes[0]
         } label: {
             VStack(spacing: 6) {
-                Image(systemName: tab.symbol).font(.system(size: 24, weight: .regular))
+                Group {
+                    if tab == .books {
+                        FormiFeatureIcon(symbol: .books, size: 30)
+                    } else {
+                        Image(systemName: tab.symbol).font(.system(size: 24, weight: .regular))
+                    }
+                }
                 Text(tab.title).font(.system(size: 12, weight: group == tab ? .medium : .regular))
             }
             .foregroundStyle(group == tab ? ForgiaPalette.accent : Color.primary)

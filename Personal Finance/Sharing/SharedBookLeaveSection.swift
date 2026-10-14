@@ -3,11 +3,12 @@ import SwiftUI
 struct SharedBookLeaveSection: View {
     let enabled: Bool
     let busy: Bool
+    var cardLayout = false
     let onLeave: () -> Void
     @State private var confirming = false
 
     var body: some View {
-        Section {
+        SharedBookPanel(cardLayout: cardLayout) {
             Button("Lascia la condivisione", role: .destructive) { confirming = true }
                 .disabled(!enabled || busy)
                 .accessibilityIdentifier("shared-book-leave")

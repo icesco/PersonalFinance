@@ -269,7 +269,15 @@ private struct TodaySectionCards: View {
                         appState.selectTab(tab)
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: tab.icon)
+                            Group {
+                                if tab == .budgets {
+                                    FormiFeatureIcon(symbol: .budget, size: 30)
+                                } else if tab == .accounts {
+                                    FormiFeatureIcon(symbol: .accounts, size: 30)
+                                } else {
+                                    Image(systemName: tab.icon)
+                                }
+                            }
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(ForgiaPalette.accent)
                                 .frame(width: 32, height: 32)

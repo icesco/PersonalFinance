@@ -130,32 +130,32 @@ struct SettingsView: View {
             Button {
                 appState.presentAccountSelection()
             } label: {
-                SettingsRow("Libro contabile", systemImage: "books.vertical",
+                SettingsRow("Libro contabile", systemImage: "books.vertical", illustration: .books,
                             value: appState.showAllAccounts ? "Tutti i libri" : account?.name ?? "Nessuno")
             }
             .accessibilityIdentifier("settings-book-selection")
             NavigationLink {
                 BooksSettingsView()
             } label: {
-                SettingsRow("Gestisci libri", systemImage: "books.vertical")
+                SettingsRow("Gestisci libri", systemImage: "books.vertical", illustration: .books)
             }
             NavigationLink {
                 ContiSettingsView()
             } label: {
-                SettingsRow("Conti", systemImage: "creditcard", value: "\(contiCount)")
+                SettingsRow("Conti", systemImage: "creditcard", illustration: .accounts, value: "\(contiCount)")
             }
             .disabled(account == nil)
             Button {
                 showingBalances = true
             } label: {
-                SettingsRow("Verifica saldi", systemImage: "checkmark.circle")
+                SettingsRow("Verifica saldi", systemImage: "checkmark.circle", illustration: .balance)
             }
             .accessibilityIdentifier("settings-verify-balances")
             .disabled(account == nil)
             NavigationLink {
                 CategoryManagementView()
             } label: {
-                SettingsRow("Categorie", systemImage: "tag", value: "\(categoryCount)")
+                SettingsRow("Categorie", systemImage: "tag", illustration: .categories, value: "\(categoryCount)")
             }
             .disabled(account == nil)
         } header: {
@@ -310,12 +310,14 @@ struct SettingsView: View {
 struct SettingsRow: View {
     let title: String
     let systemImage: String
+    var illustration: FormiFeatureSymbol?
     var value: String?
     var role: ButtonRole?
 
-    init(_ title: String, systemImage: String, value: String? = nil, role: ButtonRole? = nil) {
+    init(_ title: String, systemImage: String, illustration: FormiFeatureSymbol? = nil, value: String? = nil, role: ButtonRole? = nil) {
         self.title = title
         self.systemImage = systemImage
+        self.illustration = illustration
         self.value = value
         self.role = role
     }
@@ -324,7 +326,13 @@ struct SettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage)
+            Group {
+                if let illustration, !isDestructive {
+                    FormiFeatureIcon(symbol: illustration, size: 30)
+                } else {
+                    Image(systemName: systemImage)
+                }
+            }
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(isDestructive ? Color.red : ForgiaPalette.accent)
                 .frame(width: 30, height: 30)
@@ -409,11 +417,7 @@ struct BooksSettingsView: View {
 
     private func bookRow(_ book: Account) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "book.closed")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(ForgiaPalette.accent)
-                .frame(width: 30, height: 30)
-                .background(ForgiaPalette.sageSurface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            FormiFeatureIcon(symbol: .books, size: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text(book.name ?? "Libro")
                     .font(.body.weight(.medium))

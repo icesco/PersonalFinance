@@ -216,7 +216,7 @@ struct BudgetView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            FormiEmptyIllustration(artwork: .carrying)
+            FormiFeatureIllustration(artwork: .budget, size: 156)
             Text("Nessun budget attivo")
                 .font(.system(.title2, design: .serif, weight: .semibold))
             Text("Dai un limite alle categorie che vuoi tenere d'occhio: qui vedrai quanto ti resta in ogni periodo.")
@@ -412,7 +412,13 @@ struct BudgetIcon: View {
 
     var body: some View {
         let color = (category?.tint ?? Color(hex: CategoryPalette.fallback))
-        Image(systemName: category?.icon?.isEmpty == false ? category!.icon! : "target")
+        Group {
+            if let icon = category?.icon, !icon.isEmpty {
+                Image(systemName: icon)
+            } else {
+                FormiFeatureIcon(symbol: .budget, size: size * 0.72, ink: color)
+            }
+        }
             .font(.system(size: size * 0.4, weight: .semibold))
             .foregroundStyle(color)
             .frame(width: size, height: size)

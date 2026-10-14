@@ -187,7 +187,11 @@ struct InlineBalanceHistoryDetailCard: View {
     var body: some View {
         CachedBalanceSeriesContent(contoIDs: scopeContoIDs, interval: interval) { series, _ in
             VStack(alignment: .leading, spacing: 16) {
-                Label("Saldo per conto", systemImage: "chart.xyaxis.line")
+                Label {
+                    Text("Saldo per conto")
+                } icon: {
+                    FormiFeatureIcon(symbol: .balance, size: 28, ink: ForgiaPalette.balance)
+                }
                     .font(.system(.title3, design: .serif, weight: .semibold))
                 BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
 
@@ -223,7 +227,7 @@ struct InlineBalanceHistoryCard: View {
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 12) {
-                    AnalysisPreviewHeading(title: "Andamento saldo", icon: "chart.xyaxis.line", tint: ForgiaPalette.balance)
+                    AnalysisPreviewHeading(title: "Andamento saldo", icon: "chart.xyaxis.line", tint: ForgiaPalette.balance, illustration: .balance)
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
                             if series.isEmpty {
@@ -354,7 +358,12 @@ private struct BalanceHistoryChart: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         } else {
-            ContentUnavailableView("Nessun saldo nel periodo", systemImage: "chart.xyaxis.line")
+            ContentUnavailableView {
+                VStack(spacing: 12) {
+                    FormiFeatureIllustration(artwork: .balance, size: 132)
+                    Text("Nessun saldo nel periodo")
+                }
+            }
         }
     }
 
@@ -451,7 +460,9 @@ struct BalanceHistoryFixture: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Registrato e previsto · dati demo")
                         .font(.subheadline).foregroundStyle(.secondary)
-                    if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS"),
+                    if ProcessInfo.processInfo.arguments.contains("UITEST_BALANCE_EMPTY") {
+                        InlineBalanceHistoryDetailCard(scopeContoIDs: [], interval: Self.data.interval, currency: "EUR")
+                    } else if ProcessInfo.processInfo.arguments.contains("UITEST_SAVINGS"),
                        let savings = (try? Self.data.container.mainContext.fetch(FetchDescriptor<Conto>()))?.first(where: { $0.type == .savings }) {
                         InlineBalanceHistoryDetailCard(scopeContoIDs: [savings.id], interval: Self.data.interval, currency: "EUR")
                         SavingsAccountSummary(conto: savings)
