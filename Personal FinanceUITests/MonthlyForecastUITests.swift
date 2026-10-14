@@ -64,19 +64,39 @@ final class MonthlyForecastUITests: XCTestCase {
         XCTAssertTrue(input.isHittable)
         input.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         input.typeText(XCUIKeyboardKey.delete.rawValue + "10")
-        app.buttons["Fine"].tap()
+        if app.buttons["Fine"].exists { app.buttons["Fine"].tap() }
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
         let reserve = row("Riserva per imprevisti", in: app)
-        XCTAssertTrue(reserve.label.contains("9,00"))
+        XCTAssertTrue(reserve.label.contains("7,50"))
         app.segmentedControls["monthly-safety-mode"].buttons["Importo fisso"].tap()
         input.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         input.typeText(XCUIKeyboardKey.delete.rawValue + "100")
-        app.buttons["Fine"].tap()
+        if app.buttons["Fine"].exists { app.buttons["Fine"].tap() }
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
         XCTAssertTrue(reserve.label.contains("100,00"))
         for _ in 0..<5 where !app.buttons["monthly-forecast-account-Cointestato"].isHittable { app.swipeDown() }
-        XCTAssertTrue(row("Totale ancora necessario", in: app).label.contains("190,00"))
+        XCTAssertTrue(row("Totale ancora necessario", in: app).label.contains("175,00"))
         app.buttons["monthly-forecast-account-Crédit Agricole"].tap()
         app.buttons["monthly-forecast-account-Cointestato"].tap()
-        XCTAssertTrue(row("Totale ancora necessario", in: app).label.contains("190,00"))
+        XCTAssertTrue(row("Totale ancora necessario", in: app).label.contains("175,00"))
+    }
+
+    @MainActor
+    func testKnownCommitmentsAreDefaultAndEstimateIsAnExplicitChoice() {
+        continueAfterFailure = false
+        let app = launch()
+        let total = row("Totale ancora necessario", in: app)
+        XCTAssertTrue(total.label.contains("75,00"))
+        let include = app.switches["monthly-forecast-include-variables"]
+        for _ in 0..<6 where !include.isHittable { app.swipeUp() }
+        XCTAssertTrue(include.isHittable)
+        include.tap()
+        for _ in 0..<6 where !total.isHittable { app.swipeDown() }
+        XCTAssertTrue(total.label.contains("90,00"))
+        for _ in 0..<6 where !include.isHittable { app.swipeUp() }
+        include.tap()
+        for _ in 0..<6 where !total.isHittable { app.swipeDown() }
+        XCTAssertTrue(total.label.contains("75,00"))
     }
 
     @MainActor

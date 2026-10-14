@@ -44,6 +44,11 @@ struct MonthlyForecastTests {
         #expect(result.balance == 180)
         #expect(result.variableRemaining == nil)
         #expect(result.remaining == nil)
+        #expect(result.necessary(includingVariables: false) == 40)
+        let reserve = MonthlySafetyMargin(necessary: result.necessary(includingVariables: false),
+                                          mode: .percentage, value: 10, currency: "EUR")
+        #expect(reserve?.requiredWithReserve == 44)
+        #expect(result.monthTotal(includingVariables: false) == 60)
     }
 
     @Test func estimatesSubtractRecordedAndScheduledInSameCategory() throws {
@@ -56,7 +61,7 @@ struct MonthlyForecastTests {
         #expect(result.estimateLimitation == nil)
         let estimate = try #require(result.estimates.first)
         #expect(estimate.samples.count == 6)
-        #expect(estimate.monthlyAverage == 60)
+        #expect(estimate.monthlyBaseline == 60)
         #expect(estimate.alreadyRecorded == 10)
         #expect(estimate.scheduled == 35)
         #expect(estimate.remaining == 15)
@@ -72,7 +77,7 @@ struct MonthlyForecastTests {
         bill.scheduledOriginDate = bill.date
         let huge = expense(conto, 10, 20, 500)
         let result = report(conto, history(conto) + [bill, expense(conto, 10, 9, 10), huge])
-        #expect(result.estimates.first?.monthlyAverage == 60)
+        #expect(result.estimates.first?.monthlyBaseline == 60)
         #expect(result.variableRemaining == 0)
         #expect(result.remaining == 500)
     }
@@ -163,7 +168,7 @@ struct MonthlyForecastTests {
     }
 
 
-    @Test func estimateUsesZeroMonthsAndDoesNotOffsetOtherCategories() throws {
+    @Test func estimateUsesMedianWithZeroMonthsAndDoesNotOffsetOtherCategories() throws {
         let conto = Conto(name: "Corrente", type: .checking, initialBalance: 1000)
         let food = Category(name: "Alimentari", icon: "basket")
         let bills = Category(name: "Bollette", icon: "bolt")
@@ -177,10 +182,10 @@ struct MonthlyForecastTests {
         paid.setCategory(food)
         let result = report(conto, rows + [scheduled, paid])
         #expect(result.estimateLimitation == nil)
-        #expect(result.estimates.first?.monthlyAverage == 20)
+        #expect(result.estimates.first?.monthlyBaseline == 30)
         #expect(result.estimates.first?.scheduled == 0)
-        #expect(result.variableRemaining == 15)
-        #expect(result.remaining == 115)
+        #expect(result.variableRemaining == 25)
+        #expect(result.remaining == 125)
     }
 
     @Test func staleOrInvalidPaidScheduledHistoryWithholdsEstimate() {
@@ -216,5 +221,97 @@ struct MonthlyForecastTests {
         let imported = try #require(target.mainContext.fetch(FetchDescriptor<Transaction>()).first)
         #expect(imported.scheduledOriginDate == date(10, 20))
         #expect(imported.date == date(10, 9))
+    }
+
+    @Test func jointAccountCommitmentsStaySeparateFromImportedHistoryAndExtraordinaryPurchases() throws {
+        func decimal(_ value: String) -> Decimal { Decimal(string: value)! }
+        let conto = Conto(name: "Comune", type: .checking, initialBalance: decimal("1237.44"))
+        let food = Category(name: "Spesa alimentare", icon: "basket")
+        let mortgage = Category(name: "Casa", icon: "house")
+        let loan = Category(name: "Prestito", icon: "banknote")
+        let fees = Category(name: "Commissioni", icon: "creditcard")
+        let phone = Category(name: "Telefono", icon: "phone")
+        let parents = Category(name: "Famiglia", icon: "figure.2")
+        let purchases = Category(name: "Arredi", icon: "sofa")
+        let contributions = Category(name: "Categoria mista", icon: "arrow.left.arrow.right")
+        let water = Category(name: "Acqua", icon: "drop")
+        func row(_ month: Int, _ day: Int, _ amount: Decimal, _ category: FinanceCore.Category) -> Transaction {
+            let result = expense(conto, month, day, amount)
+            result.setCategory(category)
+            return result
+        }
+        let recurringTerms: [(FinanceCore.Category, Decimal, Int)] = [(mortgage, decimal("412.84"), 24), (loan, decimal("29.82"), 24),
+                                                         (fees, 1, 19), (fees, 1, 20), (phone, decimal("36.79"), 8)]
+        let sources = recurringTerms.map { category, amount, day in
+            let source = row(10, day, amount, category)
+            source.isRecurring = true
+            source.recurrenceFrequency = .monthly
+            return source
+        }
+        let imports = (7...9).flatMap { month in
+            recurringTerms.map { category, amount, day in row(month, day, amount, category) }
+        }
+        let incoming = Transaction(amount: 500, type: .income, date: date(9, 1))
+        incoming.setToConto(conto); incoming.setCategory(contributions)
+        let grocery = [row(6, 30, 1, food), row(8, 10, decimal("186.88"), food), row(8, 11, decimal("66.31"), food), row(9, 11, decimal("215.75"), food)]
+        let occasionalHistory = [row(7, 7, 1405, parents), row(8, 5, 112, parents), row(9, 3, 865, purchases)]
+        let externalTransfers = [row(7, 8, 321, contributions), row(8, 7, 110, contributions), row(9, 8, 144, contributions)]
+        let planned = [row(10, 25, 120, parents), row(10, 25, 92, parents), row(10, 25, 25, parents), row(10, 28, decimal("75.59"), water)]
+        let result = report(conto, sources + imports + grocery + occasionalHistory + externalTransfers + planned + [incoming])
+        #expect(result.certainRemaining == 757.25)
+        #expect(result.necessary(includingVariables: false) == 757.25)
+        #expect(result.estimateLimitation == nil)
+        #expect(result.estimates.count == 1)
+        #expect(result.estimates.first?.id == food.id.uuidString)
+        #expect(result.variableRemaining == 215.75)
+        #expect(result.necessary(includingVariables: true) == 973)
+        #expect(result.historyExclusions.first { $0.reason == .recurringPayment }?.events.count == 15)
+        #expect(MonthlyForecast.total(try #require(result.historyExclusions.first { $0.reason == .mixedCategory }).events) == 575)
+        #expect(MonthlyForecast.total(try #require(result.historyExclusions.first { $0.reason == .sporadic }).events) == 2382)
+        #expect(imports.allSatisfy { $0.recurrenceSourceID == nil && $0.isRecurring != true })
+    }
+
+    @Test func leafCategoriesDoNotDeductAnUnrelatedBillAndAnExceptionalMonthDoesNotSetTheBaseline() throws {
+        let conto = Conto(name: "Corrente", type: .checking, initialBalance: 1000)
+        let macro = Category(name: "Essenziali", icon: "house")
+        let groceries = Category(name: "Spesa", icon: "basket", parentCategoryId: macro.id)
+        let bills = Category(name: "Fatture", icon: "doc", parentCategoryId: macro.id)
+        var rows = [expense(conto, 6, 30)]
+        rows[0].setCategory(groceries)
+        for month in 7...9 {
+            let row = expense(conto, month, 5, month == 7 ? 1405 : 100)
+            row.setCategory(groceries); rows.append(row)
+        }
+        let bill = expense(conto, 10, 25, 300)
+        bill.setCategory(bills)
+        let paid = expense(conto, 10, 9, 20)
+        paid.setCategory(groceries)
+        let result = report(conto, rows + [paid, bill])
+        #expect(result.estimates.first?.monthlyBaseline == 100)
+        #expect(result.estimates.first?.scheduled == 0)
+        #expect(result.variableRemaining == 80)
+        #expect(result.necessary(includingVariables: false) == 300)
+        #expect(result.necessary(includingVariables: true) == 380)
+    }
+
+    @Test func inferredRecurringHistoryUsesAccountLeafAmountAndOnePaymentPerOccurrence() throws {
+        let conto = Conto(name: "Uno", type: .checking)
+        let other = Conto(name: "Due", type: .checking)
+        let fees = Category(name: "Costi", icon: "creditcard")
+        let shopping = Category(name: "Acquisti", icon: "bag")
+        let source = expense(conto, 10, 19, 1)
+        source.setCategory(fees); source.isRecurring = true; source.recurrenceFrequency = .monthly
+        let matches = (7...9).map { month in
+            let row = expense(conto, month, 21, 1); row.setCategory(fees); return row
+        }
+        let extra = expense(conto, 7, 22, 1); extra.setCategory(fees)
+        let samePriceElsewhere = expense(conto, 8, 19, 1); samePriceElsewhere.setCategory(shopping)
+        let otherAccount = expense(other, 9, 19, 1); otherAccount.setCategory(fees)
+        let result = report(conto, [source, extra, samePriceElsewhere, otherAccount] + matches)
+        let excluded = try #require(result.historyExclusions.first { $0.reason == .recurringPayment }).events
+        #expect(Set(excluded.map(\.transactionID)) == Set(matches.map(\.id)))
+        #expect(result.certainRemaining == 1)
+        #expect(result.necessary(includingVariables: false) == 1)
+        #expect(result.necessary(includingVariables: true) == nil)
     }
 }

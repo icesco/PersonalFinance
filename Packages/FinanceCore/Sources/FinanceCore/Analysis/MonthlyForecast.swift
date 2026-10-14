@@ -6,10 +6,10 @@ public struct MonthlyVariableEstimate: Identifiable {
     public let samples: [FinanceCalendarEvent]
     public let recordedSamples: [FinanceCalendarEvent]
     public let scheduledSamples: [FinanceCalendarEvent]
-    public let monthlyAverage: Decimal
+    public let monthlyBaseline: Decimal
     public let alreadyRecorded: Decimal
     public let scheduled: Decimal
-    public var remaining: Decimal { max(0, monthlyAverage - alreadyRecorded - scheduled) }
+    public var remaining: Decimal { max(0, monthlyBaseline - alreadyRecorded - scheduled) }
 }
 
 public struct MonthlyForecast {
@@ -29,6 +29,7 @@ public struct MonthlyForecast {
     public let balance: Decimal?
     public let sampleMonths: [Date]
     public let estimates: [MonthlyVariableEstimate]
+    public let historyExclusions: [MonthlyForecastHistoryExclusion]
     public let estimateLimitation: String?
     public let coverageLimitation: String?
     public let minimumProjectedBalance: Decimal?
@@ -51,6 +52,16 @@ public struct MonthlyForecast {
         if period == .past { return paid }
         guard let remaining else { return nil }
         return paid + remaining
+    }
+
+    public func necessary(includingVariables: Bool) -> Decimal? {
+        includingVariables ? remaining : certainRemaining
+    }
+
+    public func monthTotal(includingVariables: Bool) -> Decimal? {
+        guard let paid = Self.total(recorded) else { return nil }
+        if period == .past { return paid }
+        return necessary(includingVariables: includingVariables).map { paid + $0 }
     }
 }
 
@@ -122,13 +133,36 @@ public enum MonthlyForecastCalculator {
         let balance = opening.flatMap { initial in MonthlyForecast.total(balanceMovements).map { initial + $0 } }
         let sampleMonths = (1...3).reversed().map { calendar.date(byAdding: .month, value: -$0, to: currentStart)! }
         let historyStart = sampleMonths[0]
-        let variableHistory = scoped.filter { $0.type == .expense && !recurring($0) && !scheduled($0) && $0.date >= historyStart && $0.date < currentStart }
+        let history = scoped.filter { $0.type == .expense && !recurring($0) && !scheduled($0) && $0.date >= historyStart && $0.date < currentStart }
+        let sources = scoped.filter { $0.type == .expense && $0.isRecurring == true && $0.recurrenceFrequency != nil &&
+            ($0.recurrenceEndDate == nil || $0.recurrenceEndDate! >= interval.start) }
+        let recurringPayments = MonthlyForecastHistory.recurringPayments(history: history, sources: sources, calendar: calendar)
+        let incomeCategories = Set(scoped.filter { $0.type == .income }.map(MonthlyForecastHistory.categoryKey))
+            .subtracting(["uncategorized"])
+        var exclusions: [MonthlyForecastHistoryExclusion.Reason: [Transaction]] = [:]
+        let candidates = history.filter { row in
+            let reason: MonthlyForecastHistoryExclusion.Reason?
+            if recurringPayments.contains(row.id) { reason = .recurringPayment }
+            else if incomeCategories.contains(MonthlyForecastHistory.categoryKey(row)) || row.category?.kind == .income { reason = .mixedCategory }
+            else { reason = nil }
+            if let reason { exclusions[reason, default: []].append(row); return false }
+            return true
+        }
+        let historyGroups = Dictionary(grouping: candidates, by: MonthlyForecastHistory.categoryKey)
+        let variableHistory = historyGroups.values.flatMap { rows -> [Transaction] in
+            let months = Set(rows.map { calendar.dateInterval(of: .month, for: $0.date)!.start })
+            guard rows.count >= 3, months.count >= 2 else {
+                exclusions[.sporadic, default: []] += rows
+                return []
+            }
+            return rows
+        }
         let activeMonths = Set(variableHistory.map { calendar.dateInterval(of: .month, for: $0.date)!.start })
         let latest = scoped.filter { $0.type != .transfer && $0.date <= now }.map(\.date).max()
         let limitation: String?
         if period == .past { limitation = "Mese concluso: mostriamo le spese registrate e le ricorrenze ancora da verificare, senza stimare spese future." }
-        else if !scoped.contains(where: { $0.type != .transfer && $0.date <= historyStart }) || variableHistory.count < 5 || activeMonths.count < 2 {
-            limitation = "Storico insufficiente: servono almeno tre mesi di osservazione e cinque spese variabili in almeno due dei tre mesi completi precedenti."
+        else if !scoped.contains(where: { $0.type != .transfer && $0.date <= historyStart }) || variableHistory.count < 3 || activeMonths.count < 2 {
+            limitation = "Storico insufficiente: servono almeno tre mesi di osservazione e tre spese variabili nella stessa categoria in almeno due dei tre mesi completi precedenti."
         } else if variableHistory.contains(where: { valid($0) == nil }) {
             limitation = "Importi dello storico da verificare: la stima non è disponibile."
         } else if latest.map({ now.timeIntervalSince($0) > 14 * 86_400 }) ?? true {
@@ -136,7 +170,7 @@ public enum MonthlyForecastCalculator {
         } else if MonthlyForecast.total(recordedUnscheduled + occasional + recordedOccasional) == nil {
             limitation = "Importi del mese da verificare: non è possibile sottrarli dalla stima."
         } else { limitation = nil }
-        func categoryKey(_ row: Transaction) -> String { row.category?.rootCategory.id.uuidString ?? row.categoryId?.uuidString ?? "uncategorized" }
+        func categoryKey(_ row: Transaction) -> String { MonthlyForecastHistory.categoryKey(row) }
         func rounded(_ value: Decimal) -> Decimal {
             var value = value
             var result = Decimal.zero
@@ -147,10 +181,13 @@ public enum MonthlyForecastCalculator {
         let estimates = grouped.map { key, rows in
             let paid = recordedUnscheduled.filter { byID[$0.transactionID].map(categoryKey) == key }
             let scheduled = (occasional + recordedOccasional).filter { byID[$0.transactionID].map(categoryKey) == key }
-            return MonthlyVariableEstimate(id: key, name: rows.first?.category?.rootCategory.name ?? "Da classificare",
+            let totals = sampleMonths.map { month in
+                MonthlyForecast.total(rows.filter { calendar.dateInterval(of: .month, for: $0.date)!.start == month }.map { event($0) }) ?? 0
+            }.sorted()
+            return MonthlyVariableEstimate(id: key, name: rows.first?.category?.name ?? "Da classificare",
                 samples: rows.sorted { $0.date < $1.date }.map { event($0) },
                 recordedSamples: paid, scheduledSamples: scheduled,
-                monthlyAverage: rounded((MonthlyForecast.total(rows.map { event($0) }) ?? 0) / 3),
+                monthlyBaseline: rounded(totals[1]),
                 alreadyRecorded: MonthlyForecast.total(paid) ?? 0, scheduled: MonthlyForecast.total(scheduled) ?? 0)
         }.sorted { $0.name < $1.name }
         let coverageLimitation: String?
@@ -185,7 +222,10 @@ public enum MonthlyForecastCalculator {
         return MonthlyForecast(period: period, interval: interval, recorded: recorded, recordedOccasional: recordedOccasional,
             recordedUnscheduled: recordedUnscheduled, recurring: recurringPending, occasional: occasional, income: income,
             transfers: transfers.sorted { $0.date < $1.date }, balanceMovements: balanceMovements, openingBalance: opening,
-            balance: balance, sampleMonths: sampleMonths, estimates: estimates, estimateLimitation: limitation,
+            balance: balance, sampleMonths: sampleMonths, estimates: estimates,
+            historyExclusions: MonthlyForecastHistoryExclusion.Reason.allCases.compactMap { reason in
+                exclusions[reason].map { MonthlyForecastHistoryExclusion(reason: reason, events: $0.sorted { $0.date < $1.date }.map { event($0) }) }
+            }, estimateLimitation: limitation,
             coverageLimitation: coverageLimitation, minimumProjectedBalance: minimumProjectedBalance,
             endingProjectedBalance: endingProjectedBalance, deadlineShortfall: deadlineShortfall, estimatedShortfall: estimatedShortfall)
     }

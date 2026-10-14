@@ -7,29 +7,33 @@ Accesso: Calendario e timeline → Previsione del mese. Il selettore comprende i
 - **Ricorrenti residue:** occorrenze del mese ancora irrisolte, comprese quelle scadute. La serie originale non genera doppioni quando un'occorrenza è registrata, anche se cambia la data di pagamento. Le risoluzioni saltate sono escluse.
 - **Occasionali programmate:** transazioni non ricorrenti già inserite con data futura. Nel modello corrente la data determina se un movimento è registrato: il passaggio della scadenza non costituisce prova del pagamento bancario.
 - **Registrate:** spese con data non successiva all'istante del calcolo. Le occasionali con evidenza di programmazione e le non programmate sono sottoinsiemi separati. Non programmate non significa impreviste.
-- **Totale ancora necessario:** impegni residui + variabili residue stimate + margine di sicurezza scelto. Il valore del servizio `remaining` rimane la base senza riserva. Non disponibile quando manca una stima affidabile o un importo necessario.
-- **Totale del mese:** registrate + ancora necessario nel mese corrente/futuro. Per il passato è il solo consuntivo registrato; le ricorrenze irrisolte sono mostrate a parte.
+- **Totale ancora necessario:** per impostazione iniziale, impegni residui + margine di sicurezza scelto. L'opzione esplicita “Aggiungi la stima delle spese abituali” aggiunge le variabili residue; la scelta viene ricordata per conto e valuta. Senza stima, gli impegni noti restano quantificabili anche con storico insufficiente. Il servizio `necessary(includingVariables:)` usa la stessa scelta della schermata.
+- **Totale del mese:** registrate + impegni residui, più le variabili residue solo se l'opzione è attiva. La riserva resta separata. Per il passato è il solo consuntivo registrato; le ricorrenze irrisolte sono mostrate a parte.
 - Gli intervalli mensili includono l'inizio ed escludono l'inizio del mese successivo, secondo il calendario locale.
 
 Ogni totale apre i movimenti che lo compongono o la base della stima, con accesso al dettaglio della transazione/serie originale.
 
 ## Stima delle variabili
 
-La base è costituita dai tre mesi completi precedenti al mese corrente, anche consultando un mese futuro. Sono esclusi trasferimenti, ricorrenti/materializzazioni e occasionali con evidenza di programmazione. Raggruppamento per macro categoria; somma divisa per tre, includendo mesi senza spese, arrotondata a due decimali.
+La base è costituita dai tre mesi completi precedenti al mese corrente, anche consultando un mese futuro. Sono esclusi trasferimenti, ricorrenti/materializzazioni e occasionali con evidenza di programmazione. Si usano le singole categorie, così una fattura per visite o acqua non riduce la stima del supermercato solo perché condivide la macro categoria.
 
-Per ciascuna categoria: `residuo = max(0, media - variabili registrate del mese scelto - occasionali programmate del mese scelto, anche già pagate)`. Le programmate di categorie differenti non riducono la stima di questa categoria.
+Ogni categoria richiede almeno tre spese in almeno due mesi. La base mensile è la mediana dei tre totali mensili, includendo i mesi senza spese: un singolo mese eccezionale non viene riproposto automaticamente. Per ciascuna categoria: `residuo = max(0, base abituale - variabili registrate del mese scelto - occasionali programmate della stessa categoria, anche già pagate)`.
 
-Requisiti: un movimento registrato all'inizio della finestra o prima, almeno cinque spese variabili in almeno due mesi della finestra e un registro aggiornato negli ultimi 14 giorni. Importi mancanti/non validi impediscono la stima quando influiscono sulla base o sulle detrazioni. La base disponibile rimane consultabile senza presentare una stima inventata. Non si stimano imprevisti futuri né stagionalità.
+I pagamenti importati senza collegamento alla ricorrenza sono esclusi dalla stima quando combaciano per conto, singola categoria, importo e calendario con una serie attiva, con riscontri in almeno due mesi. Si accetta un pagamento per occorrenza, con tolleranza di tre giorni per periodicità mensile o più lunga, un giorno per settimanale/bisettimanale, zero per giornaliera. Questa è una deduzione usata solo dalla stima: non risolve scadenze e non modifica transazioni. Il dettaglio mostra i movimenti esclusi e il motivo.
+
+Le categorie usate anche per entrate/apporti sul conto, o classificate come entrate, sono escluse dalla stima automatica e mostrate come da verificare. Non si deduce il significato finanziario dal nome della categoria. Questo conserva i giroconti esterni importati come spese nel registro e nel saldo, senza presentarli come consumi abituali.
+
+Requisiti complessivi: un movimento registrato all'inizio della finestra o prima, almeno una categoria con tre spese in almeno due mesi e un registro aggiornato negli ultimi 14 giorni. Importi mancanti/non validi impediscono la stima quando influiscono sulla base o sulle detrazioni. La base disponibile rimane consultabile senza presentare una stima inventata. Non si stimano imprevisti futuri né stagionalità; le categorie escluse possono comunque generare spese future.
 
 ## Margine di sicurezza
 
-I conti si scelgono direttamente con pulsanti visibili. La riserva è impostata dall'utente come percentuale del necessario residuo senza riserva, oppure come importo fisso nella valuta del conto. La scelta parte da zero e viene ricordata localmente per conto e valuta; percentuale e cifra fissa mantengono ciascuna il proprio valore.
+I conti si scelgono direttamente con pulsanti visibili. La riserva è impostata dall'utente come percentuale della base scelta (impegni noti, eventualmente più stima), oppure come importo fisso nella valuta del conto. La scelta parte da zero e viene ricordata localmente per conto e valuta; percentuale e cifra fissa mantengono ciascuna il proprio valore.
 
 La riserva non crea movimenti e non viene aggiunta al totale delle spese del mese. Il totale ancora necessario la include separatamente nel dettaglio. Nei mesi conclusi la riserva non viene applicata.
 
 Con base incompleta, una percentuale non è quantificabile; un importo fisso è mostrabile ma non rende completo il fabbisogno. Input negativi, non numerici e calcoli non rappresentabili non producono un totale inventato. Gli importi sono arrotondati ai decimali della valuta.
 
-Nel mese corrente, la copertura con riserva è `max(0, riserva - saldo minimo alle scadenze, variabili residue + riserva - saldo finale programmato)`. Mantiene quindi la riserva anche prima di un'entrata successiva. Rimangono i limiti relativi alla tempistica giornaliera e alle variabili senza data. Con dati insufficienti o nei mesi passati/futuri la copertura completa con riserva non viene calcolata.
+Nel mese corrente, la copertura con riserva è `max(0, riserva - saldo minimo alle scadenze, variabili incluse + riserva - saldo finale programmato)`. Le variabili incluse valgono zero quando l'opzione è disattivata. Mantiene quindi la riserva anche prima di un'entrata successiva. Rimangono i limiti relativi alla tempistica giornaliera e alle variabili senza data. Con dati insufficienti per la base scelta o nei mesi passati/futuri la copertura completa con riserva non viene calcolata.
 
 ## Saldo e copertura
 

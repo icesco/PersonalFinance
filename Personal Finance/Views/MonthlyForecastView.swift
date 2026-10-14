@@ -105,6 +105,7 @@ private struct MonthlyForecastAccountContent: View {
     @AppStorage private var mode: String
     @AppStorage private var percentageText: String
     @AppStorage private var fixedText: String
+    @AppStorage private var includingVariables: Bool
 
     init(report: MonthlyForecast, contoID: UUID, currency: String) {
         self.report = report
@@ -113,22 +114,23 @@ private struct MonthlyForecastAccountContent: View {
         _mode = AppStorage(wrappedValue: "percentage", "\(key).mode")
         _percentageText = AppStorage(wrappedValue: "0", "\(key).percentage")
         _fixedText = AppStorage(wrappedValue: "0", "\(key).fixed")
+        _includingVariables = AppStorage(wrappedValue: false, "\(key).includeVariables")
     }
 
     var body: some View {
         let selectedMode = MonthlySafetyMargin.Mode(rawValue: mode) ?? .percentage
         let input = selectedMode == .percentage ? percentageText : fixedText
         let safety = MarginScenario.expense(from: input).flatMap {
-            MonthlySafetyMargin(necessary: report.remaining, mode: selectedMode, value: $0, currency: currency)
+            MonthlySafetyMargin(necessary: report.necessary(includingVariables: includingVariables), mode: selectedMode, value: $0, currency: currency)
         }
         VStack(alignment: .leading, spacing: 20) {
-            MonthlyForecastSummary(report: report, currency: currency, safety: safety)
+            MonthlyForecastSummary(report: report, currency: currency, safety: safety, includingVariables: $includingVariables)
             if report.period != .past {
                 MonthlyForecastSafetyEditor(report: report, currency: currency, mode: $mode,
-                    value: selectedMode == .percentage ? $percentageText : $fixedText, safety: safety)
+                    value: selectedMode == .percentage ? $percentageText : $fixedText, safety: safety, includingVariables: includingVariables)
             }
             MonthlyForecastCommitments(report: report, currency: currency)
-            MonthlyForecastCoverage(report: report, currency: currency, safety: safety)
+            MonthlyForecastCoverage(report: report, currency: currency, safety: safety, includingVariables: includingVariables)
         }
     }
 }
@@ -139,6 +141,7 @@ private struct MonthlyForecastSafetyEditor: View {
     @Binding var mode: String
     @Binding var value: String
     let safety: MonthlySafetyMargin?
+    let includingVariables: Bool
     @FocusState private var editing: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -183,14 +186,14 @@ private struct MonthlyForecastSafetyEditor: View {
                 }
             }
             MonthlyForecastAmountLink(title: "Riserva per imprevisti", amount: safety?.reserve, currency: currency) {
-                ScrollView { MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency).padding(22) }
+                ScrollView { MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency, includingVariables: includingVariables).padding(22) }
                     .navigationTitle("Margine di sicurezza").themedBackground(tint: ForgiaPalette.accent)
             }
             if safety == nil {
                 Text("Inserisci un numero valido, da zero in su. Puoi usare la virgola o il punto decimale.")
                     .font(.caption).foregroundStyle(ForgiaPalette.deficit)
-            } else if mode == "percentage" && report.remaining == nil {
-                Text("La percentuale richiede una previsione completa. Con storico insufficiente puoi scegliere un importo fisso; il totale completo resta non disponibile.")
+            } else if mode == "percentage" && report.necessary(includingVariables: includingVariables) == nil {
+                Text("La percentuale richiede una base completa. Puoi escludere la stima delle spese abituali oppure scegliere un importo fisso.")
                     .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
             }
             Text("La scelta viene ricordata per questo conto. La riserva non è una spesa prevista e non crea movimenti. Imposta zero per escluderla.")
@@ -203,11 +206,12 @@ private struct MonthlyForecastSafetyBasis: View {
     let report: MonthlyForecast
     let safety: MonthlySafetyMargin?
     let currency: String
+    let includingVariables: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Il margine di sicurezza si aggiunge a quanto resta necessario: non alle spese già pagate e non al totale delle spese del mese.")
                 .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
-            LabeledContent("Necessario senza riserva") { MonthlyForecastAmount(amount: report.remaining, currency: currency) }
+            LabeledContent("Necessario senza riserva") { MonthlyForecastAmount(amount: report.necessary(includingVariables: includingVariables), currency: currency) }
             if let safety, safety.mode == .percentage {
                 LabeledContent("Percentuale scelta") { Text(safety.value / 100, format: .percent) }
             }
@@ -221,37 +225,39 @@ private struct MonthlyForecastSummary: View {
     let report: MonthlyForecast
     let currency: String
     let safety: MonthlySafetyMargin?
+    @Binding var includingVariables: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            AnalysisPreviewHeading(title: report.period == .past ? "Consuntivo del mese" : "Quanto resta da coprire",
+            AnalysisPreviewHeading(title: report.period == .past ? "Consuntivo del mese" : "Quanto resta da pagare",
                 icon: "calendar.badge.clock", tint: ForgiaPalette.accent, illustration: .budget, showsChevron: false)
             if report.period != .past {
                 MonthlyForecastAmountLink(title: "Totale ancora necessario", amount: safety?.requiredWithReserve, currency: currency, prominent: true) {
                     MonthlyForecastDetail(title: "Totale ancora necessario", events: report.recurring + report.occasional,
-                        currency: currency, explanation: "Scadenze ancora da registrare + variabili residue stimate. Le spese già registrate sono escluse.") {
-                        MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency)
-                        MonthlyForecastEstimateBasis(report: report, currency: currency)
+                        currency: currency, explanation: "Ricorrenti e occasionali programmate ancora da pagare, più la riserva scelta. Le spese abituali stimate si aggiungono solo se attivi l'opzione; le spese già registrate sono escluse.") {
+                        MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency, includingVariables: includingVariables)
+                        if includingVariables { MonthlyForecastEstimateBasis(report: report, currency: currency) }
                     }
                 }
-                if report.remaining != nil {
-                    Text((safety?.reserve ?? 0) > 0 ? "Spese previste + margine di sicurezza" : "Scadenze note + spese abituali stimate")
+                if report.necessary(includingVariables: includingVariables) != nil {
+                    Text(includingVariables ? "Scadenze note + spese abituali stimate + riserva scelta" : "Scadenze note + riserva scelta. Escluse le altre spese non programmate.")
                         .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
-                if report.remaining == nil {
-                    Text("Il totale completo non è disponibile. Gli impegni conosciuti restano consultabili qui sotto.")
+                Toggle("Aggiungi la stima delle spese abituali", isOn: $includingVariables)
+                    .tint(ForgiaPalette.accent).accessibilityIdentifier("monthly-forecast-include-variables")
+                if report.necessary(includingVariables: includingVariables) == nil {
+                    Text("Il totale con stima non è disponibile. Disattiva l'opzione per consultare solo gli impegni conosciuti.")
                         .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
             }
             Divider().padding(.vertical, 2)
             MonthlyForecastAmountLink(title: report.period == .past ? "Spese registrate" : "Totale del mese · include le registrate",
-                                      amount: report.monthTotal, currency: currency) {
+                                      amount: report.monthTotal(includingVariables: includingVariables), currency: currency) {
                 MonthlyForecastDetail(title: "Totale del mese", events: report.recorded + (report.period == .past ? [] : report.recurring + report.occasional),
-                                      currency: currency, explanation: "Nel mese corrente e futuro: registrate + scadenze residue + stima residua. Nei mesi conclusi: solo spese registrate.") {
-                    if report.period != .past { MonthlyForecastEstimateBasis(report: report, currency: currency) }
+                                      currency: currency, explanation: "Registrate + scadenze residue; le spese abituali residue si aggiungono solo se attivi l'opzione. La riserva resta separata. Nei mesi conclusi: solo spese registrate.") {
+                    if report.period != .past && includingVariables { MonthlyForecastEstimateBasis(report: report, currency: currency) }
                 }
             }
         }.unifiedCard(tint: ForgiaPalette.accent).financeCardEntrance()
-            .accessibilityIdentifier("monthly-forecast-summary")
     }
 }
 
@@ -289,6 +295,7 @@ private struct MonthlyForecastCoverage: View {
     let report: MonthlyForecast
     let currency: String
     let safety: MonthlySafetyMargin?
+    let includingVariables: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             AnalysisPreviewHeading(title: "Copertura delle scadenze", icon: "wallet.bifold",
@@ -323,12 +330,12 @@ private struct MonthlyForecastCoverage: View {
                     }
                 }
                 let gap = safety?.shortfall(minimumBalance: report.minimumProjectedBalance,
-                    endingBalance: report.endingProjectedBalance, variableRemaining: report.variableRemaining)
+                    endingBalance: report.endingProjectedBalance, variableRemaining: includingVariables ? report.variableRemaining : 0)
                 MonthlyForecastAmountLink(title: "Quanto manca con la riserva", amount: gap, currency: currency) {
                     MonthlyForecastDetail(title: "Copertura con riserva", events: report.recurring + report.occasional + report.income + report.transfers,
-                        currency: currency, explanation: "La riserva deve restare disponibile dopo ogni scadenza e dopo le variabili stimate a fine mese. Calcoliamo il massimo deficit rispetto a questa soglia; entrate successive non coprono scadenze precedenti.") {
-                        MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency)
-                        MonthlyForecastEstimateBasis(report: report, currency: currency)
+                        currency: currency, explanation: "La riserva deve restare disponibile dopo ogni scadenza. Le variabili stimate si aggiungono a fine mese solo se attivi l'opzione. Entrate successive non coprono scadenze precedenti.") {
+                        MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency, includingVariables: includingVariables)
+                        if includingVariables { MonthlyForecastEstimateBasis(report: report, currency: currency) }
                     }
                 }
             }
@@ -432,7 +439,7 @@ private struct MonthlyForecastEstimateBasis: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let limitation = report.estimateLimitation { Text(limitation).foregroundStyle(ForgiaPalette.mutedText) }
-            Text("Media mensile dei tre mesi completi precedenti a oggi, per macro categoria, con mesi senza spese pari a zero. Esclude ricorrenti, trasferimenti e occasionali con evidenza di programmazione. Dalla media sottraiamo le variabili già registrate e le occasionali programmate del mese scelto; il residuo non scende sotto zero. Non è una previsione stagionale.")
+            Text("Per ogni singola categoria usiamo il valore centrale dei totali dei tre mesi completi precedenti, includendo i mesi senza spese. Servono almeno tre movimenti in almeno due mesi. Questo limita il peso di un mese eccezionale. Sottraiamo le spese già registrate e le occasionali programmate della stessa categoria; il residuo non scende sotto zero. Le fatture di altre categorie non riducono, ad esempio, la stima del supermercato.")
                 .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
             ForEach(report.sampleMonths, id: \.timeIntervalSinceReferenceDate) { month in
                 Text(month.formatted(.dateTime.month(.wide).year().locale(monthlyForecastLocale))).font(.caption)
@@ -441,16 +448,25 @@ private struct MonthlyForecastEstimateBasis: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(estimate.name).font(.headline)
                     if report.estimateLimitation == nil {
-                        LabeledContent("Media mensile") { Text(estimate.monthlyAverage, format: .currency(code: currency)) }
+                        LabeledContent("Base mensile abituale") { Text(estimate.monthlyBaseline, format: .currency(code: currency)) }
                         MonthlyForecastEventLink(title: "Variabili già registrate", events: estimate.recordedSamples, currency: currency,
-                            explanation: "Spese variabili del mese sottratte dalla media di questa categoria.")
+                            explanation: "Spese variabili del mese sottratte dalla base abituale di questa categoria.")
                         MonthlyForecastEventLink(title: "Occasionali programmate · anche già pagate", events: estimate.scheduledSamples, currency: currency,
-                            explanation: "Occasionali del mese sottratte dalla media per evitare un doppio conteggio.")
+                            explanation: "Occasionali del mese sottratte dalla base abituale della stessa categoria per evitare un doppio conteggio.")
                         LabeledContent("Residuo stimato") { Text(estimate.remaining, format: .currency(code: currency)) }
                     }
                     MonthlyForecastEventLink(title: "Movimenti della base storica", events: estimate.samples,
-                        currency: currency, explanation: "Spese variabili usate nella media di questa categoria. La somma è divisa per tre mesi, inclusi i mesi senza movimenti.")
+                        currency: currency, explanation: "Spese della categoria usate nella stima: sommiamo ciascun mese e scegliamo il valore centrale dei tre totali. Non è una previsione certa delle prossime spese.")
                 }.unifiedCard()
+            }
+            if !report.historyExclusions.isEmpty {
+                Text("Movimenti esclusi dalla stima").font(.headline)
+                Text("Restano nel registro e nel saldo. I possibili pagamenti ricorrenti vengono esclusi solo dalla stima, senza contrassegnare alcuna scadenza come pagata.")
+                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                ForEach(report.historyExclusions) { exclusion in
+                    MonthlyForecastEventLink(title: String(localized: exclusion.reason.explanation), events: exclusion.events,
+                        currency: currency, explanation: String(localized: exclusion.reason.explanation))
+                }
             }
         }
     }
