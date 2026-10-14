@@ -5,6 +5,31 @@ import CoreGraphics
 @testable import FinanceCore
 
 @MainActor struct CaptureTests {
+    @Test func backgroundPreparationSurvivesStoreReopeningAndCaptureRetries() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let schema = Schema([PendingCapture.self])
+        let url = directory.appendingPathComponent("CaptureInbox.sqlite")
+        func openStore() throws -> ModelContainer {
+            try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)])
+        }
+        let id = UUID()
+        do {
+            let store = try openStore()
+            try CaptureStore.enqueue(PendingCapture(id: id, source: "notification", sourceName: "Banca", text: "EUR 25"), in: store)
+            try CaptureStore.prepareForReview(id: id, type: .income, amount: "24,90", note: "Rimborso", in: store)
+        }
+        let reopened = try openStore()
+        try CaptureStore.enqueue(PendingCapture(id: id, source: "notification", sourceName: "Banca", text: "EUR 25"), in: reopened)
+        let proposal = try #require(CaptureStore.captures(ids: [id], in: reopened).first)
+        #expect(proposal.reviewType == .income)
+        #expect(proposal.proposedAmount == "24,90")
+        #expect(proposal.proposedNote == "Rimborso")
+        #expect(proposal.originalText == "EUR 25")
+        #expect(try CaptureStore.pendingCount(in: reopened) == 1)
+    }
+
     @Test func incomeProposalKeepsItsTypeAcrossReopeningAndAcquisitionRetries() throws {
         let inbox = try CaptureStore.container(inMemory: true)
         let id = UUID()

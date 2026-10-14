@@ -16,7 +16,7 @@ struct FinanceShortcutsView: View {
             Section {
                 Text("Nell’app Comandi Rapidi cerca Formi. Aggiungi “Prepara una spesa” o “Prepara un’entrata” e, se vuoi, passa importo e descrizione da altre azioni. Per una notifica bancaria, collega il risultato dell’acquisizione al campo Info transazione bancaria.")
                 Text("L’importo è nella valuta del libro selezionato. Usa la virgola o il punto per i decimali, senza simboli di valuta o separatori delle migliaia.")
-                Text("Formi apre il movimento da completare: scegli conto e categoria, controlla i dati e salva. Se hai attivato il blocco, prima dovrai sbloccare l’app.")
+                Text("Le notifiche bancarie vengono preparate in background in Da approvare. Attiva Apri per approvare se vuoi aprirle subito. Senza una notifica, Formi apre il movimento da completare: scegli conto e categoria, controlla i dati e salva. Se hai attivato il blocco, prima dovrai sbloccare l’app.")
                 Button("Prova nuova spesa", intent: PrepareExpenseIntent())
                     .accessibilityIdentifier("try-expense-shortcut")
                 Button("Prova nuova entrata", intent: PrepareIncomeIntent())

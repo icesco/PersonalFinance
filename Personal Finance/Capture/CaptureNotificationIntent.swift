@@ -23,7 +23,8 @@ struct CaptureBankNotificationIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<CaptureTransactionEntity> {
         let capture = try makeCapture()
         do {
-            try CaptureStore.enqueue(capture)
+            let isNew = try CaptureStore.enqueue(capture)
+            await CaptureImportNotifications.shared.notify(captureID: capture.id, isNew: isNew)
         } catch CaptureStore.Failure.reusedID { throw CaptureIntentFailure.reusedID }
         catch {
             throw CaptureIntentFailure.storageUnavailable

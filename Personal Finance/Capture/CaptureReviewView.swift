@@ -246,8 +246,8 @@ struct CaptureReviewView: View {
                 note = String(result.content.merchant.prefix(160))
             } catch { /* AI is optional; manual review always remains available. */ }
         }
-        if let amountOverride { amount = amountOverride }
-        if let noteOverride { note = String(noteOverride.prefix(500)) }
+        if let proposedAmount = amountOverride ?? capture.proposedAmount { amount = proposedAmount }
+        if let proposedNote = noteOverride ?? capture.proposedNote { note = String(proposedNote.prefix(500)) }
         loading = false
         checkDuplicates()
     }

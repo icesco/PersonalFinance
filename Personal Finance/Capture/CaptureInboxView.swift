@@ -153,15 +153,37 @@ struct CaptureInboxEntry: View {
 }
 
 struct CaptureSetupView: View {
+    @State private var notificationsEnabled = CaptureImportNotifications.shared.enabled
+    @State private var notificationsAuthorized = true
+    @State private var requestingNotifications = false
+    @State private var notificationStatus: String?
+
     var body: some View {
         List {
+            Section {
+                Toggle("Avvisa quando arriva una proposta", isOn: Binding(
+                    get: { notificationsEnabled },
+                    set: { value in Task { await setImportNotifications(value) } }
+                ))
+                .disabled(requestingNotifications)
+                .accessibilityIdentifier("capture-import-notifications")
+                if notificationsEnabled && !notificationsAuthorized {
+                    Button("Consenti notifiche") { Task { await setImportNotifications(true) } }
+                        .disabled(requestingNotifications)
+                }
+                if let notificationStatus { Text(notificationStatus).font(.footnote).foregroundStyle(.secondary) }
+            } header: {
+                Text("Conferma dell’acquisizione")
+            } footer: {
+                Text("Una notifica silenziosa conferma le nuove acquisizioni bancarie. Importi e dettagli restano nascosti. Tocca la notifica per controllare la proposta in Formi.")
+            }
             Section("Destinazione delle notifiche") {
                 NavigationLink("Conti predefiniti per banca", destination: CaptureBankDefaultsView())
             }
             Section("Notifiche bancarie · iOS 27") {
                 Text("1. In Comandi Rapidi crea un comando e aggiungi l’automazione Notifica, scegliendo l’app della tua banca o Wallet.")
                 Text("2. Filtra le notifiche di pagamento. Aggiungi l’azione di Formi “Acquisisci notifica bancaria” e collega Titolo, Sottotitolo, Corpo e Data ai rispettivi campi della notifica. Lascia vuoti i campi che la notifica non contiene.")
-                Text("Per aprire subito la proposta, aggiungi “Prepara una spesa” per i pagamenti oppure “Prepara un’entrata” per gli accrediti, come lo stipendio. Collega il risultato dell’acquisizione al campo Info transazione bancaria. Puoi anche usare separatamente le proprietà del risultato, come Importo e Beneficiario. Se ti serve solo conservarla in Da approvare, basta l’azione di acquisizione.")
+                Text("Per preparare la proposta in background, aggiungi “Prepara una spesa” per i pagamenti oppure “Prepara un’entrata” per gli accrediti, come lo stipendio. Collega il risultato dell’acquisizione al campo Info transazione bancaria. Puoi anche usare separatamente le proprietà del risultato, come Importo e Beneficiario. Lascia disattivato Apri per approvare: la proposta resta in Da approvare senza aprire Formi. Attivalo solo se vuoi controllarla subito. Se ti serve solo conservarla, basta l’azione di acquisizione.")
                 Text("3. Indica la banca o app di origine. Il nome del conto di destinazione è facoltativo: se lo lasci vuoto, Formi usa il default configurato per quella banca oppure propone l’unico libro e conto disponibili. Scegli l’esecuzione immediata dove disponibile e prova con una notifica reale.")
                 Text("Un conto indicato nel comando ha la precedenza sul default e viene proposto solo se corrisponde a un unico conto attivo. Controlla sempre la destinazione durante l’approvazione.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -181,5 +203,24 @@ struct CaptureSetupView: View {
         .themedBackground()
         .navigationTitle("Automazione")
         .toolbarTitleDisplayMode(.inline)
+        .task {
+            notificationsEnabled = CaptureImportNotifications.shared.enabled
+            notificationsAuthorized = await CaptureImportNotifications.shared.isAuthorized()
+        }
+    }
+
+    @MainActor
+    private func setImportNotifications(_ enabled: Bool) async {
+        guard !requestingNotifications else { return }
+        requestingNotifications = true
+        defer { requestingNotifications = false }
+        do {
+            let accepted = try await CaptureImportNotifications.shared.setEnabled(enabled)
+            notificationStatus = accepted ? nil : "Notifiche non autorizzate. Puoi abilitarle nelle impostazioni del dispositivo."
+        } catch {
+            notificationStatus = "Impossibile aggiornare le notifiche. Riprova."
+        }
+        notificationsEnabled = CaptureImportNotifications.shared.enabled
+        notificationsAuthorized = await CaptureImportNotifications.shared.isAuthorized()
     }
 }

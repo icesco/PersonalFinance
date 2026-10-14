@@ -5,6 +5,54 @@ import FinanceCore
 
 @MainActor
 struct FinanceShortcutTests {
+    @Test func bankPreparationsStayInTheInboxWithoutOpeningAnEditor() throws {
+        let store = try CaptureStore.container(inMemory: true)
+        let capture = PendingCapture(source: "notification", sourceName: "Banca", text: "EUR 25")
+        try CaptureStore.enqueue(capture, in: store)
+        let expense = PrepareExpenseIntent()
+        expense.transaction = CaptureTransactionEntity(capture: capture)
+        expense.amount = "24.90"
+        expense.note = "Spesa corretta"
+        let state = AppStateManager(persistsSelection: false)
+        #expect(!expense.openForReview)
+        #expect(try expense.storeForBackgroundReview(expense.makeRequest(in: store), in: store))
+        let storedExpense = try #require(CaptureStore.captures(ids: [capture.id], in: store).first)
+        #expect(storedExpense.reviewType == .expense)
+        #expect(storedExpense.proposedAmount == "24,90")
+        #expect(storedExpense.proposedNote == "Spesa corretta")
+        let income = PrepareIncomeIntent()
+        income.transaction = expense.transaction
+        #expect(!income.openForReview)
+        let request = try income.makeRequest(in: store)
+        #expect(try income.storeForBackgroundReview(request, in: store))
+        #expect(try income.storeForBackgroundReview(request, in: store))
+        let storedIncome = try #require(CaptureStore.captures(ids: [capture.id], in: store).first)
+        #expect(storedIncome.reviewType == .income)
+        #expect(storedIncome.proposedAmount == nil)
+        #expect(storedIncome.proposedNote == nil)
+        #expect(try CaptureStore.pendingCount(in: store) == 1)
+        #expect(!state.showingQuickTransaction)
+        #expect(FinanceShortcutInbox.shared.pending == nil)
+        try CaptureStore.discard(id: capture.id, in: store)
+        #expect(throws: FinanceShortcutError.self) { try income.storeForBackgroundReview(request, in: store) }
+    }
+
+    @Test func explicitReviewAndManualPreparationsUseTheForeground() throws {
+        let store = try CaptureStore.container(inMemory: true)
+        let capture = PendingCapture(source: "notification", sourceName: "Banca", text: "EUR 25")
+        try CaptureStore.enqueue(capture, in: store)
+        let expense = PrepareExpenseIntent()
+        let income = PrepareIncomeIntent()
+        #expect(try !expense.storeForBackgroundReview(expense.makeRequest(), in: store))
+        #expect(try !income.storeForBackgroundReview(income.makeRequest(), in: store))
+        expense.transaction = CaptureTransactionEntity(capture: capture)
+        income.transaction = expense.transaction
+        expense.openForReview = true
+        income.openForReview = true
+        #expect(try !expense.storeForBackgroundReview(expense.makeRequest(in: store), in: store))
+        #expect(try !income.storeForBackgroundReview(income.makeRequest(in: store), in: store))
+    }
+
     @Test func salaryNotificationPreparesAnIncomeWithTheSameProposal() throws {
         let store = try CaptureStore.container(inMemory: true)
         let capture = PendingCapture(source: "notification", sourceName: "Banca", text: "Accredito stipendio 2.150,50 EUR")
@@ -181,7 +229,7 @@ struct FinanceShortcutTests {
         let intent = PrepareExpenseIntent()
         intent.amount = "24.90"
         intent.note = "Cena"
-        _ = try await intent.perform()
+        try FinanceShortcutInbox.shared.submit(intent.makeRequest())
         let state = AppStateManager()
         FinanceShortcutInbox.shared.deliver(to: state)
         #expect(state.showingQuickTransaction)

@@ -4,7 +4,7 @@ import UserNotifications
 import FinanceCore
 
 /// Notifications join the same deferred navigation path as shortcuts and widgets.
-/// Only the user's tap opens planning; dismissing a notification has no effect.
+/// Only the user's tap opens a proposal or planning; dismissal has no effect.
 @MainActor
 final class ReminderNotificationRouter: NSObject, UNUserNotificationCenterDelegate {
     static let shared = ReminderNotificationRouter()
@@ -12,10 +12,25 @@ final class ReminderNotificationRouter: NSObject, UNUserNotificationCenterDelega
     func install() { UNUserNotificationCenter.current().delegate = self }
 
     func receive(identifier: String, action: String, inbox: FinanceShortcutInbox? = nil) {
-        guard identifier.hasPrefix("forgia.recurrence."), action == UNNotificationDefaultActionIdentifier else { return }
+        guard action == UNNotificationDefaultActionIdentifier else { return }
+        let request: FinanceShortcutRequest
+        if let id = CaptureImportNotifications.captureID(from: identifier) {
+            request = .captureNotification(id)
+        } else if identifier.hasPrefix("forgia.recurrence.") {
+            request = .reminderPlanning
+        } else { return }
         let inbox = inbox ?? .shared
-        do { try inbox.submit(.reminderPlanning) }
-        catch { inbox.reportError("Completa la richiesta già aperta, poi consulta le scadenze da Pianifica.") }
+        do { try inbox.submit(request) }
+        catch { inbox.reportError("Completa la richiesta già aperta, poi consulta Da approvare o le scadenze da Pianifica.") }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                           willPresent notification: UNNotification,
+                                           withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void) {
+        let identifier = notification.request.identifier
+        Task { @MainActor in
+            completionHandler(CaptureImportNotifications.captureID(from: identifier) != nil ? [.list] : [])
+        }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,

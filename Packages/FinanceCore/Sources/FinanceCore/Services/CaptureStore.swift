@@ -24,18 +24,20 @@ import Darwin
     }
 
     /// Serialize writers across the app and Share Extension. Do not lock the ledger.
-    public static func enqueue(_ capture: PendingCapture) throws {
+    @discardableResult
+    public static func enqueue(_ capture: PendingCapture) throws -> Bool {
         guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: FinanceCoreModule.defaultAppGroupIdentifier) else { throw Failure.unavailable }
         let descriptor = open(root.appendingPathComponent("capture-inbox.lock").path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
         guard descriptor >= 0 else { throw Failure.unavailable }
         defer { close(descriptor) }
         guard flock(descriptor, LOCK_EX) == 0 else { throw Failure.unavailable }
         defer { flock(descriptor, LOCK_UN) }
-        try enqueue(capture, in: container())
+        return try enqueue(capture, in: container())
     }
 
     /// Inject an isolated store for tests; production writers use the locked entry point.
-    public static func enqueue(_ capture: PendingCapture, in container: ModelContainer) throws {
+    @discardableResult
+    public static func enqueue(_ capture: PendingCapture, in container: ModelContainer) throws -> Bool {
         guard !capture.originalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || capture.document?.isEmpty == false else { throw Failure.empty }
         guard capture.originalText.count <= 30_000, (capture.document?.count ?? 0) <= 10 * 1024 * 1024 else { throw Failure.tooLarge }
         let context = ModelContext(container)
@@ -45,10 +47,11 @@ import Darwin
                   existing.source == capture.source, existing.sourceName == capture.sourceName,
                   existing.filename == capture.filename, existing.contentType == capture.contentType, existing.document == capture.document,
                   existing.notificationDate == capture.notificationDate else { throw Failure.reusedID }
-            return
+            return false
         }
         context.insert(capture)
         try context.save()
+        return true
     }
 
     public static func pending(in container: ModelContainer) throws -> [PendingCapture] {
@@ -62,6 +65,15 @@ import Darwin
         let context = ModelContext(container)
         guard let capture = try context.fetch(FetchDescriptor<PendingCapture>(predicate: #Predicate { $0.id == id })).first else { throw Failure.unavailable }
         capture.proposedType = type.rawValue
+        try context.save()
+    }
+    public static func prepareForReview(id: UUID, type: TransactionType, amount: String?, note: String?, in container: ModelContainer) throws {
+        guard type != .transfer else { throw Failure.unavailable }
+        let context = ModelContext(container)
+        guard let capture = try context.fetch(FetchDescriptor<PendingCapture>(predicate: #Predicate { $0.id == id })).first else { throw Failure.unavailable }
+        capture.proposedType = type.rawValue
+        capture.proposedAmount = amount
+        capture.proposedNote = note.map { String($0.prefix(500)) }
         try context.save()
     }
     public static func pendingCount(in container: ModelContainer) throws -> Int {

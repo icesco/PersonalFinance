@@ -7,6 +7,7 @@ import Observation
 /// A request carries only a draft; intents never write financial movements.
 enum FinanceShortcutRequest: Equatable, Sendable {
     case capture(CaptureShortcutDraft)
+    case captureNotification(UUID)
     case watchExpense(WatchExpenseDraft)
     case widget(FinanceWidgetRoute)
     case today
@@ -47,12 +48,24 @@ final class FinanceShortcutInbox {
     }
 
     /// Called only by the unlocked, initialized main interface.
-    func deliver(to state: AppStateManager, canAccessContent: Bool = true, accounts: [Account] = []) {
+    func deliver(to state: AppStateManager, canAccessContent: Bool = true, accounts: [Account] = [], captureStore: ModelContainer? = nil) {
         guard canAccessContent, let request = pending,
               !state.showingQuickTransaction, !state.showingTransferSheet,
               !state.showingAccountSelection, !state.showingAccountCreation else { return }
         pending = nil
         switch request {
+        case let .captureNotification(id):
+            do {
+                let store = try captureStore ?? CaptureStore.container()
+                guard let capture = try CaptureStore.captures(ids: [id], in: store).first else {
+                    errorMessage = "La proposta è già stata approvata o scartata su questo dispositivo."
+                    return
+                }
+                state.presentQuickTransaction(type: capture.reviewType)
+                state.captureShortcutDraft = CaptureShortcutDraft(id: id, amount: nil, note: nil, type: capture.reviewType)
+            } catch {
+                errorMessage = "Impossibile aprire la proposta. Riprova da Da approvare."
+            }
         case let .capture(draft):
             state.presentQuickTransaction(type: draft.type)
             state.captureShortcutDraft = draft
@@ -127,25 +140,47 @@ enum ShortcutAmount {
 
 struct PrepareExpenseIntent: AppIntent {
     static let title: LocalizedStringResource = "Prepara una spesa"
-    static let description = IntentDescription("Apre una spesa da controllare e salvare in Formi. L’importo usa la valuta del libro selezionato; nessun movimento viene salvato automaticamente.")
-    static var supportedModes: IntentModes { .foreground }
+    static let description = IntentDescription("Prepara una spesa da controllare e salvare in Formi. Le notifiche bancarie restano in Da approvare in background, salvo attivare Apri per approvare. L’importo usa la valuta del libro selezionato; nessun movimento viene salvato automaticamente.")
+    static var supportedModes: IntentModes { [.background, .foreground(.dynamic)] }
 
     @Parameter(title: "Importo nella valuta del libro") var amount: String?
     @Parameter(title: "Descrizione") var note: String?
     @Parameter(title: "Info transazione bancaria") var transaction: CaptureTransactionEntity?
+    @Parameter(title: "Apri per approvare", default: false) var openForReview: Bool
 
     static var parameterSummary: some ParameterSummary {
         Summary("Prepara una spesa") {
             \.$transaction
             \.$amount
             \.$note
+            \.$openForReview
         }
     }
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try FinanceShortcutInbox.shared.submit(makeRequest())
+        let request = try makeRequest()
+        if try storeForBackgroundReview(request) { return .result() }
+        if systemContext.currentMode != .foreground {
+            guard systemContext.currentMode.canContinueInForeground else {
+                throw needsToContinueInForegroundError("Apri Formi per controllare la proposta.")
+            }
+            try await continueInForeground(alwaysConfirm: false)
+        }
+        try FinanceShortcutInbox.shared.submit(request)
         return .result()
+    }
+
+    @MainActor
+    @discardableResult
+    func storeForBackgroundReview(_ request: FinanceShortcutRequest, in captureStore: ModelContainer? = nil) throws -> Bool {
+        guard !openForReview, case let .capture(draft) = request else { return false }
+        let store = try captureStore ?? CaptureStore.container()
+        guard try !CaptureStore.captures(ids: [draft.id], in: store).isEmpty else {
+            throw FinanceShortcutError.missingCapture
+        }
+        try CaptureStore.prepareForReview(id: draft.id, type: draft.type, amount: draft.amount, note: draft.note, in: store)
+        return true
     }
 
     @MainActor func makeRequest(in captureStore: ModelContainer? = nil) throws -> FinanceShortcutRequest {
@@ -164,24 +199,46 @@ struct PrepareExpenseIntent: AppIntent {
 
 struct PrepareIncomeIntent: AppIntent {
     static let title: LocalizedStringResource = "Prepara un’entrata"
-    static let description = IntentDescription("Apre un’entrata da controllare e salvare in Formi. Puoi passare il risultato di Acquisisci notifica bancaria, per esempio una notifica dello stipendio. Nessun movimento viene salvato automaticamente.")
-    static var supportedModes: IntentModes { .foreground }
+    static let description = IntentDescription("Prepara un’entrata da controllare e salvare in Formi. Le notifiche bancarie restano in Da approvare in background, salvo attivare Apri per approvare. Puoi passare il risultato di Acquisisci notifica bancaria, per esempio una notifica dello stipendio. Nessun movimento viene salvato automaticamente.")
+    static var supportedModes: IntentModes { [.background, .foreground(.dynamic)] }
 
     @Parameter(title: "Importo nella valuta del libro") var amount: String?
     @Parameter(title: "Descrizione") var note: String?
     @Parameter(title: "Info transazione bancaria") var transaction: CaptureTransactionEntity?
+    @Parameter(title: "Apri per approvare", default: false) var openForReview: Bool
 
     static var parameterSummary: some ParameterSummary {
         Summary("Prepara un’entrata") {
             \.$transaction
             \.$amount
             \.$note
+            \.$openForReview
         }
     }
 
     @MainActor func perform() async throws -> some IntentResult {
-        try FinanceShortcutInbox.shared.submit(makeRequest())
+        let request = try makeRequest()
+        if try storeForBackgroundReview(request) { return .result() }
+        if systemContext.currentMode != .foreground {
+            guard systemContext.currentMode.canContinueInForeground else {
+                throw needsToContinueInForegroundError("Apri Formi per controllare la proposta.")
+            }
+            try await continueInForeground(alwaysConfirm: false)
+        }
+        try FinanceShortcutInbox.shared.submit(request)
         return .result()
+    }
+
+    @MainActor
+    @discardableResult
+    func storeForBackgroundReview(_ request: FinanceShortcutRequest, in captureStore: ModelContainer? = nil) throws -> Bool {
+        guard !openForReview, case let .capture(draft) = request else { return false }
+        let store = try captureStore ?? CaptureStore.container()
+        guard try !CaptureStore.captures(ids: [draft.id], in: store).isEmpty else {
+            throw FinanceShortcutError.missingCapture
+        }
+        try CaptureStore.prepareForReview(id: draft.id, type: draft.type, amount: draft.amount, note: draft.note, in: store)
+        return true
     }
 
     @MainActor func makeRequest(in captureStore: ModelContainer? = nil) throws -> FinanceShortcutRequest {
