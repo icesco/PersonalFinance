@@ -7,6 +7,7 @@ struct ExpenseBudgetCheckView: View {
     let amount: Decimal
     let categoryID: UUID
     let accountID: UUID
+    let contoID: UUID?
     let date: Date
     let currency: String
     let isRecurring: Bool
@@ -15,10 +16,11 @@ struct ExpenseBudgetCheckView: View {
     @Query(filter: #Predicate<Budget> { $0.isActive == true }) private var budgets: [Budget]
     @Query private var transactions: [FinanceTransaction]
 
-    init(amount: Decimal, categoryID: UUID, accountID: UUID, date: Date, currency: String, isRecurring: Bool, excludingTransactionID: UUID? = nil, compact: Bool = false) {
+    init(amount: Decimal, categoryID: UUID, accountID: UUID, date: Date, currency: String, isRecurring: Bool, excludingTransactionID: UUID? = nil, compact: Bool = false, contoID: UUID? = nil) {
         self.amount = amount
         self.categoryID = categoryID
         self.accountID = accountID
+        self.contoID = contoID
         self.date = date
         self.currency = currency
         self.isRecurring = isRecurring
@@ -38,7 +40,7 @@ struct ExpenseBudgetCheckView: View {
     var body: some View {
         let previews = BudgetService.previewExpense(
             amount: amount, categoryID: categoryID, accountID: accountID, date: date,
-            budgets: budgets, transactions: transactions, excludingTransactionID: excludingTransactionID
+            budgets: budgets, transactions: transactions, excludingTransactionID: excludingTransactionID, contoID: contoID
         )
         if compact {
             VStack(alignment: .leading, spacing: 3) {

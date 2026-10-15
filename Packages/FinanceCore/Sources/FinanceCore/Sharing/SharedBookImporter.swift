@@ -108,7 +108,8 @@ public enum SharedBookImporter {
                             preserved.insert(record.id)
                         }
                     }
-                case .budget: if let value = budgets[uuid], value.account?.id != localBookID { throw Failure.identityCollision }
+                case .budget:
+                    if let value = budgets[uuid], value.account?.id != localBookID || (isContoShare && value.contoID != sharedContoID) { throw Failure.identityCollision }
                 case .goal: if let value = goals[uuid], value.account?.id != localBookID { throw Failure.identityCollision }
                 case .attachment:
                     if let value = attachments[uuid], value.transaction.map(owns) != true {
@@ -131,6 +132,7 @@ public enum SharedBookImporter {
                     guard let uuid = ids[record.id] else { continue }
                     switch record.id.kind {
                     case .conto:
+                        for value in budgets.values where value.contoID == uuid { try covered(.budget, value.id.uuidString.lowercased()) }
                         for value in transactions.values where value.fromConto?.id == uuid || value.toConto?.id == uuid || value.fromContoId == uuid || value.toContoId == uuid {
                             try covered(.transaction, value.id.uuidString.lowercased())
                         }
@@ -156,6 +158,7 @@ public enum SharedBookImporter {
             if root.deleted {
                 if let sharedContoID, let conto = conti[sharedContoID] {
                     guard ((conto.incomingTransactions ?? []) + (conto.outgoingTransactions ?? [])).allSatisfy(owns) else { throw Failure.protectedTransfer }
+                    for budget in budgets.values where budget.contoID == sharedContoID { context.delete(budget) }
                     context.delete(conto)
                 } else if let book = books[localBookID] {
                     let all = (book.conti ?? []).flatMap { ($0.incomingTransactions ?? []) + ($0.outgoingTransactions ?? []) }
@@ -250,6 +253,13 @@ public enum SharedBookImporter {
                     value.alertThreshold = try record.number("threshold"); value.includeRecurringTransactions = try record.flag("includeRecurring")
                     value.usesExactCategories = try record.flag("exactCategories")
                     value.planningGroupRaw = try record.text("planningGroup")
+                    if let scope = try record.text("scope") {
+                        switch scope {
+                        case "book": value.contoID = nil
+                        case "conto": value.contoID = try required(localID(record.reference("conto", kind: .conto)))
+                        default: throw Failure.invalidGraph
+                        }
+                    }
                     value.categories = try record.references("categories", kind: .category).map { try required(localID($0).flatMap { categories[$0] }) }
                 case .goal:
                     let value = try required(uuid.flatMap { goals[$0] }); value.account = book
@@ -335,7 +345,11 @@ public enum SharedBookImporter {
         if try root.text("shareKind") == "conto" {
             let conto = try required(root.reference("sharedConto", kind: .conto))
             guard records.filter({ !$0.deleted && $0.id.kind == .conto }).map(\.id) == [conto],
-                  !records.contains(where: { !$0.deleted && ($0.id.kind == .budget || $0.id.kind == .goal) }) else { throw Failure.invalidGraph }
+                  !records.contains(where: { !$0.deleted && $0.id.kind == .goal }) else { throw Failure.invalidGraph }
+            for record in records where !record.deleted && record.id.kind == .budget {
+                guard try record.text("scope") == "conto", try record.reference("conto", kind: .conto) == conto,
+                      try record.text("planningGroup") == nil else { throw Failure.invalidGraph }
+            }
             for record in records where !record.deleted && record.id.kind == .transaction {
                 let from = try record.reference("fromConto", kind: .conto), to = try record.reference("toConto", kind: .conto)
                 guard from == conto || to == conto else { throw Failure.invalidGraph }
@@ -365,6 +379,12 @@ public enum SharedBookImporter {
                 let scheduled = try required(record.date("scheduledDate"))
                 let sourceID = try required(UUID(uuidString: source.entityID))
                 guard record.id.entityID == RecurrenceResolution.key(sourceID: sourceID, date: scheduled) else { throw Failure.invalidGraph }
+            }
+            if record.id.kind == .budget {
+                let scope = try record.text("scope")
+                let conto = try record.reference("conto", kind: .conto)
+                guard scope == nil || scope == "book" || scope == "conto",
+                      (scope == "conto") == (conto != nil) else { throw Failure.invalidGraph }
             }
             if record.id.kind == .transaction {
                 let type = try required(record.enumeration("type", TransactionType.self))

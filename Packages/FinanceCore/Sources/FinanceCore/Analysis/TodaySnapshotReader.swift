@@ -15,7 +15,7 @@ public struct TodayBudgetSnapshot: Sendable, Identifiable {
 
     init(_ budget: Budget, now: Date, transactions: [Transaction]) {
         id = budget.id
-        name = budget.name ?? "Budget"
+        name = budget.displayName
         limit = budget.amount ?? 0
         if let interval = budget.period?.interval(containing: now) {
             spent = RecordedBudgetSpending.total(for: budget, transactions: transactions,

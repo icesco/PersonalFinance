@@ -67,7 +67,7 @@ struct SpendingRiskBanner: View {
         if let categoryID, let accountID {
             let previews = BudgetService.previewExpense(
                 amount: amount, categoryID: categoryID, accountID: accountID, date: date,
-                budgets: budgets, transactions: transactions, excludingTransactionID: nil
+                budgets: budgets, transactions: transactions, excludingTransactionID: nil, contoID: conto?.id
             )
             for preview in previews {
                 switch preview.status {

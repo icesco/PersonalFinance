@@ -28,7 +28,7 @@ public struct BudgetingPlanEdits {
         let covered = Set(categories.filter { plan.group(for: $0) != nil }.map(\.id))
         do {
             // Only budgets owned by this feature are changed without explicit reconciliation.
-            for budget in existing where budget.planningGroupRaw != nil {
+            for budget in existing where budget.planningGroupRaw != nil && budget.contoID == nil {
                 budget.isActive = false; budget.updatedAt = Date()
             }
             if plan.method != .manual {
@@ -37,7 +37,7 @@ public struct BudgetingPlanEdits {
                     let amount = plan.roundedLimit(for: group, currency: account.currency ?? "EUR")
                     guard amount > 0, !members.isEmpty else { continue }
                     let budget: Budget
-                    if let owned = existing.first(where: { $0.planningGroupRaw == group.rawValue }) { budget = owned }
+                    if let owned = existing.first(where: { $0.planningGroupRaw == group.rawValue && $0.contoID == nil }) { budget = owned }
                     else {
                         budget = Budget(name: "", amount: amount, period: .monthly, includeRecurringTransactions: false)
                         budget.account = account; context.insert(budget); inserted.append(budget)
@@ -48,7 +48,7 @@ public struct BudgetingPlanEdits {
                     budget.planningGroupRaw = group.rawValue; budget.includeRecurringTransactions = false; budget.updatedAt = Date()
                 }
                 if archiveOverlapping {
-                    for budget in existing where budget.planningGroupRaw == nil && !budget.coveredCategoryIDs.isDisjoint(with: covered) {
+                    for budget in existing where budget.planningGroupRaw == nil && budget.contoID == nil && !budget.coveredCategoryIDs.isDisjoint(with: covered) {
                         budget.isActive = false; budget.updatedAt = Date()
                     }
                 }

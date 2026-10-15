@@ -9,6 +9,9 @@ private var monthlyForecastLocale: Locale {
 struct MonthlyForecastView: View {
     let conti: [Conto]
     let currency: String
+    @Environment(\.scenePhase) private var scenePhase
+    @Query private var memberships: [SharedBookMembership]
+    @Query private var budgets: [Budget]
     @Query private var transactions: [FinanceCore.Transaction]
     @Query private var resolutions: [RecurrenceResolution]
     @State private var selectedID: UUID?
@@ -17,23 +20,31 @@ struct MonthlyForecastView: View {
     init(conti: [Conto], currency: String, initialDate: Date = Date()) {
         self.conti = conti
         self.currency = currency
-        _selectedID = State(initialValue: conti.first?.id)
-        _month = State(initialValue: initialDate)
+        _selectedID = State(initialValue: conti.first(where: \.supportsMonthlyForecast)?.id)
+        let calendar = Calendar.current
+        let currentMonth = calendar.dateInterval(of: .month, for: Date())!.start
+        let requestedMonth = calendar.dateInterval(of: .month, for: initialDate)!.start
+        _month = State(initialValue: max(currentMonth, requestedMonth))
     }
 
     var body: some View {
-        let selected = conti.first { $0.id == selectedID } ?? conti.first
+        let eligible = conti.filter(\.supportsMonthlyForecast)
+        let selected = eligible.first { $0.id == selectedID } ?? eligible.first
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                MonthlyForecastAccountPicker(conti: conti, selection: $selectedID)
-                MonthlyForecastMonthPicker(month: $month)
+                if !eligible.isEmpty {
+                    MonthlyForecastAccountPicker(conti: eligible, selection: $selectedID)
+                    MonthlyForecastMonthPicker(month: $month)
+                }
                 if let selected {
                     let report = MonthlyForecastCalculator.build(conto: selected, transactions: transactions,
-                        resolutions: resolutions, month: month)
-                    MonthlyForecastAccountContent(report: report, contoID: selected.id, currency: currency)
+                        resolutions: resolutions, month: month, budgets: budgets)
+                    MonthlyForecastAccountContent(report: report, contoID: selected.id, currency: currency,
+                        participants: MonthlyForecastParticipants.people(conto: selected, memberships: memberships))
                         .id(selected.id)
                 } else {
-                    ContentUnavailableView("Nessun conto disponibile", systemImage: "wallet.bifold")
+                    ContentUnavailableView("Nessun conto corrente", systemImage: "wallet.bifold",
+                        description: Text("La previsione del mese è disponibile solo per i conti correnti attivi."))
                 }
             }.frame(maxWidth: 760).frame(maxWidth: .infinity).padding(22)
         }
@@ -42,9 +53,15 @@ struct MonthlyForecastView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .onChange(of: conti.map(\.id)) {
-            if !conti.contains(where: { $0.id == selectedID }) { selectedID = conti.first?.id }
+        .onAppear { clampToCurrentMonth() }
+        .onChange(of: scenePhase) { if scenePhase == .active { clampToCurrentMonth() } }
+        .onChange(of: eligible.map(\.id)) {
+            if !eligible.contains(where: { $0.id == selectedID }) { selectedID = eligible.first?.id }
         }
+    }
+    private func clampToCurrentMonth() {
+        let currentMonth = Calendar.current.dateInterval(of: .month, for: Date())!.start
+        if month < currentMonth { month = currentMonth }
     }
 }
 
@@ -81,12 +98,17 @@ private struct MonthlyForecastAccountPicker: View {
 
 private struct MonthlyForecastMonthPicker: View {
     @Binding var month: Date
+    private var canGoBack: Bool {
+        Calendar.current.compare(month, to: Date(), toGranularity: .month) == .orderedDescending
+    }
     var body: some View {
         HStack {
             Button("Mese precedente", systemImage: "chevron.left") {
+                guard canGoBack else { return }
                 month = Calendar.current.date(byAdding: .month, value: -1, to: month)!
             }.labelStyle(.iconOnly).buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
                 .frame(width: 48, height: 48).accessibilityIdentifier("monthly-forecast-previous")
+                .disabled(!canGoBack)
             Spacer(minLength: 8)
             Text(month.formatted(.dateTime.month(.wide).year().locale(monthlyForecastLocale))).font(.system(.title3, design: .serif, weight: .bold))
                 .multilineTextAlignment(.center).accessibilityIdentifier("monthly-forecast-month")
@@ -100,38 +122,197 @@ private struct MonthlyForecastMonthPicker: View {
 }
 
 private struct MonthlyForecastAccountContent: View {
-    let report: MonthlyForecast
+    let sourceReport: MonthlyForecast
     let currency: String
+    let contoID: UUID
+    let participants: [TransactionPerson]
     @AppStorage private var mode: String
     @AppStorage private var percentageText: String
     @AppStorage private var fixedText: String
     @AppStorage private var includingVariables: Bool
+    @AppStorage private var excludedCategoriesJSON: String
+    @State private var showsDetails = false
 
-    init(report: MonthlyForecast, contoID: UUID, currency: String) {
-        self.report = report
+    init(report: MonthlyForecast, contoID: UUID, currency: String, participants: [TransactionPerson]) {
+        self.sourceReport = report
         self.currency = currency
+        self.contoID = contoID
+        self.participants = participants
         let key = "formi.forecast.safety.\(contoID.uuidString).\(currency)"
         _mode = AppStorage(wrappedValue: "percentage", "\(key).mode")
         _percentageText = AppStorage(wrappedValue: "0", "\(key).percentage")
         _fixedText = AppStorage(wrappedValue: "0", "\(key).fixed")
         _includingVariables = AppStorage(wrappedValue: false, "\(key).includeVariables")
+        _excludedCategoriesJSON = AppStorage(wrappedValue: "[]", "\(key).excludedVariableCategories")
+    }
+
+    private var excludedCategories: Binding<Set<String>> {
+        Binding(get: {
+            Set((try? JSONDecoder().decode([String].self, from: Data(excludedCategoriesJSON.utf8))) ?? [])
+        }, set: { ids in
+            if let data = try? JSONEncoder().encode(ids.sorted()), let json = String(data: data, encoding: .utf8) {
+                excludedCategoriesJSON = json
+            }
+        })
     }
 
     var body: some View {
+        let report = sourceReport.excludingVariableCategories(excludedCategories.wrappedValue)
         let selectedMode = MonthlySafetyMargin.Mode(rawValue: mode) ?? .percentage
         let input = selectedMode == .percentage ? percentageText : fixedText
         let safety = MarginScenario.expense(from: input).flatMap {
             MonthlySafetyMargin(necessary: report.necessary(includingVariables: includingVariables), mode: selectedMode, value: $0, currency: currency)
         }
         VStack(alignment: .leading, spacing: 20) {
+            if report.period == .current {
+                MonthlyForecastCoverageSummary(report: report, safety: safety, currency: currency, includingVariables: includingVariables)
+            }
             MonthlyForecastSummary(report: report, currency: currency, safety: safety, includingVariables: $includingVariables)
+            if includingVariables {
+                MonthlyForecastCategorySelection(report: sourceReport, currency: currency, excluded: excludedCategories)
+            }
+            if report.period == .current {
+                MonthlyForecastFundingSplitView(contoID: contoID, currency: currency, participants: participants,
+                    shortfall: report.fundingShortfall(safety: safety, includingVariables: includingVariables))
+            }
             if report.period != .past {
                 MonthlyForecastSafetyEditor(report: report, currency: currency, mode: $mode,
                     value: selectedMode == .percentage ? $percentageText : $fixedText, safety: safety, includingVariables: includingVariables)
             }
-            MonthlyForecastCommitments(report: report, currency: currency)
-            MonthlyForecastCoverage(report: report, currency: currency, safety: safety, includingVariables: includingVariables)
+            DisclosureGroup(isExpanded: $showsDetails) {
+                VStack(spacing: 20) {
+                    MonthlyForecastCommitments(report: report, currency: currency)
+                    MonthlyForecastCoverage(report: report, currency: currency, safety: safety, includingVariables: includingVariables)
+                }.padding(.top, 16)
+            } label: {
+                Label("Dettagli del calcolo", systemImage: "list.bullet")
+                    .font(.subheadline.weight(.semibold)).frame(minHeight: 48)
+            }.tint(ForgiaPalette.accent).accessibilityIdentifier("monthly-forecast-details")
         }
+    }
+}
+
+private struct MonthlyForecastCategorySelection: View {
+    let report: MonthlyForecast
+    let currency: String
+    @Binding var excluded: Set<String>
+    @State private var isExpanded = false
+
+    var body: some View {
+        let selectedReport = report.excludingVariableCategories(excluded)
+        VStack(alignment: .leading, spacing: 0) {
+            Button { isExpanded.toggle() } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Categorie da includere").font(.subheadline.weight(.semibold))
+                        Text("\(report.estimates.filter { !excluded.contains($0.id) }.count) di \(report.estimates.count) selezionate")
+                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down").font(.caption.weight(.semibold))
+                }.frame(maxWidth: .infinity, minHeight: 48, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain)
+                .accessibilityIdentifier("monthly-forecast-categories")
+                .accessibilityValue(isExpanded ? String(localized: "Espanso") : String(localized: "Compresso"))
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Scegli budget e spese abituali da aggiungere. Il residuo del budget sostituisce lo storico delle sue categorie. Le scadenze programmate restano sempre nel totale.")
+                        .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    if let limitation = selectedReport.estimateLimitation {
+                        Text(limitation).font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                    if report.hasBudgetBasis, let limitation = report.historyLimitation {
+                        Text("Usiamo i budget del conto. La parte storica è esclusa: \(limitation)")
+                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                    if report.estimates.isEmpty {
+                        Text("Non ci sono categorie con uno storico sufficiente per la stima.")
+                            .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                    }
+                    ForEach(report.estimates) { estimate in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle(isOn: Binding(get: { !excluded.contains(estimate.id) }, set: { included in
+                                if included { excluded.remove(estimate.id) } else { excluded.insert(estimate.id) }
+                            })) {
+                                Text(estimate.name).font(.subheadline.weight(.semibold))
+                            }.frame(minHeight: 48).accessibilityIdentifier("monthly-forecast-category-\(estimate.name)")
+                            if estimate.budgetID != nil {
+                                MonthlyForecastBudgetBasis(estimate: estimate, currency: currency)
+                            } else {
+                            MonthlyForecastAmountLink(title: "Media mensile nello storico",
+                                amount: report.estimateLimitation == nil ? estimate.monthlyAverage(over: report.sampleMonths.count) : nil,
+                                currency: currency) {
+                                MonthlyForecastDetail(title: estimate.name, events: estimate.samples, currency: currency,
+                                    explanation: "Spese abituali dei tre mesi completi precedenti. La media divide il totale per tre, includendo i mesi senza spese. La stima usa invece il valore centrale dei tre totali mensili.") {
+                                    ForEach(report.sampleMonths, id: \.timeIntervalSinceReferenceDate) { month in
+                                        let rows = estimate.samples.filter { Calendar.current.isDate($0.date, equalTo: month, toGranularity: .month) }
+                                        LabeledContent(month.formatted(.dateTime.month(.wide).year().locale(monthlyForecastLocale))) {
+                                            MonthlyForecastAmount(amount: MonthlyForecast.total(rows), currency: currency)
+                                        }
+                                    }
+                                }
+                            }
+                            if report.estimateLimitation == nil {
+                                LabeledContent("Base mensile della stima") { Text(estimate.monthlyBaseline, format: .currency(code: currency)) }
+                                LabeledContent("Ancora da spendere · stima") { Text(estimate.remaining, format: .currency(code: currency)) }
+                            }
+                            }
+                        }
+                        if estimate.id != report.estimates.last?.id { Divider() }
+                    }
+                }.padding(.top, 12)
+            }
+        }.tint(ForgiaPalette.accent).unifiedCard()
+    }
+}
+
+private struct MonthlyForecastCoverageSummary: View {
+    let report: MonthlyForecast
+    let safety: MonthlySafetyMargin?
+    let currency: String
+    let includingVariables: Bool
+
+    private var status: MonthlyForecast.CoverageStatus {
+        report.coverageStatus(safety: safety, includingVariables: includingVariables)
+    }
+    private var tint: Color {
+        switch status {
+        case .coveredByBalance: ForgiaPalette.balance
+        case .coveredWithPlannedInflows: ForgiaPalette.calendar
+        case .shortfall: ForgiaPalette.deficit
+        case .unavailable: ForgiaPalette.mutedText
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            switch status {
+            case .coveredByBalance:
+                Label("Il saldo basta", systemImage: "checkmark.circle.fill").font(.title3.weight(.semibold))
+                if let balance = report.balance, let required = safety?.requiredWithReserve {
+                    Text("Hai \(balance, format: .currency(code: currency)) sul conto: coprono i \(required, format: .currency(code: currency)) necessari, inclusa la riserva scelta.")
+                }
+                if let ending = report.endingProjectedBalance, let reserve = safety?.reserve {
+                    let remaining = ending - (includingVariables ? report.variableRemaining ?? 0 : 0) - reserve
+                    Text("Dopo i movimenti previsti restano \(remaining, format: .currency(code: currency)) oltre alla riserva.")
+                        .font(.subheadline.weight(.medium))
+                }
+            case .coveredWithPlannedInflows:
+                Label("Coperto con le entrate previste", systemImage: "clock.badge.checkmark").font(.title3.weight(.semibold))
+                Text("Il saldo di oggi da solo non basta. Le entrate e i trasferimenti programmati permettono di coprire le scadenze e mantenere la riserva, se arrivano nelle date previste.")
+            case .shortfall(let gap):
+                Label("Serve aggiungere denaro", systemImage: "exclamationmark.circle.fill").font(.title3.weight(.semibold))
+                Text("Mancano \(gap, format: .currency(code: currency)) per coprire le spese considerate e mantenere la riserva alle scadenze.")
+            case .unavailable:
+                Label("Copertura da verificare", systemImage: "questionmark.circle").font(.title3.weight(.semibold))
+                if let limitation = report.coverageLimitation { Text(limitation) }
+                else if includingVariables, let limitation = report.estimateLimitation { Text(limitation) }
+                else { Text("Controlla il saldo, gli importi considerati e la riserva scelta per sapere se il conto basta. Trovi le voci nei dettagli del calcolo.") }
+            }
+            Text(includingVariables ? "Comprende i budget residui e le stime selezionate. Gli altri imprevisti possono cambiare il risultato." : "Vale per le spese programmate. Le altre spese non programmate restano escluse.")
+                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+        }.foregroundStyle(tint).frame(maxWidth: .infinity, alignment: .leading)
+            .unifiedCard(tint: tint).accessibilityIdentifier("monthly-forecast-coverage-status")
     }
 }
 
@@ -233,16 +414,16 @@ private struct MonthlyForecastSummary: View {
             if report.period != .past {
                 MonthlyForecastAmountLink(title: "Totale ancora necessario", amount: safety?.requiredWithReserve, currency: currency, prominent: true) {
                     MonthlyForecastDetail(title: "Totale ancora necessario", events: report.recurring + report.occasional,
-                        currency: currency, explanation: "Ricorrenti e occasionali programmate ancora da pagare, più la riserva scelta. Le spese abituali stimate si aggiungono solo se attivi l'opzione; le spese già registrate sono escluse.") {
+                        currency: currency, explanation: "Ricorrenti e occasionali programmate ancora da pagare, più la riserva scelta. I budget residui e le spese abituali stimate si aggiungono solo se attivi l'opzione; le spese già registrate sono escluse.") {
                         MonthlyForecastSafetyBasis(report: report, safety: safety, currency: currency, includingVariables: includingVariables)
                         if includingVariables { MonthlyForecastEstimateBasis(report: report, currency: currency) }
                     }
                 }
                 if report.necessary(includingVariables: includingVariables) != nil {
-                    Text(includingVariables ? "Scadenze note + spese abituali stimate + riserva scelta" : "Scadenze note + riserva scelta. Escluse le altre spese non programmate.")
+                    Text(includingVariables ? "Scadenze note + budget e stime scelti + riserva" : "Scadenze note + riserva scelta. Escluse le altre spese non programmate.")
                         .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
-                Toggle("Aggiungi la stima delle spese abituali", isOn: $includingVariables)
+                Toggle("Aggiungi budget e spese abituali", isOn: $includingVariables)
                     .tint(ForgiaPalette.accent).accessibilityIdentifier("monthly-forecast-include-variables")
                 if report.necessary(includingVariables: includingVariables) == nil {
                     Text("Il totale con stima non è disponibile. Disattiva l'opzione per consultare solo gli impegni conosciuti.")
@@ -274,7 +455,7 @@ private struct MonthlyForecastCommitments: View {
             MonthlyForecastEventLink(title: "Impegni conosciuti · senza stime", events: report.recurring + report.occasional, currency: currency,
                 explanation: "Somma delle ricorrenti irrisolte e delle spese occasionali programmate.")
             if report.period != .past {
-                MonthlyForecastAmountLink(title: "Variabili residue · stima", amount: report.variableRemaining, currency: currency) {
+                MonthlyForecastAmountLink(title: "Variabili residue · budget e stime", amount: report.variableRemaining, currency: currency) {
                     ScrollView { MonthlyForecastEstimateBasis(report: report, currency: currency).padding(22) }
                         .navigationTitle("Base della stima")
                 }
@@ -439,12 +620,24 @@ private struct MonthlyForecastEstimateBasis: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let limitation = report.estimateLimitation { Text(limitation).foregroundStyle(ForgiaPalette.mutedText) }
+            if report.hasBudgetBasis {
+                Text("I budget mensili selezionati sostituiscono lo storico delle proprie categorie. Dal limite sottraiamo le spese registrate e le scadenze già comprese negli impegni; aggiungiamo soltanto il residuo, mai un importo negativo.")
+                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+            }
+            if report.estimates.contains(where: { $0.budgetID == nil }) {
             Text("Per ogni singola categoria usiamo il valore centrale dei totali dei tre mesi completi precedenti, includendo i mesi senza spese. Servono almeno tre movimenti in almeno due mesi. Questo limita il peso di un mese eccezionale. Sottraiamo le spese già registrate e le occasionali programmate della stessa categoria; il residuo non scende sotto zero. Le fatture di altre categorie non riducono, ad esempio, la stima del supermercato.")
                 .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
             ForEach(report.sampleMonths, id: \.timeIntervalSinceReferenceDate) { month in
                 Text(month.formatted(.dateTime.month(.wide).year().locale(monthlyForecastLocale))).font(.caption)
             }
+            }
             ForEach(report.estimates) { estimate in
+                if estimate.budgetID != nil {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(estimate.name).font(.headline)
+                        MonthlyForecastBudgetBasis(estimate: estimate, currency: currency)
+                    }.unifiedCard()
+                } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(estimate.name).font(.headline)
                     if report.estimateLimitation == nil {
@@ -458,6 +651,7 @@ private struct MonthlyForecastEstimateBasis: View {
                     MonthlyForecastEventLink(title: "Movimenti della base storica", events: estimate.samples,
                         currency: currency, explanation: "Spese della categoria usate nella stima: sommiamo ciascun mese e scegliamo il valore centrale dei tre totali. Non è una previsione certa delle prossime spese.")
                 }.unifiedCard()
+                }
             }
             if !report.historyExclusions.isEmpty {
                 Text("Movimenti esclusi dalla stima").font(.headline)
@@ -469,5 +663,26 @@ private struct MonthlyForecastEstimateBasis: View {
                 }
             }
         }
+    }
+}
+
+private struct MonthlyForecastBudgetBasis: View {
+    let estimate: MonthlyVariableEstimate
+    let currency: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Budget mensile · sostituisce lo storico delle categorie incluse")
+                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            if let limitation = estimate.limitation {
+                Text(limitation).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            } else {
+                LabeledContent("Limite mensile") { Text(estimate.monthlyBaseline, format: .currency(code: currency)) }
+                MonthlyForecastEventLink(title: "Spese già registrate", events: estimate.recordedSamples, currency: currency,
+                    explanation: "Spese del conto e delle categorie del budget già registrate nel mese.")
+                MonthlyForecastEventLink(title: "Scadenze già nel totale", events: estimate.scheduledSamples, currency: currency,
+                    explanation: "Scadenze considerate separatamente: vengono sottratte dal budget per non contarle due volte.")
+                LabeledContent("Budget residuo da aggiungere") { Text(estimate.remaining, format: .currency(code: currency)) }
+            }
+        }.font(.subheadline)
     }
 }

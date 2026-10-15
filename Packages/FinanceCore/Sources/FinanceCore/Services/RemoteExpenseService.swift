@@ -84,7 +84,7 @@ public enum RemoteExpenseService {
         let previews = BudgetService.previewExpense(amount: input.amount, categoryID: input.categoryID,
             accountID: input.bookID, date: input.date,
             budgets: try context.fetch(FetchDescriptor<Budget>()),
-            transactions: try context.fetch(FetchDescriptor<Transaction>()), calendar: calendar)
+            transactions: try context.fetch(FetchDescriptor<Transaction>()), calendar: calendar, contoID: conto.id)
         return RemoteExpenseQuote(input: input, issuedAt: now,
             bookName: book.name ?? "Libro", contoName: conto.name ?? "Conto",
             categoryName: category.name ?? "Categoria", budgets: previews.map {

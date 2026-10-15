@@ -130,8 +130,10 @@ public enum SharedBookExporter {
                     "contentDigest": .text(SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined())]))
             }
         }
-        for budget in contoID == nil ? book.budgets ?? [] : [] {
+        for budget in (book.budgets ?? []).filter({ contoID == nil || $0.contoID == contoID }) {
             guard (budget.categories ?? []).allSatisfy({ categoryIDs.contains($0.id) }) else { throw Failure.invalidBoundary }
+            guard budget.contoID == nil || budget.contoID.map(contoIDs.contains) == true,
+                  contoID == nil || (budget.categories ?? []).allSatisfy({ sharedCategoryIDs.contains($0.id) }) else { throw Failure.invalidBoundary }
             let refs = (budget.categories ?? []).filter { categoryIDs.contains($0.id) }.map { id(.category, $0.id) }.sorted { $0.recordName < $1.recordName }
             records.append(record(.budget, budget.id, ["book": bookReference, "externalID": .text(budget.externalID),
                 "name": budget.name.map(SharedValue.text), "amount": budget.amount.map(SharedValue.decimal),
@@ -139,7 +141,8 @@ public enum SharedBookExporter {
                 "createdAt": budget.createdAt.map(SharedValue.date), "updatedAt": budget.updatedAt.map(SharedValue.date),
                 "threshold": budget.alertThreshold.map(SharedValue.number), "includeRecurring": budget.includeRecurringTransactions.map(SharedValue.flag),
                 "categories": .references(refs), "exactCategories": budget.usesExactCategories.map(SharedValue.flag),
-                "planningGroup": budget.planningGroupRaw.map(SharedValue.text)]))
+                "planningGroup": budget.planningGroupRaw.map(SharedValue.text),
+                "scope": .text(budget.contoID == nil ? "book" : "conto"), "conto": reference(.conto, budget.contoID)]))
         }
         for goal in contoID == nil ? book.savingsGoals ?? [] : [] {
             records.append(record(.goal, goal.id, ["book": bookReference, "externalID": .text(goal.externalID),

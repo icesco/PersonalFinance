@@ -38,20 +38,21 @@ extension BudgetService {
     public static func previewExpense(
         amount: Decimal, categoryID: UUID, accountID: UUID,
         date: Date, budgets: [Budget], transactions: [Transaction],
-        calendar: Calendar = .current, excludingTransactionID: UUID? = nil
+        calendar: Calendar = .current, excludingTransactionID: UUID? = nil, contoID: UUID? = nil
     ) -> [ExpenseBudgetPreview] {
         guard amount > 0 else { return [] }
         return budgets.compactMap { budget -> ExpenseBudgetPreview? in
             guard budget.isActive == true, budget.account?.id == accountID,
                   let limit = budget.amount, limit >= 0,
                   let interval = budget.period?.interval(containing: date, calendar: calendar) else { return nil }
-            guard budget.coveredCategoryIDs.contains(categoryID) else { return nil }
+            guard budget.coveredCategoryIDs.contains(categoryID),
+                  budget.contoID == nil || (contoID != nil && budget.contoID == contoID && budget.coveredContoIDs.contains(contoID!)) else { return nil }
             let spent = RecordedBudgetSpending.total(
                 for: budget, transactions: transactions, start: interval.start, end: interval.end,
                 excludingTransactionID: excludingTransactionID
             )
             return ExpenseBudgetPreview(
-                id: budget.id, name: budget.name ?? "Budget", limit: limit,
+                id: budget.id, name: budget.displayName, limit: limit,
                 spent: spent, proposedAmount: amount,
                 threshold: min(1, max(0, budget.alertThreshold ?? 0.8)), period: interval
             )

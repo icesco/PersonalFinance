@@ -81,6 +81,9 @@ public enum SharedContoCategories {
                     if scoped.id != category.id { transaction.setCategory(scoped) }
                 }
             }
+            for budget in try context.fetch(FetchDescriptor<Budget>()) where budget.contoID == contoID && budget.account?.id == book.id {
+                budget.categories = try (budget.categories ?? []).map(copy)
+            }
             if conto.usesSharedCategories != true { conto.usesSharedCategories = true }
             try context.save()
             return added

@@ -68,7 +68,7 @@ public struct FinanceContainerDeletion {
             throw Failure.sharedBook
         }
         return Selection(book: book, conti: conti, transactions: transactions, categories: categories,
-                         budgets: try context.fetch(FetchDescriptor<Budget>()).filter { book != nil && $0.account?.id == book?.id },
+                         budgets: try context.fetch(FetchDescriptor<Budget>()).filter { (book != nil && $0.account?.id == book?.id) || $0.contoID.map(ids.contains) == true },
                          goals: try context.fetch(FetchDescriptor<SavingsGoal>()).filter { book != nil && $0.account?.id == book?.id })
     }
     public func impact(of target: Target) throws -> Impact {

@@ -153,7 +153,7 @@ struct CreateTransactionView: View {
                     if transactionType == .expense && amount > 0 {
                         if let category = selectedCategory, let account = conto?.account {
                             ExpenseBudgetCheckView(amount: amount, categoryID: category.id, accountID: account.id,
-                                                   date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring)
+                                                   date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring, contoID: conto?.id)
                         } else {
                             Label("Scegli una categoria per confrontare la spesa con i budget del libro.", systemImage: "info.circle")
                                 .font(.subheadline)
@@ -289,7 +289,7 @@ struct CreateTransactionView: View {
                let category = selectedCategory, let account = conto?.account {
                 Section("Budget") {
                     ExpenseBudgetCheckView(amount: amount, categoryID: category.id, accountID: account.id,
-                                           date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring)
+                                           date: selectedDate, currency: account.currency ?? "EUR", isRecurring: isRecurring, contoID: conto?.id)
                 }
             }
             Section("Saldo dopo il movimento") {

@@ -9,11 +9,25 @@ public struct MonthlyVariableEstimate: Identifiable {
     public let monthlyBaseline: Decimal
     public let alreadyRecorded: Decimal
     public let scheduled: Decimal
+    public var budgetID: UUID? = nil
+    public var coveredCategoryIDs: Set<String> = []
+    public var limitation: String? = nil
     public var remaining: Decimal { max(0, monthlyBaseline - alreadyRecorded - scheduled) }
+
+    public func monthlyAverage(over months: Int) -> Decimal? {
+        guard months > 0, let total = MonthlyForecast.total(samples) else { return nil }
+        return total / Decimal(months)
+    }
 }
 
 public struct MonthlyForecast {
     public enum Period { case past, current, future }
+    public enum CoverageStatus: Equatable {
+        case coveredByBalance
+        case coveredWithPlannedInflows
+        case shortfall(Decimal)
+        case unavailable
+    }
     public let period: Period
     public let interval: DateInterval
     public let recorded: [FinanceCalendarEvent]
@@ -30,12 +44,44 @@ public struct MonthlyForecast {
     public let sampleMonths: [Date]
     public let estimates: [MonthlyVariableEstimate]
     public let historyExclusions: [MonthlyForecastHistoryExclusion]
-    public let estimateLimitation: String?
+    public let historyLimitation: String?
+    public var hasBudgetBasis: Bool = false
+    public var estimateLimitation: String? {
+        Self.variableLimitation(estimates: estimates, historyLimitation: historyLimitation, hasBudgetBasis: hasBudgetBasis)
+    }
+
+    fileprivate static func variableLimitation(estimates: [MonthlyVariableEstimate], historyLimitation: String?, hasBudgetBasis: Bool) -> String? {
+        if let issue = estimates.compactMap(\.limitation).first { return issue }
+        var covered: Set<String> = []
+        for estimate in estimates where estimate.budgetID != nil {
+            if !covered.isDisjoint(with: estimate.coveredCategoryIDs) {
+                return "Più budget coprono le stesse categorie. In Categorie da includere selezionane uno per evitare doppi conteggi."
+            }
+            covered.formUnion(estimate.coveredCategoryIDs)
+        }
+        return hasBudgetBasis ? nil : historyLimitation
+    }
     public let coverageLimitation: String?
     public let minimumProjectedBalance: Decimal?
     public let endingProjectedBalance: Decimal?
     public let deadlineShortfall: Decimal?
     public let estimatedShortfall: Decimal?
+
+    public func excludingVariableCategories(_ ids: Set<String>) -> MonthlyForecast {
+        let selected = estimates.filter { !ids.contains($0.id) }
+        let shortfall: Decimal?
+        if Self.variableLimitation(estimates: selected, historyLimitation: historyLimitation, hasBudgetBasis: hasBudgetBasis) == nil, let endingProjectedBalance, let deadlineShortfall {
+            shortfall = max(deadlineShortfall, max(0, selected.reduce(0) { $0 + $1.remaining } - endingProjectedBalance))
+        } else { shortfall = nil }
+        return MonthlyForecast(period: period, interval: interval, recorded: recorded,
+            recordedOccasional: recordedOccasional, recordedUnscheduled: recordedUnscheduled,
+            recurring: recurring, occasional: occasional, income: income, transfers: transfers,
+            balanceMovements: balanceMovements, openingBalance: openingBalance, balance: balance,
+            sampleMonths: sampleMonths, estimates: selected, historyExclusions: historyExclusions,
+            historyLimitation: historyLimitation, hasBudgetBasis: hasBudgetBasis, coverageLimitation: coverageLimitation,
+            minimumProjectedBalance: minimumProjectedBalance, endingProjectedBalance: endingProjectedBalance,
+            deadlineShortfall: deadlineShortfall, estimatedShortfall: shortfall)
+    }
 
     public static func total(_ rows: [FinanceCalendarEvent]) -> Decimal? {
         guard rows.allSatisfy({ $0.amount != nil }) else { return nil }
@@ -63,12 +109,31 @@ public struct MonthlyForecast {
         if period == .past { return paid }
         return necessary(includingVariables: includingVariables).map { paid + $0 }
     }
+
+    public func coverageStatus(safety: MonthlySafetyMargin?, includingVariables: Bool) -> CoverageStatus {
+        guard period == .current, coverageLimitation == nil, let balance,
+              let safety, let required = safety.requiredWithReserve,
+              let gap = safety.shortfall(minimumBalance: minimumProjectedBalance,
+                                        endingBalance: endingProjectedBalance,
+                                        variableRemaining: includingVariables ? variableRemaining : 0) else { return .unavailable }
+        if gap > 0 { return .shortfall(gap) }
+        let transfersOut = transfers.reduce(Decimal.zero) { $0 + max(0, -($1.amount ?? 0)) }
+        return balance >= required + transfersOut ? .coveredByBalance : .coveredWithPlannedInflows
+    }
+
+    public func fundingShortfall(safety: MonthlySafetyMargin?, includingVariables: Bool) -> Decimal? {
+        switch coverageStatus(safety: safety, includingVariables: includingVariables) {
+        case .coveredByBalance, .coveredWithPlannedInflows: 0
+        case .shortfall(let amount): amount
+        case .unavailable: nil
+        }
+    }
 }
 
 @MainActor
 public enum MonthlyForecastCalculator {
     public static func build(conto: Conto, transactions: [Transaction], resolutions: [RecurrenceResolution],
-                             month: Date, now: Date = Date(), calendar: Calendar = .current) -> MonthlyForecast {
+                             month: Date, now: Date = Date(), calendar: Calendar = .current, budgets: [Budget] = []) -> MonthlyForecast {
         let interval = calendar.dateInterval(of: .month, for: month)!
         let currentStart = calendar.dateInterval(of: .month, for: now)!.start
         let period: MonthlyForecast.Period = interval.end <= now ? .past : interval.start > now ? .future : .current
@@ -178,7 +243,7 @@ public enum MonthlyForecastCalculator {
             return result
         }
         let grouped = Dictionary(grouping: variableHistory, by: categoryKey)
-        let estimates = grouped.map { key, rows in
+        var estimates = grouped.map { key, rows in
             let paid = recordedUnscheduled.filter { byID[$0.transactionID].map(categoryKey) == key }
             let scheduled = (occasional + recordedOccasional).filter { byID[$0.transactionID].map(categoryKey) == key }
             let totals = sampleMonths.map { month in
@@ -190,10 +255,32 @@ public enum MonthlyForecastCalculator {
                 monthlyBaseline: rounded(totals[1]),
                 alreadyRecorded: MonthlyForecast.total(paid) ?? 0, scheduled: MonthlyForecast.total(scheduled) ?? 0)
         }.sorted { $0.name < $1.name }
+        let monthlyBudgets = budgets.filter {
+            period != .past && $0.isActive == true && $0.period == .monthly &&
+            $0.contoID == conto.id && $0.account?.id == conto.account?.id && $0.coveredContoIDs.contains(conto.id)
+        }.sorted { $0.id.uuidString < $1.id.uuidString }
+        let budgetCategories = Set(monthlyBudgets.flatMap { $0.coveredCategoryIDs.map(\.uuidString) })
+        estimates.removeAll { budgetCategories.contains($0.id) || (!monthlyBudgets.isEmpty && limitation != nil) }
+        for budget in monthlyBudgets {
+            let categories = Set(budget.coveredCategoryIDs.map(\.uuidString))
+            func matches(_ event: FinanceCalendarEvent) -> Bool {
+                byID[event.transactionID].map { categories.contains(categoryKey($0)) } == true
+            }
+            let paid = recorded.filter(matches), committed = pending.filter(matches)
+            let spent = MonthlyForecast.total(paid), scheduled = MonthlyForecast.total(committed)
+            let limit = budget.amount.flatMap { !$0.isNaN && $0 >= 0 ? $0 : nil }
+            let issue = limit == nil || spent == nil || scheduled == nil || categories.isEmpty
+                ? "Importi o categorie del budget da verificare: residuo non disponibile." : nil
+            estimates.append(MonthlyVariableEstimate(id: "budget:\(budget.id.uuidString)", name: budget.name ?? "Budget",
+                samples: paid, recordedSamples: paid, scheduledSamples: committed,
+                monthlyBaseline: limit ?? 0, alreadyRecorded: spent ?? 0, scheduled: scheduled ?? 0,
+                budgetID: budget.id, coveredCategoryIDs: categories, limitation: issue))
+        }
+        let effectiveLimitation = MonthlyForecast.variableLimitation(estimates: estimates, historyLimitation: limitation, hasBudgetBasis: !monthlyBudgets.isEmpty)
         let coverageLimitation: String?
         if period != .current { coverageLimitation = "Il saldo attuale non rappresenta il saldo di questo mese. La copertura si calcola solo per il mese corrente." }
         else if conto.type == .credit { coverageLimitation = "Questo conto è una carta di credito: il saldo non è liquidità disponibile. Verifica il conto di addebito." }
-        else if ![ContoType.checking, .savings, .cash].contains(conto.type) { coverageLimitation = "La copertura richiede un conto corrente, un conto risparmio o contanti: il saldo di questo conto non rappresenta liquidità verificabile." }
+        else if !conto.supportsMonthlyForecast { coverageLimitation = "La previsione e la copertura sono disponibili solo per i conti correnti attivi." }
         else if balance == nil { coverageLimitation = "Saldo iniziale o movimenti da verificare: copertura non disponibile." }
         else if MonthlyForecast.total(pending + income + transfers) == nil { coverageLimitation = "Importi programmati da verificare: copertura non disponibile." }
         else { coverageLimitation = nil }
@@ -214,7 +301,7 @@ public enum MonthlyForecastCalculator {
             minimumProjectedBalance = minimum
             endingProjectedBalance = available
             deadlineShortfall = max(0, -minimum)
-            if limitation == nil {
+            if effectiveLimitation == nil {
                 let variable = estimates.reduce(Decimal.zero) { $0 + $1.remaining }
                 estimatedShortfall = max(deadlineShortfall ?? 0, max(0, variable - available))
             }
@@ -225,7 +312,7 @@ public enum MonthlyForecastCalculator {
             balance: balance, sampleMonths: sampleMonths, estimates: estimates,
             historyExclusions: MonthlyForecastHistoryExclusion.Reason.allCases.compactMap { reason in
                 exclusions[reason].map { MonthlyForecastHistoryExclusion(reason: reason, events: $0.sorted { $0.date < $1.date }.map { event($0) }) }
-            }, estimateLimitation: limitation,
+            }, historyLimitation: limitation, hasBudgetBasis: !monthlyBudgets.isEmpty,
             coverageLimitation: coverageLimitation, minimumProjectedBalance: minimumProjectedBalance,
             endingProjectedBalance: endingProjectedBalance, deadlineShortfall: deadlineShortfall, estimatedShortfall: estimatedShortfall)
     }

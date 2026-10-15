@@ -104,6 +104,25 @@ final class BudgetDetailUITests: XCTestCase {
     }
 
     @MainActor
+    func testBudgetEditorSavesTheSelectedConto() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_BUDGET_DETAIL", "UITEST_BUDGET_SCOPE_EDITOR", "-CloudSyncEnabled", "NO",
+                               "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
+        app.launch()
+        let picker = app.buttons["budget-conto-scope"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 15))
+        picker.tap()
+        app.buttons["Conto demo"].tap()
+        let save = app.buttons["budget-save"]
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        let scope = app.staticTexts["fixture-budget-scope"]
+        XCTAssertTrue(scope.waitForExistence(timeout: 5))
+        XCTAssertEqual(scope.label, "Conto demo")
+    }
+
+    @MainActor
     private func capture(_ app: XCUIApplication, name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

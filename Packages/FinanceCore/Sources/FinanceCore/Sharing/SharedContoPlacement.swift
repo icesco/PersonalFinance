@@ -71,6 +71,9 @@ public enum SharedContoPlacement {
             guard let id = transaction.categoryId ?? transaction.category?.id, categoryIDs.contains(id) else { return true }
             return transaction.fromConto?.id == contoID || transaction.toConto?.id == contoID
         }) else { throw Failure.categoriesInUse }
+        for budget in try context.fetch(FetchDescriptor<Budget>()) where budget.contoID == contoID && budget.account?.id == source.id {
+            budget.account = target
+        }
         conto.account = target
         for category in source.categories ?? [] where categoryIDs.contains(category.id) { category.account = target }
         let rootName = SharedRecordID(bookID: scope.bookID, kind: .book, entityID: scope.bookID.uuidString.lowercased()).recordName

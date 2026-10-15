@@ -34,6 +34,7 @@ public enum ContoType: String, CaseIterable, Codable {
 
 @Model
 public final class Conto {
+    public var supportsMonthlyForecast: Bool { type == .checking && isActive != false }
     public var id: UUID = UUID()
     public var externalID: String = UUID().uuidString
     public var name: String?

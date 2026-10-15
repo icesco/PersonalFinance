@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import FinanceCore
 
 struct CreateBudgetView: View {
@@ -15,6 +16,7 @@ struct CreateBudgetView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    @State private var selectedContoID: UUID?
     @State private var budgetName: String
     @State private var budgetAmount: String
     @State private var selectedPeriod: BudgetPeriod
@@ -27,11 +29,24 @@ struct CreateBudgetView: View {
     init(account: Account, budget: FinanceBudget? = nil) {
         self.account = account
         self.budget = budget
+        _selectedContoID = State(initialValue: budget?.contoID)
         _budgetName = State(initialValue: budget?.name ?? "")
         _budgetAmount = State(initialValue: budget?.amount.map { NSDecimalNumber(decimal: $0).stringValue } ?? "")
         _selectedPeriod = State(initialValue: budget?.period ?? .monthly)
         _alertThreshold = State(initialValue: budget?.alertThreshold ?? 0.8)
         _selectedCategories = State(initialValue: Set(budget?.categories ?? []))
+    }
+
+    private var scopeCategories: [FinanceCategory] {
+        guard selectedContoID != nil else { return account.categories ?? [] }
+        let conto = account.conti?.first { $0.id == selectedContoID }
+        let scopeID = conto?.usesSharedCategories == true ? conto?.id : nil
+        return (account.categories ?? []).filter { $0.sharedContoID == scopeID }
+    }
+
+    private var selectableConti: [Conto] {
+        (account.conti ?? []).filter { $0.isActive != false || $0.id == selectedContoID }
+            .sorted { ($0.name ?? "") < ($1.name ?? "") }
     }
 
     private var includesSubcategories: Bool { budget == nil || budget?.usesExactCategories == false }
@@ -40,7 +55,7 @@ struct CreateBudgetView: View {
     private var parsedAmount: Decimal? { BalanceInput.parse(budgetAmount, currency: currency) }
 
     private var hierarchy: CategoryHierarchy {
-        CategoryHierarchy(categories: account.categories ?? [], kind: .expense)
+        CategoryHierarchy(categories: scopeCategories, kind: .expense)
     }
 
     /// Macro categories, plus archived ones this budget still uses so they can be removed.
@@ -67,14 +82,19 @@ struct CreateBudgetView: View {
         return typed.isEmpty ? (suggestedName ?? "") : typed
     }
 
+    private var validScope: Bool {
+        selectedContoID == nil || account.conti?.contains(where: { $0.id == selectedContoID && $0.isActive != false }) == true
+    }
+
     private var isFormValid: Bool {
-        !effectiveName.isEmpty &&
+        validScope && !effectiveName.isEmpty &&
         (parsedAmount ?? 0) > 0 &&
         !selectedCategories.isEmpty
     }
 
     /// What still blocks saving, in the order the form asks for it.
     private var missingStep: String? {
+        if !validScope { return "Scegli un conto disponibile" }
         if (parsedAmount ?? 0) <= 0 { return "Inserisci il limite di spesa" }
         if selectedCategories.isEmpty { return "Scegli almeno una categoria" }
         if effectiveName.isEmpty { return "Dai un nome al budget" }
@@ -93,6 +113,7 @@ struct CreateBudgetView: View {
                                 .accessibilityLabel("Nome Budget")
                         }
                     }
+                    scopeCard
                     limitCard
                     categoriesSection
                     thresholdCard
@@ -111,9 +132,29 @@ struct CreateBudgetView: View {
                     Button("Annulla") { dismiss() }
                 }
             }
+            .onChange(of: selectedContoID) {
+                let ids = Set(scopeCategories.map(\.id))
+                selectedCategories = selectedCategories.filter { ids.contains($0.id) }
+            }
             .alert("Impossibile salvare", isPresented: $showingSaveError) {
                 Button("OK", role: .cancel) { }
             } message: { Text("Il budget non è stato salvato. Controlla i dati e riprova.") }
+        }
+    }
+
+    private var scopeCard: some View {
+        FormCard(title: "Conti inclusi") {
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Ambito del budget", selection: $selectedContoID) {
+                    Text("Tutti i conti del libro").tag(nil as UUID?)
+                    ForEach(selectableConti) { conto in
+                        Text(conto.name ?? "Conto").tag(Optional(conto.id))
+                    }
+                }.pickerStyle(.menu).frame(minHeight: 48)
+                    .accessibilityIdentifier("budget-conto-scope")
+                Text("Il budget conteggia solo le spese pagate dai conti inclusi. I budget mensili di un singolo conto possono sostituire la stima storica nella previsione.")
+                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+            }.padding(16)
         }
     }
 
@@ -334,7 +375,7 @@ struct CreateBudgetView: View {
             try BudgetEdits(context: modelContext).apply(
                 to: budget, account: account, name: effectiveName, amountText: budgetAmount,
                 period: selectedPeriod, threshold: alertThreshold,
-                categories: selectedCategories.sorted { $0.id.uuidString < $1.id.uuidString }
+                categories: selectedCategories.sorted { $0.id.uuidString < $1.id.uuidString }, contoID: selectedContoID
             )
             dismiss()
         } catch {

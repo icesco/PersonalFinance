@@ -12,6 +12,24 @@ struct MonthlyForecastFixture: View {
         let bank = Conto(name: "Crédit Agricole", type: .checking, initialBalance: 100)
         joint.account = book; bank.account = book; book.conti = [joint, bank]
         container.mainContext.insert(book)
+        var fixtureConti = [joint, bank]
+        for type in [ContoType.credit, .savings, .cash, .investment, .other] {
+            let excluded = Conto(name: type.rawValue, type: type)
+            excluded.account = book
+            container.mainContext.insert(excluded)
+            fixtureConti.append(excluded)
+        }
+        book.conti = fixtureConti
+        if ProcessInfo.processInfo.arguments.contains("UITEST_FORECAST_SPLIT") {
+            joint.initialBalance = 251
+            let membership = SharedBookMembership(scopeKey: "forecast-fixture", ownerName: "marco",
+                remoteBookID: joint.id, localBookID: book.id, isOwner: true)
+            membership.localContoID = joint.id
+            membership.peopleJSON = String(data: try! JSONEncoder().encode([
+                TransactionPerson(id: "anna", name: "Anna"), TransactionPerson(id: "marco", name: "Marco")
+            ]), encoding: .utf8)
+            container.mainContext.insert(membership)
+        }
         let food = FinanceCore.Category(name: "Alimentari", icon: "basket")
         let bills = FinanceCore.Category(name: "Bollette", icon: "bolt")
         food.account = book; bills.account = book
@@ -38,8 +56,13 @@ struct MonthlyForecastFixture: View {
         add(joint, due, 25, "Acquisto programmato", category: food)
         add(joint, calendar.date(byAdding: .month, value: -1, to: due)!, 50, "Utenza ricorrente", category: bills, recurring: true)
         add(bank, due, 300, "Consulto programmato", category: bills)
+        if ProcessInfo.processInfo.arguments.contains("UITEST_FORECAST_BUDGET") {
+            let budget = Budget(name: "Spesa di casa", amount: 120, period: .monthly)
+            budget.account = book; budget.contoID = joint.id; budget.categories = [food]
+            container.mainContext.insert(budget)
+        }
         try! container.mainContext.save()
-        return (container, [joint, bank])
+        return (container, fixtureConti)
     }()
     var body: some View {
         NavigationStack {

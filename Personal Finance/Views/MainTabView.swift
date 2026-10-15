@@ -531,7 +531,7 @@ struct QuickTransactionModal: View {
                             ExpenseBudgetCheckView(
                                 amount: proposedAmount, categoryID: category.id,
                                 accountID: account.id, date: selectedDate,
-                                currency: account.currency ?? "EUR", isRecurring: isRecurring
+                                currency: account.currency ?? "EUR", isRecurring: isRecurring, contoID: conto.id
                             )
                         } else {
                             Label("Scegli conto e categoria per verificare i budget.", systemImage: "info.circle")
@@ -759,7 +759,7 @@ struct QuickTransactionModal: View {
                 Section("Budget") {
                     ExpenseBudgetCheckView(amount: proposedAmount, categoryID: category.id,
                                            accountID: account.id, date: selectedDate,
-                                           currency: account.currency ?? "EUR", isRecurring: isRecurring)
+                                           currency: account.currency ?? "EUR", isRecurring: isRecurring, contoID: conto.id)
                 }
             }
             Section {

@@ -199,6 +199,7 @@ struct BudgetView: View {
                 FormRow(icon: "archivebox") {
                     Text(budget.name ?? "Budget")
                         .foregroundStyle(ForgiaPalette.mutedText)
+                    Text(budget.scopeName).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                     Spacer(minLength: 8)
                     Button("Riattiva") {
                         do { try BudgetEdits(context: modelContext).setActive(true, for: budget) }
@@ -279,6 +280,7 @@ struct BudgetCard: View {
                     Text(budget.name ?? "Budget")
                         .font(.headline)
                         .lineLimit(1)
+                    Text(budget.scopeName).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                     Text(periodText)
                         .font(.caption)
                         .foregroundStyle(ForgiaPalette.mutedText)
@@ -509,6 +511,7 @@ struct BudgetDetailView: View {
                         .foregroundStyle(ForgiaPalette.mutedText)
                         .padding(.horizontal, 4)
 
+                    Text(budget.scopeName).font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                     if !categories.isEmpty {
                         FormCard(title: "Categorie incluse") {
                             ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in

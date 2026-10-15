@@ -71,6 +71,46 @@ struct MonthlyForecastTests {
         #expect(result.recordedUnscheduled.count == 1)
     }
 
+    @Test func categorySelectionUpdatesTotalsCoverageAndKeepsScheduledExpenses() throws {
+        let conto = Conto(name: "Corrente", type: .checking, initialBalance: 0)
+        let food = Category(name: "Supermercato", icon: "basket")
+        let transport = Category(name: "Trasporti", icon: "car")
+        let foodRows = history(conto)
+        foodRows.forEach { $0.setCategory(food) }
+        let transportRows = (7...9).map { month in
+            let row = expense(conto, month, 12, 90)
+            row.setCategory(transport)
+            return row
+        }
+        let paid = expense(conto, 10, 9, 10)
+        paid.setCategory(food)
+        let scheduled = expense(conto, 10, 25, 20)
+        scheduled.setCategory(transport)
+        let result = report(conto, foodRows + transportRows + [paid, scheduled])
+        let foodEstimate = try #require(result.estimates.first { $0.name == "Supermercato" })
+        let transportEstimate = try #require(result.estimates.first { $0.name == "Trasporti" })
+        #expect(foodEstimate.monthlyAverage(over: result.sampleMonths.count) == 60)
+        #expect(foodEstimate.monthlyAverage(over: 0) == nil)
+        let selected = result.excludingVariableCategories([transportEstimate.id])
+        #expect(selected.estimates.map(\.id) == [foodEstimate.id])
+        #expect(selected.variableRemaining == 50)
+        #expect(selected.certainRemaining == 20)
+        #expect(selected.necessary(includingVariables: true) == 70)
+        #expect(selected.monthTotal(includingVariables: true) == 80)
+        let safety = MonthlySafetyMargin(necessary: selected.remaining, mode: .fixed, value: 10, currency: "EUR")
+        #expect(selected.estimatedShortfall == 531)
+        #expect(selected.fundingShortfall(safety: safety, includingVariables: true) == 541)
+        let none = result.excludingVariableCategories(Set(result.estimates.map(\.id)))
+        #expect(none.variableRemaining == 0)
+        #expect(none.necessary(includingVariables: true) == 20)
+        #expect(result.estimates.count == 2)
+        foodRows[1].amount = 240
+        let uneven = report(conto, foodRows + transportRows + [paid, scheduled])
+        let unevenFood = try #require(uneven.estimates.first { $0.name == "Supermercato" })
+        #expect(unevenFood.monthlyBaseline == 60)
+        #expect(unevenFood.monthlyAverage(over: uneven.sampleMonths.count) == 130)
+    }
+
     @Test func plannedHistoryExcludedAndEstimateNeverNegative() {
         let conto = Conto(name: "Corrente", type: .checking, initialBalance: 1000)
         let bill = expense(conto, 8, 22, 2000)
@@ -313,5 +353,28 @@ struct MonthlyForecastTests {
         #expect(result.certainRemaining == 1)
         #expect(result.necessary(includingVariables: false) == 1)
         #expect(result.necessary(includingVariables: true) == nil)
+    }
+
+    @Test func coverageMessageDistinguishesBalanceFutureInflowsAndEarlierDeadlines() {
+        let conto = Conto(name: "Corrente", type: .checking, initialBalance: 100)
+        let bill = expense(conto, 10, 15, 150)
+        func status(_ rows: [Transaction], variables: Bool = false, reserve: Decimal = 0) -> MonthlyForecast.CoverageStatus {
+            let result = report(conto, rows)
+            let safety = MonthlySafetyMargin(necessary: result.necessary(includingVariables: variables),
+                                              mode: .fixed, value: reserve, currency: "EUR")
+            return result.coverageStatus(safety: safety, includingVariables: variables)
+        }
+        #expect(status([bill]) == .shortfall(50))
+        let income = Transaction(amount: 100, type: .income, date: date(10, 12))
+        income.setToConto(conto)
+        #expect(status([bill, income]) == .coveredWithPlannedInflows)
+        income.date = date(10, 20)
+        #expect(status([bill, income]) == .shortfall(50))
+        conto.initialBalance = 200
+        #expect(status([bill]) == .coveredByBalance)
+        #expect(status([bill], reserve: 60) == .shortfall(10))
+        #expect(status([bill], variables: true) == .unavailable)
+        conto.type = .credit
+        #expect(status([bill]) == .unavailable)
     }
 }

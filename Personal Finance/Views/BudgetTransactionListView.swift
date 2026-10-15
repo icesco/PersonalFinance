@@ -44,7 +44,7 @@ struct BudgetTransactionListView: View {
                             Picker("Budget", selection: $selectedBudgetID) {
                                 Text("Tutti i budget").tag(UUID?.none)
                                 ForEach(availableBudgets) { budget in
-                                    Text((budget.name ?? "Budget") + (budget.isActive == false ? " · disattivato" : ""))
+                                    Text(budget.displayName + (budget.isActive == false ? " · disattivato" : ""))
                                         .tag(Optional(budget.id))
                                 }
                             }
@@ -205,7 +205,7 @@ private struct BudgetTransactionResults: View {
             return "Il totale segue il periodo delle transazioni scelto. Ogni budget mantiene il proprio limite e la propria cadenza."
         }
         let limit = (budget.amount ?? 0).formatted(.currency(code: currency))
-        let rule = "\(budget.name ?? "Budget"): limite di \(limit) \(BudgetPeriodText.frequency(for: period))."
+        let rule = "\(budget.displayName): limite di \(limit) \(BudgetPeriodText.frequency(for: period))."
         if interval == budgetInterval {
             return "\(rule) Le transazioni mostrate coprono un periodo completo di questo budget."
         }

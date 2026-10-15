@@ -45,6 +45,19 @@ public final class Budget {
     public var planningGroupRaw: String?
 
     public var account: Account?
+    /// Nil keeps the original book-wide scope. A missing scoped conto never widens it.
+    public var contoID: UUID?
+
+    public var scopedConto: Conto? { account?.conti?.first { $0.id == contoID } }
+    public var scopeName: String { contoID == nil ? "Tutti i conti" : scopedConto?.name ?? "Conto non disponibile" }
+    public var displayName: String {
+        contoID == nil ? name ?? "Budget" : "\(name ?? "Budget") · \(scopeName)"
+    }
+    public var coveredContoIDs: Set<UUID> {
+        let ids = Set((account?.conti ?? []).map(\.id))
+        guard let contoID else { return ids }
+        return ids.contains(contoID) ? [contoID] : []
+    }
 
     /// Direct many-to-many relationship with Category (no junction table needed)
     public var categories: [Category]?
@@ -113,7 +126,7 @@ public final class Budget {
 
     /// Manual limits expand macro categories; plan limits resolve disjoint groups, including new children.
     public var coveredCategoryIDs: Set<UUID> {
-        if let raw = planningGroupRaw, let group = BudgetAllocationGroup(rawValue: raw),
+        if contoID == nil, let raw = planningGroupRaw, let group = BudgetAllocationGroup(rawValue: raw),
            let plan = account?.budgetingPlan, plan.method != .manual {
             return Set((account?.categories ?? []).filter { $0.fits(.expense) && plan.group(for: $0) == group }.map(\.id))
         }

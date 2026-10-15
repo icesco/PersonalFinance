@@ -42,12 +42,27 @@ struct BudgetDetailFixture: View {
     }
 
     var body: some View {
-        BudgetView(showsCloseButton: false)
+        Group {
+            if ProcessInfo.processInfo.arguments.contains("UITEST_BUDGET_SCOPE_EDITOR"), let budget = book.budgets?.first(where: { $0.name == "Alimentari" }) {
+                BudgetScopeEditorFixture(book: book, budget: budget)
+            } else {
+                BudgetView(showsCloseButton: false)
+            }
+        }
             .environment(state)
             .modelContainer(container)
             .environment(\.locale, Locale(identifier: "it_IT"))
             .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("UITEST_VISUAL_DARK") ? .dark : .light)
             .onAppear { state.selectAccount(book) }
+    }
+}
+private struct BudgetScopeEditorFixture: View {
+    let book: Account
+    let budget: Budget
+    @State private var editing = true
+    var body: some View {
+        Text(budget.scopeName).accessibilityIdentifier("fixture-budget-scope")
+            .sheet(isPresented: $editing) { CreateBudgetView(account: book, budget: budget) }
     }
 }
 #endif

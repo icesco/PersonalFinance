@@ -124,7 +124,7 @@ struct EditTransactionView: View {
                         if let category = selectedCategory, let book = transaction.fromConto?.account {
                             ExpenseBudgetCheckView(amount: amount, categoryID: category.id, accountID: book.id,
                                                    date: selectedDate, currency: book.currency ?? "EUR", isRecurring: isRecurring,
-                                                   excludingTransactionID: transaction.id)
+                                                   excludingTransactionID: transaction.id, contoID: transaction.fromContoId)
                         } else {
                             Label("Scegli una categoria per confrontare la spesa con i budget del libro.", systemImage: "info.circle")
                                 .font(.subheadline)

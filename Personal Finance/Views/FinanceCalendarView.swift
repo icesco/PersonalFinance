@@ -43,14 +43,16 @@ struct FinanceCalendarView: View {
         let byDay = Dictionary(grouping: events) { Calendar.current.startOfDay(for: $0.date) }
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                let forecastConti = conti.filter { contoIDs.contains($0.id) }
-                NavigationLink {
-                    MonthlyForecastView(conti: forecastConti, currency: currency, initialDate: month)
-                } label: {
-                    Label("Previsione del mese", systemImage: "calendar.badge.clock")
-                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                }.buttonStyle(.bordered).tint(ForgiaPalette.calendar)
-                    .accessibilityIdentifier("monthly-forecast-open")
+                let forecastConti = conti.filter { contoIDs.contains($0.id) && $0.supportsMonthlyForecast }
+                if !forecastConti.isEmpty {
+                    NavigationLink {
+                        MonthlyForecastView(conti: forecastConti, currency: currency, initialDate: month)
+                    } label: {
+                        Label("Previsione del mese", systemImage: "calendar.badge.clock")
+                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                    }.buttonStyle(.bordered).tint(ForgiaPalette.calendar)
+                        .accessibilityIdentifier("monthly-forecast-open")
+                }
                 Picker("Vista", selection: $timeline) {
                     Text("Calendario").tag(false)
                     Text("Timeline").tag(true)
