@@ -7,6 +7,7 @@ struct FinancialRing<Content: View>: View {
     var entranceAnimation: Animation = .timingCurve(0.16, 1, 0.3, 1, duration: 0.5)
     var entranceDuration: Double = 0.5
     var windowHeight: CGFloat = 100
+    var selectedSectorGlow = false
     @ViewBuilder let content: Content
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
@@ -26,7 +27,8 @@ struct FinancialRing<Content: View>: View {
                                 referenceShare: referenceShare,
                                 focus: appeared || reduceMotion ? targetFocus : entryFocus,
                                 markerScale: markerAppeared || reduceMotion ? 1 : 0,
-                                markerPosition: markerArrived || reduceMotion ? progress : markerStart)
+                                markerPosition: markerArrived || reduceMotion ? progress : markerStart,
+                                selectedSectorGlow: selectedSectorGlow)
                 .frame(height: windowHeight)
                 .clipped()
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: share)
@@ -148,11 +150,13 @@ private struct FinancialRingWindow: View {
     let focus: Double
     let markerScale: Double
     let markerPosition: Double
+    let selectedSectorGlow: Bool
 
     var body: some View {
         let drawing = FinancialRingDrawing(progress: progress, tint: tint,
                                            referenceShare: referenceShare, focus: focus,
-                                           markerScale: markerScale, markerPosition: markerPosition)
+                                           markerScale: markerScale, markerPosition: markerPosition,
+                                           selectedSectorGlow: selectedSectorGlow)
         ZStack {
             drawing.mask(edgeMask(inverted: false))
             drawing.blur(radius: 3).mask(edgeMask(inverted: true))
@@ -186,6 +190,8 @@ private struct FinancialRingDrawing: View, Animatable {
     var focus: Double
     var markerScale: Double
     var markerPosition: Double
+    let selectedSectorGlow: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     var animatableData: AnimatableValues<Double, Double, Double, Double> {
         get { AnimatableValues(progress, focus, markerScale, markerPosition) }
@@ -215,7 +221,14 @@ private struct FinancialRingDrawing: View, Animatable {
                 sector.addArc(center: center, radius: radius,
                               startAngle: .degrees(start), endAngle: .degrees(end), clockwise: false)
                 let color = index == selected ? tint : ForgiaPalette.mutedText.opacity(0.25)
-                context.stroke(sector, with: .color(color), style: style)
+                if index == selected && selectedSectorGlow {
+                    var selectedContext = context
+                    selectedContext.addFilter(.shadow(color: tint.opacity(colorScheme == .dark ? 0.28 : 0.20),
+                                                      radius: 7, x: 0, y: 2))
+                    selectedContext.stroke(sector, with: .color(color), style: style)
+                } else {
+                    context.stroke(sector, with: .color(color), style: style)
+                }
             }
             if let referenceShare {
                 let angle = (-90 + min(1, max(0, referenceShare)) * 6 * sectorDegrees - focus) * .pi / 180

@@ -38,7 +38,9 @@ struct AnalysisPreviewHeading: View {
     var body: some View {
         HStack(spacing: 8) {
             Label {
-                Text(title).font(.headline).foregroundStyle(tint)
+                Text(title)
+                    .font(.system(.headline, design: .serif, weight: .semibold))
+                    .foregroundStyle(tint)
             } icon: {
                 Group {
                     if let illustration {
@@ -126,7 +128,7 @@ struct RecordedSavingsCard: View {
                     Text(report.hasInvalidAmounts ? "Importi da verificare" : "Servono entrate registrate")
                         .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
-            }.unifiedCard(tint: ForgiaPalette.savings).foregroundStyle(.primary)
+            }.unifiedCard(tint: .clear).foregroundStyle(.primary)
         }
         .buttonStyle(.plain)
         .financeCardEntrance()

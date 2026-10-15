@@ -312,25 +312,43 @@ final class Personal_FinanceUITests: XCTestCase {
 
     @MainActor
     func testAnalysisPeriods() throws {
+        continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments = ["UITEST_NAVIGATION", "-CloudSyncEnabled", "NO", "-AppleLanguages", "(it)", "-AppleLocale", "it_IT"]
         app.launch()
-        if app.buttons["Esplora con dati demo"].waitForExistence(timeout: 3) {
-            app.buttons["Esplora con dati demo"].tap()
-        }
+        XCTAssertTrue(app.buttons["navigation-settings"].waitForExistence(timeout: 20))
+        app.buttons["navigation-settings"].tap()
+        app.buttons["Personalizza tab"].tap()
+        let addAnalysis = app.buttons["Aggiungi Analisi alla barra"]
+        XCTAssertTrue(addAnalysis.waitForExistence(timeout: 5))
+        addAnalysis.tap()
+        app.buttons["Fine"].tap()
+        app.buttons["Chiudi"].tap()
         let analysis = app.tabBars.buttons["Analisi"]
         XCTAssertTrue(analysis.waitForExistence(timeout: 15))
         analysis.tap()
-        XCTAssertTrue(app.staticTexts["Dove spendi"].waitForExistence(timeout: 5))
-        app.buttons["Periodo precedente"].tap()
-        let periodPicker = app.descendants(matching: .any)["analysis-period-picker"].firstMatch
+        let periodPicker = app.navigationBars.buttons["analysis-period-picker"]
         XCTAssertTrue(periodPicker.waitForExistence(timeout: 5))
+        let title = app.navigationBars.staticTexts["analysis-title"]
+        XCTAssertTrue(title.exists)
+        XCTAssertLessThan(title.frame.midX, periodPicker.frame.midX)
+        XCTAssertFalse(app.staticTexts["Dove spendi"].exists)
+        XCTAssertGreaterThan(periodPicker.frame.midX, app.frame.midX)
+        let initialTitle = periodPicker.label
+        periodPicker.tap()
+        app.buttons["Periodo precedente"].tap()
+        XCTAssertNotEqual(periodPicker.label, initialTitle)
         periodPicker.tap()
         app.buttons["Anno"].tap()
-        XCTAssertEqual(periodPicker.label, "Anno")
+        XCTAssertTrue(app.buttons["analysis-savings-preview"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["analysis-trend-preview"].exists)
         capture(app, name: "Analisi annuale")
         periodPicker.tap()
         app.buttons["Mese"].tap()
-        XCTAssertEqual(periodPicker.label, "Mese")
+        XCTAssertTrue(app.buttons["analysis-trend-preview"].waitForExistence(timeout: 5))
+        periodPicker.tap()
+        app.buttons["Periodo successivo"].tap()
+        XCTAssertEqual(periodPicker.label, initialTitle)
     }
 
     @MainActor

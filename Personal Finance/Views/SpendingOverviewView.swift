@@ -15,7 +15,13 @@ struct SpendingOverviewView: View {
     var initialBookID: UUID? = nil
     var isPushed = false
 
-    private var usesCompactPeriod: Bool { isPushed || isPresented || closePresentedSection != nil }
+    private var usesCompactPeriod: Bool {
+        #if os(iOS)
+        true
+        #else
+        isPushed || isPresented || closePresentedSection != nil
+        #endif
+    }
 
     @Query private var books: [Account]
 
@@ -86,7 +92,8 @@ struct SpendingOverviewView: View {
                             Image(systemName: "arrow.triangle.branch")
                                 .font(.title2).foregroundStyle(ForgiaPalette.accent)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Flusso del denaro").font(.headline)
+                                Text("Flusso del denaro")
+                                    .font(.system(.headline, design: .serif, weight: .semibold))
                                 Text("Dalle entrate alle categorie, fino a ogni dettaglio")
                                     .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                             }
@@ -181,10 +188,23 @@ struct SpendingOverviewView: View {
             .presentationDragIndicator(.visible)
             .presentationContentInteraction(.scrolls)
         }
-        .navigationTitle("Dove spendi")
+        .navigationTitle(usesCompactPeriod ? "" : "Dove spendi")
         .toolbar {
+            #if os(iOS)
+            if !isPushed {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("Analisi")
+                        .font(.system(.title2, design: .serif, weight: .semibold))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("analysis-title")
+                }
+                .sharedBackgroundVisibility(.hidden)
+            }
+            #endif
             if usesCompactPeriod {
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .primaryAction) {
             SpendingPeriodBar(
                 period: $period,
                 compact: true,
@@ -459,11 +479,8 @@ private struct SpendingPeriodBar: View {
                 } label: {
                     VStack(spacing: 1) {
                     HStack(spacing: 6) {
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .hidden()
                         Text(title)
-                            .font(.system(.title3, design: .serif, weight: .bold))
+                            .font(.system(compact ? .headline : .title3, design: .serif, weight: .bold))
                             .foregroundStyle(ForgiaPalette.accent)
                             .multilineTextAlignment(.center)
                             .lineLimit(compact ? 1 : nil)

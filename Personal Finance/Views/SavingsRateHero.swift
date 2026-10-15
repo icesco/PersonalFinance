@@ -8,14 +8,15 @@ struct SavingsRateHero: View {
     var body: some View {
         VStack(spacing: 8) {
             if dynamicTypeSize.isAccessibilitySize {
-                SavingsRateHeroValue(rate: rate)
+                SavingsRateHeroValue(rate: rate, compact: compact)
             } else {
                 VStack(spacing: 14) {
-                    SavingsRateGauge(rate: rate)
-                    SavingsRateHeroValue(rate: rate)
+                    SavingsRateGauge(rate: rate, compact: compact)
+                    SavingsRateHeroValue(rate: rate, compact: compact)
                 }
-                .frame(maxWidth: compact ? 240 : 280)
+                .frame(maxWidth: .infinity)
             }
+            SavingsRateLegend()
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
@@ -25,6 +26,7 @@ struct SavingsRateHero: View {
 /// The scale expands for signed rates and corrections above 100%.
 struct SavingsRateGauge: View {
     let rate: Decimal
+    var compact = false
 
     private var value: Double { NSDecimalNumber(decimal: rate).doubleValue }
     private var lower: Double { value < 0 ? -max(1, ceil(abs(value))) : 0 }
@@ -37,29 +39,60 @@ struct SavingsRateGauge: View {
     private var sectorUpper: Double { lower + Double(sector + 1) / 6 * (upper - lower) }
 
     var body: some View {
-        FinancialRing(share: position, tint: tint) {
+        FinancialRing(share: position, tint: tint, windowHeight: compact ? 80 : 100,
+                      selectedSectorGlow: true) {
             HStack(spacing: 6) {
                 Text(sectorLower, format: .percent.precision(.fractionLength(1)))
                 Text("–")
                 Text(sectorUpper, format: .percent.precision(.fractionLength(1)))
             }
-            .font(.caption).foregroundStyle(ForgiaPalette.mutedText).monospacedDigit()
+            .font(.caption2.weight(.medium)).foregroundStyle(ForgiaPalette.mutedText).monospacedDigit()
         }
         .accessibilityHidden(true)
     }
 }
 
+private struct SavingsRateLegend: View {
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) { entries }
+            VStack(alignment: .leading, spacing: 6) { entries }
+        }
+        .font(.caption)
+        .foregroundStyle(ForgiaPalette.mutedText)
+        .padding(.top, 4)
+        .accessibilityIdentifier("savings-rate-legend")
+    }
+
+    @ViewBuilder private var entries: some View {
+        Label {
+            Text("Margine ≥ 0%")
+        } icon: {
+            Circle().fill(ForgiaPalette.savings).frame(width: 8, height: 8)
+        }
+        Label {
+            Text("Deficit < 0%")
+        } icon: {
+            Circle().fill(ForgiaPalette.deficit).frame(width: 8, height: 8)
+        }
+    }
+}
+
 private struct SavingsRateHeroValue: View {
     let rate: Decimal
+    var compact = false
+    @ScaledMetric(relativeTo: .largeTitle) private var valueSize: CGFloat = 52
+
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Text(rate, format: .percent.precision(.fractionLength(1)))
-                .font(.system(.largeTitle, design: .rounded, weight: .semibold))
+                .font(.system(size: valueSize * (compact ? 0.85 : 1), weight: .medium, design: .rounded))
+                .tracking(-1)
                 .foregroundStyle(rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings)
                 .financeNumericMotion(rate)
                 .minimumScaleFactor(0.7).lineLimit(1).monospacedDigit()
             Text(rate < 0 ? "Spese oltre le entrate" : rate == 0 ? "Entrate interamente spese" : "Margine sulle entrate")
-                .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.mutedText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }.accessibilityElement(children: .combine)

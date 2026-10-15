@@ -10,7 +10,9 @@ struct RecordedSavingsDetailContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Tasso di risparmio", systemImage: "gauge.with.needle").font(.headline).foregroundStyle(ForgiaPalette.savings)
+            Label("Tasso di risparmio", systemImage: "gauge.with.needle")
+                .font(.system(.headline, design: .serif, weight: .semibold))
+                .foregroundStyle(ForgiaPalette.savings)
             if let rate = report.savingsRate {
                 SavingsRateHero(rate: rate)
 
@@ -40,7 +42,7 @@ struct RecordedSavingsDetailContent: View {
             }.accessibilityIdentifier("analysis-savings-explanation")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .unifiedCard(tint: ForgiaPalette.savings).financeCardEntrance()
+        .unifiedCard(tint: .clear).financeCardEntrance()
         .financePresentation(isPresented: $showingExplanation, title: "Come funziona", width: 680) {
             SavingsExplanationView(plan: plan, recordedReport: report, currency: currency)
         }
