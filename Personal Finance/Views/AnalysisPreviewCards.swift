@@ -128,7 +128,11 @@ struct RecordedSavingsCard: View {
                     Text(report.hasInvalidAmounts ? "Importi da verificare" : "Servono entrate registrate")
                         .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
                 }
-            }.unifiedCard(tint: .clear).foregroundStyle(.primary)
+            }
+            .unifiedCard(tint: report.savingsRate.map {
+                $0 < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings
+            } ?? .clear)
+            .foregroundStyle(.primary)
         }
         .buttonStyle(.plain)
         .financeCardEntrance()

@@ -42,7 +42,10 @@ struct RecordedSavingsDetailContent: View {
             }.accessibilityIdentifier("analysis-savings-explanation")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .unifiedCard(tint: .clear).financeCardEntrance()
+        .unifiedCard(tint: report.savingsRate.map {
+            $0 < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings
+        } ?? .clear)
+        .financeCardEntrance()
         .financePresentation(isPresented: $showingExplanation, title: "Come funziona", width: 680) {
             SavingsExplanationView(plan: plan, recordedReport: report, currency: currency)
         }

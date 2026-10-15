@@ -81,16 +81,16 @@ private struct SavingsRateLegend: View {
 private struct SavingsRateHeroValue: View {
     let rate: Decimal
     var compact = false
-    @ScaledMetric(relativeTo: .largeTitle) private var valueSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .largeTitle) private var valueSize: CGFloat = 64
 
     var body: some View {
         VStack(spacing: 4) {
             Text(rate, format: .percent.precision(.fractionLength(1)))
-                .font(.system(size: valueSize * (compact ? 0.85 : 1), weight: .medium, design: .rounded))
-                .tracking(-1)
+                .font(.system(size: valueSize * (compact ? 0.94 : 1), weight: .bold))
+                .tracking(-2)
                 .foregroundStyle(rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings)
                 .financeNumericMotion(rate)
-                .minimumScaleFactor(0.7).lineLimit(1).monospacedDigit()
+                .minimumScaleFactor(0.55).lineLimit(1).monospacedDigit()
             Text(rate < 0 ? "Spese oltre le entrate" : rate == 0 ? "Entrate interamente spese" : "Margine sulle entrate")
                 .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.mutedText)
                 .multilineTextAlignment(.center)
@@ -109,7 +109,8 @@ struct SavingsGaugeVisualFixture: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     Text("Tasso di risparmio · dati illustrativi").font(.headline)
-                    SavingsRateHero(rate: rate).unifiedCard()
+                    SavingsRateHero(rate: rate)
+                        .unifiedCard(tint: rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings)
                     HStack {
                         Button("Margine") { rate = Decimal(28) / 100 }
                         Button("Deficit") { rate = Decimal(-12) / 100 }
