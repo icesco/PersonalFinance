@@ -1,7 +1,7 @@
 import Foundation
 
-public struct MonthlyForecastHistoryExclusion: Identifiable {
-    public enum Reason: String, CaseIterable {
+public struct MonthlyForecastHistoryExclusion: Identifiable, Sendable, Equatable {
+    public enum Reason: String, CaseIterable, Sendable {
         case recurringPayment, mixedCategory, sporadic
 
         public var explanation: LocalizedStringResource {
@@ -17,7 +17,6 @@ public struct MonthlyForecastHistoryExclusion: Identifiable {
     public var id: String { reason.rawValue }
 }
 
-@MainActor
 enum MonthlyForecastHistory {
     static func categoryKey(_ row: Transaction) -> String {
         row.categoryId?.uuidString ?? row.category?.id.uuidString ?? "uncategorized"
@@ -26,13 +25,14 @@ enum MonthlyForecastHistory {
     /// Only affects the estimate. A resemblance never resolves an occurrence or changes the ledger.
     static func recurringPayments(history: [Transaction], sources: [Transaction], calendar: Calendar) -> Set<UUID> {
         var excluded: Set<UUID> = []
+        let historyByCategory = Dictionary(grouping: history, by: categoryKey)
         for source in sources.sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
             guard let frequency = source.recurrenceFrequency, let amount = source.amount,
                   categoryKey(source) != "uncategorized" else { continue }
             let tolerance = frequency == .daily ? 0 : [.weekly, .biweekly].contains(frequency) ? 1 : 3
             let component = frequency.calendarComponent
             let step = frequency.componentValue
-            let candidates = history.compactMap { row -> (row: Transaction, slot: Date, distance: Int)? in
+            let candidates = (historyByCategory[categoryKey(source)] ?? []).compactMap { row -> (row: Transaction, slot: Date, distance: Int)? in
                 guard !excluded.contains(row.id), row.amount == amount,
                       categoryKey(row) == categoryKey(source) else { return nil }
                 let distance = calendar.dateComponents([component], from: source.date, to: row.date).value(for: component) ?? 0

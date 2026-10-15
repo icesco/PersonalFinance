@@ -7,7 +7,7 @@ public enum RecurrenceOccurrenceService {
 
     /// A browsable calendar window, including old unresolved occurrences of ended series.
     /// The seed is already recorded and the interval's end is exclusive.
-    public static func pendingDates(source: Transaction, interval: DateInterval,
+    nonisolated public static func pendingDates(source: Transaction, interval: DateInterval,
                                     resolvedKeys: Set<String>) -> [Date] {
         guard interval.duration > 0 else { return [] }
         return source.recurrenceDates(after: max(interval.start.addingTimeInterval(-0.001), source.date),

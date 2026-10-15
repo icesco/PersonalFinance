@@ -51,7 +51,6 @@ public struct TransactionListQuery: Equatable, Sendable {
     }
 
     /// Count and totals for the whole period, reading only the amount and type columns.
-    @MainActor
     public func summary(in context: ModelContext) throws -> TransactionListSummary {
         guard !contoIDs.isEmpty else { return TransactionListSummary() }
         var descriptor = FetchDescriptor<Transaction>(predicate: predicate)
@@ -65,6 +64,20 @@ public struct TransactionListQuery: Equatable, Sendable {
             case .transfer: break
             }
         }
+        return summary
+    }
+}
+
+/// Owns the context on its executor; only the aggregate crosses back to the UI.
+public actor TransactionListSummaryReader {
+    public init() {}
+
+    public func load(container: ModelContainer, query: TransactionListQuery) throws -> TransactionListSummary {
+        try Task.checkCancellation()
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        let summary = try query.summary(in: context)
+        try Task.checkCancellation()
         return summary
     }
 }

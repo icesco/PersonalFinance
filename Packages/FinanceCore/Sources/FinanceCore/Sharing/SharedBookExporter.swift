@@ -20,7 +20,7 @@ public enum SharedBookExporter {
         guard contoID == nil || conti.count == 1 else { throw Failure.invalidBoundary }
         var categories = book.categories ?? []
         let contoIDs = Set(conti.map(\.id)), categoryIDs = Set(categories.map(\.id))
-        let transactions = try context.fetch(FetchDescriptor<Transaction>()).filter { transaction in
+        let transactions = try SharedBookQueries.touching(contiIDs: contoIDs, in: context).filter { transaction in
             let fromHere = (transaction.fromContoId ?? transaction.fromConto?.id).map(contoIDs.contains) == true
             let toHere = (transaction.toContoId ?? transaction.toConto?.id).map(contoIDs.contains) == true
             switch transaction.type {
@@ -152,7 +152,11 @@ public enum SharedBookExporter {
                 "createdAt": goal.createdAt.map(SharedValue.date), "updatedAt": goal.updatedAt.map(SharedValue.date),
                 "description": goal.goalDescription.map(SharedValue.text), "isActive": goal.isActive.map(SharedValue.flag)]))
         }
-        for resolution in try context.fetch(FetchDescriptor<RecurrenceResolution>()) where recurrenceIDs.contains(resolution.sourceID) {
+        let recurrenceSources = Array(recurrenceIDs)
+        let resolutions = recurrenceSources.isEmpty ? [] : try context.fetch(FetchDescriptor<RecurrenceResolution>(predicate: #Predicate {
+            recurrenceSources.contains($0.sourceID)
+        }))
+        for resolution in resolutions {
             records.append(SharedBookRecord(id: SharedRecordID(bookID: bookID, kind: .recurrence, entityID: resolution.key), fields: [
                 "source": .reference(id(.transaction, resolution.sourceID)), "scheduledDate": .date(resolution.scheduledDate),
                 "transaction": reference(.transaction, resolution.transactionID.flatMap { transactionIDs.contains($0) ? $0 : nil }),

@@ -1,7 +1,7 @@
 import Foundation
 
-public struct FinanceCalendarEvent: Identifiable, Sendable {
-    public enum Kind: Sendable { case recorded, planned, recurrence }
+public struct FinanceCalendarEvent: Identifiable, Sendable, Equatable {
+    public enum Kind: Sendable, Equatable { case recorded, planned, recurrence }
     public let id: String
     public let transactionID: UUID
     public let date: Date
@@ -12,7 +12,6 @@ public struct FinanceCalendarEvent: Identifiable, Sendable {
 }
 
 /// Calendar browsing never creates transactions. Materialized and skipped occurrences are suppressed.
-@MainActor
 public enum FinanceCalendarEvents {
     /// The timeline shows only upcoming events, including occurrences later today.
     /// Overdue recurrences remain available in the calendar's history.

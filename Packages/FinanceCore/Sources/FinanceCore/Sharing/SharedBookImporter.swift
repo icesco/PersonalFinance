@@ -59,14 +59,60 @@ public enum SharedBookImporter {
                     aliases[record.id.recordName] = localIdentity
                 }
             }
-            var books = try indexed(context.fetch(FetchDescriptor<Account>()), key: \.id)
-            var conti = try indexed(context.fetch(FetchDescriptor<Conto>()), key: \.id)
-            var categories = try indexed(context.fetch(FetchDescriptor<Category>()), key: \.id)
-            var transactions = try indexed(context.fetch(FetchDescriptor<Transaction>()), key: \.id)
-            var budgets = try indexed(context.fetch(FetchDescriptor<Budget>()), key: \.id)
-            var goals = try indexed(context.fetch(FetchDescriptor<SavingsGoal>()), key: \.id)
-            var attachments = try indexed(context.fetch(FetchDescriptor<TransactionAttachment>()), key: \.id)
-            let resolutions = try context.fetch(FetchDescriptor<RecurrenceResolution>())
+            try SharedBookQueries.validateIdentities(in: context, key: \Account.id)
+            try SharedBookQueries.validateIdentities(in: context, key: \Conto.id)
+            try SharedBookQueries.validateIdentities(in: context, key: \Category.id)
+            try SharedBookQueries.validateIdentities(in: context, key: \Transaction.id)
+            try SharedBookQueries.validateIdentities(in: context, key: \Budget.id)
+            try SharedBookQueries.validateIdentities(in: context, key: \SavingsGoal.id)
+            try SharedBookQueries.validateIdentities(in: context, key: \TransactionAttachment.id)
+            func identities(_ kind: SharedRecordID.Kind, deletedOnly: Bool = false) -> [UUID] {
+                records.filter { $0.id.kind == kind && (!deletedOnly || $0.deleted) }.compactMap { ids[$0.id] }
+            }
+            let bookIDs = identities(.book), contoIDs = identities(.conto), categoryIDs = identities(.category)
+            let transactionIDs = identities(.transaction), budgetIDs = identities(.budget)
+            let goalIDs = identities(.goal), attachmentIDs = identities(.attachment)
+            let deletedCategories = identities(.category, deletedOnly: true)
+            let deletedConti = identities(.conto, deletedOnly: true)
+            let deletedTransactions = identities(.transaction, deletedOnly: true)
+            var books = try indexed(context.fetch(FetchDescriptor<Account>(predicate: #Predicate {
+                $0.id == localBookID || bookIDs.contains($0.id)
+            })), key: \.id)
+            var conti = try indexed(context.fetch(FetchDescriptor<Conto>(predicate: #Predicate {
+                $0.account?.id == localBookID || contoIDs.contains($0.id)
+            })), key: \.id)
+            var categories = try indexed(context.fetch(FetchDescriptor<Category>(predicate: #Predicate<Category> {
+                $0.account?.id == localBookID || categoryIDs.contains($0.id)
+                    || $0.parentCategoryId.flatMap { deletedCategories.contains($0) } == true
+            })), key: \.id)
+            let affectedConti = sharedContoID.map { Set([$0]) }
+                ?? Set(conti.values.filter { $0.account?.id == localBookID }.map(\.id))
+            var transactionRows = try SharedBookQueries.transactions(in: context, contoIDs: affectedConti,
+                incomingIDs: transactionIDs, deletedCategoryIDs: deletedCategories, deletedTransactionIDs: deletedTransactions)
+            // Deletion checks also cover inconsistent legacy relationship/ID pairs.
+            for id in affectedConti {
+                if let conto = conti[id] { transactionRows += (conto.incomingTransactions ?? []) + (conto.outgoingTransactions ?? []) }
+            }
+            var transactions = try indexed(SharedBookQueries.unique(transactionRows), key: \.id)
+            var budgetRows = try context.fetch(FetchDescriptor<Budget>(predicate: #Predicate<Budget> {
+                $0.account?.id == localBookID || budgetIDs.contains($0.id)
+                    || $0.contoID.flatMap { deletedConti.contains($0) } == true
+            }))
+            for id in deletedCategories { budgetRows += categories[id]?.budgets ?? [] }
+            var budgets = try indexed(SharedBookQueries.unique(budgetRows), key: \.id)
+            var goals = try indexed(context.fetch(FetchDescriptor<SavingsGoal>(predicate: #Predicate {
+                $0.account?.id == localBookID || goalIDs.contains($0.id)
+            })), key: \.id)
+            let loadedTransactionIDs = Array(transactions.keys)
+            var attachments = try indexed(context.fetch(FetchDescriptor<TransactionAttachment>(predicate: #Predicate<TransactionAttachment> {
+                attachmentIDs.contains($0.id) || $0.transaction.flatMap { loadedTransactionIDs.contains($0.id) } == true
+            })), key: \.id)
+            let resolutionKeys = links.filter { $0.remoteRecordName.hasPrefix("recurrence:") }.map(\.localIdentity)
+            let resolutions = try context.fetch(FetchDescriptor<RecurrenceResolution>(predicate: #Predicate<RecurrenceResolution> {
+                loadedTransactionIDs.contains($0.sourceID)
+                    || $0.transactionID.flatMap { deletedTransactions.contains($0) } == true
+                    || resolutionKeys.contains($0.key)
+            }))
             func owns(_ transaction: Transaction) -> Bool {
                 let legs = [transaction.fromContoId ?? transaction.fromConto?.id, transaction.toContoId ?? transaction.toConto?.id].compactMap { $0 }
                 return !legs.isEmpty && legs.allSatisfy { isContoShare ? $0 == sharedContoID : conti[$0]?.account?.id == localBookID }
@@ -123,10 +169,13 @@ public enum SharedBookImporter {
             // since the last reconciliation. Require every affected child in
             // the incoming graph, even when it will be moved to another parent.
             if !root.deleted {
+                var coveredIdentities: [SharedRecordID.Kind: Set<String>] = [:]
+                for record in records {
+                    if let alias = aliases[record.id.recordName] { coveredIdentities[record.id.kind, default: []].insert(alias) }
+                    if let id = ids[record.id] { coveredIdentities[record.id.kind, default: []].insert(id.uuidString.lowercased()) }
+                }
                 func covered(_ kind: SharedRecordID.Kind, _ identity: String) throws {
-                    guard records.contains(where: { record in
-                        record.id.kind == kind && (aliases[record.id.recordName] == identity || ids[record.id]?.uuidString.lowercased() == identity)
-                    }) else { throw Failure.unreconciledDeletion }
+                    guard coveredIdentities[kind]?.contains(identity) == true else { throw Failure.unreconciledDeletion }
                 }
                 for record in records where record.deleted {
                     guard let uuid = ids[record.id] else { continue }

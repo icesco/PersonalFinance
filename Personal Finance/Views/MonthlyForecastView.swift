@@ -10,10 +10,14 @@ struct MonthlyForecastView: View {
     let conti: [Conto]
     let currency: String
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var context
+    @State private var reader = MonthlyForecastSnapshotReader()
+    @State private var snapshot: MonthlyForecast?
+    @State private var loadedScope: PlanningSnapshotScope?
+    @State private var revision = 0
+    @State private var failed = false
+    @State private var nextTransition: Date?
     @Query private var memberships: [SharedBookMembership]
-    @Query private var budgets: [Budget]
-    @Query private var transactions: [FinanceCore.Transaction]
-    @Query private var resolutions: [RecurrenceResolution]
     @State private var selectedID: UUID?
     @State private var month: Date
 
@@ -27,9 +31,17 @@ struct MonthlyForecastView: View {
         _month = State(initialValue: max(currentMonth, requestedMonth))
     }
 
+    private var selected: Conto? {
+        let eligible = conti.filter(\.supportsMonthlyForecast)
+        return eligible.first { $0.id == selectedID } ?? eligible.first
+    }
+
+    private var scope: PlanningSnapshotScope {
+        .init(container: context.container, ids: Set([selected?.id].compactMap { $0 }), month: month)
+    }
+
     var body: some View {
         let eligible = conti.filter(\.supportsMonthlyForecast)
-        let selected = eligible.first { $0.id == selectedID } ?? eligible.first
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if !eligible.isEmpty {
@@ -37,11 +49,23 @@ struct MonthlyForecastView: View {
                     MonthlyForecastMonthPicker(month: $month)
                 }
                 if let selected {
-                    let report = MonthlyForecastCalculator.build(conto: selected, transactions: transactions,
-                        resolutions: resolutions, month: month, budgets: budgets)
-                    MonthlyForecastAccountContent(report: report, contoID: selected.id, currency: currency,
+                    if failed {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Previsione non aggiornata").foregroundStyle(.secondary)
+                            Button("Riprova") { revision &+= 1 }
+                        }
+                    }
+                    if let snapshot, loadedScope?.ids == scope.ids, loadedScope?.container == scope.container {
+                    MonthlyForecastAccountContent(report: snapshot, contoID: selected.id, currency: currency,
                         participants: MonthlyForecastParticipants.people(conto: selected, memberships: memberships))
                         .id(selected.id)
+                        .opacity(loadedScope == scope ? 1 : 0)
+                        .allowsHitTesting(loadedScope == scope)
+                        .accessibilityHidden(loadedScope != scope)
+                        .overlay(alignment: .top) {
+                            if loadedScope != scope && !failed { FormiLoadingView("Caricamento previsione…") }
+                        }
+                    } else if !failed { FormiLoadingView("Caricamento previsione…") }
                 } else {
                     ContentUnavailableView("Nessun conto corrente", systemImage: "wallet.bifold",
                         description: Text("La previsione del mese è disponibile solo per i conti correnti attivi."))
@@ -53,12 +77,46 @@ struct MonthlyForecastView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .onAppear { clampToCurrentMonth() }
-        .onChange(of: scenePhase) { if scenePhase == .active { clampToCurrentMonth() } }
         .onChange(of: eligible.map(\.id)) {
             if !eligible.contains(where: { $0.id == selectedID }) { selectedID = eligible.first?.id }
         }
+        .onAppear { clampToCurrentMonth() }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active { clampToCurrentMonth() }
+        }
+        .modifier(PlanningSnapshotRefresh(contoIDs: scope.ids, revision: $revision))
+        .task(id: PlanningSnapshotRequest(scope: scope, revision: revision)) {
+            let request = PlanningSnapshotRequest(scope: scope, revision: revision)
+            guard let id = selected?.id else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(200))
+                let value: MonthlyForecast
+                let now = Date()
+                if context.hasChanges {
+                    value = try MonthlyForecastSnapshotReader.read(in: context, contoID: id, month: request.scope.interval.start, now: now)
+                } else {
+                    value = try await reader.load(container: context.container, contoID: id, month: request.scope.interval.start, now: now)
+                }
+                try Task.checkCancellation()
+                guard request == PlanningSnapshotRequest(scope: scope, revision: revision) else { return }
+                snapshot = value; loadedScope = request.scope; failed = false
+                nextTransition = (value.recurring + value.occasional + value.income + value.transfers)
+                    .map(\.date).filter { $0 > now }.min()
+            } catch is CancellationError {
+            } catch {
+                guard request == PlanningSnapshotRequest(scope: scope, revision: revision), !Task.isCancelled else { return }
+                failed = true
+            }
+        }
+        .task(id: nextTransition) {
+            guard let nextTransition else { return }
+            do {
+                try await Task.sleep(for: .seconds(max(0.05, nextTransition.timeIntervalSinceNow + 0.01)))
+                revision &+= 1
+            } catch {}
+        }
     }
+
     private func clampToCurrentMonth() {
         let currentMonth = Calendar.current.dateInterval(of: .month, for: Date())!.start
         if month < currentMonth { month = currentMonth }
@@ -592,8 +650,16 @@ private struct MonthlyForecastDetail<Supplement: View>: View {
     let explanation: String
     @ViewBuilder let supplement: () -> Supplement
     @Query private var transactions: [FinanceCore.Transaction]
+    init(title: String, events: [FinanceCalendarEvent], currency: String, explanation: String,
+         @ViewBuilder supplement: @escaping () -> Supplement) {
+        self.title = title; self.events = events; self.currency = currency
+        self.explanation = explanation; self.supplement = supplement
+        let ids = Array(Set(events.map(\.transactionID)))
+        _transactions = Query(filter: #Predicate<FinanceCore.Transaction> { ids.contains($0.id) })
+    }
     var body: some View {
-        ScrollView {
+        let byID = Dictionary(transactions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(explanation).font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                     .padding(14).frame(maxWidth: .infinity, alignment: .leading).cardInset()
@@ -602,7 +668,7 @@ private struct MonthlyForecastDetail<Supplement: View>: View {
                 ForEach(events) { event in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.date.formatted(.dateTime.day().month().year().locale(monthlyForecastLocale))).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                        if let row = transactions.first(where: { $0.id == event.transactionID }) {
+                        if let row = byID[event.transactionID] {
                             NavigationLink { TransactionDetailView(transaction: row) } label: {
                                 FinanceCalendarEventRow(event: event, currency: currency)
                             }.buttonStyle(.plain).frame(minHeight: 48)

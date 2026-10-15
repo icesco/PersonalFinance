@@ -21,6 +21,28 @@ final class MonthlyForecastUITests: XCTestCase {
     }
 
     @MainActor
+    func testRapidAccountAndMonthChangesKeepTheLatestSnapshot() {
+        continueAfterFailure = false
+        let app = launch()
+        let month = app.staticTexts["monthly-forecast-month"].label
+        app.buttons["monthly-forecast-next"].tap()
+        app.buttons["monthly-forecast-next"].tap()
+        app.buttons["monthly-forecast-previous"].tap()
+        app.buttons["monthly-forecast-previous"].tap()
+        app.buttons["monthly-forecast-account-Crédit Agricole"].tap()
+        app.buttons["monthly-forecast-account-Cointestato"].tap()
+        app.buttons["monthly-forecast-account-Crédit Agricole"].tap()
+        waitForSnapshot(in: app)
+        XCTAssertEqual(app.staticTexts["monthly-forecast-month"].label, month)
+        showDetails(in: app)
+        let occasional = row("Occasionali programmate da pagare", in: app)
+        for _ in 0..<6 where !occasional.isHittable { app.swipeUp() }
+        occasional.tap()
+        XCTAssertTrue(app.staticTexts["Consulto programmato"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Acquisto programmato"].exists)
+    }
+
+    @MainActor
     private func enableVariables(in app: XCUIApplication) {
         let include = app.switches["monthly-forecast-include-variables"]
         for _ in 0..<6 where !include.isHittable { app.swipeUp() }

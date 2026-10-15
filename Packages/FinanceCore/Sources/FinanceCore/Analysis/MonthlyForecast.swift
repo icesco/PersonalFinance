@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MonthlyVariableEstimate: Identifiable {
+public struct MonthlyVariableEstimate: Identifiable, Sendable, Equatable {
     public let id: String
     public let name: String
     public let samples: [FinanceCalendarEvent]
@@ -20,8 +20,8 @@ public struct MonthlyVariableEstimate: Identifiable {
     }
 }
 
-public struct MonthlyForecast {
-    public enum Period { case past, current, future }
+public struct MonthlyForecast: Sendable, Equatable {
+    public enum Period: Sendable { case past, current, future }
     public enum CoverageStatus: Equatable {
         case coveredByBalance
         case coveredWithPlannedInflows
@@ -130,7 +130,6 @@ public struct MonthlyForecast {
     }
 }
 
-@MainActor
 public enum MonthlyForecastCalculator {
     public static func build(conto: Conto, transactions: [Transaction], resolutions: [RecurrenceResolution],
                              month: Date, now: Date = Date(), calendar: Calendar = .current, budgets: [Budget] = []) -> MonthlyForecast {

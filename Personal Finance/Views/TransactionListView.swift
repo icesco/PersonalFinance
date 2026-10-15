@@ -52,6 +52,11 @@ struct TransactionListView: View {
     // Loaded pages and whole-period totals
     @State private var transactions: [FinanceTransaction] = []
     @State private var summary = TransactionListSummary()
+    @State private var summaryReader = TransactionListSummaryReader()
+    @State private var summaryRevision = 0
+    @State private var summaryIsLoading = true
+    @State private var summaryFailed = false
+    @State private var hasMorePages = false
     @State private var hasLoaded = false
     @State private var didApplyInitialFilters = false
     @State private var isScrolledDown = false
@@ -69,7 +74,16 @@ struct TransactionListView: View {
     }
 
     private var hasMoreTransactions: Bool {
-        transactions.count < summary.count
+        summaryIsLoading || summaryFailed ? hasMorePages : transactions.count < summary.count
+    }
+
+    private struct SummaryRequest: Equatable {
+        let query: TransactionListQuery
+        let revision: Int
+    }
+
+    private var summaryRequest: SummaryRequest {
+        SummaryRequest(query: currentQuery, revision: summaryRevision)
     }
 
     /// Every filter the store evaluates; any change reloads from the first page.
@@ -185,6 +199,24 @@ struct TransactionListView: View {
             }
             .onChange(of: currentQuery) { _, _ in reload() }
             .onChange(of: appState.dataRefreshTrigger) { _, _ in reload(keepingLoadedRows: true) }
+            .task(id: summaryRequest) {
+                guard didApplyInitialFilters, summaryIsLoading else { return }
+                let request = summaryRequest
+                do {
+                    let value = try await summaryReader.load(container: modelContext.container, query: request.query)
+                    try Task.checkCancellation()
+                    guard request == summaryRequest else { return }
+                    summary = value
+                    summaryIsLoading = false
+                    summaryFailed = false
+                    hasMorePages = transactions.count < value.count
+                } catch is CancellationError {
+                } catch {
+                    guard request == summaryRequest, !Task.isCancelled else { return }
+                    summaryIsLoading = false
+                    summaryFailed = true
+                }
+            }
             .alert("Elimina Transazione", isPresented: $showingDeleteAlert) {
                 Button("Elimina", role: .destructive) {
                     if let transaction = transactionToDelete {
@@ -260,13 +292,21 @@ struct TransactionListView: View {
                             accessibilityIdentifier: "transactions-period-menu")
     }
 
-    private var periodSummary: some View {
-        PeriodSummaryCard(
-            title: summaryTitle,
-            summary: summary,
-            currency: currency,
-            includesFuture: includesFutureTransactions
-        )
+    @ViewBuilder private var periodSummary: some View {
+        if summaryIsLoading {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Aggiornamento riepilogo…").foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding()
+        } else if summaryFailed {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Riepilogo non disponibile")
+                Button("Riprova") { summaryIsLoading = true; summaryRevision &+= 1 }
+            }.padding()
+        } else {
+            PeriodSummaryCard(title: summaryTitle, summary: summary, currency: currency,
+                includesFuture: includesFutureTransactions)
+        }
     }
 
     // MARK: - Unified Filters Bar
@@ -482,7 +522,13 @@ struct TransactionListView: View {
                 }
                 .disabled(isInSelectionMode || desktopSelection.count != 1)
                 Spacer()
-                Text("\(transactions.count) di \(summary.count) movimenti").foregroundStyle(.secondary)
+                Group {
+                    if summaryIsLoading || summaryFailed {
+                        Text("\(transactions.count) movimenti caricati")
+                    } else {
+                        Text("\(transactions.count) di \(summary.count) movimenti")
+                    }
+                }.foregroundStyle(.secondary)
                 if hasMoreTransactions { Button("Carica altri movimenti") { loadNextPage() } }
             }
             .font(.caption)
@@ -668,13 +714,24 @@ struct TransactionListView: View {
         let query = currentQuery
         let limit = keepingLoadedRows ? max(transactions.count, pageSize) : pageSize
         if !keepingLoadedRows { selectedTransactions.removeAll() }
+        summaryIsLoading = true
+        summaryFailed = false
+        summaryRevision &+= 1
         do {
-            summary = try query.summary(in: modelContext)
             transactions = try query.fetchPage(in: modelContext, offset: 0, limit: limit)
+            hasMorePages = transactions.count == limit
+            // A separate reader sees committed data. Preserve the existing totals while
+            // this context contains unsaved edits, without saving them as a side effect.
+            if modelContext.hasChanges {
+                summary = try query.summary(in: modelContext)
+                summaryIsLoading = false
+                hasMorePages = transactions.count < summary.count
+            }
         } catch {
             print("Error fetching transactions: \(error)")
             summary = TransactionListSummary()
             transactions = []
+            hasMorePages = false
         }
         hasLoaded = true
     }
@@ -682,7 +739,9 @@ struct TransactionListView: View {
     private func loadNextPage() {
         guard hasMoreTransactions else { return }
         do {
-            transactions += try currentQuery.fetchPage(in: modelContext, offset: transactions.count, limit: pageSize)
+            let page = try currentQuery.fetchPage(in: modelContext, offset: transactions.count, limit: pageSize)
+            transactions += page
+            hasMorePages = page.count == pageSize
         } catch {
             print("Error fetching transactions: \(error)")
         }

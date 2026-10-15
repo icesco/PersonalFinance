@@ -50,7 +50,13 @@ public actor LedgerCalculationCoordinator {
             let key = Key(container: identity, contoID: account.id,
                           calendar: String(describing: calendar.identifier), timeZone: calendar.timeZone.identifier)
             // Equality below checks every source value, not just an ID, count or hash.
-            let sources = (grouped[account.id] ?? []).sorted { $0.id.uuidString < $1.id.uuidString }
+            let sources = (grouped[account.id] ?? []).sorted { lhs, rhs in
+                withUnsafeBytes(of: lhs.id.uuid) { left in
+                    withUnsafeBytes(of: rhs.id.uuid) { right in
+                        left.lexicographicallyPrecedes(right)
+                    }
+                }
+            }
             let preparation: LedgerCachePreparation
             if let cached = entries[key], cached.opening == account.initialBalance, cached.sources == sources,
                account.ledgerCacheJSON == cached.inputPayload || account.ledgerCacheJSON == cached.preparation.updates[account.id] {

@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 import FinanceCore
 
 /// Bounded previews are independent of OCR and cached only in memory.
-private actor CaptureThumbnailRenderer {
+actor CaptureThumbnailRenderer {
     static let shared = CaptureThumbnailRenderer()
     private let cache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()

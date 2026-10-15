@@ -5,6 +5,27 @@ import Testing
 
 @MainActor
 struct TransactionListQueryTests {
+    @Test func backgroundSummaryMatchesFiltersAndCommittedMutations() async throws {
+        let f = try fixture()
+        let expense = add(f, Decimal(17) / 13, .expense, day(7, 1), from: f.bank, category: f.food)
+        add(f, 100, .income, day(7, 2), to: f.bank, category: f.salary)
+        add(f, 999, .expense, day(7, 3), from: f.other, category: f.food)
+        try f.context.save()
+        let reader = TransactionListSummaryReader()
+        let query = TransactionListQuery(interval: quarter(3), contoIDs: [f.bank.id])
+        let expected = try query.summary(in: f.context)
+        #expect(try await reader.load(container: f.container, query: query) == expected)
+        expense.amount = Decimal(23) / 19
+        try f.context.save()
+        let edited = try query.summary(in: f.context)
+        #expect(try await reader.load(container: f.container, query: query) == edited)
+        let filtered = TransactionListQuery(interval: quarter(3), contoIDs: [f.bank.id], type: .expense, categoryIDs: [f.food.id])
+        #expect(try await reader.load(container: f.container, query: filtered) == filtered.summary(in: f.context))
+        f.context.delete(expense)
+        try f.context.save()
+        #expect(try await reader.load(container: f.container, query: filtered) == TransactionListSummary())
+    }
+
     private let calendar = Calendar(identifier: .gregorian)
 
     private func day(_ month: Int, _ day: Int) -> Date {

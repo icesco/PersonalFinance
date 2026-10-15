@@ -11,9 +11,13 @@ private var financeCalendarLocale: Locale {
 struct FinanceCalendarView: View {
     let contoIDs: Set<UUID>
     let currency: String
-    @Query private var transactions: [FinanceCore.Transaction]
     @Query private var conti: [Conto]
-    @Query private var resolutions: [RecurrenceResolution]
+    @Environment(\.modelContext) private var context
+    @State private var reader = FinanceCalendarSnapshotReader()
+    @State private var snapshot: FinanceCalendarSnapshot?
+    @State private var loadedScope: PlanningSnapshotScope?
+    @State private var revision = 0
+    @State private var failed = false
     @State private var month: Date
     @State private var selectedDate: Date
     @State private var timeline = false
@@ -30,17 +34,21 @@ struct FinanceCalendarView: View {
     init(contoIDs: Set<UUID>, currency: String, initialDate: Date = Date()) {
         self.contoIDs = contoIDs
         self.currency = currency
+        let ids = Array(contoIDs)
+        _conti = Query(filter: #Predicate<Conto> { ids.contains($0.id) })
         _month = State(initialValue: initialDate)
         _selectedDate = State(initialValue: Calendar.current.startOfDay(for: initialDate))
     }
 
+    private var scope: PlanningSnapshotScope {
+        .init(container: context.container, ids: contoIDs, month: month)
+    }
+
     var body: some View {
-        let now = Date()
         let interval = Calendar.current.dateInterval(of: .month, for: month)!
-        let calendarEvents = FinanceCalendarEvents.build(transactions: transactions, resolutions: resolutions,
-            contoIDs: contoIDs, interval: interval, now: now).filter { !expensesOnly || $0.type == .expense }
-        let events = timeline ? FinanceCalendarEvents.upcoming(calendarEvents, now: now) : calendarEvents
-        let byDay = Dictionary(grouping: events) { Calendar.current.startOfDay(for: $0.date) }
+        let presentation = loadedScope == scope ? snapshot?.presentation(expensesOnly: expensesOnly, timeline: timeline) : nil
+        let events = presentation?.events ?? []
+        let byDay = presentation?.byDay ?? [:]
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 let forecastConti = conti.filter { contoIDs.contains($0.id) && $0.supportsMonthlyForecast }
@@ -80,7 +88,15 @@ struct FinanceCalendarView: View {
                     .buttonStyle(.bordered)
                     .tint(ForgiaPalette.calendar)
                     .accessibilityIdentifier("finance-calendar-today")
+                if failed {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Calendario non aggiornato").foregroundStyle(.secondary)
+                        Button("Riprova") { revision &+= 1 }
+                    }
+                }
+                if presentation != nil {
                 FinanceCalendarSummary(events: events, currency: currency, upcomingOnly: timeline)
+                PlanningEventTransactions(events: timeline ? events : (byDay[selectedDate] ?? [])) { transactions in
                 if timeline {
                     if events.isEmpty {
                         ContentUnavailableView(expensesOnly ? "Nessuna spesa futura nel mese" : "Nessun movimento futuro nel mese", systemImage: "calendar")
@@ -90,6 +106,10 @@ struct FinanceCalendarView: View {
                     }
                 } else {
                     FinanceCalendarDaySection(date: selectedDate, events: byDay[selectedDate] ?? [], transactions: transactions, currency: currency)
+                }
+                }
+                } else if !failed {
+                    FormiLoadingView("Caricamento calendario…")
                 }
                 Text(timeline
                     ? "La timeline mostra solo movimenti programmati e ricorrenze con una data futura. Non include spese non programmate. I trasferimenti tra conti sono esclusi."
@@ -125,6 +145,33 @@ struct FinanceCalendarView: View {
             }
         }
         .onChange(of: timeline) { pinnedTimelineDate = nil }
+        .modifier(PlanningSnapshotRefresh(contoIDs: contoIDs, revision: $revision))
+        .task(id: PlanningSnapshotRequest(scope: scope, revision: revision)) {
+            let request = PlanningSnapshotRequest(scope: scope, revision: revision)
+            do {
+                try await Task.sleep(for: .milliseconds(200))
+                let value: FinanceCalendarSnapshot
+                if context.hasChanges {
+                    value = try FinanceCalendarSnapshotReader.read(in: context, contoIDs: contoIDs, interval: request.scope.interval)
+                } else {
+                    value = try await reader.load(container: context.container, contoIDs: contoIDs, interval: request.scope.interval)
+                }
+                try Task.checkCancellation()
+                guard request == PlanningSnapshotRequest(scope: scope, revision: revision) else { return }
+                snapshot = value; loadedScope = request.scope; failed = false
+            } catch is CancellationError {
+            } catch {
+                guard request == PlanningSnapshotRequest(scope: scope, revision: revision), !Task.isCancelled else { return }
+                failed = true
+            }
+        }
+        .task(id: snapshot?.nextTransition) {
+            guard let next = snapshot?.nextTransition else { return }
+            do {
+                try await Task.sleep(for: .seconds(max(0.05, next.timeIntervalSinceNow + 0.01)))
+                revision &+= 1
+            } catch {}
+        }
     }
 }
 
@@ -194,13 +241,14 @@ private struct FinanceCalendarDaySection: View {
     let transactions: [FinanceCore.Transaction]
     let currency: String
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let byID = Dictionary(transactions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return VStack(alignment: .leading, spacing: 12) {
             Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(financeCalendarLocale))).font(.headline)
             if events.isEmpty {
                 Text("Nessun movimento per questo giorno").foregroundStyle(ForgiaPalette.mutedText)
             }
             ForEach(events) { event in
-                if let transaction = transactions.first(where: { $0.id == event.transactionID }) {
+                if let transaction = byID[event.transactionID] {
                     NavigationLink {
                         TransactionDetailView(transaction: transaction)
                     } label: {

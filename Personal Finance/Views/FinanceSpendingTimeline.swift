@@ -15,6 +15,7 @@ struct FinanceSpendingTimeline: View {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let byDay = Dictionary(grouping: events) { calendar.startOfDay(for: $0.date) }
+        let byID = Dictionary(transactions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let days = Set(byDay.keys).union(today >= interval.start && today < interval.end ? [today] : []).sorted()
         VStack(alignment: .leading, spacing: 0) {
             ForEach(days, id: \.self) { day in
@@ -27,7 +28,7 @@ struct FinanceSpendingTimeline: View {
                     }
                     .opacity(pinnedDate == day ? 0 : 1)
                     .accessibilityHidden(pinnedDate == day)
-                FinanceTimelineDay(date: day, events: byDay[day] ?? [], transactions: transactions,
+                FinanceTimelineDay(date: day, events: byDay[day] ?? [], transactionsByID: byID,
                     currency: currency, locale: locale, isToday: day == today)
                     .padding(.bottom, 24)
             }
@@ -114,7 +115,7 @@ struct FinanceTimelineDayHeader: View {
 private struct FinanceTimelineDay: View {
     let date: Date
     let events: [FinanceCalendarEvent]
-    let transactions: [FinanceCore.Transaction]
+    let transactionsByID: [UUID: FinanceCore.Transaction]
     let currency: String
     let locale: Locale
     let isToday: Bool
@@ -130,7 +131,7 @@ private struct FinanceTimelineDay: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 ForEach(events) { event in
-                    if let transaction = transactions.first(where: { $0.id == event.transactionID }) {
+                    if let transaction = transactionsByID[event.transactionID] {
                         NavigationLink {
                             TransactionDetailView(transaction: transaction)
                         } label: {

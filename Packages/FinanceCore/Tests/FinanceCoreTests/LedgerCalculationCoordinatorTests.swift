@@ -7,6 +7,29 @@ import Testing
 struct LedgerCalculationCoordinatorTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
+    @Test func shuffledSourcesRetainExactPayloadAndReuseIncludingDuplicateIDs() async throws {
+        let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        let account = LedgerCacheAccount(id: UUID(), initialBalance: 100)
+        let rows = (0..<100).map { index in
+            TransactionSnapshot(amount: Decimal(index), type: .expense,
+                date: now.addingTimeInterval(-Double(index)), fromContoId: account.id)
+        }
+        let coordinator = LedgerCalculationCoordinator()
+        let expected = try LedgerCache.prepare(accounts: [account], transactions: rows, now: now)
+        let first = try await coordinator.prepare(container: container, accounts: [account], transactions: rows, now: now)
+        let second = try await coordinator.prepare(container: container, accounts: [account], transactions: rows.reversed(), now: now)
+        #expect(first.updates == expected.updates)
+        #expect(second.updates == expected.updates)
+        #expect(await coordinator.calculationCount == 1)
+        // Conflicting duplicate IDs keep the same stable tie ordering as the original UUID string sort.
+        let duplicate = TransactionSnapshot(id: rows[0].id, amount: 999, type: .expense,
+            date: now, fromContoId: account.id)
+        let duplicates = rows + [duplicate]
+        let result = try await coordinator.prepare(container: container, accounts: [account], transactions: duplicates, now: now)
+        let direct = try LedgerCache.prepare(accounts: [account], transactions: duplicates, now: now)
+        #expect(result.updates == direct.updates)
+    }
+
     @Test func simultaneousConsumersComputeOnceAndReuseAcrossScopes() async throws {
         let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
         let a = LedgerCacheAccount(id: UUID(), initialBalance: 100)

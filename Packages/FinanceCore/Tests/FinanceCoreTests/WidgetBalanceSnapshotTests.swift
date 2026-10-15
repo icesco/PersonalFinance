@@ -4,6 +4,40 @@ import Testing
 
 @MainActor
 struct WidgetBalanceSnapshotTests {
+    @Test func sharedInputsMatchStandalonePeriodsAcrossYearBoundary() throws {
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 12, day: 30, hour: 12)))
+        let books = [Account(name: "A"), Account(name: "B")]
+        let conti = [Conto(name: "Savings", type: .savings, initialBalance: 1_000),
+                     Conto(name: "Bank", type: .checking, initialBalance: 2_000)]
+        for index in 0..<2 { books[index].conti = [conti[index]]; conti[index].account = books[index] }
+        try conti[0].setSavingsRate(5, effectiveDate: now.addingTimeInterval(-366 * 86_400))
+        let source = Transaction(amount: 10, type: .expense, date: now.addingTimeInterval(-7 * 86_400),
+            isRecurring: true, recurrenceFrequency: .daily)
+        source.setFromConto(conti[0])
+        let transfer = Transaction(amount: 20, type: .transfer, date: now.addingTimeInterval(3 * 86_400))
+        transfer.setFromConto(conti[0]); transfer.setToConto(conti[1]); transfer.destinationAmount = 18
+        let rows = [source, transfer]
+        let ledger = try LedgerCache.prepare(conti: conti, transactions: rows, now: now, calendar: calendar).snapshots
+        let shared = FinanceWidgetBuilder.build(accounts: books, budgets: [], transactions: rows,
+            resolutions: [], now: now, calendar: calendar, ledgerSnapshots: ledger)
+        for index in 0..<2 {
+            let book = try #require(shared.books.first { $0.id == books[index].id })
+            for period in WidgetBalancePeriod.allCases {
+                let actual = try #require(book.balanceHistories?.first { $0.period == period })
+                let expected = WidgetBalanceSnapshot.make(period: period, conti: [conti[index]], transactions: rows,
+                    resolutions: [], now: now, calendar: calendar, ledgerSnapshots: ledger)
+                #expect(actual.interval == expected.interval)
+                #expect(actual.recordedTotal == expected.recordedTotal)
+                #expect(actual.projectedTotal == expected.projectedTotal)
+                #expect(actual.plannedMovements == expected.plannedMovements)
+                #expect(actual.scheduledFlowGroups == expected.scheduledFlowGroups)
+                #expect(actual.series.map { $0.points.map(\.balance) } == expected.series.map { $0.points.map(\.balance) })
+                #expect(actual.series.map { $0.projected.map(\.date) } == expected.series.map { $0.projected.map(\.date) })
+                #expect(actual.series.map { $0.projected.map(\.balance) } == expected.series.map { $0.projected.map(\.balance) })
+            }
+        }
+    }
+
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Rome")!

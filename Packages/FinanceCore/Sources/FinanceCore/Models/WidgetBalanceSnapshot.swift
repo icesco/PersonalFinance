@@ -75,19 +75,40 @@ public struct WidgetBalanceSnapshot: Codable, Equatable, Sendable {
     }
 
     private func totalBalances(at dates: [Date]) -> [BalanceDataPoint] {
-        dates.sorted().map { date in
-            BalanceDataPoint(date: date, balance: series.reduce(0) { $0 + $1.balance(at: date) })
+        let ordered = dates.sorted()
+        var totals = Array(repeating: Decimal.zero, count: ordered.count)
+        for account in series {
+            var recordedIndex = 0, projectedIndex = 0
+            for (index, date) in ordered.enumerated() {
+                let useProjection = date > (account.points.last?.date ?? date) && !account.projected.isEmpty
+                let points = useProjection ? account.projected : account.points
+                var cursor = useProjection ? projectedIndex : recordedIndex
+                while cursor < points.count && points[cursor].date <= date { cursor += 1 }
+                let amount = cursor > 0 ? points[cursor - 1].balance : points.first?.balance ?? 0
+                totals[index] += amount
+                if useProjection { projectedIndex = cursor } else { recordedIndex = cursor }
+            }
         }
+        return zip(ordered, totals).map { BalanceDataPoint(date: $0.0, balance: $0.1) }
     }
 
     /// The caller must own all supplied models on its executor.
     public static func make(period: WidgetBalancePeriod, conti: [Conto], transactions: [Transaction],
                             resolutions: [RecurrenceResolution], now: Date, calendar: Calendar = .current,
                             ledgerSnapshots: [UUID: LedgerCacheSnapshot]? = nil) -> Self {
+        make(period: period, conti: conti, transactions: transactions, now: now, calendar: calendar,
+            ledgerSnapshots: ledgerSnapshots,
+            inputs: BalanceSeriesInputs(transactions: transactions, resolutions: resolutions, now: now,
+                through: period.interval(containing: now, calendar: calendar).end))
+    }
+
+    static func make(period: WidgetBalancePeriod, conti: [Conto], transactions: [Transaction], now: Date,
+                     calendar: Calendar, ledgerSnapshots: [UUID: LedgerCacheSnapshot]?, inputs: BalanceSeriesInputs) -> Self {
         let interval = period.interval(containing: now, calendar: calendar)
         let values = AccountBalanceSeries.make(conti: conti, selectedIDs: Set(conti.map(\.id)), transactions: transactions,
-                                               resolutions: resolutions, interval: interval, now: now,
-                                               ledgerSnapshots: ledgerSnapshots, calendar: calendar)
+                                               interval: interval, now: now,
+                                               ledgerSnapshots: ledgerSnapshots, calendar: calendar,
+                                               includeSavingsValuation: false, inputs: inputs)
         let compact = values.map { value in
             AccountBalanceSeries(id: value.id, name: value.name, colorHex: value.colorHex,
                                  points: dailyClosing(value.points, calendar: calendar),
@@ -95,8 +116,7 @@ public struct WidgetBalanceSnapshot: Codable, Equatable, Sendable {
         }
         let ids = Set(compact.map(\.id))
         let sources = Dictionary(transactions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let planned = ProjectedBalanceHistory.plannedTransactions(transactions: transactions, resolutions: resolutions,
-            now: now, through: interval.end)
+        let planned = inputs.planned.filter { $0.date < interval.end }
         var seen = Set<String>()
         let movements = planned.compactMap { value -> WidgetBalancePlannedMovement? in
             guard let source = sources[value.id] else { return nil }

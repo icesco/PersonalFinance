@@ -105,6 +105,12 @@ struct BudgetAccountScopeTests {
         #expect(report.variableRemaining == 300)
         #expect(report.necessary(includingVariables: true) == 350)
         #expect(report.monthTotal(includingVariables: true) == 400)
+        for row in rows { container.mainContext.insert(row) }
+        container.mainContext.insert(value)
+        try container.mainContext.save()
+        let snapshot = try MonthlyForecastSnapshotReader.read(in: container.mainContext, contoID: joint.id,
+            month: date(10, 1), now: date(10, 15), calendar: calendar)
+        #expect(snapshot.variableRemaining == 300)
         let excluded = report.excludingVariableCategories(["budget:\(value.id.uuidString)"])
         #expect(excluded.variableRemaining == 0 && excluded.certainRemaining == 50)
         #expect(forecast(joint, rows: rows, budgets: [], month: 11).estimates.first?.monthlyBaseline == 200)

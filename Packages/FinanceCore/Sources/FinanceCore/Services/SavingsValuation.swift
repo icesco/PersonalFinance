@@ -28,6 +28,72 @@ public struct SavingsMovement: Sendable {
 /// Simple accrual on the recorded balance. Only credited interest is capitalized.
 /// No taxes/fees are inferred: the user supplies the applicable annual rate.
 public enum SavingsValuation {
+    /// Samples share event checkpoints. Sampling itself must not split Decimal accrual,
+    /// otherwise adding a chart date could change the rounding of later values.
+    public static func values(initialBalance: Decimal, start: Date, rates: [SavingsRate],
+                              movements: [SavingsMovement], at dates: [Date],
+                              calendar: Calendar = .current) -> [SavingsValue] {
+        guard let last = dates.max() else { return [] }
+        let entries = movements.filter { $0.date <= last }.sorted { $0.date < $1.date }
+        let changes = Dictionary(grouping: entries, by: \.date)
+        let schedule = rates.sorted { $0.effectiveDate < $1.effectiveDate }
+        var result = SavingsValue(capital: initialBalance, creditedInterest: 0, pendingInterest: 0)
+        var output = Array(repeating: result, count: dates.count)
+        func apply(_ entry: SavingsMovement) {
+            if entry.isInterest {
+                result.creditedInterest += entry.amount
+                if entry.amount >= 0 && result.pendingInterest >= 0 {
+                    result.pendingInterest = max(0, result.pendingInterest - entry.amount)
+                } else if entry.amount < 0 && result.pendingInterest < 0 {
+                    result.pendingInterest = min(0, result.pendingInterest - entry.amount)
+                }
+            } else { result.capital += entry.amount }
+        }
+        var openingIndex = 0
+        let opening = entries.prefix { $0.date <= start }
+        var boundaries = Set(entries.filter { $0.date > start }.map(\.date))
+        boundaries.formUnion(schedule.filter { $0.effectiveDate > start && $0.effectiveDate < last }.map(\.effectiveDate))
+        if last > start {
+            var year = calendar.dateInterval(of: .year, for: start)!.end
+            while year < last {
+                boundaries.insert(year)
+                year = calendar.dateInterval(of: .year, for: year)!.end
+            }
+        }
+        let ordered = boundaries.sorted()
+        var boundaryIndex = 0
+        var rateIndex = 0
+        var rate: Decimal = 0
+        var previous = start
+        func accrue(_ value: inout SavingsValue, through end: Date) {
+            while rateIndex < schedule.count && schedule[rateIndex].effectiveDate <= previous {
+                rate = schedule[rateIndex].annualPercent
+                rateIndex += 1
+            }
+            let yearLength = calendar.dateInterval(of: .year, for: previous)!.duration
+            let fraction = Decimal(end.timeIntervalSince(previous) / yearLength)
+            value.pendingInterest += max(0, value.capital + value.creditedInterest) * rate / 100 * fraction
+        }
+        for (index, date) in dates.enumerated().sorted(by: { $0.element < $1.element }) {
+            while openingIndex < opening.count && opening[openingIndex].date <= date {
+                apply(opening[openingIndex])
+                openingIndex += 1
+            }
+            guard date > start else { output[index] = result; continue }
+            while boundaryIndex < ordered.count && ordered[boundaryIndex] <= date {
+                let end = ordered[boundaryIndex]
+                accrue(&result, through: end)
+                for entry in changes[end] ?? [] { apply(entry) }
+                previous = end
+                boundaryIndex += 1
+            }
+            var sample = result
+            if date > previous { accrue(&sample, through: date) }
+            output[index] = sample
+        }
+        return output
+    }
+
     public static func value(initialBalance: Decimal, start: Date, rates: [SavingsRate],
                              movements: [SavingsMovement], at date: Date,
                              calendar: Calendar = .current) -> SavingsValue {

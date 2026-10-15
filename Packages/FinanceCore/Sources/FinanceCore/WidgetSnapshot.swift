@@ -53,13 +53,10 @@ public enum FinanceWidgetBuilder {
             return .empty(.unavailable, now: now)
         }
         var validUntil = min(month.end, coverageEnd)
+        let horizon = WidgetBalancePeriod.allCases.map { $0.interval(containing: now, calendar: calendar).end }.max() ?? now
+        let balanceInputs = BalanceSeriesInputs(transactions: transactions, resolutions: resolutions, now: now, through: horizon)
         let ledger = ledgerSnapshots ?? (try? LedgerCache.prepare(conti: accounts.flatMap { $0.conti ?? [] },
-            transactions: transactions.map { transaction in
-                TransactionSnapshot(id: transaction.id, amount: transaction.amount ?? 0, type: transaction.type,
-                    date: transaction.date, fromContoId: transaction.fromContoId ?? transaction.fromConto?.id,
-                    toContoId: transaction.toContoId ?? transaction.toConto?.id, destinationAmount: transaction.destinationAmount,
-                    categoryID: transaction.categoryId ?? transaction.category?.id)
-            }, now: now, calendar: calendar).snapshots)
+            transactions: balanceInputs.snapshots, now: now, calendar: calendar).snapshots)
         let resolved = Set(resolutions.map(\.key))
         var books: [WidgetBookSnapshot] = []
         for account in accounts where account.isActive == true {
@@ -116,7 +113,7 @@ public enum FinanceWidgetBuilder {
             dates.sort()
             let histories = WidgetBalancePeriod.allCases.map { period in
                 WidgetBalanceSnapshot.make(period: period, conti: account.conti ?? [], transactions: transactions,
-                                           resolutions: resolutions, now: now, calendar: calendar, ledgerSnapshots: ledger)
+                                           now: now, calendar: calendar, ledgerSnapshots: ledger, inputs: balanceInputs)
             }
             validUntil = min(validUntil, histories.map(\.interval.end).min() ?? validUntil)
             books.append(WidgetBookSnapshot(id: account.id, name: account.name ?? "Libro", currency: account.currency ?? "EUR",

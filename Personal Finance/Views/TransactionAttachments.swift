@@ -343,6 +343,8 @@ private struct AttachmentThumbnail: View {
     let attachment: AttachmentDraft
     let onRead: () -> Void
     let onRemove: () -> Void
+    @Environment(\.displayScale) private var displayScale
+    @State private var thumbnail: Image?
 
     private var isPDF: Bool { attachment.contentType == UTType.pdf.identifier }
 
@@ -386,19 +388,24 @@ private struct AttachmentThumbnail: View {
             .offset(x: 7, y: -7)
             .accessibilityLabel("Rimuovi \(attachment.filename)")
         }
+        .task(id: attachment.id) {
+            guard !isPDF else { return }
+            let pixels = max(1, Int((84 * displayScale * 2).rounded(.up)))
+            guard let data = await CaptureThumbnailRenderer.shared.thumbnail(id: attachment.id,
+                data: attachment.data, isPDF: false, pixels: pixels), !Task.isCancelled else { return }
+            #if os(iOS)
+            if let image = UIImage(data: data) { thumbnail = Image(uiImage: image) }
+            #else
+            if let image = NSImage(data: data) { thumbnail = Image(nsImage: image) }
+            #endif
+        }
     }
 
     @ViewBuilder
     private var preview: some View {
-        #if os(iOS)
-        if !isPDF, let image = UIImage(data: attachment.data) {
-            Image(uiImage: image).resizable().scaledToFill()
+        if let thumbnail {
+            thumbnail.resizable().scaledToFill()
         } else { placeholder }
-        #else
-        if !isPDF, let image = NSImage(data: attachment.data) {
-            Image(nsImage: image).resizable().scaledToFill()
-        } else { placeholder }
-        #endif
     }
 
     private var placeholder: some View {

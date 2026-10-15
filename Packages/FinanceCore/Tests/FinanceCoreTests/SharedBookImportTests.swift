@@ -5,6 +5,55 @@ import Testing
 
 @MainActor
 struct SharedBookImportTests {
+    @Test func scopedImportStillProtectsForeignBudgetAndRecurrenceChildren() throws {
+        let (scope, snapshot) = try fixture()
+        let target = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        try SharedBookImporter.apply(scope: scope, records: snapshot.records, assets: snapshot.assets, container: target)
+        let context = target.mainContext
+        let source = try #require(context.fetch(FetchDescriptor<Transaction>()).first)
+        let category = try #require(source.category)
+        let privateBook = Account(name: "Privato")
+        let privateConto = Conto(name: "Privato", type: .checking); privateConto.account = privateBook
+        context.insert(privateBook); context.insert(privateConto)
+        let budget = Budget(name: "Privato", amount: 100, period: .monthly)
+        budget.account = privateBook; budget.categories = [category]; context.insert(budget)
+        let child = Transaction(amount: 7, type: .expense); child.setFromConto(privateConto)
+        child.recurrenceSourceID = source.id; context.insert(child)
+        try context.save()
+        var deletion = snapshot.records.map { [.transaction, .attachment, .recurrence].contains($0.id.kind) ? $0.tombstone() : $0 }
+        do {
+            try SharedBookImporter.apply(scope: scope, records: deletion, assets: [:], container: target)
+            Issue.record("Deletion omitted a private recurrence child")
+        } catch SharedBookImporter.Failure.unreconciledDeletion {}
+        context.delete(child); try context.save()
+        deletion = deletion.map { [.category, .budget].contains($0.id.kind) ? $0.tombstone() : $0 }
+        do {
+            try SharedBookImporter.apply(scope: scope, records: deletion, assets: [:], container: target)
+            Issue.record("Deletion omitted a private budget referencing the shared category")
+        } catch SharedBookImporter.Failure.unreconciledDeletion {}
+        #expect(budget.name == "Privato")
+        #expect(try ModelContext(target).fetchCount(FetchDescriptor<Budget>()) >= 1)
+    }
+
+    @Test func scopedImportStillProtectsForeignBudgetReferencingDeletedConto() throws {
+        let (scope, snapshot) = try fixture()
+        let target = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
+        try SharedBookImporter.apply(scope: scope, records: snapshot.records, assets: snapshot.assets, container: target)
+        let context = target.mainContext
+        let conto = try #require(context.fetch(FetchDescriptor<Conto>()).first)
+        let privateBook = Account(name: "Privato")
+        let budget = Budget(name: "Collegamento privato", amount: 100, period: .monthly)
+        budget.account = privateBook; budget.contoID = conto.id
+        context.insert(privateBook); context.insert(budget); try context.save()
+        let deletion = snapshot.records.map { $0.id.kind == .book ? $0 : $0.tombstone() }
+        do {
+            try SharedBookImporter.apply(scope: scope, records: deletion, assets: [:], container: target)
+            Issue.record("Deletion omitted a foreign budget referencing the shared conto")
+        } catch SharedBookImporter.Failure.unreconciledDeletion {}
+        #expect(try ModelContext(target).fetchCount(FetchDescriptor<Budget>()) == 2)
+        #expect(try ModelContext(target).fetchCount(FetchDescriptor<Conto>()) == 1)
+    }
+
     private func fixture() throws -> (SharedBookScope, SharedBookExport) {
         let container = try FinanceCoreModule.createModelContainer(enableCloudKit: false, inMemory: true)
         let context = container.mainContext
