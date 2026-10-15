@@ -57,7 +57,6 @@ struct TodayView: View {
                                     .buttonStyle(.borderedProminent)
                                 NavigationLink("Saldo storico per libro") { BalanceHistoryView() }
                             }
-                            .themedBackground(tint: ForgiaPalette.margin)
                         } else {
                             SpendingOverviewView(transactions: snapshot.entries, currency: snapshot.currency, scopeContoIDs: snapshot.contoIDs,
                                                  initialBookID: appState.showAllAccounts ? nil : appState.selectedAccount?.id)
@@ -103,7 +102,6 @@ struct TodayView: View {
                         #if os(iOS)
                         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                         #endif
-                        .themedBackground(tint: ForgiaPalette.margin)
                     }
                 } else if loadFailed {
                     ContentUnavailableView {
@@ -116,6 +114,8 @@ struct TodayView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .themedBackground(tint: .clear)
+            .environment(\.financeCardSurfaceStyle, screen == .home ? .themed : .gradient)
             #if os(iOS)
             .toolbar(screen == .home ? .hidden : .automatic, for: .navigationBar)
             .sectionSheetChrome(screen == .analysis ? "Analisi" : "Oggi", showsTitle: screen != .analysis)
@@ -376,7 +376,7 @@ private struct TodayMarginCard: View {
                     }
                     .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
                 }
-            }.unifiedCard(tint: ForgiaPalette.margin).foregroundStyle(.primary)
+            }.unifiedCard(tint: ForgiaPalette.margin, emphasized: true).foregroundStyle(.primary)
         }
         .buttonStyle(.plain)
         .financeCardEntrance()
@@ -583,7 +583,7 @@ private struct TodayRecentActivityCard: View {
                 }
             }
             .foregroundStyle(.primary)
-            .unifiedCard(tint: ForgiaPalette.spending)
+            .unifiedCard(tint: ForgiaPalette.spending, emphasized: true)
         }
         .buttonStyle(.plain)
         .financeCardEntrance()

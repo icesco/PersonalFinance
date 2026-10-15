@@ -45,7 +45,7 @@ extension EnvironmentValues {
 
 // MARK: - Tinted Card Background
 
-/// Analysis uses a satin material; other cards retain their section tint.
+/// Themed cards use a satin material; gradient cards retain their section tint.
 private struct TintedCardBackground: View {
     let cornerRadius: CGFloat
     var identityTint: Color? = nil
@@ -86,6 +86,7 @@ private struct TintedCardBackground: View {
 
 private struct UnifiedCardModifier: ViewModifier {
     var identityTint: Color? = nil
+    var emphasized = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.financeCardSurfaceStyle) private var surfaceStyle
 
@@ -98,6 +99,15 @@ private struct UnifiedCardModifier: ViewModifier {
             .clipShape(shape)
             .background {
                 TintedCardBackground(cornerRadius: 22, identityTint: identityTint)
+                    .overlay {
+                        if emphasized && surfaceStyle == .themed {
+                            shape.fill(LinearGradient(
+                                colors: [ForgiaPalette.accent.opacity(colorScheme == .dark ? 0.07 : 0.045), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                        }
+                    }
                     .shadow(color: .black.opacity(surfaceStyle != .gradient
                                                  ? (colorScheme == .dark ? 0.18 : 0.035)
                                                  : (colorScheme == .dark ? 0.40 : 0.08)),
@@ -113,12 +123,21 @@ private struct UnifiedCardModifier: ViewModifier {
 private struct CompactCardBackground: View {
     let cornerRadius: CGFloat
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.financeCardSurfaceStyle) private var surfaceStyle
 
     var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(ForgiaPalette.surface)
+        surface
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.07), radius: 12, y: 5)
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.03), radius: 1.5, y: 1)
+    }
+
+    @ViewBuilder private var surface: some View {
+        if surfaceStyle == .themed {
+            TintedCardBackground(cornerRadius: cornerRadius)
+        } else {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(ForgiaPalette.surface)
+        }
     }
 }
 
@@ -146,8 +165,8 @@ extension View {
 }
 
 extension View {
-    func unifiedCard(tint: Color? = nil) -> some View {
-        modifier(UnifiedCardModifier(identityTint: tint))
+    func unifiedCard(tint: Color? = nil, emphasized: Bool = false) -> some View {
+        modifier(UnifiedCardModifier(identityTint: tint, emphasized: emphasized))
     }
 
     /// Applies the calm surface used across the main screens.
@@ -170,7 +189,7 @@ private struct ThemedBackgroundModifier: ViewModifier {
             .buttonBorderShape(.capsule)
             .background {
                 if surfaceStyle == .themed {
-                    AnalysisAmbientBackground()
+                    ThemedAmbientBackground()
                 } else {
                     ForgiaPalette.canvas
                         .ignoresSafeArea()
@@ -189,7 +208,7 @@ private struct ThemedBackgroundModifier: ViewModifier {
     }
 }
 
-private struct AnalysisAmbientBackground: View {
+private struct ThemedAmbientBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var isDark: Bool { colorScheme == .dark }
