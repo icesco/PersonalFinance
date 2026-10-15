@@ -58,7 +58,7 @@ struct FinanceCalendarView: View {
                     } label: {
                         Label("Previsione del mese", systemImage: "calendar.badge.clock")
                             .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                    }.buttonStyle(.bordered).tint(ForgiaPalette.calendar)
+                    }.buttonStyle(.bordered).tint(AnalysisPalette.calendar)
                         .accessibilityIdentifier("monthly-forecast-open")
                 }
                 Picker("Vista", selection: $timeline) {
@@ -74,19 +74,19 @@ struct FinanceCalendarView: View {
                         (byDay[Calendar.current.startOfDay(for: date)] ?? []).map { event in
                             CalendarTask(id: event.id, categoryID: event.kind == .recorded ? "recorded" : "scheduled",
                                 categoryLabel: event.kind == .recorded ? "Registrato" : "Previsto", categoryIcon: "circle",
-                                categoryColor: event.kind == .recorded ? ForgiaPalette.spending : ForgiaPalette.calendar, title: event.title)
+                                categoryColor: event.kind == .recorded ? AnalysisPalette.spending : AnalysisPalette.calendar, title: event.title)
                         }
-                    }.unifiedCard(tint: ForgiaPalette.calendar)
+                    }.unifiedCard(tint: AnalysisPalette.calendar)
                 }
                 HStack(spacing: 18) {
                     if !timeline {
-                        Label("Registrato", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.spending)
+                        Label("Registrato", systemImage: "circle.fill").foregroundStyle(AnalysisPalette.spending)
                     }
-                    Label(timeline ? "Previsto" : "Previsto / da registrare", systemImage: "circle.fill").foregroundStyle(ForgiaPalette.calendar)
+                    Label(timeline ? "Previsto" : "Previsto / da registrare", systemImage: "circle.fill").foregroundStyle(AnalysisPalette.calendar)
                 }.font(.caption)
                 Button("Torna a oggi") { month = Date(); selectedDate = Calendar.current.startOfDay(for: Date()) }
                     .buttonStyle(.bordered)
-                    .tint(ForgiaPalette.calendar)
+                    .tint(AnalysisPalette.calendar)
                     .accessibilityIdentifier("finance-calendar-today")
                 if failed {
                     VStack(alignment: .leading, spacing: 8) {
@@ -131,7 +131,7 @@ struct FinanceCalendarView: View {
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .themedBackground(tint: ForgiaPalette.calendar)
+        .themedBackground(tint: AnalysisPalette.calendar)
         .navigationTitle("Calendario e timeline")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -182,7 +182,7 @@ private struct FinanceTimelineMonthHeader: View {
             Button("Mese precedente", systemImage: "chevron.left") { month = Calendar.current.date(byAdding: .month, value: -1, to: month)! }
                 .labelStyle(.iconOnly).frame(width: 44, height: 44)
             Spacer()
-            Text(month.formatted(.dateTime.month(.wide).year().locale(financeCalendarLocale))).font(.headline).foregroundStyle(ForgiaPalette.calendar)
+            Text(month.formatted(.dateTime.month(.wide).year().locale(financeCalendarLocale))).font(.headline).foregroundStyle(AnalysisPalette.calendar)
             Spacer()
             Button("Mese successivo", systemImage: "chevron.right") { month = Calendar.current.date(byAdding: .month, value: 1, to: month)! }
                 .labelStyle(.iconOnly).frame(width: 44, height: 44)
@@ -201,7 +201,7 @@ private struct FinanceCalendarSummary: View {
                 Spacer(minLength: 4)
                 Image("FormiMark").resizable().scaledToFit().frame(width: 22, height: 22)
                     .accessibilityHidden(true)
-            }.foregroundStyle(ForgiaPalette.calendar)
+            }.foregroundStyle(AnalysisPalette.calendar)
             let expenses = events.filter { $0.type == .expense }
             let recorded = expenses.filter { $0.kind == .recorded }
             let future = expenses.filter { $0.kind != .recorded && $0.date > Date() }
@@ -229,7 +229,7 @@ private struct FinanceCalendarTotal: View {
                 Text("Importi da verificare").font(.caption)
             } else {
                 let total = events.reduce(Decimal.zero) { $0 + ($1.amount ?? 0) }
-                Text(total, format: .currency(code: currency)).monospacedDigit().financeNumericMotion(total).foregroundStyle(ForgiaPalette.calendar)
+                Text(total, format: .currency(code: currency)).monospacedDigit().financeNumericMotion(total).foregroundStyle(AnalysisPalette.calendar)
             }
         }.font(.subheadline)
     }
@@ -268,7 +268,7 @@ struct FinanceCalendarEventRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: event.type == .income ? "arrow.down.left" : "arrow.up.right")
-                .foregroundStyle(event.kind == .recorded ? ForgiaPalette.spending : ForgiaPalette.calendar)
+                .foregroundStyle(event.kind == .recorded ? AnalysisPalette.spending : AnalysisPalette.calendar)
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title).font(.subheadline.weight(.medium))
                 Text(event.kind == .recorded ? "Registrato" : event.kind == .recurrence
@@ -294,11 +294,11 @@ struct FinanceCalendarPreview: View {
             FinanceCalendarView(contoIDs: contoIDs, currency: currency, initialDate: initialDate)
         } label: {
             VStack(alignment: .leading, spacing: 12) {
-                AnalysisPreviewHeading(title: "Calendario e timeline", icon: "calendar", tint: ForgiaPalette.calendar,
+                AnalysisPreviewHeading(title: "Calendario e timeline", icon: "calendar", tint: AnalysisPalette.calendar,
                                        accessory: upcoming.isEmpty ? nil : "\(upcoming.count) in arrivo")
                 if upcoming.isEmpty {
                     Text("Consulta le spese nel calendario e le prossime scadenze nella timeline")
-                        .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                        .font(.subheadline).foregroundStyle(ForgiaPalette.accent)
                 } else {
                     VStack(spacing: 10) {
                         ForEach(Array(upcoming.prefix(3).enumerated()), id: \.offset) { _, item in
@@ -308,10 +308,10 @@ struct FinanceCalendarPreview: View {
                     let total = upcoming.reduce(Decimal(0)) { $0 + $1.amount }
                     if upcoming.count > 3 {
                         Text("Altre \(upcoming.count - 3) scadenze · \(total, format: .currency(code: currency)) in totale")
-                            .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                            .font(.caption).foregroundStyle(ForgiaPalette.accent)
                     }
                 }
-            }.unifiedCard(tint: ForgiaPalette.calendar).foregroundStyle(.primary)
+            }.unifiedCard(tint: AnalysisPalette.calendar).foregroundStyle(ForgiaPalette.accent)
         }.buttonStyle(.plain).financeCardEntrance().accessibilityIdentifier("finance-calendar-preview")
     }
 }
@@ -335,26 +335,27 @@ private struct UpcomingAgendaRow: View {
         HStack(spacing: 12) {
             VStack(spacing: 0) {
                 Text(item.date, format: .dateTime.day())
-                    .font(.system(.headline, design: .rounded)).monospacedDigit()
+                    .analysisMetric(size: 18)
                 Text(item.date.formatted(.dateTime.month(.abbreviated).locale(Self.locale)).uppercased())
                     .font(.system(size: 9, weight: .bold)).tracking(0.5)
             }
-            .foregroundStyle(ForgiaPalette.calendar)
+            .foregroundStyle(AnalysisPalette.calendar)
             .frame(width: 42, height: 42)
-            .background(ForgiaPalette.calendar.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .background(AnalysisPalette.calendar.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                     if item.isRecurring {
-                        Image(systemName: "repeat").font(.caption2).foregroundStyle(ForgiaPalette.mutedText)
+                        Image(systemName: "repeat").font(.caption2).foregroundStyle(ForgiaPalette.accent)
                             .accessibilityLabel("Ricorrente")
                     }
                 }
-                Text(relativeDay).font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                Text(relativeDay).font(.caption).foregroundStyle(ForgiaPalette.accent)
             }
             Spacer(minLength: 8)
             Text(item.amount, format: .currency(code: currency))
-                .font(.subheadline.weight(.semibold)).monospacedDigit()
+                .analysisMetric(size: 20)
+                .foregroundStyle(AnalysisPalette.calendar)
         }
         .accessibilityElement(children: .combine)
     }

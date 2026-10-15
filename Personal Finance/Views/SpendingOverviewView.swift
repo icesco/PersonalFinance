@@ -65,7 +65,7 @@ struct SpendingOverviewView: View {
                         .tracking(-0.8)
                     Text("Le tue uscite registrate")
                         .font(.subheadline)
-                        .foregroundStyle(ForgiaPalette.mutedText)
+                        .foregroundStyle(ForgiaPalette.accent)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 26)
@@ -83,6 +83,7 @@ struct SpendingOverviewView: View {
                         report: RecordedSavingsReport.calculate(transactions: transactions, interval: interval),
                         currency: currency, isInProgress: interval.end > Date(), plan: applicableSavingsPlan, periodTitle: periodTitle
                     )
+                    InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency, periodTitle: periodTitle)
                     NavigationLink {
                         MoneyFlowView(transactions: transactions, currency: currency,
                                       interval: interval, periodTitle: periodTitle,
@@ -94,36 +95,39 @@ struct SpendingOverviewView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Flusso del denaro")
                                     .font(.system(.headline, design: .serif, weight: .semibold))
+                                    .foregroundStyle(ForgiaPalette.accent)
                                 Text("Dalle entrate alle categorie, fino a ogni dettaglio")
-                                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                                    .font(.subheadline).foregroundStyle(ForgiaPalette.accent)
                             }
                             Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").foregroundStyle(ForgiaPalette.mutedText)
+                            Image(systemName: "chevron.right").foregroundStyle(ForgiaPalette.accent)
                         }
-                        .unifiedCard()
+                        .unifiedCard(tint: ForgiaPalette.accent)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("analysis-money-flow")
                     FinanceCalendarPreview(contoIDs: scopeContoIDs, currency: currency, initialDate: anchor)
-                    InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency, periodTitle: periodTitle)
 
                     if report.expenses > 0 {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Ricorrenti e variabili").font(.headline)
-                            periodAmount("Ricorrenti", amount: report.recurring)
-                            periodAmount("Variabili", amount: report.variable)
+                            Text("Ricorrenti e variabili")
+                                .font(.system(.headline, design: .serif, weight: .semibold))
+                                .foregroundStyle(ForgiaPalette.accent)
+                            periodAmount("Ricorrenti", amount: report.recurring, tint: ForgiaPalette.accent, size: 36)
+                            periodAmount("Variabili", amount: report.variable, tint: ForgiaPalette.accent, size: 36)
                             Text("Solo spese registrate nel periodo selezionato; le ricorrenze sono quelle contrassegnate da te.")
-                                .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
-                        }.unifiedCard()
+                                .font(.caption).foregroundStyle(ForgiaPalette.accent)
+                        }.unifiedCard(tint: ForgiaPalette.accent)
                         categoryDistributionCard
                         VStack(alignment: .leading, spacing: 20) {
                             HStack {
                                 Text("Categorie")
                                     .font(.system(.title3, design: .serif, weight: .semibold))
+                                    .foregroundStyle(ForgiaPalette.accent)
                                 Spacer()
                                 Text("Spesa registrata")
                                     .font(.caption)
-                                    .foregroundStyle(ForgiaPalette.mutedText)
+                                    .foregroundStyle(ForgiaPalette.accent)
                             }
                             ForEach(Array(report.categories.enumerated()), id: \.offset) { index, category in
                                 if let categoryID = category.categoryID {
@@ -140,9 +144,8 @@ struct SpendingOverviewView: View {
                             }
                         }
                     } else {
-                        Text("Non ci sono uscite registrate nel periodo. Importa i movimenti per vedere la ripartizione per categoria.")
-                            .font(.subheadline)
-                            .foregroundStyle(ForgiaPalette.mutedText)
+                        AnalysisEmptyState(symbol: .categories, title: "Nessuna uscita registrata",
+                            message: "Importa i movimenti per vedere la ripartizione per categoria.")
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .unifiedCard()
                     }
@@ -156,7 +159,7 @@ struct SpendingOverviewView: View {
 
                     Text("I trasferimenti tra i tuoi conti sono esclusi. I valori dipendono dai movimenti importati o registrati.")
                         .font(.caption)
-                        .foregroundStyle(ForgiaPalette.mutedText)
+                        .foregroundStyle(ForgiaPalette.accent)
                         .padding(.horizontal, 4)
                 }
                 .padding(.horizontal, 22)
@@ -164,7 +167,8 @@ struct SpendingOverviewView: View {
                 .padding(.bottom, 28)
             }
         }
-        .themedBackground(tint: ForgiaPalette.spending)
+        .themedBackground(tint: .clear)
+        .environment(\.financeCardSurfaceStyle, .themed)
         .safeAreaBar(edge: .top, spacing: 0) {
             if !usesCompactPeriod {
             SpendingPeriodBar(
@@ -256,11 +260,13 @@ struct SpendingOverviewView: View {
     private var comparisonCard: some View {
         let change = report.expenses - report.previousExpenses
         return VStack(alignment: .leading, spacing: 13) {
-            Text("Confronto").font(.headline)
+            Text("Confronto")
+                .font(.system(.headline, design: .serif, weight: .semibold))
+                .foregroundStyle(ForgiaPalette.accent)
             HStack(alignment: .top, spacing: 16) {
-                periodAmount("Periodo precedente", amount: report.previousExpenses)
+                periodAmount("Periodo precedente", amount: report.previousExpenses, tint: AnalysisPalette.margin)
                 Rectangle().fill(ForgiaPalette.border).frame(width: 1, height: 50)
-                periodAmount("Periodo selezionato", amount: report.expenses)
+                periodAmount("Periodo selezionato", amount: report.expenses, tint: AnalysisPalette.margin)
             }
             Text(change > 0
                  ? "Hai speso \(change.formatted(.currency(code: currency).locale(locale))) in più rispetto al periodo precedente."
@@ -268,47 +274,47 @@ struct SpendingOverviewView: View {
                  ? "Hai speso \(abs(change).formatted(.currency(code: currency).locale(locale))) in meno rispetto al periodo precedente."
                  : "La spesa è uguale al periodo precedente.")
                 .font(.subheadline)
-                .foregroundStyle(ForgiaPalette.mutedText)
+                .foregroundStyle(ForgiaPalette.accent)
         }
         .unifiedCard()
     }
 
     private var increaseCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Cosa è aumentato").font(.headline)
+            Text("Cosa è aumentato")
+                .font(.system(.headline, design: .serif, weight: .semibold))
+                .foregroundStyle(ForgiaPalette.accent)
             ForEach(Array(report.increases.enumerated()), id: \.offset) { _, category in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(category.name).font(.subheadline.weight(.semibold))
                         Text("\(category.previous.formatted(.currency(code: currency).locale(locale))) → \(category.current.formatted(.currency(code: currency).locale(locale)))")
                             .font(.caption)
-                            .foregroundStyle(ForgiaPalette.mutedText)
+                            .foregroundStyle(ForgiaPalette.accent)
                     }
                     Spacer(minLength: 8)
                     Text("+\(category.increase.formatted(.currency(code: currency).locale(locale)))")
-                        .font(.subheadline.weight(.semibold))
+                        .analysisMetric(size: 20)
                         .foregroundStyle(ForgiaPalette.accent)
                         .monospacedDigit()
                 }
             }
             Text("Il confronto usa il periodo precedente; per il periodo corrente considera solo la porzione già trascorsa. Controlla nei movimenti se l'aumento deriva da una spesa abituale o occasionale.")
                 .font(.caption)
-                .foregroundStyle(ForgiaPalette.mutedText)
+                .foregroundStyle(ForgiaPalette.accent)
         }
         .unifiedCard()
     }
 
-    private func periodAmount(_ title: String, amount: Decimal) -> some View {
+    private func periodAmount(_ title: String, amount: Decimal, tint: Color, size: CGFloat = 28) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(ForgiaPalette.mutedText)
+                .foregroundStyle(ForgiaPalette.accent)
                 .fixedSize(horizontal: false, vertical: true)
             Text(amount, format: .currency(code: currency))
-                .font(.system(.headline, design: .rounded, weight: .bold))
-                .minimumScaleFactor(0.75)
-                .lineLimit(1)
-                .monospacedDigit()
+                .analysisMetric(size: size)
+                .foregroundStyle(tint)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -333,21 +339,19 @@ struct SpendingOverviewView: View {
             .overlay {
                 VStack(spacing: 3) {
                     Text(report.expenses, format: .currency(code: currency))
-                        .font(.system(.title2, design: .rounded, weight: .semibold))
-                        .monospacedDigit()
-                        .minimumScaleFactor(0.7)
-                        .lineLimit(1)
+                        .analysisMetric(size: 28)
+                        .foregroundStyle(AnalysisPalette.spending)
                     Text("TOTALE USCITE")
                         .font(.caption2.weight(.semibold))
                         .tracking(0.6)
-                        .foregroundStyle(ForgiaPalette.mutedText)
+                        .foregroundStyle(ForgiaPalette.accent)
                 }
                 .frame(width: 138)
                 .accessibilityHidden(true)
             }
             Text("Prime cinque categorie e resto")
                 .font(.caption)
-                .foregroundStyle(ForgiaPalette.mutedText)
+                .foregroundStyle(ForgiaPalette.accent)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -389,10 +393,10 @@ private struct SpendingBarRow: View {
                 Spacer(minLength: 8)
                 Text(NSDecimalNumber(decimal: category.amount / total).doubleValue, format: .percent.precision(.fractionLength(0)))
                     .font(.caption)
-                    .foregroundStyle(ForgiaPalette.mutedText)
+                    .foregroundStyle(ForgiaPalette.accent)
                 Text(category.amount, format: .currency(code: currency))
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
+                    .analysisMetric(size: 17)
+                    .foregroundStyle(AnalysisPalette.spending)
             }
             GeometryReader { geometry in
                 Capsule().fill(ForgiaPalette.border.opacity(0.75))
@@ -477,18 +481,19 @@ private struct SpendingPeriodBar: View {
                     Divider()
                     Button("Personalizzato…", action: chooseCustom)
                 } label: {
-                    VStack(spacing: 1) {
+                    VStack(alignment: compact ? .trailing : .center, spacing: 1) {
                     HStack(spacing: 6) {
                         Text(title)
                             .font(.system(compact ? .headline : .title3, design: .serif, weight: .bold))
                             .foregroundStyle(ForgiaPalette.accent)
-                            .multilineTextAlignment(.center)
+                            .multilineTextAlignment(compact ? .trailing : .center)
                             .lineLimit(compact ? 1 : nil)
                         Image(systemName: "chevron.down").font(.caption.weight(.semibold))
                             .foregroundStyle(ForgiaPalette.accent)
                     }
                     if compact {
-                        Text(coverage).font(.caption2).foregroundStyle(ForgiaPalette.mutedText)
+                        Text(coverage).font(.caption2).foregroundStyle(ForgiaPalette.accent)
+                            .multilineTextAlignment(.trailing)
                     }
                     }
                     .frame(minHeight: 44)
@@ -529,7 +534,7 @@ private struct SpendingPeriodBar: View {
             }
             Text(coverage)
                 .font(.caption)
-                .foregroundStyle(ForgiaPalette.mutedText)
+                .foregroundStyle(ForgiaPalette.accent)
                 .multilineTextAlignment(.center)
         }
         .tint(ForgiaPalette.accent)

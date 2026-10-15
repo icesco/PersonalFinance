@@ -334,6 +334,7 @@ final class Personal_FinanceUITests: XCTestCase {
         XCTAssertLessThan(title.frame.midX, periodPicker.frame.midX)
         XCTAssertFalse(app.staticTexts["Dove spendi"].exists)
         XCTAssertGreaterThan(periodPicker.frame.midX, app.frame.midX)
+        capture(app, name: "Analisi numeri mensili")
         let initialTitle = periodPicker.label
         periodPicker.tap()
         app.buttons["Periodo precedente"].tap()
@@ -349,6 +350,9 @@ final class Personal_FinanceUITests: XCTestCase {
         periodPicker.tap()
         app.buttons["Periodo successivo"].tap()
         XCTAssertEqual(periodPicker.label, initialTitle)
+        app.swipeUp()
+        app.swipeUp()
+        capture(app, name: "Analisi numeri altre sezioni")
     }
 
     @MainActor

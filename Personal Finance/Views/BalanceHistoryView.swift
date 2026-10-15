@@ -115,7 +115,7 @@ struct BalanceHistoryView: View {
                     BalanceHistoryChart(series: series, interval: displayedInterval, currency: currency, selectedDate: $selectedDate)
                 }
                 .frame(maxWidth: .infinity, minHeight: 450, alignment: .topLeading)
-                .unifiedCard(tint: ForgiaPalette.balance)
+                .unifiedCard(tint: AnalysisPalette.balance)
                 if let conto = conti.first(where: { $0.id == contoID }), conto.type == .savings {
                     SavingsAccountSummary(conto: conto)
                 }
@@ -190,14 +190,14 @@ struct InlineBalanceHistoryDetailCard: View {
                 Label {
                     Text("Saldo per conto")
                 } icon: {
-                    FormiFeatureIcon(symbol: .balance, size: 28, ink: ForgiaPalette.balance)
+                    FormiFeatureIcon(symbol: .balance, size: 28, ink: AnalysisPalette.balance)
                 }
                     .font(.system(.title3, design: .serif, weight: .semibold))
                 BalanceHistoryChart(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
 
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .unifiedCard(tint: ForgiaPalette.balance)
+            .unifiedCard(tint: AnalysisPalette.balance)
             .accessibilityIdentifier("analysis-balance-history")
         }
         .onChange(of: interval) { selectedDate = nil }
@@ -227,25 +227,26 @@ struct InlineBalanceHistoryCard: View {
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 12) {
-                    AnalysisPreviewHeading(title: "Andamento saldo", icon: "chart.xyaxis.line", tint: ForgiaPalette.balance, illustration: .balance)
-                    HStack(spacing: 16) {
+                    AnalysisPreviewHeading(title: "Andamento saldo", icon: "chart.xyaxis.line", tint: AnalysisPalette.balance, illustration: .balance)
+                    VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
                             if series.isEmpty {
-                                Text("Nessun saldo nel periodo").font(.subheadline)
+                                AnalysisEmptyState(symbol: .balance, title: "Nessun saldo nel periodo",
+                                    message: "Aggiungi un conto o registra movimenti per visualizzare l’andamento.")
                             } else {
                                 let total = series.reduce(Decimal.zero) { $0 + ($1.points.last?.balance ?? 0) }
                                 Text(total, format: .currency(code: currency))
-                                    .font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit().financeNumericMotion(total).foregroundStyle(ForgiaPalette.balance)
+                                    .analysisMetric().financeNumericMotion(total).foregroundStyle(AnalysisPalette.balance)
                                 Text(series.count == 1 ? "Saldo registrato · un conto" : "Saldo registrato · \(series.count) conti")
-                                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                                    .font(.caption).foregroundStyle(ForgiaPalette.accent)
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                         if !series.isEmpty {
-                            BalanceHistoryMiniChart(series: series).frame(width: 100, height: 64).financeChartReveal()
+                            BalanceHistoryMiniChart(series: series).frame(height: 64).financeChartReveal()
                                 .accessibilityHidden(true)
                         }
                     }
-                }.unifiedCard(tint: ForgiaPalette.balance).foregroundStyle(.primary)
+                }.unifiedCard(tint: AnalysisPalette.balance).foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
             .financeCardEntrance()
@@ -263,7 +264,8 @@ private struct BalanceHistoryMiniChart: View {
                     LineMark(x: .value("Data", point.date),
                              y: .value("Saldo", NSDecimalNumber(decimal: point.balance).doubleValue),
                              series: .value("Conto", account.id.uuidString))
-                        .foregroundStyle(account.color).interpolationMethod(FinanceChartStyle.interpolation)
+                        .foregroundStyle(series.count == 1 ? AnalysisPalette.balance : AnalysisPalette.subdued(account.color))
+                        .interpolationMethod(FinanceChartStyle.interpolation)
                 }
             }
         }
@@ -296,7 +298,7 @@ private struct BalanceHistoryChart: View {
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     Text(total, format: .currency(code: currency))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        .monospacedDigit().foregroundStyle(ForgiaPalette.balance)
+                        .monospacedDigit().foregroundStyle(AnalysisPalette.balance)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .financeNumericMotion(total)
@@ -309,7 +311,7 @@ private struct BalanceHistoryChart: View {
                     Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
                 }
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(delta >= 0 ? ForgiaPalette.balance : ForgiaPalette.deficit)
+                .foregroundStyle(delta >= 0 ? AnalysisPalette.balance : AnalysisPalette.deficit)
 
                 ZStack {
                     BalanceHistoryPlot(series: series, interval: interval, currency: currency, selectedDate: $selectedDate)
@@ -466,7 +468,7 @@ struct BalanceHistoryFixture: View {
                        let savings = (try? Self.data.container.mainContext.fetch(FetchDescriptor<Conto>()))?.first(where: { $0.type == .savings }) {
                         InlineBalanceHistoryDetailCard(scopeContoIDs: [savings.id], interval: Self.data.interval, currency: "EUR")
                         SavingsAccountSummary(conto: savings)
-                            .unifiedCard(tint: ForgiaPalette.balance)
+                            .unifiedCard(tint: AnalysisPalette.balance)
                     } else {
                         InlineBalanceHistoryDetailCard(scopeContoIDs: Self.data.ids, interval: Self.data.interval, currency: "EUR")
                     }

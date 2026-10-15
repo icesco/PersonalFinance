@@ -8,11 +8,15 @@ struct RecordedSavingsDetailContent: View {
     var plan: BudgetingPlan? = nil
     @State private var showingExplanation = false
 
+    private var resultTint: Color {
+        report.savingsRate.map { $0 < 0 ? AnalysisPalette.deficit : AnalysisPalette.savings } ?? AnalysisPalette.savings
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("Tasso di risparmio", systemImage: "gauge.with.needle")
                 .font(.system(.headline, design: .serif, weight: .semibold))
-                .foregroundStyle(ForgiaPalette.savings)
+                .foregroundStyle(ForgiaPalette.accent)
             if let rate = report.savingsRate {
                 SavingsRateHero(rate: rate)
 
@@ -20,14 +24,13 @@ struct RecordedSavingsDetailContent: View {
                     reference: plan.map { Decimal($0.savingsPercent) / 100 }, currency: nil,
                     isCeiling: false, isInProgress: isInProgress)
             } else {
-                Text("Non calcolabile").font(.title2.weight(.semibold)).foregroundStyle(ForgiaPalette.savings)
-                Text(report.hasInvalidAmounts
-                     ? "Controlla gli importi mancanti o non validi."
-                     : "Servono entrate registrate maggiori di zero nel periodo.")
-                    .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                AnalysisEmptyState(symbol: .accounts, title: "Non calcolabile",
+                    message: report.hasInvalidAmounts
+                        ? "Controlla gli importi mancanti o non validi."
+                        : "Servono entrate registrate maggiori di zero nel periodo.")
             }
             Text("La quota delle entrate che rimane dopo le spese registrate. Gli accantonamenti sono una misura diversa.")
-                .font(.subheadline).foregroundStyle(ForgiaPalette.mutedText)
+                .font(.subheadline).foregroundStyle(ForgiaPalette.accent)
             if !report.hasInvalidAmounts {
                 SavingsAmountRow(title: "Entrate", amount: report.income, currency: currency)
                 SavingsAmountRow(title: "Spese", amount: report.expenses, currency: currency)
@@ -35,16 +38,14 @@ struct RecordedSavingsDetailContent: View {
             }
             if isInProgress {
                 Label("Periodo in corso · dati fino a oggi", systemImage: "clock")
-                    .font(.caption).foregroundStyle(ForgiaPalette.mutedText)
+                    .font(.caption).foregroundStyle(ForgiaPalette.accent)
             }
             Button { showingExplanation = true } label: {
                 Label("Come funziona e consigli", systemImage: "info.circle")
             }.accessibilityIdentifier("analysis-savings-explanation")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .unifiedCard(tint: report.savingsRate.map {
-            $0 < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings
-        } ?? .clear)
+        .unifiedCard(tint: resultTint)
         .financeCardEntrance()
         .financePresentation(isPresented: $showingExplanation, title: "Come funziona", width: 680) {
             SavingsExplanationView(plan: plan, recordedReport: report, currency: currency)

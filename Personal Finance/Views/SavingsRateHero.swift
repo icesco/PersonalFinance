@@ -32,7 +32,7 @@ struct SavingsRateGauge: View {
     private var lower: Double { value < 0 ? -max(1, ceil(abs(value))) : 0 }
     private var upper: Double { max(1, ceil(value)) }
     private var position: Double { (value - lower) / (upper - lower) }
-    private var tint: Color { rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings }
+    private var tint: Color { rate < 0 ? AnalysisPalette.deficit : AnalysisPalette.savings }
 
     private var sector: Int { min(5, Int(position * 6)) }
     private var sectorLower: Double { lower + Double(sector) / 6 * (upper - lower) }
@@ -46,7 +46,7 @@ struct SavingsRateGauge: View {
                 Text("–")
                 Text(sectorUpper, format: .percent.precision(.fractionLength(1)))
             }
-            .font(.caption2.weight(.medium)).foregroundStyle(ForgiaPalette.mutedText).monospacedDigit()
+            .font(.caption2.weight(.medium)).foregroundStyle(ForgiaPalette.accent).monospacedDigit()
         }
         .accessibilityHidden(true)
     }
@@ -59,7 +59,7 @@ private struct SavingsRateLegend: View {
             VStack(alignment: .leading, spacing: 6) { entries }
         }
         .font(.caption)
-        .foregroundStyle(ForgiaPalette.mutedText)
+        .foregroundStyle(ForgiaPalette.accent)
         .padding(.top, 4)
         .accessibilityIdentifier("savings-rate-legend")
     }
@@ -68,12 +68,12 @@ private struct SavingsRateLegend: View {
         Label {
             Text("Margine ≥ 0%")
         } icon: {
-            Circle().fill(ForgiaPalette.savings).frame(width: 8, height: 8)
+            Circle().fill(AnalysisPalette.savings).frame(width: 8, height: 8)
         }
         Label {
             Text("Deficit < 0%")
         } icon: {
-            Circle().fill(ForgiaPalette.deficit).frame(width: 8, height: 8)
+            Circle().fill(AnalysisPalette.deficit).frame(width: 8, height: 8)
         }
     }
 }
@@ -81,18 +81,15 @@ private struct SavingsRateLegend: View {
 private struct SavingsRateHeroValue: View {
     let rate: Decimal
     var compact = false
-    @ScaledMetric(relativeTo: .largeTitle) private var valueSize: CGFloat = 64
 
     var body: some View {
         VStack(spacing: 4) {
             Text(rate, format: .percent.precision(.fractionLength(1)))
-                .font(.system(size: valueSize * (compact ? 0.94 : 1), weight: .bold))
-                .tracking(-2)
-                .foregroundStyle(rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings)
+                .analysisMetric(size: compact ? 60.16 : 64)
+                .foregroundStyle(rate < 0 ? AnalysisPalette.deficit : AnalysisPalette.savings)
                 .financeNumericMotion(rate)
-                .minimumScaleFactor(0.55).lineLimit(1).monospacedDigit()
             Text(rate < 0 ? "Spese oltre le entrate" : rate == 0 ? "Entrate interamente spese" : "Margine sulle entrate")
-                .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.mutedText)
+                .font(.subheadline.weight(.medium)).foregroundStyle(ForgiaPalette.accent)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }.accessibilityElement(children: .combine)
@@ -110,14 +107,16 @@ struct SavingsGaugeVisualFixture: View {
                 VStack(alignment: .leading, spacing: 22) {
                     Text("Tasso di risparmio · dati illustrativi").font(.headline)
                     SavingsRateHero(rate: rate)
-                        .unifiedCard(tint: rate < 0 ? ForgiaPalette.deficit : ForgiaPalette.savings)
+                        .unifiedCard(tint: rate < 0 ? AnalysisPalette.deficit : AnalysisPalette.savings)
                     HStack {
                         Button("Margine") { rate = Decimal(28) / 100 }
                         Button("Deficit") { rate = Decimal(-12) / 100 }
                         Button("Correzione") { rate = Decimal(125) / 100 }
                     }.buttonStyle(.bordered)
                 }.padding(22)
-            }.themedBackground()
+            }
+            .themedBackground(tint: .clear)
+            .environment(\.financeCardSurfaceStyle, .themed)
         }
     }
 }

@@ -21,3 +21,20 @@ enum ForgiaPalette {
     static var border: Color { palette.border }
     static var mutedText: Color { palette.mutedText }
 }
+
+enum AnalysisPalette {
+    static var cardSurface: Color {
+        ForgiaPalette.surface.mix(with: ForgiaPalette.sageSurface, by: 0.32)
+    }
+
+    static func subdued(_ color: Color) -> Color {
+        color.mix(with: ForgiaPalette.mutedText, by: 0.22)
+    }
+
+    static var spending: Color { subdued(ForgiaPalette.spending) }
+    static var savings: Color { subdued(ForgiaPalette.savings) }
+    static var balance: Color { subdued(ForgiaPalette.balance) }
+    static var calendar: Color { subdued(ForgiaPalette.calendar) }
+    static var margin: Color { subdued(ForgiaPalette.margin) }
+    static var deficit: Color { subdued(ForgiaPalette.deficit) }
+}
