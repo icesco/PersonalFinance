@@ -45,9 +45,13 @@ struct FinanceCalendarFixture: View {
         return (container, conto.id)
     }()
     var body: some View {
+        if ProcessInfo.processInfo.arguments.contains("UITEST_MOVEMENT_HEATMAP") {
+            MovementHeatmapFixture()
+        } else {
         NavigationStack {
             FinanceCalendarView(contoIDs: [Self.data.1], currency: "EUR")
         }.modelContainer(Self.data.0)
+        }
     }
 }
 #endif

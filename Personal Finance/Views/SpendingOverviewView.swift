@@ -84,6 +84,7 @@ struct SpendingOverviewView: View {
                         currency: currency, isInProgress: interval.end > Date(), plan: applicableSavingsPlan, periodTitle: periodTitle
                     )
                     InlineBalanceHistoryCard(scopeContoIDs: scopeContoIDs, interval: interval, currency: currency, periodTitle: periodTitle)
+                    MovementHeatmapPreview(contoIDs: scopeContoIDs, currency: currency, initialDate: anchor)
                     NavigationLink {
                         MoneyFlowView(transactions: transactions, currency: currency,
                                       interval: interval, periodTitle: periodTitle,
