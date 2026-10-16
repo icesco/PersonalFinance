@@ -101,6 +101,30 @@ struct BudgetEditsTests {
         #expect(preview(categoryID: second.id).first?.status == .overLimit)
     }
 
+    @Test(arguments: [nil, false, true] as [Bool?])
+    func categoryEditsPreserveCoverageAndRestoreItOnFailure(exact: Bool?) throws {
+        let (container, book, first, second) = try fixture()
+        let context = container.mainContext
+        let child = FinanceCore.Category(name: "Child", parentCategoryId: second.id)
+        child.account = book; context.insert(child)
+        let budget = Budget(name: "Original", amount: 100, period: .monthly)
+        budget.account = book; budget.categories = [first]; budget.usesExactCategories = exact
+        context.insert(budget); try context.save()
+        let failing = BudgetEdits(context: context, save: { throw SaveFailure.unavailable })
+        #expect(throws: SaveFailure.self) {
+            try failing.apply(to: budget, account: book, name: "Changed", amountText: "100",
+                              period: .monthly, threshold: 0.8, categories: [second])
+        }
+        #expect(budget.usesExactCategories == exact)
+        #expect(budget.categories?.map(\.id) == [first.id])
+        try BudgetEdits(context: context).apply(to: budget, account: book, name: "Changed", amountText: "100",
+                                              period: .monthly, threshold: 0.8, categories: [second])
+        let readContext = ModelContext(container)
+        let stored = try #require(readContext.fetch(FetchDescriptor<Budget>()).first)
+        #expect(stored.usesExactCategories == (exact ?? false))
+        #expect(stored.coveredCategoryIDs == (exact == true ? [second.id] : [second.id, child.id]))
+    }
+
     @Test func failedCreationDoesNotLeaveBudgetOrInverseRelationship() throws {
         let (container, book, first, _) = try fixture()
         let context = container.mainContext

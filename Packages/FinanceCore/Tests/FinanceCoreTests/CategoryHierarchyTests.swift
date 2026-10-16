@@ -218,7 +218,8 @@ struct CategoryHierarchyTests {
 
     // MARK: - Roll-up
 
-    @Test(arguments: [false, true]) func budgetOnMacroCountsSubcategorySpending(legacy: Bool) throws {
+    @Test(arguments: [nil, false, true] as [Bool?])
+    func budgetOnMacroRespectsPersistedCategoryCoverage(exact: Bool?) throws {
         let container = try container()
         let context = container.mainContext
         let book = Account(name: "Libro"); context.insert(book)
@@ -228,7 +229,9 @@ struct CategoryHierarchyTests {
         let home = category("Casa", in: book, kind: .expense, context: context)
         let budget = Budget(name: "Cibo", amount: 100, period: .monthly)
         budget.account = book; budget.categories = [food]; context.insert(budget)
-        if legacy { budget.usesExactCategories = nil }
+        budget.usesExactCategories = exact
+        bar.isActive = false
+        let expectedSpent: Decimal = exact == true ? 10 : 15
         let date = budget.currentPeriodRange.start.addingTimeInterval(60)
         for (amount, category) in [(Decimal(10), food), (Decimal(5), bar), (Decimal(40), home)] {
             let value = Transaction(amount: amount, type: .expense, date: date)
@@ -236,20 +239,20 @@ struct CategoryHierarchyTests {
         }
         try context.save()
         let stored = try #require(ModelContext(container).fetch(FetchDescriptor<Budget>()).first)
-        #expect(stored.coveredCategoryIDs == [food.id, bar.id])
-        #expect(try BudgetService.currentSpent(for: budget, in: context) == 15)
+        #expect(stored.coveredCategoryIDs == (exact == true ? [food.id] : [food.id, bar.id]))
+        #expect(try BudgetService.currentSpent(for: budget, in: context) == expectedSpent)
         #expect(budget.recordedExpenses(for: budget.currentPeriodRange,
-            transactions: try context.fetch(FetchDescriptor<Transaction>())).count == 2)
+            transactions: try context.fetch(FetchDescriptor<Transaction>())).count == (exact == true ? 1 : 2))
         #expect(budget.spendingOutlook(now: date).dailyAllowance ==
             BudgetOutlook.calculate(for: budget, transactions: try context.fetch(FetchDescriptor<Transaction>()),
                                     now: date).dailyAllowance)
         let widget = FinanceWidgetBuilder.build(accounts: [book], budgets: [budget],
             transactions: try context.fetch(FetchDescriptor<Transaction>()), resolutions: [], now: date)
-        #expect(widget.books.first?.budget?.spent == 15)
+        #expect(widget.books.first?.budget?.spent == expectedSpent)
 
         let preview = BudgetService.previewExpense(amount: 3, categoryID: bar.id, accountID: book.id, date: date,
                                                    budgets: [budget], transactions: try context.fetch(FetchDescriptor<Transaction>()))
-        #expect(preview.first?.spent == 15)
+        #expect(preview.first?.spent == (exact == true ? nil : expectedSpent))
         #expect(BudgetService.previewExpense(amount: 3, categoryID: home.id, accountID: book.id, date: date,
                                              budgets: [budget], transactions: []).isEmpty)
     }
