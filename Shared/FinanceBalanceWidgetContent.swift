@@ -30,22 +30,29 @@ struct FinanceBalanceWidgetContent: View {
         } else if size == .extraLargePortrait {
             FinanceBalancePortraitContent(history: history, bookName: bookName, currency: currency, showLegend: showLegend)
         } else if size == .medium {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    BalanceWidgetHeader(history: history, compact: true)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .bottom, spacing: 8) {
                     Text(history.recordedTotal, format: .currency(code: currency))
-                        .font(.system(.title3, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
-                    Text("Previsto: \(history.projectedTotal.formatted(.currency(code: currency)))")
-                        .font(.caption2.weight(.medium)).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history)).lineLimit(1).minimumScaleFactor(0.7)
-                    Spacer(minLength: 0)
-                    FinanceWidgetFreshness(generatedAt: history.recordedAt, now: Date())
+                        .contentTransition(.numericText())
+                        .font(.system(size: 32, weight: .bold)).monospacedDigit()
+                        .financeWidgetForeground(theme.palette.accent)
+                        .lineLimit(1).minimumScaleFactor(0.65).layoutPriority(1)
+                    Spacer(minLength: 4)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        BalanceWidgetPeriodLabel(history: history)
+                            .font(.caption2.weight(.semibold))
+                        Text("Previsto: \(history.projectedTotal.formatted(.currency(code: currency)))")
+                            .contentTransition(.numericText())
+                            .font(.caption2).monospacedDigit()
+                    }
+                    .foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
+                    .lineLimit(1).minimumScaleFactor(0.7)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: 7) {
-                    BalanceHistoryPlot(series: history.series, interval: history.interval, currency: currency,
-                                       selectedDate: .constant(nil), compact: true, interactive: false, snapshotLabel: true,
-                                       colorOverride: singleAccountTint)
-                        .frame(maxHeight: .infinity)
+                BalanceHistoryPlot(series: history.series, interval: history.interval, currency: currency,
+                                   selectedDate: .constant(nil), compact: true, interactive: false, snapshotLabel: true,
+                                   colorOverride: singleAccountTint, lineWidth: 2.5, showsSnapshotLabel: false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack(spacing: 6) {
                     if showLegend {
                     HStack(spacing: 6) {
                         ForEach(Array(history.series.prefix(2))) { account in
@@ -57,21 +64,28 @@ struct FinanceBalanceWidgetContent: View {
                         if history.series.count > 2 { Text("+\(history.series.count - 2)") }
                     }.font(.caption2.weight(.medium)).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
                     }
+                    Spacer(minLength: 0)
+                    FinanceWidgetFreshness(generatedAt: history.recordedAt, now: Date())
+                    Image("FormiMark").resizable().widgetAccentedRenderingMode(.accented).scaledToFit()
+                        .frame(width: 14, height: 14)
+                        .financeWidgetForeground(theme.palette.accent)
+                        .accessibilityHidden(true)
                 }
-                // The plot draws its "Registrato" label above its own frame.
-                .padding(.top, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 BalanceWidgetHeader(history: history)
                 HStack(alignment: .firstTextBaseline) {
                     Text(history.recordedTotal, format: .currency(code: currency))
-                        .font(.system(.title2, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                        .contentTransition(.numericText())
+                        .font(.system(size: 36, weight: .bold)).monospacedDigit()
+                        .financeWidgetForeground(theme.palette.accent)
+                        .lineLimit(1).minimumScaleFactor(0.65).layoutPriority(1)
                     Spacer(minLength: 6)
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("Previsto").font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
                         Text(history.projectedTotal, format: .currency(code: currency))
+                            .contentTransition(.numericText())
                             .font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1)
                     }
                 }
@@ -87,6 +101,7 @@ struct FinanceBalanceWidgetContent: View {
                             Text(account.name).lineLimit(1)
                             Spacer(minLength: 4)
                             Text(account.balance(at: history.recordedAt), format: .currency(code: currency))
+                                .contentTransition(.numericText())
                                 .monospacedDigit().lineLimit(1)
                         }.font(.caption2)
                         .accessibilityElement(children: .combine)
@@ -170,7 +185,9 @@ private struct FinanceBalanceSmallContent: View {
         VStack(alignment: .leading, spacing: 5) {
             BalanceWidgetHeader(history: history, compact: true)
             Text(history.recordedTotal, format: .currency(code: currency))
-                .font(.system(.title2, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                .contentTransition(.numericText())
+                .font(.system(size: 30, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+                .financeWidgetForeground(theme.palette.accent)
                 .layoutPriority(1)
             BalanceHistoryPlot(series: chartSeries, interval: history.interval, currency: currency,
                                selectedDate: .constant(nil), compact: true, interactive: false,
@@ -224,18 +241,20 @@ private struct BalanceWidgetExpandedContent: View {
                     HStack(alignment: .top, spacing: 24) {
                         VStack(alignment: .leading, spacing: 10) {
                             balances
-                            flows
                             chart
                             minimum
                         }.frame(width: (geometry.size.width - 24) * 0.66, height: geometry.size.height)
-                        BalanceWidgetUpcomingMovements(history: history, currency: currency, portrait: false)
-                            .frame(width: (geometry.size.width - 24) * 0.34, height: geometry.size.height)
+                        VStack(alignment: .leading, spacing: 14) {
+                            flows
+                            BalanceWidgetUpcomingMovements(history: history, currency: currency, portrait: false)
+                        }.frame(width: (geometry.size.width - 24) * 0.34, height: geometry.size.height)
                     }
                 }
             }
             if !portrait {
-                HStack {
-                    Text("Tratteggio: previsto da movimenti programmati")
+                HStack(spacing: 12) {
+                    if showLegend { accountLegend }
+                    Text("Tratteggio: previsto")
                     Spacer(minLength: 4)
                     Text(history.recordedAt, format: .dateTime.hour().minute())
                 }.font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history)).lineLimit(1)
@@ -248,21 +267,30 @@ private struct BalanceWidgetExpandedContent: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Saldo attuale").font(.caption).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
                 Text(history.recordedTotal, format: .currency(code: currency))
-                    .font(.system(portrait ? .largeTitle : .title, weight: .semibold)).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                    .font(.system(size: portrait ? 48 : 44, weight: .bold)).monospacedDigit()
+                    .financeWidgetForeground(theme.palette.accent)
+                    .lineLimit(1).minimumScaleFactor(0.65)
             }
+            .layoutPriority(1)
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 2) {
                 Text("A fine periodo").font(.caption).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Text(history.projectedTotal, format: .currency(code: currency))
+                    .contentTransition(.numericText())
                     .font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
             }
+            .frame(width: portrait ? 100 : 110, alignment: .trailing)
         }
     }
 
     @ViewBuilder private var flows: some View {
         if let totals = history.scheduledFlows {
-            HStack(spacing: 18) {
+            let layout = portrait
+                ? AnyLayout(HStackLayout(spacing: 18))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            layout {
                 flow(title: "Entrate programmate", amount: totals.incoming, icon: "arrow.down.left")
                 flow(title: "Uscite programmate", amount: totals.outgoing, icon: "arrow.up.right")
             }
@@ -270,13 +298,20 @@ private struct BalanceWidgetExpandedContent: View {
     }
 
     private func flow(title: LocalizedStringKey, amount: Decimal?, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        let layout = portrait
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 3))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 6))
+        return layout {
             HStack(spacing: 4) {
-                Image(systemName: icon).font(.caption2.weight(.semibold))
+                Image(systemName: icon)
+                    .font(.caption2.weight(.semibold))
+                    .frame(width: 14, alignment: .center)
                 Text(title).font(.caption2).lineLimit(1).minimumScaleFactor(0.8)
             }.foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
+            if !portrait { Spacer(minLength: 0) }
             if let amount {
                 Text(amount, format: .currency(code: currency)).font(.headline).monospacedDigit().lineLimit(1)
+                    .contentTransition(.numericText())
             } else {
                 Text("Importi incompleti").font(.caption).lineLimit(1)
             }
@@ -297,21 +332,24 @@ private struct BalanceWidgetExpandedContent: View {
                 HStack(spacing: 4) {
                     Text("Minimo previsto")
                     Text(low.balance, format: .currency(code: currency)).fontWeight(.semibold)
+                        .contentTransition(.numericText())
                     Text("· \(min(low.date, history.interval.end.addingTimeInterval(-1)), format: .dateTime.day().month(.abbreviated))")
                 }.font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history)).lineLimit(1).minimumScaleFactor(0.8)
             }
-            if showLegend {
-                HStack(spacing: 8) {
-                    ForEach(Array(history.series.prefix(3))) { account in
-                        HStack(spacing: 3) {
-                            BalanceAccountLegendKey(account: account, series: history.series, compact: true)
-                            Text(account.name).lineLimit(1)
-                        }
-                    }
-                    if history.series.count > 3 { Text("+\(history.series.count - 3)") }
-                }.font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
-            }
+            if portrait && showLegend { accountLegend }
         }
+    }
+
+    private var accountLegend: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(history.series.prefix(3))) { account in
+                HStack(spacing: 3) {
+                    BalanceAccountLegendKey(account: account, series: history.series, compact: true)
+                    Text(account.name).lineLimit(1)
+                }
+            }
+            if history.series.count > 3 { Text("+\(history.series.count - 3)") }
+        }.font(.caption2).foregroundStyle(BalanceWidgetTint.secondary(theme, history: history))
     }
 }
 
@@ -387,6 +425,7 @@ private struct BalanceWidgetUpcomingMovements: View {
             Spacer(minLength: 2)
             if let amount {
                 Text((amount > 0 && !internalTransfer ? "+" : "") + amount.formatted(.currency(code: currency)))
+                    .contentTransition(.numericText())
                     .font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
                     .frame(width: portrait ? 100 : 76, alignment: .trailing)
                     .layoutPriority(1)
