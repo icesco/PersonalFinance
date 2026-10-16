@@ -28,6 +28,8 @@ struct BalanceHistoryPlot: View {
     var snapshotLabel = false
     var minimal = false
     var colorOverride: Color? = nil
+    var lineWidth: CGFloat = 1.75
+    var showsSnapshotLabel = true
     @Environment(\.widgetRenderingMode) private var renderingMode
     private var distinguishesAccounts: Bool { snapshotLabel && renderingMode == .accented && series.count > 1 }
     @Environment(\.colorScheme) private var colorScheme
@@ -101,7 +103,9 @@ struct BalanceHistoryPlot: View {
                 RuleMark(x: .value("Oggi", closingDate))
                     .foregroundStyle(.secondary.opacity(0.4))
                     .annotation(position: .top, alignment: .trailing) {
-                        Text(snapshotLabel ? "Registrato" : "Oggi").font(.caption2).foregroundStyle(.secondary)
+                        if showsSnapshotLabel {
+                            Text(snapshotLabel ? "Registrato" : "Oggi").font(.caption2).foregroundStyle(.secondary)
+                        }
                     }
             }
             if selectedDate != nil {
@@ -149,7 +153,7 @@ struct BalanceHistoryPlot: View {
         return LineMark(x: .value("Data", point.date), y: .value("Saldo", amount),
                         series: .value("Conto", account.id.uuidString + (projected ? "-previsto" : "-registrato")))
             .interpolationMethod(FinanceChartStyle.interpolation)
-            .lineStyle(StrokeStyle(lineWidth: 1.75, lineCap: .round, lineJoin: .round, dash: projected ? [5, 4] : []))
+            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round, dash: projected ? [5, 4] : []))
             .foregroundStyle((colorOverride ?? account.color).opacity(projected ? (snapshotLabel ? 0.85 : 0.65) : 1))
             .accessibilityLabel(account.name + (projected ? ", previsto" : ", registrato"))
             .accessibilityValue(label)
