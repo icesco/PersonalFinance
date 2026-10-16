@@ -41,13 +41,22 @@ public struct CaptureClassification {
                 conti: conti, history: history, bankDefaults: bankDefaults, isBankNotification: isBankNotification)
             if chosen != nil, automatic.contoID == selectedContoID { result.accountReason = automatic.accountReason }
         }
-        else if selectedBookID != nil, scoped.count == 1 {
-            chosen = scoped[0]; result.accountReason = "Unico conto attivo del libro selezionato"
-        }
         else if !destination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let matches = scoped.filter { normalize($0.name ?? "") == normalize(destination) }
             if matches.count == 1 { chosen = matches[0]; result.accountReason = "Conto indicato dalla fonte" }
             // An explicit but ambiguous/missing destination must never be replaced by a guess.
+        } else if isBankNotification, ["wallet", "apple wallet"].contains(normalize(source)),
+                  let matches = walletAccounts(text: text, conti: scoped) {
+            if matches.count == 1 {
+                chosen = matches[0]
+                result.accountReason = "Carta riconosciuta nella notifica Wallet"
+            } else {
+                result.accountReason = matches.isEmpty
+                    ? "Carta Wallet non associata a un conto attivo · Scegli una destinazione"
+                    : "Più conti corrispondono alla carta Wallet · Scegli una destinazione"
+            }
+        } else if selectedBookID != nil, scoped.count == 1 {
+            chosen = scoped[0]; result.accountReason = "Unico conto attivo del libro selezionato"
         } else if isBankNotification, let configured = bankDefaults.first(where: { bankKey($0.bank) == bankKey(source) }) {
             chosen = scoped.first { $0.id == configured.contoID && $0.account?.id == configured.bookID }
             result.accountReason = chosen == nil ? "Conto predefinito non disponibile · Scegli una destinazione" : "Conto predefinito per \(configured.bank)"
@@ -88,6 +97,40 @@ public struct CaptureClassification {
             if matches.count == 1 { result.categoryID = matches[0].id; result.categoryReason = "Categoria riconosciuta nel testo" }
         }
         return result
+    }
+    /// Wallet is a container for several cards. Match its card evidence before a generic app default or merchant history.
+    private static func walletAccounts(text: String, conti: [Conto]) -> [Conto]? {
+        let routingText = text.components(separatedBy: .newlines).map {
+            $0.replacingOccurrences(of: #"\b(presso|at|merchant|esercente|beneficiario|fornitore)\b.*$"#,
+                with: "", options: [.regularExpression, .caseInsensitive])
+        }.joined(separator: "\n")
+        let signal = " " + cardName(routingText) + " "
+        let candidates = conti.filter { $0.type == .credit || $0.type == .checking }
+        let named = candidates.compactMap { conto -> (Conto, String)? in
+            let name = cardName(conto.name ?? "")
+            let genericNames: Set<String> = ["banca", "conto", "conto corrente", "carta", "carta di credito", "carta di debito",
+                "credito", "debito", "personale", "principale", "wallet", "apple wallet", "credit card", "debit card"]
+            guard name.count >= 4, !genericNames.contains(name), signal.contains(" " + name + " ") else { return nil }
+            return (conto, name)
+        }
+        if !named.isEmpty {
+            return named.filter { candidate in
+                !named.contains { other in
+                    other.1 != candidate.1 && (" " + other.1 + " ").contains(" " + candidate.1 + " ")
+                }
+            }.map(\.0)
+        }
+        if signal.contains(" american express ") {
+            return candidates.filter { (" " + cardName($0.name ?? "") + " ").contains(" american express ") }
+        }
+        return nil
+    }
+    private static func cardName(_ text: String) -> String {
+        var name = normalize(text).replacingOccurrences(of: #"\bamex\b"#, with: "american express", options: .regularExpression)
+        for prefix in ["carta di credito ", "carta di debito ", "credit card ", "debit card ", "carta ", "card "] {
+            if name.hasPrefix(prefix) { name.removeFirst(prefix.count); break }
+        }
+        return name
     }
     nonisolated public static func bankKey(_ text: String) -> String { normalize(text) }
     nonisolated private static func normalize(_ text: String) -> String {

@@ -28,7 +28,7 @@ struct CaptureReviewView: View {
     @State private var type = TransactionType.expense
     @State private var paymentConfirmed = false
     @State private var duplicateConfirmed = false
-    @State private var duplicates: [FinanceTransaction] = []
+    @State private var duplicates: [CaptureDuplicateMatch] = []
     @State private var duplicateCheckSucceeded = false
     @State private var loading = true
     @State private var saving = false
@@ -130,7 +130,13 @@ struct CaptureReviewView: View {
                         Text("Possibile duplicato").font(.headline)
                         ForEach(duplicates) { item in
                             VStack(alignment: .leading) {
-                                Text(item.transactionDescription ?? "Movimento già presente")
+                                Text(item.description.isEmpty ? "Movimento senza descrizione" : item.description)
+                                if item.isRecurring {
+                                    Label("Scadenza ricorrente già prevista", systemImage: "repeat")
+                                        .font(.caption).foregroundStyle(ForgiaPalette.spending)
+                                } else {
+                                    Text("Movimento già registrato").font(.caption).foregroundStyle(.secondary)
+                                }
                                 Text(item.date, format: .dateTime.day().month().year().hour().minute()).font(.caption)
                             }
                         }
@@ -269,14 +275,9 @@ struct CaptureReviewView: View {
         duplicateConfirmed = false
         duplicateCheckSucceeded = false
         guard let contoID, let amount = CaptureTextParser.decimal(amount) else { duplicates = []; return false }
-        let start = Calendar.current.date(byAdding: .day, value: -2, to: date) ?? date
-        let end = Calendar.current.date(byAdding: .day, value: 2, to: date) ?? date
         do {
-            let descriptor = FetchDescriptor<FinanceTransaction>(predicate: #Predicate { $0.date >= start && $0.date <= end })
-            duplicates = try context.fetch(descriptor).filter {
-                $0.externalID != "capture:\(capture.id.uuidString)" && $0.amount == amount && $0.type == type &&
-                ($0.fromContoId == contoID || $0.toContoId == contoID || $0.fromConto?.id == contoID || $0.toConto?.id == contoID)
-            }
+            duplicates = try CaptureDuplicateCheck.matches(captureID: capture.id, contoID: contoID, amount: amount,
+                type: type, date: date, in: context)
             duplicateCheckSucceeded = true
             return true
         } catch { self.error = error.localizedDescription; return false }
@@ -316,7 +317,8 @@ struct CaptureReviewView: View {
             }
             _ = try CaptureApproval.approve(CaptureApprovalInput(captureID: capture.id, contoID: contoID, categoryID: categoryID,
                 amount: amount, currency: currency, type: type, date: date, note: note, paymentConfirmed: paymentConfirmed, sourceText: text, sourceName: capture.sourceName,
-                filename: capture.filename, contentType: contentType, document: document, planned: isFuture), in: context.container)
+                filename: capture.filename, contentType: contentType, document: document, planned: isFuture), in: context.container,
+                reviewedDuplicateIDs: confirmed ? reviewedIDs : [])
             try CaptureStore.discard(id: capture.id, in: CaptureStore.container())
             appState.triggerDataRefresh()
             onFinish(); dismiss()

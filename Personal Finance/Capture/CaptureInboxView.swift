@@ -15,29 +15,37 @@ struct CaptureInboxView: View {
     @Environment(AppStateManager.self) private var appState
     @State private var totalCount = 0
     @State private var hasMore = false
+    @State private var duplicateCheckRevision = 0
     private let pageSize = 30
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
+        List {
             VStack(alignment: .leading, spacing: 10) {
                 NavigationLink("Configura notifiche e condivisione", destination: CaptureSetupView())
                 Text("Le proposte restano su questo dispositivo e non cambiano saldi o budget finché non le approvi.")
                     .font(.footnote).foregroundStyle(ForgiaPalette.mutedText)
             }.unifiedCard()
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             if items.isEmpty {
                 ContentUnavailableView("Nessuna proposta da approvare", systemImage: "tray", description: Text("Acquisisci una notifica bancaria oppure condividi un PDF, una foto o del testo con Formi."))
             } else {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    Text("Da approvare · \(totalCount)").font(.subheadline.weight(.semibold)).foregroundStyle(ForgiaPalette.mutedText)
+                Section {
                     ForEach(items) { item in
                         Button { selected = item } label: {
-                            CaptureProposalRow(capture: item, conti: conti, history: history)
+                            CaptureProposalRow(capture: item, conti: conti, history: history, duplicateCheckRevision: duplicateCheckRevision)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .unifiedCard()
                         .accessibilityIdentifier(item.document == nil ? "capture-proposal-text" : "capture-proposal-document")
                         .contextMenu { Button("Scarta", role: .destructive) { discard = item } }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) { discardProposal(item) } label: {
+                                Label("Scarta", systemImage: "trash")
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
                     if hasMore {
                         ProgressView()
@@ -45,10 +53,13 @@ struct CaptureInboxView: View {
                             .id(items.last?.id)
                             .onAppear { loadMore() }
                     }
+                } header: {
+                    Text("Da approvare · \(totalCount)").font(.subheadline.weight(.semibold)).foregroundStyle(ForgiaPalette.mutedText)
                 }
             }
-            }.padding(.horizontal, 22).padding(.vertical, 20)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .themedBackground()
         .navigationTitle("Da approvare")
         .toolbarTitleDisplayMode(.inline)
@@ -81,6 +92,14 @@ struct CaptureInboxView: View {
             var descriptor = FetchDescriptor<FinanceTransaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
             descriptor.fetchLimit = 500
             history = try context.fetch(descriptor)
+            duplicateCheckRevision += 1
+        } catch { self.error = error.localizedDescription }
+    }
+    private func discardProposal(_ item: PendingCapture) {
+        do {
+            let store = try store ?? CaptureStore.container()
+            try CaptureStore.discard(id: item.id, in: store)
+            refreshAfterRemoval()
         } catch { self.error = error.localizedDescription }
     }
     private func loadMore() {
@@ -186,6 +205,8 @@ struct CaptureSetupView: View {
                 Text("Per preparare la proposta in background, aggiungi “Prepara una spesa” per i pagamenti oppure “Prepara un’entrata” per gli accrediti, come lo stipendio. Collega il risultato dell’acquisizione al campo Info transazione bancaria. Puoi anche usare separatamente le proprietà del risultato, come Importo e Beneficiario. Lascia disattivato Apri per approvare: la proposta resta in Da approvare senza aprire Formi. Attivalo solo se vuoi controllarla subito. Se ti serve solo conservarla, basta l’azione di acquisizione.")
                 Text("3. Indica la banca o app di origine. Il nome del conto di destinazione è facoltativo: se lo lasci vuoto, Formi usa il default configurato per quella banca oppure propone l’unico libro e conto disponibili. Scegli l’esecuzione immediata dove disponibile e prova con una notifica reale.")
                 Text("Un conto indicato nel comando ha la precedenza sul default e viene proposto solo se corrisponde a un unico conto attivo. Controlla sempre la destinazione durante l’approvazione.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Text("Per Wallet, indica Wallet come app di origine e collega anche titolo e sottotitolo della notifica: possono contenere il nome della carta. Formi lo confronta con i conti attivi, riconosce anche Amex come American Express e propone il conto solo se la corrispondenza è univoca. Puoi lasciare vuoto il conto di destinazione per usare questo riconoscimento.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("PDF, foto e testo") {

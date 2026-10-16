@@ -38,6 +38,87 @@ final class CaptureUITests: XCTestCase {
         XCTAssertFalse(saved.exists)
     }
     override func setUpWithError() throws { continueAfterFailure = false }
+    @MainActor func testWalletCardSelectsAmericanExpressInInboxAndReview() {
+        let app = app(extraArguments: ["UITEST_CAPTURE_WALLET"])
+        app.buttons["capture-test-notification"].tap()
+        XCTAssertTrue(app.staticTexts["capture-test-acquired"].waitForExistence(timeout: 10))
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Da approvare")).firstMatch.tap()
+        let reason = "Carta riconosciuta nella notifica Wallet"
+        let proposal = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", reason)).firstMatch
+        XCTAssertTrue(proposal.waitForExistence(timeout: 10))
+        XCTAssertTrue(proposal.label.contains("Conto: American Express"))
+        proposal.tap()
+        let account = app.buttons["capture-account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 10))
+        XCTAssertTrue(account.label.contains("American Express"))
+        XCTAssertTrue(app.staticTexts[reason].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Carta American Express riconosciuta da Wallet"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+    @MainActor func testRecordedDuplicateNeedsExplicitReview() {
+        verifyDuplicate(argument: "UITEST_CAPTURE_DUPLICATE", warning: "Movimento già registrato", badge: "Già registrato")
+    }
+    @MainActor func testRecurringDuplicateNeedsExplicitReview() {
+        verifyDuplicate(argument: "UITEST_CAPTURE_RECURRING_DUPLICATE", warning: "Scadenza ricorrente già prevista", badge: "Ricorrenza prevista")
+    }
+    @MainActor private func verifyDuplicate(argument: String, warning: String, badge: String) {
+        let app = app(extraArguments: [argument])
+        app.buttons["capture-test-notification"].tap()
+        XCTAssertTrue(app.staticTexts["capture-test-acquired"].waitForExistence(timeout: 10))
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Da approvare")).firstMatch.tap()
+        let proposal = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Esselunga QA")).firstMatch
+        XCTAssertTrue(proposal.waitForExistence(timeout: 10))
+        let flagged = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", badge), object: proposal)
+        XCTAssertEqual(XCTWaiter.wait(for: [flagged], timeout: 10), .completed)
+        proposal.tap()
+        let review = app.switches["Ho verificato: è un movimento distinto"]
+        for _ in 0..<5 where !review.isHittable { app.swipeUp() }
+        XCTAssertTrue(review.isHittable)
+        XCTAssertTrue(app.staticTexts[warning].exists)
+        let payment = app.switches["Confermo che il pagamento o l’accredito è già avvenuto"]
+        for _ in 0..<3 where !payment.isHittable { app.swipeUp() }
+        let paymentSwitch = payment.switches.firstMatch
+        if paymentSwitch.exists { paymentSwitch.tap() }
+        else { payment.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        XCTAssertEqual(payment.value as? String, "1")
+        XCTAssertFalse(app.buttons["capture-approve"].isEnabled)
+        for _ in 0..<3 where !review.isHittable { app.swipeDown() }
+        let reviewSwitch = review.switches.firstMatch
+        if reviewSwitch.exists { reviewSwitch.tap() }
+        else { review.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        XCTAssertEqual(review.value as? String, "1")
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: app.buttons["capture-approve"])
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = warning
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+    @MainActor func testSwipeDiscardsProposalWithoutChangingBalance() {
+        let app = app()
+        app.buttons["capture-test-notification"].tap()
+        XCTAssertTrue(app.staticTexts["capture-test-acquired"].waitForExistence(timeout: 10))
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Da approvare")).firstMatch.tap()
+        let proposal = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Esselunga QA")).firstMatch
+        XCTAssertTrue(proposal.waitForExistence(timeout: 10))
+        let header = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Da approvare ·")).firstMatch
+        let count = Int(header.label.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces) ?? "")
+        XCTAssertNotNil(count)
+        proposal.swipeLeft()
+        let discard = app.buttons["Scarta"]
+        if discard.waitForExistence(timeout: 2) { discard.tap() }
+        let removed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Da approvare · \((count ?? 1) - 1)"), object: header)
+        if count == 1 {
+            XCTAssertTrue(app.staticTexts["Nessuna proposta da approvare"].waitForExistence(timeout: 5))
+        } else {
+            XCTAssertEqual(XCTWaiter.wait(for: [removed], timeout: 5), .completed)
+        }
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertEqual(app.staticTexts["capture-test-balance"].label, "Saldo: 500")
+        XCTAssertFalse(app.staticTexts["capture-test-recorded"].exists)
+    }
     @MainActor private func app(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["UITEST_CAPTURE", "-CloudSyncEnabled", "NO", "-forgia.deviceAuthentication.enabled", "NO"] + extraArguments

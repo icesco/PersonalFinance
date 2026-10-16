@@ -34,7 +34,7 @@ public struct CaptureApprovalInput: Sendable {
 
 @MainActor public enum CaptureApproval {
     public enum Failure: LocalizedError {
-        case invalidAmount, invalidSelection, currencyMismatch, unconfirmedPayment, invalidDocument, invalidDate
+        case invalidAmount, invalidSelection, currencyMismatch, unconfirmedPayment, invalidDocument, invalidDate, possibleDuplicate
         public var errorDescription: String? {
             switch self {
             case .invalidAmount: "Inserisci un importo positivo con i decimali previsti dalla valuta."
@@ -43,10 +43,11 @@ public struct CaptureApprovalInput: Sendable {
             case .unconfirmedPayment: "Conferma che il pagamento o l’accredito sia già avvenuto."
             case .invalidDocument: "Il documento non è valido o supera 10 MB."
             case .invalidDate: "Un movimento già avvenuto richiede una data trascorsa; un pagamento pianificato richiede una data futura."
+            case .possibleDuplicate: "Sono presenti movimenti o scadenze ricorrenti simili. Verifica che la proposta sia un movimento distinto prima di registrarla."
             }
         }
     }
-    @discardableResult public static func approve(_ input: CaptureApprovalInput, in container: ModelContainer, now: Date = Date()) throws -> UUID {
+    @discardableResult public static func approve(_ input: CaptureApprovalInput, in container: ModelContainer, now: Date = Date(), reviewedDuplicateIDs: Set<String> = []) throws -> UUID {
         let context = ModelContext(container)
         context.autosaveEnabled = false
         let id = input.captureID
@@ -77,6 +78,9 @@ public struct CaptureApprovalInput: Sendable {
                       CGImageSourceGetCount(image) > 0 else { throw Failure.invalidDocument }
             }
         }
+        let matches = try CaptureDuplicateCheck.matches(captureID: id, contoID: contoID, amount: input.amount,
+            type: input.type, date: input.date, in: context)
+        guard Set(matches.map(\.id)).isSubset(of: reviewedDuplicateIDs) else { throw Failure.possibleDuplicate }
         let transaction = Transaction(amount: input.amount, type: input.type, date: input.date, transactionDescription: String(input.note.prefix(500)))
         transaction.externalID = "capture:\(id.uuidString)"
         if !input.sourceText.isEmpty { transaction.notes = "Fonte: \(String(input.sourceName.prefix(160)))\n\(String(input.sourceText.prefix(30_000)))" }

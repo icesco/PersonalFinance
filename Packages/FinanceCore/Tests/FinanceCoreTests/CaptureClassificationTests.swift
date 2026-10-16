@@ -3,6 +3,96 @@ import Testing
 @testable import FinanceCore
 
 @MainActor struct CaptureClassificationTests {
+    @Test func walletRecognizesAmericanExpressAndAmexBeforeGenericDefaultAndHistory() {
+        let bank = account("Banca")
+        let card = account("Carta di credito American Express")
+        card.type = .credit
+        let setting = CaptureBankDefault(bank: "Wallet", bookID: bank.account!.id, contoID: bank.id)
+        for name in ["American Express", "AMEX"] {
+            let result = CaptureClassifier.suggest(destination: "", source: "Wallet",
+                text: "\(name)\nPagamento EUR 20 presso Esselunga", type: .expense,
+                conti: [bank, card], history: [movement(bank, category: nil), movement(bank, category: nil)],
+                bankDefaults: [setting], isBankNotification: true)
+            #expect(result.contoID == card.id)
+            #expect(result.bookID == card.account?.id)
+            #expect(result.accountReason == "Carta riconosciuta nella notifica Wallet")
+        }
+    }
+
+    @Test func walletMatchesOtherExistingCardNamesAndWordBoundaries() {
+        let bank = account("Banca")
+        let card = account("Carta Revolut")
+        let result = CaptureClassifier.suggest(destination: "", source: "Apple Wallet", text: "Revolut\nEUR 20 presso Esselunga",
+            type: .expense, conti: [bank, card], history: [], isBankNotification: true)
+        #expect(result.contoID == card.id)
+        let partial = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "Revolutivo\nEUR 20 presso Esselunga",
+            type: .expense, conti: [bank, card], history: [], isBankNotification: true)
+        #expect(partial.contoID == nil)
+    }
+
+    @Test func walletSpecificCardNameDisambiguatesAnIssuer() {
+        let generic = account("American Express")
+        let gold = account("American Express Gold")
+        let result = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "Amex Gold\nEUR 20",
+            type: .expense, conti: [generic, gold], history: [], isBankNotification: true)
+        #expect(result.contoID == gold.id)
+    }
+
+    @Test func ambiguousWalletCardDoesNotFallBackToDefaultOrHistory() {
+        let bank = account("Banca")
+        let first = account("American Express Gold")
+        let second = account("Amex Blu", bookName: "Lavoro")
+        let setting = CaptureBankDefault(bank: "Wallet", bookID: bank.account!.id, contoID: bank.id)
+        let result = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "American Express\nEUR 20 presso Esselunga",
+            type: .expense, conti: [bank, first, second], history: [movement(bank, category: nil), movement(bank, category: nil)],
+            bankDefaults: [setting], isBankNotification: true)
+        #expect(result.contoID == nil)
+        #expect(result.accountReason?.contains("Più conti") == true)
+        let scoped = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "American Express\nEUR 20",
+            type: .expense, conti: [bank, first, second], history: [], selectedBookID: second.account?.id, isBankNotification: true)
+        #expect(scoped.contoID == second.id)
+    }
+
+    @Test func explicitAndManualDestinationsWinOverWalletEvidence() {
+        let bank = account("Banca")
+        let card = account("American Express")
+        let explicit = CaptureClassifier.suggest(destination: "Banca", source: "Wallet", text: "American Express\nEUR 20",
+            type: .expense, conti: [bank, card], history: [], isBankNotification: true)
+        #expect(explicit.contoID == bank.id)
+        let manual = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "American Express\nEUR 20",
+            type: .expense, conti: [bank, card], history: [], selectedContoID: bank.id, isBankNotification: true)
+        #expect(manual.contoID == bank.id)
+        #expect(manual.accountReason == nil)
+    }
+
+    @Test func missingOrInactiveWalletCardDoesNotChooseAnUnrelatedSingleAccount() {
+        let bank = account("Banca")
+        let card = account("American Express")
+        card.isActive = false
+        let result = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "Amex\nEUR 20",
+            type: .expense, conti: [bank, card], history: [], selectedBookID: bank.account?.id, isBankNotification: true)
+        #expect(result.contoID == nil)
+        #expect(result.accountReason?.contains("non associata") == true)
+    }
+
+    @Test func walletDoesNotUseMerchantNamesOrApplyCardInferenceToSharedDocuments() {
+        let bank = account("Banca")
+        let card = account("American Express")
+        let merchant = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "Pagamento EUR 20 presso American Express Travel",
+            type: .expense, conti: [bank, card], history: [], isBankNotification: true)
+        #expect(merchant.contoID == nil)
+        let shared = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "Amex\nEUR 20",
+            type: .expense, conti: [bank, card], history: [])
+        #expect(shared.contoID == nil)
+    }
+
+    @Test func conflictingWalletNamesStayAmbiguous() {
+        let first = account("Revolut")
+        let second = account("American Express")
+        let result = CaptureClassifier.suggest(destination: "", source: "Wallet", text: "Revolut\nAmerican Express\nEUR 20",
+            type: .expense, conti: [first, second], history: [], isBankNotification: true)
+        #expect(result.contoID == nil)
+    }
     @Test func onlyAvailableDestinationIsSelectedWithoutHistory() {
         let conto = account("Conto corrente")
         let result = CaptureClassifier.suggest(destination: "", source: "Mail", text: "EUR 20", type: .expense, conti: [conto], history: [])

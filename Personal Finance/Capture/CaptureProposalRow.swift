@@ -1,10 +1,15 @@
 import SwiftUI
+import SwiftData
 import FinanceCore
 
 struct CaptureProposalRow: View {
     let capture: PendingCapture
     let conti: [Conto]
     let history: [FinanceTransaction]
+    let duplicateCheckRevision: Int
+    @Environment(\.modelContext) private var context
+    @State private var duplicateMatches: [CaptureDuplicateMatch] = []
+    @State private var duplicateCheckFailed = false
     @State private var documentText = ""
     @State private var reading = false
     @State private var readingMessage: String?
@@ -12,7 +17,7 @@ struct CaptureProposalRow: View {
     private var text: String { [capture.originalText, documentText].filter { !$0.isEmpty }.joined(separator: "\n") }
     private var suggestion: CaptureClassification {
         CaptureClassifier.suggest(destination: capture.destinationName, source: capture.sourceName,
-            text: text, type: .expense, conti: conti, history: history,
+            text: text, type: capture.reviewType, conti: conti, history: history,
             bankDefaults: CaptureBankDefaultsStorage.decode(bankDefaultsData), isBankNotification: capture.source == "notification")
     }
     private var conto: Conto? { conti.first { $0.id == suggestion.contoID } }
@@ -39,6 +44,14 @@ struct CaptureProposalRow: View {
             Label("Categoria: \(category?.name ?? "Da scegliere")", systemImage: category?.icon ?? "tag")
                 .font(.subheadline).foregroundStyle(category == nil ? .secondary : .primary)
             if let reason = suggestion.categoryReason ?? suggestion.accountReason { Text(reason).font(.caption).foregroundStyle(.secondary) }
+            if !duplicateMatches.isEmpty {
+                Label(duplicateMatches.contains(where: \.isRecurring) ? "Possibile duplicato · Ricorrenza prevista" : "Possibile duplicato · Già registrato", systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(ForgiaPalette.spending)
+            }
+            if duplicateCheckFailed {
+                Text("Controllo duplicati non disponibile · Verifica prima di approvare")
+                    .font(.caption).foregroundStyle(ForgiaPalette.spending)
+            }
             if reading { ProgressView("Lettura documento…").font(.caption) }
             if let readingMessage { Label(readingMessage, systemImage: "text.magnifyingglass").font(.caption).foregroundStyle(ForgiaPalette.spending) }
             if capture.document != nil, CaptureTextParser.merchant(in: text) != nil {
@@ -54,6 +67,7 @@ struct CaptureProposalRow: View {
             }.font(.caption).foregroundStyle(.secondary)
         }
         .foregroundStyle(Color.primary)
+        .task(id: DuplicateCheckKey(text: text, revision: duplicateCheckRevision, bankDefaults: bankDefaultsData)) { checkDuplicates() }
         .task(id: capture.id) {
             guard capture.document != nil else { return }
             reading = true
@@ -73,4 +87,23 @@ struct CaptureProposalRow: View {
             }
         }
     }
+    private func checkDuplicates() {
+        duplicateMatches = []
+        duplicateCheckFailed = false
+        let amounts = CaptureTextParser.money(in: text)
+        let proposedAmount = capture.proposedAmount.flatMap(CaptureTextParser.decimal)
+            ?? (amounts.count == 1 ? amounts.first?.amount : nil)
+        guard let conto, let proposedAmount,
+              amounts.count != 1 || amounts[0].currency.isEmpty || amounts[0].currency == conto.account?.currency else { return }
+        do {
+            duplicateMatches = try CaptureDuplicateCheck.matches(captureID: capture.id, contoID: conto.id,
+                amount: proposedAmount, type: capture.reviewType, date: capture.notificationDate ?? capture.createdAt, in: context)
+        } catch { duplicateCheckFailed = true }
+    }
+}
+
+private struct DuplicateCheckKey: Equatable {
+    let text: String
+    let revision: Int
+    let bankDefaults: Data
 }

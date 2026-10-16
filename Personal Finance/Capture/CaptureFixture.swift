@@ -17,6 +17,22 @@ struct CaptureFixture: View {
         conto.account = book; category.account = book
         book.conti = [conto]; book.categories = [category]
         container.mainContext.insert(book)
+        if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_WALLET") {
+            let card = Conto(name: "American Express", type: .credit, creditLimit: 2000)
+            card.account = book
+            book.conti = [conto, card]
+            container.mainContext.insert(card)
+        }
+        if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_DUPLICATE") ||
+            ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_RECURRING_DUPLICATE") {
+            let recurring = ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_RECURRING_DUPLICATE")
+            let date = recurring ? Calendar.current.date(byAdding: .month, value: -1, to: Date())! : Date()
+            let movement = FinanceTransaction(amount: Decimal(string: "24.90")!, type: .expense,
+                date: date, transactionDescription: "Spesa già inserita",
+                isRecurring: recurring, recurrenceFrequency: recurring ? .monthly : nil)
+            movement.setFromConto(conto)
+            container.mainContext.insert(movement)
+        }
         if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_CLASSIFICATION") {
             for _ in 0..<2 {
                 let movement = FinanceTransaction(amount: 20, type: .expense, transactionDescription: "Esselunga QA")
@@ -96,6 +112,12 @@ private struct CaptureFixtureWorkspace: View {
             let intent = CaptureBankNotificationIntent()
             intent.text = "Pagamento 24,90 EUR presso Esselunga QA"
             intent.bank = "Banca QA"; intent.destination = "Banca QA"
+            if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_WALLET") {
+                intent.notificationTitle = "American Express"
+                intent.subtitle = "Pagamento con carta"
+                intent.bank = "Wallet"
+                intent.destination = ""
+            }
             if ProcessInfo.processInfo.arguments.contains("UITEST_CAPTURE_ROUTING") {
                 intent.bank = "Instradamento QA"; intent.destination = ""
             }
