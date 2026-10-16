@@ -49,7 +49,7 @@ struct CreateBudgetView: View {
             .sorted { ($0.name ?? "") < ($1.name ?? "") }
     }
 
-    private var includesSubcategories: Bool { budget == nil || budget?.usesExactCategories == false }
+    private var includesSubcategories: Bool { budget == nil || budget?.usesExactCategories != true }
 
     private var currency: String { account.currency ?? "EUR" }
     private var parsedAmount: Decimal? { BalanceInput.parse(budgetAmount, currency: currency) }
@@ -275,7 +275,7 @@ struct CreateBudgetView: View {
                     .disabled(showsSubcategories && !showingSubcategories)
 
                     if showsSubcategories {
-                        Text(includesSubcategories ? "Una categoria principale include già tutte le sue sottocategorie." : "Questo budget include solo le categorie e sottocategorie selezionate.")
+                        Text(includesSubcategories ? "Scegli una categoria principale per includerla con tutte le sue sottocategorie, oppure scegli solo le sottocategorie che vuoi. Toccare una sottocategoria di una principale selezionata restringe la scelta a quella sottocategoria." : "Questo budget include solo le categorie e sottocategorie selezionate.")
                             .font(.caption)
                             .foregroundStyle(ForgiaPalette.mutedText)
                             .padding(.horizontal, 4)
@@ -300,18 +300,15 @@ struct CreateBudgetView: View {
                 BudgetCategoryTile(category: category, isSelected: included || selectedCategories.contains(category)) {
                     amountFocused = false
                     withAnimation(.snappy) {
-                        if selectedCategories.contains(category) {
+                        if includesSubcategories {
+                            let ids = hierarchy.toggling(category, in: Set(selectedCategories.map(\.id)))
+                            selectedCategories = Set((scopeCategories + Array(selectedCategories)).filter { ids.contains($0.id) })
+                        } else if !selectedCategories.insert(category).inserted {
                             selectedCategories.remove(category)
-                        } else {
-                            selectedCategories.insert(category)
-                            if includesSubcategories {
-                                selectedCategories.subtract(hierarchy.children(of: category))
-                            }
                         }
                     }
                 }
-                .disabled(included)
-                .opacity(included ? 0.6 : 1)
+
             }
         }
     }

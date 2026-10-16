@@ -114,6 +114,11 @@ struct CategoryHierarchyTests {
         let narrowed = hierarchy.toggling(restaurant, in: [food.id, travel.id])
         #expect(narrowed == [restaurant.id, travel.id])
         #expect(hierarchy.expanding(narrowed) == [restaurant.id, travel.id])
+        let multipleChildren = hierarchy.toggling(bar, in: narrowed)
+        #expect(multipleChildren == [restaurant.id, bar.id, travel.id])
+        #expect(hierarchy.expanding(multipleChildren) == [restaurant.id, bar.id, travel.id])
+        #expect(hierarchy.toggling(restaurant, in: multipleChildren) == [bar.id, travel.id])
+        #expect(hierarchy.toggling(food, in: multipleChildren) == [food.id, travel.id])
         let widened = hierarchy.toggling(food, in: [restaurant.id, bar.id, travel.id])
         #expect(widened == [food.id, travel.id])
         #expect(hierarchy.expanding(widened) == [food.id, restaurant.id, bar.id, travel.id])
@@ -213,7 +218,8 @@ struct CategoryHierarchyTests {
 
     // MARK: - Roll-up
 
-    @Test func budgetOnMacroCountsSubcategorySpending() throws {
+    @Test(arguments: [nil, false, true] as [Bool?])
+    func budgetOnMacroRespectsPersistedCategoryCoverage(exact: Bool?) throws {
         let container = try container()
         let context = container.mainContext
         let book = Account(name: "Libro"); context.insert(book)
@@ -223,16 +229,30 @@ struct CategoryHierarchyTests {
         let home = category("Casa", in: book, kind: .expense, context: context)
         let budget = Budget(name: "Cibo", amount: 100, period: .monthly)
         budget.account = book; budget.categories = [food]; context.insert(budget)
+        budget.usesExactCategories = exact
+        bar.isActive = false
+        let expectedSpent: Decimal = exact == true ? 10 : 15
         let date = budget.currentPeriodRange.start.addingTimeInterval(60)
         for (amount, category) in [(Decimal(10), food), (Decimal(5), bar), (Decimal(40), home)] {
             let value = Transaction(amount: amount, type: .expense, date: date)
             value.setFromConto(conto); value.setCategory(category); context.insert(value)
         }
         try context.save()
-        #expect(try BudgetService.currentSpent(for: budget, in: context) == 15)
+        let stored = try #require(ModelContext(container).fetch(FetchDescriptor<Budget>()).first)
+        #expect(stored.coveredCategoryIDs == (exact == true ? [food.id] : [food.id, bar.id]))
+        #expect(try BudgetService.currentSpent(for: budget, in: context) == expectedSpent)
+        #expect(budget.recordedExpenses(for: budget.currentPeriodRange,
+            transactions: try context.fetch(FetchDescriptor<Transaction>())).count == (exact == true ? 1 : 2))
+        #expect(budget.spendingOutlook(now: date).dailyAllowance ==
+            BudgetOutlook.calculate(for: budget, transactions: try context.fetch(FetchDescriptor<Transaction>()),
+                                    now: date).dailyAllowance)
+        let widget = FinanceWidgetBuilder.build(accounts: [book], budgets: [budget],
+            transactions: try context.fetch(FetchDescriptor<Transaction>()), resolutions: [], now: date)
+        #expect(widget.books.first?.budget?.spent == expectedSpent)
+
         let preview = BudgetService.previewExpense(amount: 3, categoryID: bar.id, accountID: book.id, date: date,
                                                    budgets: [budget], transactions: try context.fetch(FetchDescriptor<Transaction>()))
-        #expect(preview.first?.spent == 15)
+        #expect(preview.first?.spent == (exact == true ? nil : expectedSpent))
         #expect(BudgetService.previewExpense(amount: 3, categoryID: home.id, accountID: book.id, date: date,
                                              budgets: [budget], transactions: []).isEmpty)
     }

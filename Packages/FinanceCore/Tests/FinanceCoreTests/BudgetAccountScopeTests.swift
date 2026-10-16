@@ -65,6 +65,33 @@ struct BudgetAccountScopeTests {
         #expect(RecordedBudgetSpending.total(for: scoped, transactions: [first, second], start: interval.start, end: interval.end) == 0)
     }
 
+    @Test(arguments: [nil, false, true] as [Bool?])
+    func widgetAndRelationshipOutlookRespectCategoryAndContoScope(exact: Bool?) throws {
+        let (container, book, joint, personal, food) = try fixture()
+        let context = container.mainContext
+        let child = FinanceCore.Category(name: "Bar", parentCategoryId: food.id)
+        child.account = book; child.isActive = false; context.insert(child)
+        let scoped = budget(book, joint, food)
+        scoped.usesExactCategories = exact; context.insert(scoped)
+        let rows = [expense(joint, food, 10, 10, 5), expense(joint, child, 20, 10, 6),
+                    expense(personal, food, 100, 10, 5), expense(personal, child, 200, 10, 6),
+                    expense(joint, child, 500, 9, 30)]
+        for row in rows { context.insert(row) }
+        try context.save()
+        let expected: Decimal = exact == true ? 10 : 30
+        func snapshotSpent() -> Decimal? {
+            FinanceWidgetBuilder.build(accounts: [book], budgets: [scoped], transactions: rows + [rows[0]],
+                resolutions: [], now: date(10, 15), calendar: calendar).books.first?.budget?.spent
+        }
+        #expect(snapshotSpent() == expected)
+        let outlook = scoped.spendingOutlook(now: date(10, 15), calendar: calendar)
+        #expect(outlook.dailyAllowance == (400 - expected) / Decimal(17))
+        #expect(outlook.projectedTotal == expected * Decimal(31) / Decimal(14))
+        scoped.contoID = UUID()
+        #expect(snapshotSpent() == 0)
+        #expect(scoped.spendingOutlook(now: date(10, 15), calendar: calendar).dailyAllowance == 400 / Decimal(17))
+    }
+
     @Test func scopedEditsValidateBoundaryAndRollBackScopeOnSaveFailure() throws {
         let (container, book, joint, _, food) = try fixture()
         let edits = BudgetEdits(context: container.mainContext)

@@ -89,8 +89,8 @@ struct ExpenseBudgetPreviewTests {
         let fun = Budget(name: "Fun", amount: 100, period: .monthly)
         fun.account = book
         fun.categories = [food, leisure]
-        // Budgets saved before category hierarchy had exact membership and no flag.
-        fun.usesExactCategories = nil
+        // Explicit exact membership excludes children even when their parent is selected.
+        fun.usesExactCategories = true
         let original = Transaction(amount: Decimal(string: "34.35")!, type: .expense, date: date(10))
         original.setFromConto(conto)
         original.setCategory(supermarket)

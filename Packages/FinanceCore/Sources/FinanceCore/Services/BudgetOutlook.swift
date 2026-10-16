@@ -38,7 +38,9 @@ public struct BudgetOutlook {
 
 extension Budget {
     public func spendingOutlook(now: Date = Date(), calendar: Calendar = .current) -> BudgetOutlook {
-        BudgetOutlook.calculate(for: self, transactions: (categories ?? []).flatMap { $0.transactions ?? [] },
+        let covered = coveredCategoryIDs
+        let coveredCategories = (categories ?? []) + (account?.categories ?? []).filter { covered.contains($0.id) }
+        return BudgetOutlook.calculate(for: self, transactions: coveredCategories.flatMap { $0.transactions ?? [] },
                                 now: now, calendar: calendar)
     }
 }
