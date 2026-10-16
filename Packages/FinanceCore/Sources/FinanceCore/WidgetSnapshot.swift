@@ -83,13 +83,9 @@ public enum FinanceWidgetBuilder {
                       let amount = budget.amount, amount >= 0,
                       let period = budget.period?.interval(containing: now, calendar: calendar) else { continue }
                 validUntil = min(validUntil, period.end)
-                let categories = Set((budget.categories ?? []).map(\.id))
-                var spent: Decimal = 0
-                for expense in expenses {
-                    guard expense.date >= period.start, expense.date < period.end,
-                          let categoryID = expense.categoryId ?? expense.category?.id, categories.contains(categoryID) else { continue }
-                    spent += expense.amount ?? 0
-                }
+                let spent = RecordedBudgetSpending.total(
+                    for: budget, transactions: expenses, start: period.start, end: period.end
+                )
                 bookBudgets.append(WidgetBudgetSnapshot(name: budget.name ?? "Budget", limit: amount, spent: spent))
             }
             bookBudgets.sort {

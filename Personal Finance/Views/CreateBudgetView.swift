@@ -49,7 +49,7 @@ struct CreateBudgetView: View {
             .sorted { ($0.name ?? "") < ($1.name ?? "") }
     }
 
-    private var includesSubcategories: Bool { budget == nil || budget?.usesExactCategories == false }
+    private var includesSubcategories: Bool { budget == nil || budget?.usesExactCategories != true }
 
     private var currency: String { account.currency ?? "EUR" }
     private var parsedAmount: Decimal? { BalanceInput.parse(budgetAmount, currency: currency) }

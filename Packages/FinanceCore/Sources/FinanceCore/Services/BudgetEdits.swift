@@ -29,7 +29,7 @@ public struct BudgetEdits {
             if Set((previous.4 ?? []).map(\.id)) != Set(categories.map(\.id)) || previous.8 != contoID {
                 // Explicit category edits turn a generated limit into a manual budget.
                 budget.planningGroupRaw = nil
-                budget.usesExactCategories = previous.7 ?? true
+                budget.usesExactCategories = previous.7 ?? false
             }
             do { try save(); return budget }
             catch {

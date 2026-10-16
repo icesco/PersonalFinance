@@ -213,7 +213,7 @@ struct CategoryHierarchyTests {
 
     // MARK: - Roll-up
 
-    @Test func budgetOnMacroCountsSubcategorySpending() throws {
+    @Test(arguments: [false, true]) func budgetOnMacroCountsSubcategorySpending(legacy: Bool) throws {
         let container = try container()
         let context = container.mainContext
         let book = Account(name: "Libro"); context.insert(book)
@@ -223,13 +223,25 @@ struct CategoryHierarchyTests {
         let home = category("Casa", in: book, kind: .expense, context: context)
         let budget = Budget(name: "Cibo", amount: 100, period: .monthly)
         budget.account = book; budget.categories = [food]; context.insert(budget)
+        if legacy { budget.usesExactCategories = nil }
         let date = budget.currentPeriodRange.start.addingTimeInterval(60)
         for (amount, category) in [(Decimal(10), food), (Decimal(5), bar), (Decimal(40), home)] {
             let value = Transaction(amount: amount, type: .expense, date: date)
             value.setFromConto(conto); value.setCategory(category); context.insert(value)
         }
         try context.save()
+        let stored = try #require(ModelContext(container).fetch(FetchDescriptor<Budget>()).first)
+        #expect(stored.coveredCategoryIDs == [food.id, bar.id])
         #expect(try BudgetService.currentSpent(for: budget, in: context) == 15)
+        #expect(budget.recordedExpenses(for: budget.currentPeriodRange,
+            transactions: try context.fetch(FetchDescriptor<Transaction>())).count == 2)
+        #expect(budget.spendingOutlook(now: date).dailyAllowance ==
+            BudgetOutlook.calculate(for: budget, transactions: try context.fetch(FetchDescriptor<Transaction>()),
+                                    now: date).dailyAllowance)
+        let widget = FinanceWidgetBuilder.build(accounts: [book], budgets: [budget],
+            transactions: try context.fetch(FetchDescriptor<Transaction>()), resolutions: [], now: date)
+        #expect(widget.books.first?.budget?.spent == 15)
+
         let preview = BudgetService.previewExpense(amount: 3, categoryID: bar.id, accountID: book.id, date: date,
                                                    budgets: [budget], transactions: try context.fetch(FetchDescriptor<Transaction>()))
         #expect(preview.first?.spent == 15)
